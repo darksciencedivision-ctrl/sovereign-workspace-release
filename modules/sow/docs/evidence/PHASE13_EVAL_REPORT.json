@@ -1,0 +1,90 @@
+{
+  "harness": "phase13-eval@1.0",
+  "tokenizer": "tiktoken:cl100k_base",
+  "reference_objective": "Design the offline conductor roster and its fallbacks.",
+  "reference_tasks": [
+    "t-analyze",
+    "t-design"
+  ],
+  "configs": [
+    {
+      "config": "C0_single_pass",
+      "model_tokens": 45,
+      "control_ops": 0,
+      "wallclock_s": 0.0,
+      "accepted": 1,
+      "provenance_bearing": false,
+      "gated": false,
+      "debated": false,
+      "recoverable": false,
+      "debate_id": null,
+      "cost_to_accepted_tokens": 45.0
+    },
+    {
+      "config": "C2_conductor_raw",
+      "model_tokens": 94,
+      "control_ops": 2,
+      "wallclock_s": 0.0,
+      "accepted": 2,
+      "provenance_bearing": false,
+      "gated": false,
+      "debated": false,
+      "recoverable": false,
+      "debate_id": null,
+      "cost_to_accepted_tokens": 47.0
+    },
+    {
+      "config": "C3_sovereign_no_debate",
+      "model_tokens": 94,
+      "control_ops": 8,
+      "wallclock_s": 0.047,
+      "accepted": 2,
+      "provenance_bearing": true,
+      "gated": true,
+      "debated": false,
+      "recoverable": true,
+      "debate_id": null,
+      "cost_to_accepted_tokens": 47.0
+    },
+    {
+      "config": "C4_sovereign_debate",
+      "model_tokens": 494,
+      "control_ops": 14,
+      "wallclock_s": 0.141,
+      "accepted": 2,
+      "provenance_bearing": true,
+      "gated": true,
+      "debated": true,
+      "recoverable": true,
+      "debate_id": "d-89dfa2a499977d52",
+      "cost_to_accepted_tokens": 247.0
+    }
+  ],
+  "capability_matrix": {
+    "C0_single_pass": {
+      "provenance": false,
+      "gated": false,
+      "debated": false,
+      "recoverable": false
+    },
+    "C2_conductor_raw": {
+      "provenance": false,
+      "gated": false,
+      "debated": false,
+      "recoverable": false
+    },
+    "C3_sovereign_no_debate": {
+      "provenance": true,
+      "gated": true,
+      "debated": false,
+      "recoverable": true
+    },
+    "C4_sovereign_debate": {
+      "provenance": true,
+      "gated": true,
+      "debated": true,
+      "recoverable": true
+    }
+  },
+  "honest_limitation": "All backends are DETERMINISTIC MOCKS: every config produces identical content, so this harness measures ORCHESTRATION cost + capabilities, NOT model reasoning quality. No config is claimed to reason better. A real model-quality comparison requires live/local models under the same harness (deferred, Track E)."
+}

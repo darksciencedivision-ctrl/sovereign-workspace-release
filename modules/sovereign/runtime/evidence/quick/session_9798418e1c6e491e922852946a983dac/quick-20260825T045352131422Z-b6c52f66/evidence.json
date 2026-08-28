@@ -1,0 +1,78 @@
+{
+  "created_at": "2026-08-25T04:53:52.126420Z",
+  "max_bytes": 8192,
+  "max_tokens": 4096,
+  "omissions": [
+    {
+      "reason": "not query-relevant",
+      "source": "SYSTEM_MANIFEST.json"
+    },
+    {
+      "reason": "not query-relevant",
+      "source": "constitution/constitution_state.json"
+    },
+    {
+      "reason": "not query-relevant",
+      "source": "runtime_profile.json"
+    },
+    {
+      "reason": "not query-relevant",
+      "source": "sovereign_version.py"
+    },
+    {
+      "reason": "not query-relevant",
+      "source": "synthesis/model_hierarchy.json"
+    },
+    {
+      "reason": "current operator input is not citeable evidence",
+      "source": "session:session_9798418e1c6e491e922852946a983dac/message:message_3cfaacb02e9d4c78971b9122e255f481"
+    }
+  ],
+  "packet_sha256": "526268a1cbe4c4f2b481e26e4b9dd68bacb2bdbc957c91702b50c49f428d6809",
+  "query_sha256": "9d4718a5ef9e0c709917f9ebaec18ad42ed7320d5835b91ad9d4f3c3ad494e00",
+  "session_id": "session_9798418e1c6e491e922852946a983dac",
+  "sources": [
+    {
+      "content_bytes": 599,
+      "content_sha256": "55b1831e401e3ca36c95363f7cfd533e829f48e1d4757b8e2dd997c87e018f93",
+      "kind": "session_message",
+      "locator": "session:session_9798418e1c6e491e922852946a983dac/message:message_8ecc03352ba54a39a239ab3eb8ba1c71",
+      "metadata": {
+        "message_id": "message_8ecc03352ba54a39a239ab3eb8ba1c71",
+        "relevance_score": 0.0,
+        "role": "sovereign",
+        "selection": "recency_fallback",
+        "timestamp": "2026-08-25T04:52:49.724764Z"
+      },
+      "snippet": "SOVEREIGN engine version 3.1.2 is present [sovereign://SYSTEM_MANIFEST.json]. The local adapter code is present [sovereign://ui/adapter_service/adapter.py]. Constitution mode is OBSERVE [sovereign://constitution/constitution_state.json]; publication mode is FAIL_CLOSED [sovereign://publication_gate.py]. Ollama reports 5 configured, 54 installed, and 1 loaded model(s). Loaded does not mean actively generating. The durable store reports 1 running job(s). This is bounded orchestration software: it is not sentient and is not demonstrated AGI; sentience and general capability are different claims.",
+      "snippet_bytes": 599,
+      "snippet_sha256": "55b1831e401e3ca36c95363f7cfd533e829f48e1d4757b8e2dd997c87e018f93",
+      "snippet_tokens": 599,
+      "source_id": "message:message_8ecc03352ba54a39a239ab3eb8ba1c71",
+      "truncated": false
+    },
+    {
+      "content_bytes": 19,
+      "content_sha256": "8a70897d621cc78a3bf32501c677d7ad49c887e226a0edd6a20e7a07eae97144",
+      "kind": "session_message",
+      "locator": "session:session_9798418e1c6e491e922852946a983dac/message:message_3fadc2ab279e466fb5a4bb5fda303125",
+      "metadata": {
+        "message_id": "message_3fadc2ab279e466fb5a4bb5fda303125",
+        "relevance_score": 0.0,
+        "role": "user",
+        "selection": "recency_fallback",
+        "timestamp": "2026-08-25T04:52:49.470097Z"
+      },
+      "snippet": "are you operational",
+      "snippet_bytes": 19,
+      "snippet_sha256": "8a70897d621cc78a3bf32501c677d7ad49c887e226a0edd6a20e7a07eae97144",
+      "snippet_tokens": 19,
+      "source_id": "message:message_3fadc2ab279e466fb5a4bb5fda303125",
+      "truncated": false
+    }
+  ],
+  "text": "[source {\"id\":\"message:message_8ecc03352ba54a39a239ab3eb8ba1c71\",\"kind\":\"session_message\",\"locator\":\"session:session_9798418e1c6e491e922852946a983dac/message:message_8ecc03352ba54a39a239ab3eb8ba1c71\",\"sha256\":\"55b1831e401e3ca36c95363f7cfd533e829f48e1d4757b8e2dd997c87e018f93\"}]\nSOVEREIGN engine version 3.1.2 is present [sovereign://SYSTEM_MANIFEST.json]. The local adapter code is present [sovereign://ui/adapter_service/adapter.py]. Constitution mode is OBSERVE [sovereign://constitution/constitution_state.json]; publication mode is FAIL_CLOSED [sovereign://publication_gate.py]. Ollama reports 5 configured, 54 installed, and 1 loaded model(s). Loaded does not mean actively generating. The durable store reports 1 running job(s). This is bounded orchestration software: it is not sentient and is not demonstrated AGI; sentience and general capability are different claims.\n\n[source {\"id\":\"message:message_3fadc2ab279e466fb5a4bb5fda303125\",\"kind\":\"session_message\",\"locator\":\"session:session_9798418e1c6e491e922852946a983dac/message:message_3fadc2ab279e466fb5a4bb5fda303125\",\"sha256\":\"8a70897d621cc78a3bf32501c677d7ad49c887e226a0edd6a20e7a07eae97144\"}]\nare you operational",
+  "token_count_method": "utf8_bytes_upper_bound",
+  "total_bytes": 1176,
+  "total_tokens": 1176
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Timeout policy for operator decision queues in the SOVEREIGN Master Library.",
+  "timeouts": {
+    "compression_approval_timeout_hours": 72,
+    "cold_archive_approval_timeout_hours": 168,
+    "quarantine_approval_timeout_hours": 48,
+    "deletion_approval_timeout_hours": 168,
+    "canonical_overwrite_approval_timeout_hours": 48,
+    "runtime_hook_activation_timeout_hours": 24
+  },
+  "on_timeout": {
+    "default_action": "escalate",
+    "escalation_target": "operator_review_queue",
+    "allow_auto_expiry": false,
+    "allow_auto_reject": false,
+    "allow_auto_approve": false
+  },
+  "queue_pause_rules": {
+    "pause_if_operator_review_queue_exceeds": 100,
+    "pause_message": "Operator review queue threshold exceeded. All autonomous operations paused pending operator review.",
+    "resume_requires_operator_action": true
+  }
+}

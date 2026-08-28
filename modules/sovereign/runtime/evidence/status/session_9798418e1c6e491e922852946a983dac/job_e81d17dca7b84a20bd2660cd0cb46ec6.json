@@ -1,0 +1,706 @@
+{
+  "job_id": "job_e81d17dca7b84a20bd2660cd0cb46ec6",
+  "query": "are you operational",
+  "response": {
+    "answer": "SOVEREIGN engine version 3.1.2 is present [sovereign://SYSTEM_MANIFEST.json]. The local adapter code is present [sovereign://ui/adapter_service/adapter.py]. Constitution mode is OBSERVE [sovereign://constitution/constitution_state.json]; publication mode is FAIL_CLOSED [sovereign://publication_gate.py]. Ollama reports 5 configured, 54 installed, and 1 loaded model(s). Loaded does not mean actively generating. The durable store reports 1 running job(s). This is bounded orchestration software: it is not sentient and is not demonstrated AGI; sentience and general capability are different claims.",
+    "kind": "machine_status",
+    "limitations": [
+      "Configured models are not the same as installed models.",
+      "File presence does not prove that a service process is listening.",
+      "Installed models are not the same as loaded models.",
+      "Loaded models do not prove an active generation request.",
+      "Machine state can establish files and service responses, not subjective experience.",
+      "No sentience or AGI claim is made."
+    ],
+    "route": "STATUS",
+    "sources": [
+      "sovereign://.sovereign-root",
+      "sovereign://SYSTEM_MANIFEST.json",
+      "sovereign://claim_arbitrator.py",
+      "sovereign://constitution/constitution_state.json",
+      "sovereign://corpus/domain.txt",
+      "sovereign://cycle_runner_v3.py",
+      "sovereign://publication_gate.py",
+      "sovereign://quality_gate.py",
+      "sovereign://runs",
+      "sovereign://runtime",
+      "sovereign://runtime/evidence",
+      "sovereign://runtime/sovereign.db",
+      "sovereign://synthesis/live_orchestrator.py",
+      "sovereign://ui/adapter_service/adapter.py",
+      "sovereign://ui/ui_shell/dist/index.html",
+      "sovereign://ui/ui_shell/src/version.ts"
+    ]
+  },
+  "schema": "sovereign.status_evidence.v1",
+  "self_state": {
+    "adapter": {
+      "present": true,
+      "source": "sovereign://ui/adapter_service/adapter.py",
+      "version": "compat-unified-1"
+    },
+    "capabilities": {
+      "agi": {
+        "evidence": [],
+        "limitations": [
+          "The product is a bounded orchestration system, not demonstrated AGI."
+        ],
+        "ready": false,
+        "supported": false
+      },
+      "autonomous_self_modification": {
+        "evidence": [],
+        "limitations": [
+          "No authority or mechanism for autonomous production mutation is claimed."
+        ],
+        "ready": false,
+        "supported": false
+      },
+      "canonical_reasoning_cycle": {
+        "evidence": [
+          "sovereign://SYSTEM_MANIFEST.json",
+          "sovereign://claim_arbitrator.py",
+          "sovereign://cycle_runner_v3.py",
+          "sovereign://quality_gate.py",
+          "sovereign://synthesis/live_orchestrator.py"
+        ],
+        "limitations": [],
+        "ready": true,
+        "supported": true
+      },
+      "durable_continuity": {
+        "evidence": [],
+        "limitations": [],
+        "ready": true,
+        "supported": true
+      },
+      "external_web_research": {
+        "evidence": [],
+        "limitations": [
+          "No external research provider is configured or evidenced."
+        ],
+        "ready": false,
+        "supported": false
+      },
+      "local_adapter_api": {
+        "evidence": [
+          "sovereign://ui/adapter_service/adapter.py"
+        ],
+        "limitations": [
+          "File presence does not prove a listening adapter process."
+        ],
+        "ready": null,
+        "supported": true
+      },
+      "local_model_inference": {
+        "evidence": [
+          "sovereign://SYSTEM_MANIFEST.json"
+        ],
+        "limitations": [],
+        "ready": true,
+        "supported": true
+      },
+      "manual_publication_gate": {
+        "evidence": [
+          "sovereign://corpus/domain.txt",
+          "sovereign://publication_gate.py"
+        ],
+        "limitations": [
+          "domain corpus is missing or empty"
+        ],
+        "ready": false,
+        "supported": true
+      },
+      "sentience": {
+        "evidence": [],
+        "limitations": [
+          "Software telemetry does not establish subjective experience."
+        ],
+        "ready": false,
+        "supported": false
+      },
+      "web_operator_ui": {
+        "evidence": [
+          "sovereign://ui/ui_shell/dist/index.html",
+          "sovereign://ui/ui_shell/src/version.ts"
+        ],
+        "limitations": [],
+        "ready": true,
+        "supported": false
+      }
+    },
+    "configuration_warnings": [],
+    "constitution": {
+      "mode": "OBSERVE",
+      "read_error": null,
+      "source": "sovereign://constitution/constitution_state.json"
+    },
+    "cycles": {
+      "last_completed": null,
+      "last_failed": null,
+      "last_rejected": null,
+      "last_terminal": null,
+      "record_count": 0,
+      "source": "sovereign://runs",
+      "status_counts": {}
+    },
+    "engine": {
+      "arbitrator_present": true,
+      "orchestrator_present": true,
+      "quality_gate_present": true,
+      "runner_present": true,
+      "sources": {
+        "arbitrator": "sovereign://claim_arbitrator.py",
+        "manifest": "sovereign://SYSTEM_MANIFEST.json",
+        "orchestrator": "sovereign://synthesis/live_orchestrator.py",
+        "quality_gate": "sovereign://quality_gate.py",
+        "runner": "sovereign://cycle_runner_v3.py"
+      },
+      "version": "3.1.2"
+    },
+    "identity": {
+      "agi": false,
+      "classification": "local multi-model reasoning and orchestration software",
+      "name": "SOVEREIGN",
+      "sentience_agi_distinction": "Sentience concerns subjective experience; AGI concerns broad general capability. This product claims neither.",
+      "sentient": false
+    },
+    "limitations": [
+      "Configured models are not the same as installed models.",
+      "Installed models are not the same as loaded models.",
+      "Loaded models do not prove an active generation request.",
+      "File presence does not prove that a service process is listening.",
+      "No sentience or AGI claim is made."
+    ],
+    "manifest": {
+      "configured_models_by_role": {
+        "ADVERSARIAL_CHALLENGER": "ornith:9b",
+        "CRITIC": "qwen3:8b",
+        "EMBEDDING_MODEL": "nomic-embed-text:latest",
+        "PRIMARY_REASONER": "qwen3:14b",
+        "SYNTHESIZER": "qwen3.8:27b"
+      },
+      "read_error": null,
+      "source": "sovereign://SYSTEM_MANIFEST.json"
+    },
+    "ollama": {
+      "activity_note": "/api/tags means installed; /api/ps means loaded/resident. Neither endpoint proves an active generation request.",
+      "activity_observable": false,
+      "base_url": "http://127.0.0.1:11434",
+      "configured_models": [
+        "nomic-embed-text:latest",
+        "ornith:9b",
+        "qwen3.8:27b",
+        "qwen3:14b",
+        "qwen3:8b"
+      ],
+      "currently_running_models": null,
+      "installed_models": [
+        "GFalcon-UA/dolphin3-r1-mistral:latest",
+        "Jotschi/dolphin-mistral-24b:24b-instruct-q5_0",
+        "bge-m3:latest",
+        "codestral:latest",
+        "deepseek-r1:14b",
+        "deepseek-r1:32b",
+        "deepseek-r1:70b",
+        "deepseek-r1:8b",
+        "deepseek-r1:latest",
+        "deepseek-v4-pro:cloud",
+        "devstral-small-2:latest",
+        "dolphin-llama3:70b",
+        "dolphin-llama3:8b",
+        "dolphin-llama3:latest",
+        "dolphin3:8b",
+        "gemma4:12b",
+        "gemma4:26b",
+        "gemma4:31b",
+        "glm-4.7-flash:latest",
+        "glm-5.2:cloud",
+        "gpt-oss:120b",
+        "gpt-oss:20b",
+        "granite4.1:30b",
+        "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+        "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+        "ikiru/Dolphin-Mistral-24B-Venice-Edition:latest",
+        "laguna-xs-2.1:latest",
+        "llama3.3:70b",
+        "llama4:scout",
+        "magistral:latest",
+        "medgemma:27b",
+        "mistral-medium-3.5:latest",
+        "mistral-small3.2:latest",
+        "mxbai-embed-large:latest",
+        "nomic-embed-text:latest",
+        "orcarouter/Qwen3.8-27B-Uncensored:latest",
+        "ornith:35b",
+        "ornith:9b",
+        "phi4:14b",
+        "qwen2.5-coder:32b",
+        "qwen2.5:14b-instruct",
+        "qwen3-coder-next:latest",
+        "qwen3-coder:30b",
+        "qwen3.5:35b-a3b",
+        "qwen3.6-fable-iq2:latest",
+        "qwen3.6:27b",
+        "qwen3.6:35b",
+        "qwen3.8:27b",
+        "qwen3.8:latest",
+        "qwen3:14b",
+        "qwen3:30b-a3b",
+        "qwen3:32b",
+        "qwen3:8b",
+        "sam860/dolphin3-llama3.2:3b"
+      ],
+      "loaded_models": [
+        "orcarouter/Qwen3.8-27B-Uncensored:latest"
+      ],
+      "loopback_only": true,
+      "model_states": [
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "GFalcon-UA/dolphin3-r1-mistral:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "Jotschi/dolphin-mistral-24b:24b-instruct-q5_0"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "bge-m3:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "codestral:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-r1:14b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-r1:32b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-r1:70b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-r1:8b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-r1:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "deepseek-v4-pro:cloud"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "devstral-small-2:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "dolphin-llama3:70b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "dolphin-llama3:8b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "dolphin-llama3:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "dolphin3:8b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "gemma4:12b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "gemma4:26b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "gemma4:31b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "glm-4.7-flash:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "glm-5.2:cloud"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "gpt-oss:120b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "gpt-oss:20b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "granite4.1:30b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "ikiru/Dolphin-Mistral-24B-Venice-Edition:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "laguna-xs-2.1:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "llama3.3:70b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "llama4:scout"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "magistral:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "medgemma:27b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "mistral-medium-3.5:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "mistral-small3.2:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "mxbai-embed-large:latest"
+        },
+        {
+          "configured": true,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "nomic-embed-text:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": true,
+          "name": "orcarouter/Qwen3.8-27B-Uncensored:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "ornith:35b"
+        },
+        {
+          "configured": true,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "ornith:9b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "phi4:14b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen2.5-coder:32b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen2.5:14b-instruct"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3-coder-next:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3-coder:30b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.5:35b-a3b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.6-fable-iq2:latest"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.6:27b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.6:35b"
+        },
+        {
+          "configured": true,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.8:27b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3.8:latest"
+        },
+        {
+          "configured": true,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3:14b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3:30b-a3b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3:32b"
+        },
+        {
+          "configured": true,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "qwen3:8b"
+        },
+        {
+          "configured": false,
+          "currently_running": null,
+          "installed": true,
+          "loaded": false,
+          "name": "sam860/dolphin3-llama3.2:3b"
+        }
+      ],
+      "probe_status": "online",
+      "process_state_error_type": null,
+      "process_state_reachable": true,
+      "reachable": true,
+      "tags_error_type": null,
+      "tags_reachable": true
+    },
+    "paths": {
+      "database": "sovereign://runtime/sovereign.db",
+      "evidence_dir": "sovereign://runtime/evidence",
+      "root_marker": "sovereign://.sovereign-root",
+      "state_dir": "sovereign://runtime"
+    },
+    "publication": {
+      "automatic": false,
+      "domain_configured": false,
+      "domain_read_error": null,
+      "gate_present": true,
+      "mode": "FAIL_CLOSED",
+      "reason": "domain corpus is missing or empty",
+      "sources": [
+        "sovereign://publication_gate.py",
+        "sovereign://corpus/domain.txt"
+      ]
+    },
+    "runtime": {
+      "activity_source": "durable_store",
+      "currently_running": true,
+      "model_activity_observable": false,
+      "running_job_count": 1
+    },
+    "schema_version": "sovereign.self_state.v1",
+    "store": {
+      "available": true,
+      "durable": true,
+      "errors": [],
+      "job_counts": {
+        "running": 1
+      },
+      "meta": {},
+      "running_jobs": 1,
+      "session_count": 1,
+      "summary": {
+        "available": true,
+        "database": "sovereign://runtime/sovereign.db",
+        "event_chain_head": "424c8ff31bca70119ac9f022e8b4ad40af2651d3af5de64ed81c1a396a14fb3a",
+        "event_count": 6,
+        "jobs_by_status": {
+          "running": 1
+        },
+        "messages": 1,
+        "queued_jobs": 0,
+        "running_jobs": 1,
+        "schema_version": 1,
+        "sessions": 1
+      }
+    },
+    "ui": {
+      "dist_present": true,
+      "source_present": false,
+      "sources": {
+        "dist": "sovereign://ui/ui_shell/dist/index.html",
+        "version": "sovereign://ui/ui_shell/src/version.ts"
+      },
+      "version": null
+    }
+  },
+  "session_id": "session_9798418e1c6e491e922852946a983dac"
+}

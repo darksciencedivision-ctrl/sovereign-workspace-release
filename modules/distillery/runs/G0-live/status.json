@@ -1,0 +1,40 @@
+{
+  "adapter": "sovereign_product.semantic_deep",
+  "aggregate": {
+    "models": {
+      "gemma4:26b": 1,
+      "qwen2.5:14b-instruct": 1
+    },
+    "outcomes": {
+      "fail": 1,
+      "success": 1
+    },
+    "providers": {
+      "UNKNOWN": 1,
+      "ollama": 1
+    },
+    "session_count": 2
+  },
+  "captured_at": "2026-08-20T17:51:54.955472Z",
+  "event_log": "runs\\G0-live\\events.jsonl",
+  "imported": {
+    "content_copied": false,
+    "duplicate_ignored": false,
+    "model_id": "gemma4:26b",
+    "outcome": "fail",
+    "provider": "UNKNOWN",
+    "revision": "af9593851bbb1a50d806a58072d87f0197b500d36016916276c2ef61318af911",
+    "session_id": "sovereign:6f795f1b91cc44beb4eb7e739210d953",
+    "turn_id": "1"
+  },
+  "limitations": [
+    "Imported real pre-existing runtime turn evidence; no newly generated session was initiated.",
+    "Live recovery, implicit-signal, dashboard, alert, and alarm paths remain unverified.",
+    "Source classifications remain fail-closed pending primary evidence and operator authority."
+  ],
+  "mode": "active-runtime-immutable-evidence-import",
+  "private_content_copied": false,
+  "source_admission": "UNKNOWN",
+  "status": "STARTED_PARTIAL",
+  "telemetry_blocked_by_admission": false
+}

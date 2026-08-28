@@ -1,0 +1,7 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G94 artifacts populated from live/seed inventory. One tag = one artifact.
+Disposition: ollama tags -> artifact_id=tag, format=gguf, sha256=unknown (not guessed),
+runtime=ollama, validated=false. Frontier seed rows keep artifacts[] empty
+(no local blob). needs_operator_review not set where model_id is a known tag.

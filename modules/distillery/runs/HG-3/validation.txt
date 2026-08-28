@@ -1,0 +1,63 @@
+HG-3 PRELOAD BLOCKER RECORD VALIDATION
+
+REPOSITORY STATE
+PASS — pre-evidence HEAD was 57eefd8c83cf7114325098ce73ae6e9aa1b5375f.
+PASS — local main was five commits ahead of origin/main; origin/main remained
+       44f69077f0d674bd7bef5730c2fe41a685e64b03.
+PASS — no push, PR, merge, deployment, promotion, or D-9 change occurred.
+
+CANDIDATE PREFLIGHT
+4B: CANDIDATE_IDENTITY_BLOCKED.
+8B: CANDIDATE_IDENTITY_BLOCKED.
+PASS — canonical documents designate only nominal size and Qwen lineage.
+PASS — no exact upstream model/revision or trainable local artifact is pinned.
+PASS — local qwen3:8b Ollama GGUF was not substituted for a trainable candidate.
+PASS — no model was downloaded or loaded and no synthetic/source data was used.
+
+TRAINER PREFLIGHT
+BLOCKED — no canonical hostname, SSH configuration, local container, or production
+          probe exposes the pinned gfx906 trainer.
+PASS — observed host is an RTX 5060 Ti workstation and was not substituted.
+PASS — no trainer-card lock, serving drain, process termination, or GPU mutation
+       was attempted because identity and access preconditions failed first.
+Card restoration: NOT_APPLICABLE_NO_CARD_ACCESS_OR_STATE_CHANGE.
+
+TEST MATRIX
+Windows / Python 3.14: 42 tests PASS.
+Windows / Python 3.11.16: 42 tests PASS.
+Linux / Ubuntu 24.04 / Python 3.12: 42 tests PASS.
+Windows compilation / Python 3.14: PASS.
+Windows compilation / Python 3.11.16: PASS.
+Linux compilation / Python 3.12: PASS.
+Package build / Python 3.13: PASS — sdist and wheel produced outside repository.
+
+DATA AND DOCUMENT VALIDATION
+JSON / JSONL parsing: PASS.
+JSON Schema definitions: 3 PASS.
+G0 hashed manifest: PASS.
+G0 JSONL event rows: 31 PASS with exact JSON/JSONL parity.
+Markdown local links: PASS.
+Note: an initial validation command incorrectly applied the manifest-envelope schema
+to individual JSONL rows and failed as expected; the corrected check validated the
+envelope against the JSON manifest and the schema's event item against every row.
+No repository change was required.
+
+HYGIENE
+git diff --check: PASS.
+High-confidence credential scan: PASS.
+HG-3 model-weight/adapter/optimizer artifact count: 0.
+Oversized artifact count (>50 MiB outside .git): 0.
+Conflict-marker scan: PASS.
+Repository-wide license files added: 0.
+G2-G6 execution directories: 0.
+HG-4 through HG-8 execution directories: 0.
+
+HARD-GATE STATE
+HG-0: PASS.
+HG-1: ENFORCEMENT PASS; SOURCE DECISIONS PENDING.
+HG-2: PASS_SYNTHETIC.
+HG-3: BLOCKED_PRELOAD; no compatibility pass claimed.
+HG-4: NOT EXECUTED.
+HG-5-HG-8: NOT REACHED.
+G2-G6: NOT STARTED.
+D-9: 4/4 UNKNOWN; FAIL CLOSED; unchanged.

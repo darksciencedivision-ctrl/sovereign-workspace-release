@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "sovereign": {
+      "command": "py",
+      "args": ["-3.12", "-m", "mcp_server.sovereign_tools"]
+    }
+  }
+}

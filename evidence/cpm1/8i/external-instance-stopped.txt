@@ -1,0 +1,22 @@
+﻿# utc: 2026-08-26T15:44:36.1575294Z
+# producer: ox-alpha CP-M1 ADD-07 G50
+# A-3 / D5-7: pid AND command line match recorded identity evidence/cpm1/baseline/port-8765-owner.txt
+
+BEFORE
+pid: 30608
+command_line: "C:\Users\Sslaw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" piggybank.py --host 127.0.0.1 --port 8765
+port 8765: 
+LocalAddress LocalPort  State OwningProcess
+------------ ---------  ----- -------------
+127.0.0.1         8765 Listen         30608
+
+
+
+
+ACTION: Stop-Process -Id 30608 -Force (builder tooling; nothing executed from D:\Token Piggy Bank\)
+AUTHORIZED-BY-STANDING-DELEGATION
+
+AFTER
+pid 30608 alive: False
+port 8765: free
+Operator owns restarting whichever copy they want.

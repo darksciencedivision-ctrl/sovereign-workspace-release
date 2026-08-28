@@ -1,0 +1,83 @@
+﻿# utc: 2026-08-25T18:18:35.9614669Z
+# producer: ox-alpha CP-M1 Band 2 / G13 cold-start observation
+# shell started by builder at 2026-08-25T18:18:35.4140058Z pid 64196 port 5181 (builder-owned transient; stopped below)
+# first successful GET /api/state at 2026-08-25T18:18:35.9559423Z — response captured
+
+--- /api/state verbatim ---
+{
+    "modules":  {
+                    "debate":  {
+                                   "id":  "debate",
+                                   "display_name":  "Debate Table",
+                                   "description":  "Multi-model debate table (FastAPI, :8700)",
+                                   "state_class":  "runnable",
+                                   "state":  "STOPPED",
+                                   "reason":  "",
+                                   "display":  "STOPPED",
+                                   "last_check":  "2026-08-25T18:18:35Z",
+                                   "port":  "",
+                                   "url":  "http://127.0.0.1:8700/",
+                                   "can_open":  false
+                               },
+                    "distillery":  {
+                                       "id":  "distillery",
+                                       "display_name":  "Sovereign Distillery",
+                                       "description":  "Model training research programme — specification and review only",
+                                       "state_class":  "not_started",
+                                       "state":  "NOT_STARTED",
+                                       "reason":  "",
+                                       "display":  "NOT_STARTED",
+                                       "last_check":  "2026-08-25T18:18:35Z",
+                                       "port":  "",
+                                       "url":  "",
+                                       "can_open":  false
+                                   },
+                    "sovereign":  {
+                                      "id":  "sovereign",
+                                      "display_name":  "SOVEREIGN",
+                                      "description":  "Operator product service and UI (Flask, :5175)",
+                                      "state_class":  "runnable",
+                                      "state":  "STOPPED",
+                                      "reason":  "",
+                                      "display":  "STOPPED",
+                                      "last_check":  "2026-08-25T18:18:35Z",
+                                      "port":  "",
+                                      "url":  "http://127.0.0.1:5175/",
+                                      "can_open":  false
+                                  },
+                    "sow":  {
+                                "id":  "sow",
+                                "display_name":  "Multi-Model Terminal",
+                                "description":  "Sovereign Orchestration Workspace (Electron + xterm.js)",
+                                "state_class":  "runnable",
+                                "state":  "STOPPED",
+                                "reason":  "",
+                                "display":  "STOPPED",
+                                "last_check":  "2026-08-25T18:18:35Z",
+                                "port":  "",
+                                "url":  "",
+                                "can_open":  false
+                            }
+                }
+}
+
+# Analysis: no module may be in STARTING or READY by shell action at cold start.
+# External :8700 owner (operator-directed Debate pid 82344) must appear EXTERNAL and untouched.
+module : display= started_by_shell=NO
+# shell pid 64196 stopped by builder after capture; process gone: True
+# external debate pid 82344 alive after shell lifecycle: True (H-9: never touched)
+
+--- Analysis (corrected parse; modules is an object keyed by id, not an array) ---
+debate:     state=STOPPED   started_by_shell=NO  url=http://127.0.0.1:8700/
+distillery: state=NOT_STARTED (state_class not_started)
+sovereign:  state=STOPPED   started_by_shell=NO
+sow:        state=STOPPED   started_by_shell=NO
+
+No module is in STARTING or READY by shell action at first poll (t+541ms after spawn).
+Nothing in the shell starts any module - S-1 confirmed against the live process.
+Debate reads STOPPED rather than EXTERNAL at t+541ms because EXTERNAL classification runs on
+the periodic probe cadence (endpoint answers AND identity pass); its automatic appearance
+without any start command is captured separately for G14. Carried defect C-1 visible above:
+port field hardcoded empty in to_dict.
+shell pid 64196 stopped through builder tooling after capture; gone=True.
+External :8700 owner pid 82344 alive and untouched afterwards (H-9).

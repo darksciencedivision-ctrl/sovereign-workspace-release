@@ -1,0 +1,671 @@
+{
+  "rig": "spike_compositor@0.1.0",
+  "generated": "2026-07-17T02:33:56.956Z",
+  "startedTs": "2026-07-17T02:32:33.583Z",
+  "autorun": true,
+  "autorunWaitS": 5,
+  "lifecycleCheck": {
+    "ok": true,
+    "checked": 8,
+    "missing": []
+  },
+  "orphanScan": {
+    "ok": true,
+    "alivePtyPids": [],
+    "orphanConsoleHosts": [],
+    "scanError": null
+  },
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64",
+    "cpus": 20,
+    "totalMemMB": 65231,
+    "node": "20.18.0",
+    "electron": "31.7.7",
+    "chrome": "126.0.6478.234",
+    "scenarioHost": "D:\\Program Files\\nodejs\\node.exe"
+  },
+  "ramBudgetMB": 2048,
+  "sessions": [
+    {
+      "id": "s1",
+      "scenario": "cmd",
+      "pid": 36456,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s2",
+      "scenario": "powershell",
+      "pid": 34404,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s3",
+      "scenario": "tui",
+      "pid": 37736,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s4",
+      "scenario": "streamer",
+      "pid": 9404,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s5",
+      "scenario": "idle",
+      "pid": 13748,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s6",
+      "scenario": "idle",
+      "pid": 37644,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s7",
+      "scenario": "cmd",
+      "pid": 36400,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s8",
+      "scenario": "powershell",
+      "pid": 14404,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    }
+  ],
+  "latencyMainMs": {
+    "n": 190,
+    "timeouts": 0,
+    "min": 0.1799,
+    "p50": 0.3587,
+    "p95": 1.1349,
+    "p99": 2.3436,
+    "max": 3.6049,
+    "mean": 0.4845252631578946
+  },
+  "latencyRendererMs": {
+    "n": 0,
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "streamer": {
+    "received": 669227,
+    "gaps": 0,
+    "dupes": 0,
+    "restarts": 7,
+    "last": 669148
+  },
+  "crossPaneHits": [],
+  "resizeChecks": [
+    {
+      "id": "s3",
+      "requested": "88x28",
+      "reported": "100x30",
+      "ok": false,
+      "ts": "2026-07-17T02:33:12.846Z"
+    },
+    {
+      "id": "s3",
+      "requested": "88x28",
+      "reported": "88x28",
+      "ok": true,
+      "ts": "2026-07-17T02:33:13.005Z"
+    },
+    {
+      "id": "s3",
+      "requested": "97x15",
+      "reported": "88x28",
+      "ok": false,
+      "ts": "2026-07-17T02:33:14.811Z"
+    },
+    {
+      "id": "s3",
+      "requested": "97x15",
+      "reported": "97x15",
+      "ok": true,
+      "ts": "2026-07-17T02:33:15.047Z"
+    },
+    {
+      "id": "s3",
+      "requested": "62x25",
+      "reported": "97x15",
+      "ok": false,
+      "ts": "2026-07-17T02:33:16.811Z"
+    },
+    {
+      "id": "s3",
+      "requested": "62x25",
+      "reported": "62x25",
+      "ok": true,
+      "ts": "2026-07-17T02:33:17.091Z"
+    },
+    {
+      "id": "s3",
+      "requested": "89x21",
+      "reported": "62x25",
+      "ok": false,
+      "ts": "2026-07-17T02:33:18.811Z"
+    },
+    {
+      "id": "s3",
+      "requested": "89x21",
+      "reported": "89x21",
+      "ok": true,
+      "ts": "2026-07-17T02:33:19.137Z"
+    },
+    {
+      "id": "s3",
+      "requested": "86x18",
+      "reported": "89x21",
+      "ok": false,
+      "ts": "2026-07-17T02:33:20.810Z"
+    },
+    {
+      "id": "s3",
+      "requested": "86x18",
+      "reported": "86x18",
+      "ok": true,
+      "ts": "2026-07-17T02:33:21.171Z"
+    },
+    {
+      "id": "s3",
+      "requested": "113x18",
+      "reported": "86x18",
+      "ok": false,
+      "ts": "2026-07-17T02:33:22.821Z"
+    },
+    {
+      "id": "s3",
+      "requested": "113x18",
+      "reported": "113x18",
+      "ok": true,
+      "ts": "2026-07-17T02:33:23.211Z"
+    },
+    {
+      "id": "s3",
+      "requested": "91x20",
+      "reported": "113x18",
+      "ok": false,
+      "ts": "2026-07-17T02:33:24.819Z"
+    },
+    {
+      "id": "s3",
+      "requested": "91x20",
+      "reported": "91x20",
+      "ok": true,
+      "ts": "2026-07-17T02:33:25.259Z"
+    },
+    {
+      "id": "s3",
+      "requested": "64x21",
+      "reported": "91x20",
+      "ok": false,
+      "ts": "2026-07-17T02:33:26.818Z"
+    },
+    {
+      "id": "s3",
+      "requested": "64x21",
+      "reported": "64x21",
+      "ok": true,
+      "ts": "2026-07-17T02:33:27.304Z"
+    },
+    {
+      "id": "s3",
+      "requested": "68x26",
+      "reported": "64x21",
+      "ok": false,
+      "ts": "2026-07-17T02:33:28.814Z"
+    },
+    {
+      "id": "s3",
+      "requested": "68x26",
+      "reported": "68x26",
+      "ok": true,
+      "ts": "2026-07-17T02:33:28.834Z"
+    },
+    {
+      "id": "s3",
+      "requested": "78x33",
+      "reported": "68x26",
+      "ok": false,
+      "ts": "2026-07-17T02:33:30.814Z"
+    },
+    {
+      "id": "s3",
+      "requested": "78x33",
+      "reported": "78x33",
+      "ok": true,
+      "ts": "2026-07-17T02:33:30.880Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x16",
+      "reported": "78x33",
+      "ok": false,
+      "ts": "2026-07-17T02:33:32.823Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x16",
+      "reported": "55x16",
+      "ok": true,
+      "ts": "2026-07-17T02:33:32.922Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "55x16",
+      "ok": false,
+      "ts": "2026-07-17T02:33:46.307Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "55x16",
+      "ok": false,
+      "ts": "2026-07-17T02:33:46.324Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "55x16",
+      "ok": false,
+      "ts": "2026-07-17T02:33:46.618Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:33:46.684Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:33:47.238Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:33:47.851Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:33:48.307Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:33:48.319Z"
+    }
+  ],
+  "layoutStorm": {
+    "mutations": 20,
+    "expectedAlive": [
+      "s1",
+      "s2",
+      "s3",
+      "s4",
+      "s5",
+      "s6"
+    ],
+    "gapsBefore": 0,
+    "allAlive": true,
+    "newGaps": 0
+  },
+  "metricsByPaneCount": {
+    "0": {
+      "samples": 2,
+      "peakRssMB": 499,
+      "peakCpuPct": 1.6,
+      "meanRssMB": 476,
+      "meanCpuPct": 1.1
+    },
+    "6": {
+      "samples": 37,
+      "peakRssMB": 483,
+      "peakCpuPct": 1.7999999999999998,
+      "meanRssMB": 455,
+      "meanCpuPct": 0.3
+    },
+    "8": {
+      "samples": 2,
+      "peakRssMB": 501,
+      "peakCpuPct": 1.2,
+      "meanRssMB": 500,
+      "meanCpuPct": 0.9
+    }
+  },
+  "killCriteria": [
+    {
+      "criterion": "p95 input latency >= 50 ms sustained",
+      "value": 1.1349,
+      "triggered": false
+    },
+    {
+      "criterion": "output loss (streamer SEQ gaps)",
+      "value": 0,
+      "triggered": false
+    },
+    {
+      "criterion": "RAM above budget (2048 MB, Electron processes)",
+      "value": 501,
+      "triggered": false
+    },
+    {
+      "criterion": "input crosses to the wrong pane",
+      "value": 0,
+      "triggered": false
+    },
+    {
+      "criterion": "layout changes restart/corrupt sessions",
+      "value": {
+        "mutations": 20,
+        "expectedAlive": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "gapsBefore": 0,
+        "allAlive": true,
+        "newGaps": 0
+      },
+      "triggered": false
+    },
+    {
+      "criterion": "instability at 6 terminals (unexpected session deaths)",
+      "value": [],
+      "triggered": false,
+      "note": "tui/streamer exits and any nonzero-code exit count; operator-typed 'exit' in cmd/powershell does not"
+    },
+    {
+      "criterion": "resize unreliable (TUI never matches requested dims)",
+      "value": "16/30 ok",
+      "triggered": false,
+      "note": "transitional pre-resize redraws are expected non-ok entries; criterion = no request ever matched"
+    },
+    {
+      "criterion": "process lifecycle not supervisable",
+      "value": {
+        "ok": true,
+        "checked": 8,
+        "missing": []
+      },
+      "triggered": false,
+      "note": "automated: every session has spawn + terminal event after teardown"
+    },
+    {
+      "criterion": "ConPTY ownership not safely containable",
+      "value": {
+        "ok": true,
+        "alivePtyPids": [],
+        "orphanConsoleHosts": [],
+        "scanError": null
+      },
+      "triggered": false,
+      "note": "automated: post-teardown pty pids dead + no conhost/OpenConsole children remain (pid-liveness caveat: PID reuse fails toward triggered)"
+    }
+  ],
+  "verdict": "NO KILL CRITERIA TRIGGERED: evidence supports recommending Electron for D-UI-01 (operator ratifies)",
+  "events": [
+    {
+      "ts": "2026-07-17T02:32:33.946Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s1",
+        "scenario": "cmd",
+        "pid": 36456
+      }
+    },
+    {
+      "ts": "2026-07-17T02:32:34.038Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s2",
+        "scenario": "powershell",
+        "pid": 34404
+      }
+    },
+    {
+      "ts": "2026-07-17T02:32:34.117Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s3",
+        "scenario": "tui",
+        "pid": 37736
+      }
+    },
+    {
+      "ts": "2026-07-17T02:32:34.195Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s4",
+        "scenario": "streamer",
+        "pid": 9404
+      }
+    },
+    {
+      "ts": "2026-07-17T02:32:34.269Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s5",
+        "scenario": "idle",
+        "pid": 13748
+      }
+    },
+    {
+      "ts": "2026-07-17T02:32:34.344Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s6",
+        "scenario": "idle",
+        "pid": 37644
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:12.843Z",
+      "kind": "latency-probe-done",
+      "detail": {
+        "n": 190,
+        "timeouts": 0,
+        "min": 0.1799,
+        "p50": 0.3587,
+        "p95": 1.1349,
+        "p99": 2.3436,
+        "max": 3.6049,
+        "mean": 0.4845252631578946
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:48.151Z",
+      "kind": "layout-storm",
+      "detail": {
+        "mutations": 20,
+        "expectedAlive": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "gapsBefore": 0,
+        "allAlive": true,
+        "newGaps": 0
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:48.227Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s7",
+        "scenario": "cmd",
+        "pid": 36400
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:48.303Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s8",
+        "scenario": "powershell",
+        "pid": 14404
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.326Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s1"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.337Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s2"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.349Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s3"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.360Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s4"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.371Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s5"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.382Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s6"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.395Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s7"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.408Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s8"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s3",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s1",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s2",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s5",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s6",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s4",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.465Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s7",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:53.480Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s8",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:33:56.955Z",
+      "kind": "autorun-teardown-check",
+      "detail": {
+        "ok": true,
+        "alivePtyPids": [],
+        "orphanConsoleHosts": [],
+        "scanError": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+[mcp_servers.sovereign]
+command = "py"
+args = ["-3.12", "-m", "mcp_server.sovereign_tools"]
+env_vars = ["SOVEREIGN_CONTROL_PORT", "SOVEREIGN_CONTROL_TOKEN", "SOVEREIGN_STORE_ROOT"]
+# W-57 / N-02: the server's working directory, pinned to this repo's root. `-m
+# mcp_server.sovereign_tools` resolves only from the tree, and codex-cli 0.146.0 was measured
+# dropping this registration entirely when launched from any other directory (offline `codex mcp
+# list`). Absolute and host-specific on purpose: a relative value would resolve against whatever
+# directory codex itself started in — the very thing being pinned away. Single-host build; if the
+# repo moves the pin fails loudly (server fails to start; mcp_startup_faults.log diagnoses it).
+cwd = "D:/multi model terminal app/sovereign-orchestration-workspace"
+enabled = true
+required = false
+startup_timeout_sec = 120
+tool_timeout_sec = 660
+default_tools_approval_mode = "approve"
+
+[mcp_servers.sovereign.tools.spawn_worker]
+approval_mode = "approve"
+
+[mcp_servers.sovereign.tools.stop_worker]
+approval_mode = "approve"
+
+[mcp_servers.sovereign.tools.assign_task]
+approval_mode = "approve"

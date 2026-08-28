@@ -1,0 +1,853 @@
+{
+  "rig": "spike_compositor@0.1.0",
+  "generated": "2026-07-17T02:27:13.486Z",
+  "startedTs": "2026-07-17T02:24:16.646Z",
+  "autorun": true,
+  "autorunWaitS": 60,
+  "lifecycleCheck": {
+    "ok": true,
+    "checked": 8,
+    "missing": []
+  },
+  "orphanScan": {
+    "ok": true,
+    "alivePtyPids": [],
+    "orphanConsoleHosts": [],
+    "scanError": null
+  },
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "arch": "x64",
+    "cpus": 20,
+    "totalMemMB": 65231,
+    "node": "20.18.0",
+    "electron": "31.7.7",
+    "chrome": "126.0.6478.234",
+    "scenarioHost": "D:\\Program Files\\nodejs\\node.exe"
+  },
+  "ramBudgetMB": 2048,
+  "sessions": [
+    {
+      "id": "s1",
+      "scenario": "cmd",
+      "pid": 36876,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s2",
+      "scenario": "powershell",
+      "pid": 5920,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s3",
+      "scenario": "tui",
+      "pid": 12224,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s4",
+      "scenario": "streamer",
+      "pid": 34100,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s5",
+      "scenario": "idle",
+      "pid": 37632,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s6",
+      "scenario": "idle",
+      "pid": 36256,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s7",
+      "scenario": "cmd",
+      "pid": 34692,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    },
+    {
+      "id": "s8",
+      "scenario": "powershell",
+      "pid": 20496,
+      "state": "KILLED",
+      "exitCode": -1073741510
+    }
+  ],
+  "latencyMainMs": {
+    "n": 190,
+    "timeouts": 0,
+    "min": 0.1717,
+    "p50": 0.6412,
+    "p95": 1.8772,
+    "p99": 3.274,
+    "max": 3.7842,
+    "mean": 0.8084178947368422
+  },
+  "latencyRendererMs": {
+    "n": 0,
+    "p50": null,
+    "p95": null,
+    "p99": null
+  },
+  "streamer": {
+    "received": 1460030,
+    "gaps": 0,
+    "dupes": 0,
+    "restarts": 16,
+    "last": 1459864
+  },
+  "crossPaneHits": [],
+  "resizeChecks": [
+    {
+      "id": "s3",
+      "requested": "55x15",
+      "reported": "100x30",
+      "ok": false,
+      "ts": "2026-07-17T02:25:03.442Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x15",
+      "reported": "100x30",
+      "ok": false,
+      "ts": "2026-07-17T02:25:03.465Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x15",
+      "reported": "55x15",
+      "ok": true,
+      "ts": "2026-07-17T02:25:03.692Z"
+    },
+    {
+      "id": "s3",
+      "requested": "76x16",
+      "reported": "55x15",
+      "ok": false,
+      "ts": "2026-07-17T02:25:50.694Z"
+    },
+    {
+      "id": "s3",
+      "requested": "76x16",
+      "reported": "76x16",
+      "ok": true,
+      "ts": "2026-07-17T02:25:51.187Z"
+    },
+    {
+      "id": "s3",
+      "requested": "60x21",
+      "reported": "76x16",
+      "ok": false,
+      "ts": "2026-07-17T02:25:51.894Z"
+    },
+    {
+      "id": "s3",
+      "requested": "60x21",
+      "reported": "60x21",
+      "ok": true,
+      "ts": "2026-07-17T02:25:52.206Z"
+    },
+    {
+      "id": "s3",
+      "requested": "93x22",
+      "reported": "60x21",
+      "ok": false,
+      "ts": "2026-07-17T02:25:53.101Z"
+    },
+    {
+      "id": "s3",
+      "requested": "93x22",
+      "reported": "93x22",
+      "ok": true,
+      "ts": "2026-07-17T02:25:53.225Z"
+    },
+    {
+      "id": "s3",
+      "requested": "106x19",
+      "reported": "93x22",
+      "ok": false,
+      "ts": "2026-07-17T02:25:54.311Z"
+    },
+    {
+      "id": "s3",
+      "requested": "106x19",
+      "reported": "106x19",
+      "ok": true,
+      "ts": "2026-07-17T02:25:54.753Z"
+    },
+    {
+      "id": "s3",
+      "requested": "71x25",
+      "reported": "106x19",
+      "ok": false,
+      "ts": "2026-07-17T02:25:55.517Z"
+    },
+    {
+      "id": "s3",
+      "requested": "71x25",
+      "reported": "71x25",
+      "ok": true,
+      "ts": "2026-07-17T02:25:55.772Z"
+    },
+    {
+      "id": "s3",
+      "requested": "92x20",
+      "reported": "71x25",
+      "ok": false,
+      "ts": "2026-07-17T02:25:56.726Z"
+    },
+    {
+      "id": "s3",
+      "requested": "92x20",
+      "reported": "92x20",
+      "ok": true,
+      "ts": "2026-07-17T02:25:56.802Z"
+    },
+    {
+      "id": "s3",
+      "requested": "96x17",
+      "reported": "92x20",
+      "ok": false,
+      "ts": "2026-07-17T02:25:57.938Z"
+    },
+    {
+      "id": "s3",
+      "requested": "96x17",
+      "reported": "96x17",
+      "ok": true,
+      "ts": "2026-07-17T02:25:58.341Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x26",
+      "reported": "96x17",
+      "ok": false,
+      "ts": "2026-07-17T02:25:59.142Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x26",
+      "reported": "85x26",
+      "ok": true,
+      "ts": "2026-07-17T02:25:59.355Z"
+    },
+    {
+      "id": "s3",
+      "requested": "80x34",
+      "reported": "85x26",
+      "ok": false,
+      "ts": "2026-07-17T02:26:00.357Z"
+    },
+    {
+      "id": "s3",
+      "requested": "80x34",
+      "reported": "80x34",
+      "ok": true,
+      "ts": "2026-07-17T02:26:00.384Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x28",
+      "reported": "80x34",
+      "ok": false,
+      "ts": "2026-07-17T02:26:01.575Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x28",
+      "reported": "85x28",
+      "ok": true,
+      "ts": "2026-07-17T02:26:01.906Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x17",
+      "reported": "85x28",
+      "ok": false,
+      "ts": "2026-07-17T02:26:02.785Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x17",
+      "reported": "55x17",
+      "ok": true,
+      "ts": "2026-07-17T02:26:02.934Z"
+    },
+    {
+      "id": "s3",
+      "requested": "55x17",
+      "reported": "55x17",
+      "ok": true,
+      "ts": "2026-07-17T02:26:03.095Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "55x17",
+      "ok": false,
+      "ts": "2026-07-17T02:26:07.091Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "55x17",
+      "ok": false,
+      "ts": "2026-07-17T02:26:07.401Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:07.521Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:08.016Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:08.638Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:09.082Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:09.099Z"
+    },
+    {
+      "id": "s3",
+      "requested": "70x31",
+      "reported": "171x37",
+      "ok": false,
+      "ts": "2026-07-17T02:26:27.288Z"
+    },
+    {
+      "id": "s3",
+      "requested": "70x31",
+      "reported": "70x31",
+      "ok": true,
+      "ts": "2026-07-17T02:26:27.481Z"
+    },
+    {
+      "id": "s3",
+      "requested": "108x27",
+      "reported": "70x31",
+      "ok": false,
+      "ts": "2026-07-17T02:26:28.494Z"
+    },
+    {
+      "id": "s3",
+      "requested": "108x27",
+      "reported": "70x31",
+      "ok": false,
+      "ts": "2026-07-17T02:26:28.518Z"
+    },
+    {
+      "id": "s3",
+      "requested": "108x27",
+      "reported": "108x27",
+      "ok": true,
+      "ts": "2026-07-17T02:26:29.007Z"
+    },
+    {
+      "id": "s3",
+      "requested": "108x34",
+      "reported": "108x27",
+      "ok": false,
+      "ts": "2026-07-17T02:26:29.703Z"
+    },
+    {
+      "id": "s3",
+      "requested": "108x34",
+      "reported": "108x34",
+      "ok": true,
+      "ts": "2026-07-17T02:26:30.037Z"
+    },
+    {
+      "id": "s3",
+      "requested": "81x32",
+      "reported": "108x34",
+      "ok": false,
+      "ts": "2026-07-17T02:26:30.926Z"
+    },
+    {
+      "id": "s3",
+      "requested": "81x32",
+      "reported": "81x32",
+      "ok": true,
+      "ts": "2026-07-17T02:26:31.059Z"
+    },
+    {
+      "id": "s3",
+      "requested": "90x25",
+      "reported": "81x32",
+      "ok": false,
+      "ts": "2026-07-17T02:26:32.139Z"
+    },
+    {
+      "id": "s3",
+      "requested": "90x25",
+      "reported": "90x25",
+      "ok": true,
+      "ts": "2026-07-17T02:26:32.586Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x17",
+      "reported": "90x25",
+      "ok": false,
+      "ts": "2026-07-17T02:26:33.357Z"
+    },
+    {
+      "id": "s3",
+      "requested": "85x17",
+      "reported": "85x17",
+      "ok": true,
+      "ts": "2026-07-17T02:26:33.599Z"
+    },
+    {
+      "id": "s3",
+      "requested": "78x29",
+      "reported": "85x17",
+      "ok": false,
+      "ts": "2026-07-17T02:26:34.558Z"
+    },
+    {
+      "id": "s3",
+      "requested": "78x29",
+      "reported": "78x29",
+      "ok": true,
+      "ts": "2026-07-17T02:26:34.624Z"
+    },
+    {
+      "id": "s3",
+      "requested": "75x25",
+      "reported": "78x29",
+      "ok": false,
+      "ts": "2026-07-17T02:26:35.761Z"
+    },
+    {
+      "id": "s3",
+      "requested": "75x25",
+      "reported": "75x25",
+      "ok": true,
+      "ts": "2026-07-17T02:26:36.177Z"
+    },
+    {
+      "id": "s3",
+      "requested": "105x29",
+      "reported": "75x25",
+      "ok": false,
+      "ts": "2026-07-17T02:26:36.969Z"
+    },
+    {
+      "id": "s3",
+      "requested": "105x29",
+      "reported": "105x29",
+      "ok": true,
+      "ts": "2026-07-17T02:26:37.183Z"
+    },
+    {
+      "id": "s3",
+      "requested": "65x22",
+      "reported": "105x29",
+      "ok": false,
+      "ts": "2026-07-17T02:26:38.189Z"
+    },
+    {
+      "id": "s3",
+      "requested": "65x22",
+      "reported": "65x22",
+      "ok": true,
+      "ts": "2026-07-17T02:26:38.202Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "65x22",
+      "ok": false,
+      "ts": "2026-07-17T02:26:39.396Z"
+    },
+    {
+      "id": "s3",
+      "requested": "171x37",
+      "reported": "171x37",
+      "ok": true,
+      "ts": "2026-07-17T02:26:39.737Z"
+    }
+  ],
+  "layoutStorm": {
+    "mutations": 20,
+    "expectedAlive": [
+      "s1",
+      "s2",
+      "s3",
+      "s4",
+      "s5",
+      "s6"
+    ],
+    "gapsBefore": 0,
+    "allAlive": true,
+    "newGaps": 0
+  },
+  "metricsByPaneCount": {
+    "0": {
+      "samples": 2,
+      "peakRssMB": 448,
+      "peakCpuPct": 0.5,
+      "meanRssMB": 447,
+      "meanCpuPct": 0.3
+    },
+    "6": {
+      "samples": 55,
+      "peakRssMB": 470,
+      "peakCpuPct": 1.5000000000000002,
+      "meanRssMB": 454,
+      "meanCpuPct": 0.6
+    },
+    "8": {
+      "samples": 31,
+      "peakRssMB": 587,
+      "peakCpuPct": 1.5000000000000002,
+      "meanRssMB": 496,
+      "meanCpuPct": 1
+    }
+  },
+  "killCriteria": [
+    {
+      "criterion": "p95 input latency >= 50 ms sustained",
+      "value": 1.8772,
+      "triggered": false
+    },
+    {
+      "criterion": "output loss (streamer SEQ gaps)",
+      "value": 0,
+      "triggered": false
+    },
+    {
+      "criterion": "RAM above budget (2048 MB, Electron processes)",
+      "value": 587,
+      "triggered": false
+    },
+    {
+      "criterion": "input crosses to the wrong pane",
+      "value": 0,
+      "triggered": false
+    },
+    {
+      "criterion": "layout changes restart/corrupt sessions",
+      "value": {
+        "mutations": 20,
+        "expectedAlive": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "gapsBefore": 0,
+        "allAlive": true,
+        "newGaps": 0
+      },
+      "triggered": false
+    },
+    {
+      "criterion": "instability at 6 terminals (unexpected session deaths)",
+      "value": [],
+      "triggered": false,
+      "note": "tui/streamer exits and any nonzero-code exit count; operator-typed 'exit' in cmd/powershell does not"
+    },
+    {
+      "criterion": "resize unreliable (TUI never matches requested dims)",
+      "value": "29/56 ok",
+      "triggered": false,
+      "note": "transitional pre-resize redraws are expected non-ok entries; criterion = no request ever matched"
+    },
+    {
+      "criterion": "process lifecycle not supervisable",
+      "value": {
+        "ok": true,
+        "checked": 8,
+        "missing": []
+      },
+      "triggered": false,
+      "note": "automated: every session has spawn + terminal event after teardown"
+    },
+    {
+      "criterion": "ConPTY ownership not safely containable",
+      "value": {
+        "ok": true,
+        "alivePtyPids": [],
+        "orphanConsoleHosts": [],
+        "scanError": null
+      },
+      "triggered": false,
+      "note": "automated: post-teardown pty pids dead + no conhost/OpenConsole children remain (pid-liveness caveat: PID reuse fails toward triggered)"
+    }
+  ],
+  "verdict": "NO KILL CRITERIA TRIGGERED: evidence supports recommending Electron for D-UI-01 (operator ratifies)",
+  "events": [
+    {
+      "ts": "2026-07-17T02:24:16.980Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s1",
+        "scenario": "cmd",
+        "pid": 36876
+      }
+    },
+    {
+      "ts": "2026-07-17T02:24:17.067Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s2",
+        "scenario": "powershell",
+        "pid": 5920
+      }
+    },
+    {
+      "ts": "2026-07-17T02:24:17.144Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s3",
+        "scenario": "tui",
+        "pid": 12224
+      }
+    },
+    {
+      "ts": "2026-07-17T02:24:17.218Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s4",
+        "scenario": "streamer",
+        "pid": 34100
+      }
+    },
+    {
+      "ts": "2026-07-17T02:24:17.288Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s5",
+        "scenario": "idle",
+        "pid": 37632
+      }
+    },
+    {
+      "ts": "2026-07-17T02:24:17.361Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s6",
+        "scenario": "idle",
+        "pid": 36256
+      }
+    },
+    {
+      "ts": "2026-07-17T02:25:50.678Z",
+      "kind": "latency-probe-done",
+      "detail": {
+        "n": 190,
+        "timeouts": 0,
+        "min": 0.1717,
+        "p50": 0.6412,
+        "p95": 1.8772,
+        "p99": 3.274,
+        "max": 3.7842,
+        "mean": 0.8084178947368422
+      }
+    },
+    {
+      "ts": "2026-07-17T02:26:08.948Z",
+      "kind": "layout-storm",
+      "detail": {
+        "mutations": 20,
+        "expectedAlive": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "gapsBefore": 0,
+        "allAlive": true,
+        "newGaps": 0
+      }
+    },
+    {
+      "ts": "2026-07-17T02:26:09.015Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s7",
+        "scenario": "cmd",
+        "pid": 34692
+      }
+    },
+    {
+      "ts": "2026-07-17T02:26:09.082Z",
+      "kind": "spawn",
+      "detail": {
+        "id": "s8",
+        "scenario": "powershell",
+        "pid": 20496
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.827Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s1"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.842Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s2"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.855Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s3"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.869Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s4"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.883Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s5"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.898Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s6"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.914Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s7"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.928Z",
+      "kind": "kill-on-quit",
+      "detail": {
+        "id": "s8"
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s5",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s4",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s1",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s7",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s6",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s3",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s2",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:09.993Z",
+      "kind": "exit",
+      "detail": {
+        "id": "s8",
+        "exitCode": -1073741510
+      }
+    },
+    {
+      "ts": "2026-07-17T02:27:13.485Z",
+      "kind": "autorun-teardown-check",
+      "detail": {
+        "ok": true,
+        "alivePtyPids": [],
+        "orphanConsoleHosts": [],
+        "scanError": null
+      }
+    }
+  ]
+}

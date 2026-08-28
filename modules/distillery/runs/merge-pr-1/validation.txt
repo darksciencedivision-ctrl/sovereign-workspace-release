@@ -1,0 +1,42 @@
+GROUNDED v1.1 CANONICAL INTEGRATION: MERGED
+
+PR #1 state: MERGED
+PR merge commit: 39aa889078b1754abf645e5ea75a3388656f8373
+Authorized PR head: 864419decc16f5885857bff339bb6dc61d8060d1
+Incorporated main: 23523bde90241da482eacb741de086df36642c06
+Merge method: normal merge commit; no squash or history rewrite
+
+POST-MERGE VALIDATION
+integrated tests: 27/27 PASS
+Python compilation: PASS
+JSON / JSONL parsing: PASS
+JSON Schema validation: PASS
+Markdown-link validation: PASS
+package build: PASS
+git diff --check: PASS
+conflict markers: 0
+secret/private-runtime scan: PASS
+model-weight scan: PASS
+oversized-artifact scan: PASS
+repository-wide license files: 0
+preserved lineage reachability: PASS
+working tree before evidence record: CLEAN
+
+CURRENT PROJECT STATUS
+HG-0: PASS
+HG-1: SOURCE DECISIONS PENDING; SOFTWARE ENFORCEMENT PASS
+HG-2: PASS ON SYNTHETIC TRANSITIVE E7 ACCEPTANCE
+HG-3: NEXT TECHNICAL GATE; NOT YET EXECUTED
+HG-4: BLOCKED; NOT YET EXECUTED
+HG-5 THROUGH HG-8: NOT REACHED
+D-9: 4/4 CURRENT CANDIDATES UNKNOWN; FAIL CLOSED
+G2-G6: NOT STARTED
+G4 full-corpus training: NOT AUTHORIZED / NOT PERFORMED
+production deployment: NOT AUTHORIZED / NOT PERFORMED
+model promotion: NOT AUTHORIZED / NOT PERFORMED
+
+NEXT ACTION
+Prepare and execute only the HG-3 real student architecture smoke on the pinned
+gfx906 trainer. Record exact architecture, pinned software stack, card-lock evidence,
+minimal synthetic smoke input, completion/oom result, and peak VRAM. Do not begin
+full-corpus training, G4, deployment, or promotion.

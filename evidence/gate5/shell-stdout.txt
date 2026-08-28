@@ -1,0 +1,2 @@
+SWS Shell listening on http://127.0.0.1:5180
+Modules loaded: ['debate', 'distillery', 'sovereign', 'sow']

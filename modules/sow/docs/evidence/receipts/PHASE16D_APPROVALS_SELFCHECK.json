@@ -1,0 +1,144 @@
+{
+  "schema": "phase16d_approvals_selfcheck@1.0",
+  "ok": true,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "checks": {
+    "model_sourced_from_emitter": true,
+    "ok_true": true,
+    "has_plan": true,
+    "has_protected_action": true,
+    "has_clarification": true,
+    "clarification_not_approvable": true,
+    "badge_at_least_3": true,
+    "no_error": true,
+    "rendered_shows_rows": true,
+    "rendered_badge": true,
+    "decide_routed": true,
+    "decide_self_authorized_false": true,
+    "decide_governed_refused": true,
+    "decide_not_self_resolved": true
+  },
+  "model": {
+    "ok": true,
+    "schema": "approval_drawer@1.0",
+    "badgeCount": 3,
+    "kindCounts": {
+      "plan": 1,
+      "protected_action": 1,
+      "clarification": 1,
+      "unknown": 0
+    },
+    "rows": [
+      {
+        "id": "ap-1",
+        "seq": 1,
+        "kind": "plan",
+        "kindLabel": "Plan",
+        "known": true,
+        "summary": "Plan for “Design the offline conductor roster”: 3 task(s), ready for approval",
+        "origin": "conductor",
+        "approvable": true,
+        "ref": null,
+        "detail": {
+          "objective": "Design the offline conductor roster",
+          "task_count": 3,
+          "tasks": [
+            {
+              "task_id": "t-1",
+              "capability": "reasoning",
+              "description": "subtask 1 of: Design the offline conductor roster",
+              "deps": []
+            },
+            {
+              "task_id": "t-2",
+              "capability": "coding",
+              "description": "subtask 2 of: Design the offline conductor roster",
+              "deps": []
+            },
+            {
+              "task_id": "t-3",
+              "capability": "review",
+              "description": "subtask 3 of: Design the offline conductor roster",
+              "deps": []
+            }
+          ],
+          "refused": [],
+          "plan_gate_verdict": "PASS",
+          "approvable": true
+        }
+      },
+      {
+        "id": "ap-2",
+        "seq": 2,
+        "kind": "protected_action",
+        "kindLabel": "Protected action",
+        "known": true,
+        "summary": "protected command: spawn_node worker gpt-5.5",
+        "origin": "typed",
+        "approvable": true,
+        "ref": "q-15617ff8725a",
+        "detail": {
+          "verb": "spawn_node",
+          "target": "worker gpt-5.5",
+          "args": {},
+          "category": "protected",
+          "reason": "protected verb requires operator approval"
+        }
+      },
+      {
+        "id": "ap-3",
+        "seq": 3,
+        "kind": "clarification",
+        "kindLabel": "Clarification",
+        "known": true,
+        "summary": "clarify: uh do the roster thing",
+        "origin": "voice",
+        "approvable": false,
+        "ref": null,
+        "detail": {
+          "verb": "do",
+          "target": "the roster thing",
+          "raw_text": "uh do the roster thing",
+          "reason": "low/absent STT confidence 0.2 < 0.6"
+        }
+      }
+    ],
+    "empty": false,
+    "error": null,
+    "summary": "3 pending (1 plan · 1 protected action · 1 clarification)",
+    "source": "emitter",
+    "sourced": true,
+    "liveQueueOwed": {
+      "owed": true,
+      "issue": "16F",
+      "note": "the drawer is REAL (built by the governed producers) but the queue is rebuilt fresh per emit; the shared long-lived queue a live conductor holds — where a resolve persists and its downstream side-effect fires (broker/ObjectiveIntake) — is the operator-run assembled run (16F)."
+    }
+  },
+  "decision": {
+    "recorded": true,
+    "itemId": "ap-3",
+    "decision": "approve",
+    "routed": true,
+    "selfAuthorized": false,
+    "governed": {
+      "schema": "approval_decision_feed@1.0",
+      "resolved": false,
+      "refused": true,
+      "reason": "ApprovalError: approval item 'ap-3' is not approvable (a failed-gate plan cannot be approved into execution — invariant 16, no override path); it may only be rejected",
+      "item_id": "ap-3",
+      "decision": "approve",
+      "authority": "operator-only (ApprovalQueue.resolve enforces invariant 1 / invariant 16)",
+      "self_authorized": false,
+      "live_effect_owed": {
+        "owed": true,
+        "issue": "16F",
+        "note": "the drawer is REAL (built by the governed producers) but the queue is rebuilt fresh per emit; the shared long-lived queue a live conductor holds — where a resolve persists and its downstream side-effect fires (broker/ObjectiveIntake) — is the operator-run assembled run (16F)."
+      },
+      "torn_down": true
+    }
+  },
+  "rendered_excerpt": "<div class=\"ins-sum\">3 pending (1 plan · 1 protected action · 1 clarification)</div><div class=\"appr-item appr-plan\">\n    <div class=\"ins-title\">Plan <span class=\"dim\">conductor</span></div>\n    <div class=\"ins-ctx\">Plan for “Design the offline conductor roster”: 3 task(s), ready for approval</div>\n    <div class=\"appr-actions\">\n      <button class=\"appr-approve\" data-id=\"ap-1\">Approve</button>\n      <button class=\"appr-reject\" data-id=\"ap-1\">Reject</button>\n    </div></div><div class=\"appr-item",
+  "live_queue_owed": "16F (drawer is real; the shared long-lived queue where a resolve persists + fires its side-effect is owed)"
+}

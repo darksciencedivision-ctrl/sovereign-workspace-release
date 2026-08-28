@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.1",
+  "reviewed_commit": "c3594cfc6284b7b5008bb131434436d5a3a77c9a",
+  "status": "PASS",
+  "forbidden_tracked_names": 0,
+  "high_confidence_secret_matches": 0,
+  "raw_runtime_identifier_matches": 0,
+  "private_prompt_or_output_content_tracked": false,
+  "corpus_data_tracked": false,
+  "model_weights_tracked": false,
+  "credentials_tracked": false,
+  "raw_runtime_records_tracked": false,
+  "g0_session_identifiers_hash_only": true,
+  "repository_license_file_present": false,
+  "pyproject_repository_license_declared": false,
+  "note": "Model-artifact license research references in the source registry are not a repository-wide license declaration. The verified RC3 Git bundle contains source history and no tracked weight/private-data paths."
+}

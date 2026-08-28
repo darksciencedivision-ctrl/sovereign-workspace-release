@@ -1,0 +1,33 @@
+# utc: 2026-08-25T22:28:27.112Z
+# producer: ox-alpha CP-M1 linecount-a (difflib vs before-a/, tests excluded)
+
+shell/src | 79 | 320
+#   shell/src/adapter.py: 8
+#   shell/src/server.py: 2
+#   shell/src/states.py: 69
+shell/static | 29 | 300
+#   shell/static/app.css: 1
+#   shell/static/app.js: 28
+shell/modules | 5 | 140
+#   shell/modules/sow.json: 5
+sow-desktop | 258 | 700
+#   modules/sow/apps/desktop/main.js: 145
+#   modules/sow/apps/desktop/picker/worker-spawn.js: 31
+#   modules/sow/apps/desktop/preload.js: 6
+#   modules/sow/apps/desktop/renderer/channel-sweep.js: 9
+#   modules/sow/apps/desktop/renderer/index.html: 23
+#   modules/sow/apps/desktop/renderer/renderer.js: 42
+#   modules/sow/apps/desktop/selfcheck/worker-spawn-selfcheck.js: 2
+sow-control-plane | 0 | 400
+distillery | 0 | 500
+tokencenter | 0 | 60
+TOTAL-A | 371 | 1850
+# 2026-08-26T04:3xZ G26 Option-1 verifier repair (operator-authorized defect repair, not new scope):
+#   modules/sow/apps/desktop/conductor/launch-source.js: +54 -5 = 59 changed lines (difflib unified,
+#   vs fresh pre-edit capture evidence/cpm1/8d/before/launch-source.js sha256
+#   15048cad648da34efffe09bf33e9f69a4bbebb00253ac9d165c3c8a9d202604d). New test file
+#   test/conductor-hook-command-roundtrip.test.js is a TEST FILE: excluded from caps per ADD-03 s4.
+sow-desktop | 258 | 700
+#   (launch-source.js repair above brings sow-desktop to 317; TOTAL-A to 430)
+TOTAL-A | 371 | 1850
+TOTAL-A-after-G26-fix | 430 | 1850

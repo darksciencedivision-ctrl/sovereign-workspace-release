@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign.local/schemas/arbitration_artifact.schema.json",
+  "title": "SOVEREIGN Arbitration Artifact",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "session_id",
+    "timestamp_utc",
+    "arbitration_score",
+    "evidence_overlap",
+    "unresolved_conflict_count",
+    "agreed_claims",
+    "contested_claims",
+    "one_sided_claims",
+    "unresolved_conflicts",
+    "source_paths",
+    "generation_context"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "sovereign.arbitration_artifact.v1"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "arbitration_score": {
+      "type": "number"
+    },
+    "evidence_overlap": {
+      "type": "number"
+    },
+    "unresolved_conflict_count": {
+      "type": "integer"
+    },
+    "agreed_claims": {
+      "type": "array"
+    },
+    "contested_claims": {
+      "type": "array"
+    },
+    "one_sided_claims": {
+      "type": "array"
+    },
+    "unresolved_conflicts": {
+      "type": "array"
+    },
+    "source_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generation_context": {
+      "type": "object",
+      "required": [
+        "run_type",
+        "batch_id"
+      ],
+      "properties": {
+        "run_type": {
+          "type": "string"
+        },
+        "batch_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

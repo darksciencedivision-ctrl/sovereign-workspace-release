@@ -1,0 +1,10 @@
+﻿{
+  "python_hook_command": "& 'D:\\Program Files\\nodejs\\node.exe' 'D:\\Product Software\\Production Workspace\\modules\\sow\\tools\\live\\voice_turn_boundary.js'",
+  "python_hook_argv": [
+    "D:\\Program Files\\nodejs\\node.exe",
+    "D:\\Product Software\\Production Workspace\\modules\\sow\\tools\\live\\voice_turn_boundary.js"
+  ],
+  "shell": "powershell",
+  "js_expected_command": "& \"D:\\Program Files\\nodejs\\node.exe\" \"D:\\Product Software\\Production Workspace\\modules\\sow\\tools\\live\\voice_turn_boundary.js\"",
+  "commands_equal": false
+}

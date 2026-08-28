@@ -1,0 +1,22 @@
+gh pr view 1 --repo ryguy-pixel/Sovereign-Distillery --json number,url,state,isDraft,baseRefName,headRefName,headRefOid,mergeable,mergeStateStatus
+git fetch origin
+git rev-parse origin/main
+git rev-parse origin/integration/grounded-rc3
+git status --porcelain=v1
+gh pr merge 1 --repo ryguy-pixel/Sovereign-Distillery --merge
+gh pr view 1 --repo ryguy-pixel/Sovereign-Distillery --json number,url,state,mergedAt,mergedBy,mergeCommit,baseRefName,headRefName,headRefOid
+git fetch origin
+git switch main
+git pull --ff-only origin main
+py -3.13 -m unittest discover -s tests
+py -3.13 -m compileall -q curation distillery exclusion gate grounded ops source_admission train validators
+py -3.13 -m build --outdir %TEMP%\grounded-post-merge-build
+ConvertFrom-Json validation over all tracked JSON and JSONL files
+Draft202012Validator.check_schema over schema/*.json
+Local-target validation over all tracked Markdown links
+git diff --check 23523bde90241da482eacb741de086df36642c06..39aa889078b1754abf645e5ea75a3388656f8373
+git grep high-confidence credential signatures
+git grep private-runtime identifiers
+git ls-tree model-weight, oversized-artifact, license, D-9, and G2-G6 checks
+git bundle verify docs/integration/rc3/grounded-rc3-a332e688.bundle
+git merge-base --is-ancestor lineage checks

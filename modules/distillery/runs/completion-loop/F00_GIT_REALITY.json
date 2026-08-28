@@ -1,0 +1,44 @@
+{
+    "schema_version":  "1.0",
+    "record_id":  "F00_GIT_REALITY",
+    "recorded_at":  "2026-08-23T06:25:37.7128303Z",
+    "evidence_class":  "MEASURED",
+    "repository":  "ryguy-pixel/Sovereign-Distillery",
+    "local_path":  "D:\\Sovereign-Grounded-Distillery",
+    "branch":  "completion/build-completion-loop",
+    "head":  "550bc0cbb4b91566684dd6ccdd14abe3609e0874",
+    "base":  "550bc0cbb4b91566684dd6ccdd14abe3609e0874",
+    "origin_url":  "https://github.com/ryguy-pixel/Sovereign-Distillery.git",
+    "upstream":  "origin/main",
+    "worktree_clean":  true,
+    "historical_expectations":  {
+                                    "remediation_lineage_present_in_origin_main":  true,
+                                    "historical_base_sha":  "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+                                    "remediation_lineage_sha":  "5ff6f56ea4448cbdf7384cbcba0f64073934ca05",
+                                    "historical_base_object_exists":  true
+                                },
+    "main_relationship":  {
+                              "origin_main_sha":  "550bc0cbb4b91566684dd6ccdd14abe3609e0874",
+                              "head_is_ancestor_of_origin_main":  true,
+                              "content_diff_head_vs_origin_main":  "EMPTY_PURE_MERGE",
+                              "divergence_reconcilable_without_rewrite":  true,
+                              "local_main_sha":  "45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7",
+                              "commits_only_in_origin_main":  [
+                                                                  "550bc0c Merge pull request #2 from ryguy-pixel/remediation/hardware-rebaseline-pre-hg3"
+                                                              ]
+                          },
+    "pr_state":  {
+                     "gh_authenticated":  true,
+                     "merged_prs_observed":  [
+                                                 "PR #2 remediation/hardware-rebaseline-pre-hg3 -\u003e main"
+                                             ],
+                     "open_prs":  0
+                 },
+    "full_regression_at_f00":  {
+                                   "exit_code":  0,
+                                   "command":  "python -m pytest -q",
+                                   "result":  "43 passed, 154 subtests passed",
+                                   "python":  "3.14.6"
+                               },
+    "stop_condition_triggered":  false
+}

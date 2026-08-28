@@ -1,0 +1,18 @@
+{
+  "version": "v1",
+  "authority": "PHASE2/concurrence/DESIGN.md v1.2 S2 (deterministic severity classifier, versioned in config, P2.1-style evidence-reviewable); VALIDATOR_GATE_DECISIONS_CP001_MAPPING_20260713 Decisions 2-3",
+  "load_bearing_overlap_upper": 0.6,
+  "load_bearing_overlap_lower": 0.3,
+  "load_bearing_rule": "content-token overlap ratio of the claim against the king's canonical claim + final_synthesis; >= upper -> load_bearing true; <= lower -> false; ambiguous band -> load_bearing true (fail-closed per DESIGN S2)",
+  "critical_rule": "CRITICAL iff the item attacks a load_bearing claim, evidence required by one, a dependency supporting one, or alleges a contradiction involving a load_bearing claim; unmapped objection -> CRITICAL (fail-closed)",
+  "issue_type_rule": "contested_link/peer_cluster_id -> contradiction; challenge reason containing 'negation' -> logic; other challenge -> evidence-insufficiency; arbitration reason preserved verbatim in issue_type_source",
+  "patch_sections_by_issue_type": {
+    "evidence-insufficiency": ["claim", "evidence", "uncertainties", "final_synthesis"],
+    "logic": ["claim", "counterarguments", "uncertainties", "final_synthesis"],
+    "contradiction": ["claim", "evidence", "counterarguments", "uncertainties", "final_synthesis"],
+    "citation": ["evidence", "final_synthesis"],
+    "scope": ["claim", "uncertainties", "final_synthesis"],
+    "validation": ["claim", "evidence", "uncertainties", "final_synthesis"]
+  },
+  "notes": "patch_sections_by_issue_type implements gate Decision 3 (disputed claim + linked evidence + dependent conclusions + affected confidence/uncertainty sections + dependent verdict); FINAL_SYNTHESIS and CLAIM are in scope whenever a dispute can change the verdict"
+}

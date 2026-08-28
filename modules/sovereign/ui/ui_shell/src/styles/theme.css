@@ -1,0 +1,111 @@
+/* SOVEREIGN theme — dark mode first, high contrast, calm. */
+:root {
+  --bg: #0e1116;
+  --bg-panel: #151a21;
+  --bg-sidebar: #10141a;
+  --bg-input: #1a2029;
+  --border: #262d38;
+  --text: #e6e9ee;
+  --text-muted: #8b94a3;
+  --text-faint: #5c6674;
+  --accent: #c9a86a;
+  --accent-dim: #8a744a;
+  --danger: #c96a6a;
+  --danger-bg: rgba(201, 106, 106, 0.09);
+  --warning: #d0aa62;
+  --warning-bg: rgba(208, 170, 98, 0.08);
+  --ok: #6ac98a;
+  --ok-bg: rgba(106, 201, 138, 0.08);
+  --radius: 8px;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Code", Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+}
+
+/* The shell owns every scroll region. The page itself must never scroll:
+   without this, a long sidebar or conversation spills out of the viewport
+   and drags the composer off-screen with it. */
+html,
+body {
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--bg-input);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-dim);
+  outline-offset: 1px;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+textarea:focus,
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+}
+
+a {
+  color: var(--accent);
+}
+
+::placeholder {
+  color: var(--text-faint);
+}
+
+/* Light theme — applied via <html data-theme="light"> (Phase UI-3). */
+:root[data-theme="light"] {
+  --bg: #f4f5f7;
+  --bg-panel: #ffffff;
+  --bg-sidebar: #eceef1;
+  --bg-input: #ffffff;
+  --border: #d3d8e0;
+  --text: #1b2027;
+  --text-muted: #58616e;
+  --text-faint: #8a93a1;
+  --accent: #8a744a;
+  --accent-dim: #a68b58;
+}

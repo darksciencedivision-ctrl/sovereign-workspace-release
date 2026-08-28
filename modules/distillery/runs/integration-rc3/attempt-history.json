@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.1",
+  "attempts": [
+    {
+      "operation": "rc3_git_bundle",
+      "attempt": 1,
+      "status": "FAIL",
+      "failure": "Destination directory did not yet exist.",
+      "remediation": "Created the canonical integration evidence directory."
+    },
+    {
+      "operation": "rc3_git_bundle",
+      "attempt": 2,
+      "status": "FAIL",
+      "failure": "Raw commit argument produced an empty bundle selection.",
+      "remediation": "Selected the source main ref that resolves exactly to the accepted commit."
+    },
+    {
+      "operation": "rc3_git_bundle",
+      "attempt": 3,
+      "status": "PASS",
+      "result": "Complete source history with refs/heads/main at a332e68823ab426310c5d37f3c0bfed5c52cc1f0."
+    },
+    {
+      "operation": "integrated_contract_tests",
+      "attempt": 1,
+      "status": "FAIL",
+      "failure": "Privacy test rejected the allowed field name prompt_hash despite no raw prompt content being persisted.",
+      "remediation": "Used sentinel raw-content values and asserted those values were absent; retained permitted hashes."
+    },
+    {
+      "operation": "integrated_contract_tests",
+      "attempt": 2,
+      "status": "PASS",
+      "result": "25 tests passed."
+    }
+  ]
+}

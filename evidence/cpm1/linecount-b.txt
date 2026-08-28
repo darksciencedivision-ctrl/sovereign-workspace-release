@@ -1,0 +1,11 @@
+# utc: 2026-08-27T00:58:00Z
+# producer: ox-alpha CP-M1 ADD-08 closeout
+# difflib vs before-b/ for files this session touched; tests excluded
+sow-adapters | 66 | 450
+sow-scheduler | 5 | 200
+sow-control+schemas | 69 | 500
+sow-tools+config | 0 | 150
+shell | 16 | 220
+llamacpp.json | 0 | 45
+runtime | 0 | 60
+TOTAL-B | 156 | 1625

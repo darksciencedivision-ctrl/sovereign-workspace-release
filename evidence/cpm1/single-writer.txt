@@ -1,0 +1,9 @@
+﻿# utc: 2026-08-25T09:30:41.0814006Z
+# producer: ox-alpha CP-M1 Band 0 / G8
+# evidence/cp01 recursive listing+sha256, two reads 65 s apart
+snapshot-1: evidence/cpm1/g8-snapshot-1.txt (14465ffa124fc50d16a993a81987a55d2a16ee96a5afba69dee42f087d002ad5)
+snapshot-2: evidence/cpm1/g8-snapshot-2.txt (14465ffa124fc50d16a993a81987a55d2a16ee96a5afba69dee42f087d002ad5)
+differences: 0
+verdict: SINGLE WRITER CONFIRMED - superseded CP-01 session closed
+# note: this session's own adopted additions (excl-data manifest + SUPERSEDE note) were written
+# BEFORE snapshot-1; nothing wrote to evidence/cp01 between the two reads.

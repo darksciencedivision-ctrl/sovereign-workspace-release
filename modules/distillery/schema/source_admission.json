@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://distillery.local/schema/source_admission.json",
+  "title": "Sovereign/Grounded source admission event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "teacher_or_model_id", "revision", "previous_class", "new_class", "use_class", "evidence_or_terms_ref", "decision_ts", "decision_authority"],
+  "properties": {
+    "provider": {"type": "string", "minLength": 1},
+    "teacher_or_model_id": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "previous_class": {"enum": ["ELIGIBLE", "INTERNAL_ONLY", "REJECTED", "UNKNOWN"]},
+    "new_class": {"enum": ["ELIGIBLE", "INTERNAL_ONLY", "REJECTED"]},
+    "use_class": {"enum": ["ELIGIBLE", "INTERNAL_ONLY", "REJECTED", "UNKNOWN"]},
+    "evidence_or_terms_ref": {"type": "string", "minLength": 1},
+    "decision_ts": {"type": "string", "format": "date-time"},
+    "decision_authority": {"type": "string", "minLength": 1},
+    "notes": {"type": "string"},
+    "reason": {"type": "string"}
+  }
+}

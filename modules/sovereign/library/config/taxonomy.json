@@ -1,0 +1,55 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Canonical terminology policy for SOVEREIGN. Enforced only in canonical architecture documents.",
+  "canonical_terminology": {
+    "organism": {
+      "canonical_name": "sandbox-local cognition process",
+      "blocked_term": "organism",
+      "enforcement_scope": "canonical_architecture_docs_only",
+      "flag_in_research_notes": true,
+      "block_in_research_notes": false,
+      "rationale": "Avoids anthropomorphization of bounded sandbox processes."
+    },
+    "AGI": {
+      "canonical_name": "recursive cognition research system",
+      "blocked_term": "AGI",
+      "enforcement_scope": "canonical_architecture_docs_only",
+      "flag_in_research_notes": true,
+      "block_in_research_notes": false,
+      "rationale": "Maintains epistemic precision about system capabilities."
+    },
+    "sentience": {
+      "canonical_name": "identity-continuity hypothesis",
+      "blocked_term": "sentience",
+      "enforcement_scope": "canonical_architecture_docs_only",
+      "flag_in_research_notes": true,
+      "block_in_research_notes": false,
+      "rationale": "Sentience is an unvalidated claim; identity-continuity is a testable hypothesis."
+    },
+    "digital species": {
+      "canonical_name": "persistent autonomous cognitive architecture",
+      "blocked_term": "digital species",
+      "enforcement_scope": "canonical_architecture_docs_only",
+      "flag_in_research_notes": true,
+      "block_in_research_notes": false,
+      "rationale": "Avoids speculative species-level categorization."
+    },
+    "unbounded AGI": {
+      "canonical_name": "bounded recursive cognition research architecture",
+      "blocked_term": "unbounded AGI",
+      "enforcement_scope": "canonical_architecture_docs_only",
+      "flag_in_research_notes": true,
+      "block_in_research_notes": false,
+      "rationale": "All SOVEREIGN cognition architectures are bounded by design."
+    }
+  },
+  "enforcement_rules": {
+    "enforce_in_canonical_architecture_docs": true,
+    "flag_in_research_notes": true,
+    "block_in_research_notes": false,
+    "do_not_rewrite_operator_authored_research": true,
+    "auto_rewrite_enabled": false,
+    "require_operator_approval_for_rewrite": true
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "updated_utc": "2026-08-23T07:15:00Z",
+  "p0_open": [],
+  "p0_closed": [
+    {
+      "id": "P0-02",
+      "round": 1
+    },
+    {
+      "id": "P0-03",
+      "round": 1
+    },
+    {
+      "id": "P0-16",
+      "round": 2
+    },
+    {
+      "id": "P0-17",
+      "round": 2
+    },
+    {
+      "id": "P0-18",
+      "round": 2
+    },
+    {
+      "id": "P0-04",
+      "round": 3
+    },
+    {
+      "id": "P0-05",
+      "round": 3
+    },
+    {
+      "id": "P0-10",
+      "round": 4
+    },
+    {
+      "id": "P0-11",
+      "round": 4
+    },
+    {
+      "id": "P0-12",
+      "round": 4
+    },
+    {
+      "id": "P0-13",
+      "round": 5
+    },
+    {
+      "id": "P0-14",
+      "round": 5
+    },
+    {
+      "id": "P0-15",
+      "round": 6
+    },
+    {
+      "id": "P0-19",
+      "round": 6
+    },
+    {
+      "id": "P0-20",
+      "round": 6
+    },
+    {
+      "id": "P0-06",
+      "round": 7
+    },
+    {
+      "id": "P0-07",
+      "round": 7
+    },
+    {
+      "id": "P0-08",
+      "round": 7
+    },
+    {
+      "id": "P0-09",
+      "round": 7
+    }
+  ],
+  "p0_register_note": "Directive enumerates P0-02..P0-20 only; no P0-01 exists in the frozen contract text. Count of enumerated P0s: 19.",
+  "p1_selected": [],
+  "p1_deferred": [],
+  "phase7_items": [
+    {
+      "id": "H-directed-question",
+      "desc": "strengthen directed-question detection beyond seat-name/why/how presence"
+    },
+    {
+      "id": "H-disagreement-bounds",
+      "desc": "token-boundary disagreement markers (baseline D1 substring saturation)"
+    },
+    {
+      "id": "H-consensus-breaker",
+      "desc": "honest assess/remove structurally ineffective consensus-breaker machinery (baseline D1)"
+    },
+    {
+      "id": "H-min-turn-chars",
+      "desc": "wire min_turn_chars into runtime or remove from config/docs (baseline D2)"
+    }
+  ],
+  "phase8_items": [
+    {
+      "id": "PERF-capability-registry",
+      "desc": "model capability registry (context window/safe context/output allowance)"
+    },
+    {
+      "id": "PERF-prompt-budget",
+      "desc": "prompt budget enforcement with documented preservation priority"
+    },
+    {
+      "id": "PERF-metrics",
+      "desc": "per-attempt performance metrics capture (wall/TTFT/tokens where Ollama provides)"
+    },
+    {
+      "id": "PERF-dep-qualification",
+      "desc": "dependency delta evaluation only if required; current env already matches lockfile"
+    }
+  ],
+  "blocked": [],
+  "gates": {
+    "real_ollama_qualification": "UNBLOCKED - ollama 0.32.14 reachable; phi4:14b and qwen2.5:14b-instruct present",
+    "soak": "pending environment-appropriate execution"
+  },
+  "p1_closed": [
+    {
+      "id": "P1-httpx-lifespan",
+      "round": 8
+    },
+    {
+      "id": "P1-health",
+      "round": 8
+    },
+    {
+      "id": "P1-ready",
+      "round": 8
+    },
+    {
+      "id": "P1-ws-isolation",
+      "round": 9
+    },
+    {
+      "id": "P1-insight-recovery",
+      "round": 9
+    },
+    {
+      "id": "P1-logs",
+      "round": 11
+    }
+  ],
+  "terminal_state": {
+    "released": true,
+    "release_name": "Debate_Table_v1.2.1_Hardening_20260823_143520",
+    "zip_sha256": "d03ba417914e1465898f5144cc5735afb92f7f6da5e846e0a968fe48c531d265",
+    "director_accept": "2026-08-23"
+  }
+}

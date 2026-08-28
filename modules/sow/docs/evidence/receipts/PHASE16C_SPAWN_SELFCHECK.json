@@ -1,0 +1,36 @@
+{
+  "check": "phase-16c.spawn",
+  "started": "2026-07-25T01:40:01.288Z",
+  "ok": true,
+  "feed_ok": true,
+  "feed_schema": "conductor_spawn_feed@1.0",
+  "feed_error": null,
+  "spawned": true,
+  "node_state": "awaiting_live_conductor",
+  "interactive": true,
+  "argv": [
+    "claude",
+    "--model",
+    "fable-5"
+  ],
+  "no_headless_flags": true,
+  "env_credential_scrubbed": true,
+  "torn_down": true,
+  "governor_released": true,
+  "spawn_governed": true,
+  "spawn_sourced": true,
+  "state_node_state": "awaiting_live_conductor",
+  "conductor_pane_id": "pane-1",
+  "badge_rendered": true,
+  "badge_text": "CONDUCTOR · fable-5 (unverified) · awaiting_live_conductor",
+  "rendered_carries_node_state": true,
+  "error": null,
+  "finished": "2026-07-25T01:40:01.290Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

@@ -1,0 +1,46 @@
+"4c": {
+      "status": "STOP",
+      "claimed_by": "builder",
+      "evaluated_by": null,
+      "authorized_by": null,
+      "utc": "2026-08-22T23:18:40Z",
+      "basis": "docs/REMEDIATION-03.md",
+      "evidence": [
+        {
+          "path": "docs/STOP-REPORT-REM-03.md",
+          "sha256": "7b36ee241d315586180293b075620990e19a83cb5fd15f1f9650f10e228911a7"
+        },
+        {
+          "path": "evidence/rem03/sow-token-extraction.txt",
+          "sha256": "e12b9b09db8e4dd3eba3178e6249a2dfc094bd987ad32ee83b7a95413aacbbe9"
+        },
+        {
+          "path": "evidence/rem03/contrast-preview.txt",
+          "sha256": "7c13ac373094013933f2b3c0393de711ba12627d74ad161400414c4ab762dec4"
+        },
+        {
+          "path": "docs/THEME-BASELINE-v2.md",
+          "sha256": "35311af375186654820866119ac6bfbbaeb8cfe88c8803ad5a86130204e1ba5b"
+        },
+        {
+          "path": "evidence/rem03/linecount.txt",
+          "sha256": "51aa50b0579d473de4705bfaec164846c51c320466c145ed1b074534e2f30296"
+        },
+        {
+          "path": "evidence/rem03/suite-run1-failed-h12-external-write.txt",
+          "sha256": "ed1644bfe9010b7dd72ff902f573db2beb9e972d0dd01df2109c2591b3388fab"
+        },
+        {
+          "path": "evidence/rem03/sow-git-external-change.txt",
+          "sha256": "d0e11b801a024ddfbd6c6e07bf0102912c61af4d517dfa1bca1fc6a3693ac4d3"
+        },
+        {
+          "path": "docs/STOP-REPORT-SOW-TREE-ACTIVITY.md",
+          "sha256": "5cfa1fd4f70a4cea53586b12a18234ca2d57d0f6b7ac1b9dee813b48157c2726"
+        }
+      ],
+      "note": "Two stop episodes under REM-03. Episode 1: verbatim SOW --text-muted #6b7687 failed H-16 (3.75:1 on the v2 panel); stopped per REM-03 s1 T3; resolved by operator option 1 logged at 2026-08-22T23:01:33Z selecting #9aa7bd. T1 then pinned docs/THEME-BASELINE-v2.md and T2 applied the v2 set to shell/static/app.css (34 changed lines +17/-17 of <=40 permitted, evidence/rem03/linecount.txt; app.css sha256 329a52a175da7ccb37909b5fbfa009dd2f444a9f4d2a1b748ee86c2080ecb8ab; light block unchanged); H-16 PASSES on v2 (render probe: all five render tests OK including test_light_theme_contrast and test_rendered_dom). Episode 2: the full README suite then FAILED 1 of 121 - test_zz_evidence observed 4 external filesystem events inside the protected SOW live tree during its window (.orchestration-mutation.lock create/remove); read-only git inspection shows HEAD moved bad029e7 -> 6d23a81082836778ffd46c70151821b467dc7432 and tracked files modified by non-session tooling (mtime 2026-08-22T23:12:05Z). Gate 5 C-3/C-4 baselines no longer describe the tree -> PROTECTED_GIT_STATE_CHANGED, mandatory stop per AGENTS.md s13; test-run.txt NOT overwritten (preserved as evidence/rem03/suite-run1-failed-h12-external-write.txt). Operator options: docs/STOP-REPORT-SOW-TREE-ACTIVITY.md s4. Authorization root: operator session instructions quoted verbatim in evidence/OPERATOR-INSTRUCTIONS.log (entries 2026-08-22T19:24:02Z, 21:15:09Z, 23:01:33Z). Gates other than 4c untouched by this update.",
+      "stop_reason": "EXTERNAL_PROTECTED_TREE_WRITE_INVALIDATES_C3_C4_BASELINES",
+      "prior_stop_reason": "SOW_VERBATIM_MUTED_FAILS_H16_CONTRAST (resolved by operator decision logged 2026-08-22T23:01:33Z)",
+      "superseded_ledger_sha256": "24da02bd861c8d91c7403a530333b2d4fb6a890c3561b79ebb686ddf3c881052"
+    }

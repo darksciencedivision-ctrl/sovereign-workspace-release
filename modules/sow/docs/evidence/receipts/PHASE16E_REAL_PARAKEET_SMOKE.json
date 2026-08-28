@@ -1,0 +1,21 @@
+{
+  "schema": "phase16e_real_parakeet_smoke@1.0",
+  "check": "phase-16e.real",
+  "host_detection": {
+    "nvidia_gpu": true,
+    "wsl": true,
+    "nemo": true
+  },
+  "model_id": "nvidia/parakeet-tdt-0.6b-v3",
+  "fixture": {
+    "method": "OS System.Speech (test input only; NOT product TTS)",
+    "phrase": "testing one two three four",
+    "wav_bytes": 75566
+  },
+  "transcribe_seconds": 41.8,
+  "transcript_text": "Testing 1234",
+  "transcript_confidence": 1.0,
+  "recognized_spoken_content": true,
+  "error": null,
+  "ok": true
+}

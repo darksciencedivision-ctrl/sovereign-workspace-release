@@ -1,0 +1,14 @@
+Candidate: Grounded 4B Qwen-lineage placeholder
+Identity preflight: FAIL
+Exact upstream repository: absent
+Exact model name: absent
+Immutable revision: absent
+Trainable local artifact: absent
+Weight format: absent
+Exact architecture/config: absent
+Declared context length: absent
+License identifier: absent
+Pinned gfx906 endpoint: absent
+
+Disposition: CANDIDATE_IDENTITY_BLOCKED
+No substitution, download, load, GPU mutation, or training step occurred.

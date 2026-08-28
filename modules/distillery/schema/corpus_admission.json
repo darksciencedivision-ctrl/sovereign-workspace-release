@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://distillery.local/schema/corpus_admission.json",
+  "title": "Normative corpus admission record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scrub_policy_version", "example_id", "channel", "client_scope", "retention", "retrieval_only", "source_lineage", "deletion_lineage_ids", "redactions_applied", "scan_findings", "raw_content_hash", "redacted_content_hash", "created_at", "record_hash"],
+  "properties": {
+    "scrub_policy_version": {"type": "string", "minLength": 1},
+    "example_id": {"type": "string", "minLength": 1},
+    "channel": {"type": ["string", "null"]},
+    "client_scope": {"type": "string", "minLength": 1},
+    "retention": {"enum": ["DURABLE_PROCEDURE", "EPHEMERAL_TRACE"]},
+    "retrieval_only": {"type": "boolean"},
+    "source_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineage_id", "provider", "teacher_or_model_id", "revision", "use_class", "admission_snapshot_hash", "admission_state_hash"],
+      "properties": {
+        "lineage_id": {"type": "string", "minLength": 1},
+        "provider": {"type": "string", "minLength": 1},
+        "teacher_or_model_id": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "use_class": {"enum": ["ELIGIBLE", "INTERNAL_ONLY", "REJECTED", "UNKNOWN"]},
+        "admission_snapshot_hash": {"type": "string", "minLength": 1},
+        "admission_state_hash": {"type": "string", "minLength": 1}
+      }
+    },
+    "deletion_lineage_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "redactions_applied": {"type": "integer", "minimum": 0},
+    "scan_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "token_hash"],
+        "properties": {
+          "category": {"enum": ["API_KEY", "CREDENTIAL", "EMAIL", "HOSTNAME", "LOCAL_PATH"]},
+          "token_hash": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "raw_content_hash": {"type": "string", "minLength": 1},
+    "redacted_content_hash": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "record_hash": {"type": "string", "minLength": 1}
+  }
+}

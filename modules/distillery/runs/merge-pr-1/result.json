@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.1",
+  "status": "GROUNDED v1.1 CANONICAL INTEGRATION: MERGED",
+  "recorded_at": "2026-08-20T14:16:41.8260055-05:00",
+  "repository": "ryguy-pixel/Sovereign-Distillery",
+  "pull_request": {
+    "number": 1,
+    "url": "https://github.com/ryguy-pixel/Sovereign-Distillery/pull/1",
+    "state": "MERGED",
+    "authorized_head": "864419decc16f5885857bff339bb6dc61d8060d1",
+    "incorporated_main": "23523bde90241da482eacb741de086df36642c06",
+    "merge_commit": "39aa889078b1754abf645e5ea75a3388656f8373",
+    "merge_method": "MERGE_COMMIT",
+    "merged_at": "2026-08-20T19:15:23Z"
+  },
+  "preserved_lineage": [
+    "a332e68823ab426310c5d37f3c0bfed5c52cc1f0",
+    "c3594cfc6284b7b5008bb131434436d5a3a77c9a",
+    "b0b7f389f278531ef28c62215d636f9dc5d2ca37",
+    "7b3eb96acd07e5390d24991b3b908f8137a027a8",
+    "864419decc16f5885857bff339bb6dc61d8060d1"
+  ],
+  "validation": {
+    "integrated_tests": "27/27 PASS",
+    "python_compilation": "PASS",
+    "json_jsonl_parse": "PASS",
+    "json_schema": "PASS",
+    "markdown_links": "PASS",
+    "package_build": "PASS",
+    "git_diff_check": "PASS",
+    "conflict_markers": 0,
+    "secret_private_runtime_scan": "PASS",
+    "model_weight_scan": "PASS",
+    "oversized_artifact_scan": "PASS",
+    "repository_wide_license_files": 0,
+    "working_tree_before_record": "CLEAN"
+  },
+  "hard_gates": {
+    "HG-0": "PASS",
+    "HG-1": "SOURCE DECISIONS PENDING; SOFTWARE ENFORCEMENT PASS",
+    "HG-2": "PASS ON SYNTHETIC TRANSITIVE E7 ACCEPTANCE",
+    "HG-3": "NEXT TECHNICAL GATE; NOT YET EXECUTED",
+    "HG-4": "BLOCKED; NOT YET EXECUTED",
+    "HG-5": "NOT REACHED",
+    "HG-6": "NOT REACHED",
+    "HG-7": "NOT REACHED",
+    "HG-8": "NOT REACHED"
+  },
+  "source_admission": {
+    "D-9": "ALL CURRENT CANDIDATES UNKNOWN",
+    "candidate_count": 4,
+    "training_and_synthetic_seeding": "FAIL_CLOSED"
+  },
+  "phase_state": {
+    "G2-G6": "NOT STARTED",
+    "G4_training": false,
+    "production_deployment": false,
+    "model_promotion": false
+  },
+  "next_action": "HG-3 real student architecture smoke on the pinned gfx906 trainer; compatibility evidence only, with no full-corpus training, G4, deployment, or promotion authorization."
+}

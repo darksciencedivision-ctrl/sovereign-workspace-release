@@ -1,0 +1,6 @@
+{
+  "schema_version": 2,
+  "retired": true,
+  "canonical_entrypoint": "python -m sovereign_product.server",
+  "note": "Compatibility metadata only. adapter.py ignores this file; use Start-Sovereign.ps1 parameters."
+}

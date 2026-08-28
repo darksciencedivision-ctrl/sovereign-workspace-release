@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-08-20T22:06:33.8803161Z",
+  "repository": "ryguy-pixel/Sovereign-Distillery",
+  "canonical_local_repository": "D:\\Sovereign-Grounded-Distillery",
+  "branch": "main",
+  "implementation_branch": "remediation/post-audit-pre-hg3",
+  "base_main_sha": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+  "implementation_commit_sha": "55969b748946316fc25a63f5ebd69fd12f738012",
+  "local_main_fast_forwarded": true,
+  "remote_write_performed": false,
+  "remediation": {
+    "GR-1": "CLOSED",
+    "GR-2": "CLOSED",
+    "GR-3": "CLOSED",
+    "GR-4": "CLOSED",
+    "GR-5": "LIMITED_PENDING_LIVE_OPERATOR_MARKS",
+    "GR-6": "CLOSED",
+    "GR-7": "CLOSED",
+    "GR-8": "TRACKED_FOR_G2",
+    "GR-9": "TRACKED_FOR_G2",
+    "GR-10": "CLOSED"
+  },
+  "treaty_verified": "PASS",
+  "hard_gates": {
+    "HG-0": "LIMITED_PENDING_LIVE_OPERATOR_MARKS",
+    "HG-1": "PASS_ENFORCEMENT_SOURCE_DECISIONS_PENDING",
+    "HG-2": "PASS_SYNTHETIC",
+    "HG-3": "NEXT_TECHNICAL_GATE_NOT_EXECUTED",
+    "HG-4": "NOT_EXECUTED",
+    "HG-5": "NOT_REACHED",
+    "HG-6": "NOT_REACHED",
+    "HG-7": "NOT_REACHED",
+    "HG-8": "NOT_REACHED"
+  },
+  "d9": {
+    "candidate_count": 4,
+    "unknown_count": 4,
+    "changed_by_remediation": false
+  },
+  "validation": {
+    "windows_python_3_14_pytest": "40 passed, 101 subtests passed",
+    "windows_python_3_11_pytest": "40 passed, 101 subtests passed",
+    "linux_python_3_12_pytest": "40 passed, 101 subtests passed",
+    "independent_audit_linux_python_3_11_baseline": "27/27 passed",
+    "python_compilation": "PASS",
+    "package_sdist_and_wheel": "PASS",
+    "json_parse_and_schema": "PASS",
+    "markdown_links": "PASS",
+    "sovereign_source_hashes": "24 checked, 0 mismatches",
+    "instrumentation_checksums": "2 checked, 0 mismatches",
+    "git_diff_check": "PASS",
+    "lf_policy_changed_files": "43 checked, 0 CRLF files",
+    "hygiene": "PASS"
+  },
+  "hygiene": {
+    "unexpected_files": 0,
+    "oversized_files": 0,
+    "model_weight_files": 0,
+    "repository_wide_license_files_added": 0,
+    "g2_g6_execution_artifacts": 0,
+    "high_confidence_secret_hits": 0,
+    "conflict_markers": 0
+  },
+  "execution_boundary": {
+    "hg3_executed": false,
+    "g2_g6_executed": false,
+    "training_executed": false,
+    "deployment_executed": false,
+    "promotion_executed": false
+  },
+  "next_action": "Capture one genuine live /success and one genuine live /fail with label_origin=live_operator_mark; regenerate the content-free G0 manifest and restore HG-0 PASS before requesting separate HG-3 authorization."
+}

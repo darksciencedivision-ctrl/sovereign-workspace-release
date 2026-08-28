@@ -1,0 +1,32 @@
+{
+  "archive_sha256_tar_HEAD": "331C1F585F51BCD0CCA53947F72F9F8B9D81B53603ED94EFD03C5AF00733AC01",
+  "commit_count": 67,
+  "gate_tag_count": 16,
+  "head_commit": "a3f19839bbca1b72320b0995589b7bff1f36515a",
+  "head_tree": "145b022ba441bb961f5437fd8fce32b8296a4b02",
+  "note_archive": "sha256 of `git archive --format=tar HEAD` - deterministic content snapshot of the tracked tree",
+  "purpose": "Verification item 14: source snapshot with counts, content hash, and tag lineage",
+  "snapshot": "SOURCE_SNAPSHOT_20260718",
+  "tags": {
+    "audit/completion-20260718": "a3f1983",
+    "build/complete": "06931c9",
+    "gate/phase-0": "cc0bceb",
+    "gate/phase-0.1": "e45e9dd",
+    "gate/phase-1": "733f624",
+    "gate/phase-10": "c7afb74",
+    "gate/phase-11": "59183e1",
+    "gate/phase-12": "c4cdcf4",
+    "gate/phase-13": "90dfaa4",
+    "gate/phase-2": "ca5aa71",
+    "gate/phase-3": "be6939e",
+    "gate/phase-3a": "fa1a345",
+    "gate/phase-4": "4c63cb8",
+    "gate/phase-5": "512a1ce",
+    "gate/phase-6": "a0f1c50",
+    "gate/phase-7": "1b99591",
+    "gate/phase-8": "998050e",
+    "gate/phase-9": "ba12575"
+  },
+  "total_tag_count": 18,
+  "tracked_files": 276
+}

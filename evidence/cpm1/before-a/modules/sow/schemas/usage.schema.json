@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/usage@1.0",
+  "title": "Usage / cost record",
+  "description": "Cost-to-accepted-output instrumentation from day one (Buildout Directive section 4; Plan section 13.1). Debate budgets are denominated in tokens for local models and usage units for frontier CLIs.",
+  "type": "object",
+  "required": ["usage_id", "node_id", "ts_start", "cost_class"],
+  "additionalProperties": false,
+  "properties": {
+    "usage_id": { "type": "string", "pattern": "^u-[A-Za-z0-9_-]+$" },
+    "node_id": { "type": "string" },
+    "task_id": { "type": ["string", "null"] },
+    "adapter": { "type": ["string", "null"] },
+    "ts_start": { "type": "string", "format": "date-time" },
+    "ts_end": { "type": ["string", "null"], "format": "date-time" },
+    "tokens_in": { "type": "integer", "minimum": 0 },
+    "tokens_out": { "type": "integer", "minimum": 0 },
+    "usage_units": { "type": ["integer", "null"], "minimum": 0, "description": "Provider-usage units for subscription CLIs." },
+    "wallclock_s": { "type": "number", "minimum": 0 },
+    "cost_class": { "enum": ["local", "subscription"] },
+    "subscription_ref": { "type": ["string", "null"] },
+    "notes": { "type": "string" },
+    "schema": { "const": "usage@1.0" }
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "check": "phase-19.4.readiness-window",
+  "unit": "phase-19.4.round4",
+  "finding": "U329 — in the packaged runtime, the readiness WINDOW, the signal ORDER and the readiness RUN behave as the unit claims. The window is the pane's bounded tail through RingBuffer.sliceFrom(), never buffer.snapshot(), measured against the audited whole-buffer read on the same live pane; orderedProviderSignal consults no screen while a stronger signal answers; and createWorkerReadiness.run() — driven here through the PRODUCTION U328 write gate, the production write path, the production launch record and the production operational-state writer, over real ConPTY panes — stalls with the withheld write named (U373) rather than promoting the gate's phrase to a provider verdict, lets the bounded window state what is wrong while a write is withheld, and reaches READY on a clean pane that answers. No live provider runs here (live_exchanges: 0), so 6 bindings are the CHECK's rather than the shell's — mcpState (the Sovereign MCP session state); operationCount (the provider tool-call count); operationState (it feeds last_successful_mcp_operation in every structured failure); mcpTimeoutMs; responseDeadlineMs; now/sleep/log — and each pane's launch record is SEEDED. check_owned_bindings, scope_note_readiness_run and seeded_launch_record carry the complete list; this sentence is generated from it and counts what it counts.",
+  "source": {
+    "commit": "7ca74a9e5ffd25d8cac223fe46b9867dd5c51e39",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-10T20:15:58.679Z",
+  "electron_main_pid": 36420,
+  "ok": true,
+  "supervision_ready": true,
+  "panes": [
+    {
+      "pane": "A",
+      "pane_id": "pane-2",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "B",
+      "pane_id": "pane-3",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "G",
+      "pane_id": "pane-4",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "H",
+      "pane_id": "pane-5",
+      "term_created": true,
+      "banner_seen": true
+    }
+  ],
+  "legs": {
+    "buried_overlay_is_not_current_state": {
+      "output_drawn": true,
+      "bounded_window_answerable": true,
+      "bounded_window_bytes": 3682,
+      "whole_buffer_bytes": 3682,
+      "whole_buffer_chars_utf16": 3682,
+      "bounded_verdict": null,
+      "whole_buffer_verdict": "AUTH_REQUIRED",
+      "bound_that_applied": "line_only",
+      "ok": true
+    },
+    "current_modal_still_classifies": {
+      "modal_drawn": true,
+      "terminal_state": "WORKSPACE_TRUST_REQUIRED",
+      "ok": true
+    },
+    "exit_code_and_structured_signals_first": {
+      "exited_source": "process_exit",
+      "exited_exit_code": 0,
+      "connected_source": "mcp_connection",
+      "screen_reads_while_answerable_by_stronger_signals": 0,
+      "ok": true
+    },
+    "nonce_window_is_exact_or_nothing": {
+      "fabricated_position_answerable": false,
+      "negative_position_answerable": false,
+      "nonce_occurrences": 2,
+      "ok": true
+    },
+    "sessionless_pane_unanswerable": {
+      "answerable": false,
+      "reason": "the pane holds no readable stream buffer",
+      "classified": null,
+      "ok": true
+    },
+    "withheld_write_is_not_a_provider_verdict": {
+      "gate_refusal_state": "AUTH_REQUIRED",
+      "run_state": "STALLED",
+      "ready": false,
+      "stage": "readiness_prompt_withheld",
+      "decided_by": "write_gate_withheld",
+      "write_withheld_state": "AUTH_REQUIRED",
+      "prompts_delivered": 0,
+      "operational_states": [
+        "MCP_CONNECTING",
+        "STALLED"
+      ],
+      "residual_u373_worker_stalls_though_connected": true,
+      "ok": true
+    },
+    "clean_pane_is_written_to_and_reaches_ready": {
+      "run_state": "READY",
+      "ready": true,
+      "prompts_delivered": 1,
+      "expected_answer_absent_from_the_prompt": true,
+      "answer_occurrences_on_the_real_pane": 1,
+      "prompt_echo_occurrences_on_the_real_pane": 2,
+      "answer_marks_on_the_real_pane": 1,
+      "readiness_responses": 1,
+      "operational_states": [
+        "MCP_CONNECTING",
+        "READY"
+      ],
+      "ok": true
+    },
+    "bounded_window_speaks_while_the_write_is_withheld": {
+      "scenario_reproduced": true,
+      "gate_refusal_state": "AUTH_REQUIRED",
+      "run_state": "WORKSPACE_TRUST_REQUIRED",
+      "decided_by": "screen_text_bounded_window",
+      "provider_terminal_state": "WORKSPACE_TRUST_REQUIRED",
+      "prompts_delivered": 0,
+      "ok": true
+    }
+  },
+  "scope_note_screen_signal": "the panes here are powershell.exe printing text this check chose, so no real provider screen is evidenced (U362 applies unchanged); what is measured is the WINDOW and the ORDER, not the classifier's coverage (U363) and not a terminal emulator's view of the visible screen (U372)",
+  "scope_note_readiness_run": "legs F/G/H drive the PRODUCTION readiness state machine bound to the production window, U328 write gate, write path, launch record store and operational-state writer. SIMULATED by this check, completely enumerated: the Sovereign MCP session state (mcpState), the provider tool-call count (operationCount), the last successful MCP operation (operationState — it feeds last_successful_mcp_operation in every structured failure these legs produce), both deadlines (mcpTimeoutMs/responseDeadlineMs, short so a self-check does not wait out production's 120 s/180 s — leg F's outcome is a function of the withheld deadline), and now/sleep/log. The pane's launch record is SEEDED (values under seeded_launch_record, per pane, including the nodeId and the chrome whose provider and model_slug become the provider/model of every structured failure below) because a self-check pane is not a picker launch; those are literal assignments, not observed signals, and the seeded records are left in this throwaway process's launcher registry when the check exits",
+  "scope_note_leg_d": "leg D injects its keystroke through the renderer's OPERATOR input channel (window.sovereign.input), not the gated system→pane path legs F/G/H use. It is the one write in a check partly about the write path that does not use the write path, so it is said here rather than left for a reader to notice: no gate is weakened or bypassed by it (the U328 gate governs SYSTEM writes; an operator keystroke is the operator's own authority, invariant 1), the pane is a check-spawned powershell.exe killed in this unit, and the same channel is used by two other in-Electron self-checks for the same reason — there is no operator at a keyboard inside an automated run. What leg D measures is the WINDOW's exactness (a fabricated position is unanswerable, a real mark counts what arrived), which is independent of how the bytes got there (U386(e))",
+  "check_owned_bindings": [
+    "mcpState (the Sovereign MCP session state)",
+    "operationCount (the provider tool-call count)",
+    "operationState (it feeds last_successful_mcp_operation in every structured failure)",
+    "mcpTimeoutMs",
+    "responseDeadlineMs",
+    "now/sleep/log"
+  ],
+  "seeded_launch_record": {
+    "constant_fields": {
+      "state": "running",
+      "exitCode": null,
+      "nodeAttested": true,
+      "supervised": true,
+      "operationalState": "STARTING",
+      "readiness": null,
+      "structuredFailure": null
+    },
+    "per_pane": {
+      "F": {
+        "state": "running",
+        "exitCode": null,
+        "nodeAttested": true,
+        "supervised": true,
+        "operationalState": "STARTING",
+        "readiness": null,
+        "structuredFailure": null,
+        "nodeId": "node-u329-f",
+        "chrome": {
+          "provider": "grok_build",
+          "model_slug": "grok_build-selfcheck",
+          "node_state": "STARTING"
+        }
+      },
+      "G": {
+        "state": "running",
+        "exitCode": null,
+        "nodeAttested": true,
+        "supervised": true,
+        "operationalState": "STARTING",
+        "readiness": null,
+        "structuredFailure": null,
+        "nodeId": "node-u329-g",
+        "chrome": {
+          "provider": "claude_code",
+          "model_slug": "claude_code-selfcheck",
+          "node_state": "STARTING"
+        }
+      },
+      "H": {
+        "state": "running",
+        "exitCode": null,
+        "nodeAttested": true,
+        "supervised": true,
+        "operationalState": "STARTING",
+        "readiness": null,
+        "structuredFailure": null,
+        "nodeId": "node-u329-h",
+        "chrome": {
+          "provider": "claude_code",
+          "model_slug": "claude_code-selfcheck",
+          "node_state": "STARTING"
+        }
+      }
+    }
+  },
+  "live_exchanges": 0,
+  "error": null,
+  "sessions_killed_in_unit": [
+    "pane-2",
+    "pane-3",
+    "pane-4",
+    "pane-5"
+  ],
+  "finished": "2026-08-10T20:16:03.637Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

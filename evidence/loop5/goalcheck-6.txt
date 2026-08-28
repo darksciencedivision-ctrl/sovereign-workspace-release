@@ -1,0 +1,63 @@
+# utc: 2026-08-24T16:21:43.069493+00:00
+# producer: ox-alpha LOOP-01
+# oracle: evidence/loop5/tools/goalcheck.py read-only evaluation
+ALL_TRUE: False
+
+G0: TRUE
+  - session-start.txt exists=True
+  - capture content ok=True
+  - post-reset reverify exists=True
+  - kickoff logged verbatim=True
+  - DECISIONS.md sha match=True
+  - ports free now: {5175: True, 8700: True, 5180: False}
+  - helpers alive: {'fswatch-driver.pid': True, 'poller.pid': True, 'shell.pid': True}
+  - 5180 ok (free at start per capture; now free or held by live shell)=True
+
+G1: TRUE
+  - inspection gap seconds=127 (>=60: True)
+  - inspections byte-identical(non-header)=True
+  - manifest-rem03-before-product-software: exists=True names_original_and_hash=True
+  - manifest-rem03-before-sow: exists=True names_original_and_hash=True
+  - manifest-rem03-before-distillery: exists=True names_original_and_hash=True
+  - sow-git-rem03-before.body exists=True four_sections=True meta_names_superseded=True
+  - original manifest-before-product-software untouched=True
+  - original manifest-before-sow untouched=True
+  - original manifest-before-distillery untouched=True
+  - original sow-git-before.body untouched=True
+
+G2: TRUE
+  - test-run.txt: ran_121_ge121=True ends_OK=True mtime_after_G1=True
+  - BUILD-MANIFEST entries=40 mismatched=0 
+  - app.css == v2 pinned hash: True
+
+G3: TRUE
+  - snapshot pre4c exists=True
+  - prefix_byte_identical=True
+  - suffix_byte_identical=True
+  - other_entries_semantically_identical=True
+  - status==CANDIDATE: True
+  - entries=7 all_lowercase_64hex=True hashes_match_disk=True required_missing=[]
+
+G4: FALSE
+  - shell-grid-initial.png: uniform-ish (4 distinct samples)
+  - card-sovereign-READY.png: uniform-ish (4 distinct samples)
+  - card-debate-READY.png: uniform-ish (4 distinct samples)
+  - card-sow-STOPPED.png: uniform-ish (4 distinct samples)
+  - card-distillery-NOT_STARTED.png: uniform-ish (4 distinct samples)
+  - side-by-side-sovereign-shell.png: uniform-ish (4 distinct samples)
+  - side-by-side-sovereign-module.png: uniform-ish (2 distinct samples)
+  - shell-light-mode.png light_bg=True (median_lum=0.913)
+  - b7-dom.txt ids=True disabled>=3=True six_actions=True
+  - ollama-tags-fresh precedes sovereign capture=True
+  - keep-run records READY: [('debate', True), ('sovereign', True)]
+  - timeline: sow never launched=True sovereign STOPPED after capture=True
+
+G5: FALSE
+  - orphans-after-loop01.txt clean=False
+  - shell stopped via own path, pid sentinels cleared=False
+
+G6: FALSE
+  - snapshot pre5c exists=False
+
+G7: FALSE
+  - report: producer_header=False final_line_is_claim=False covers_4c_5b=True tagged=False len=6086

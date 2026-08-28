@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "observed_at": "2026-08-21T00:12:00Z",
+  "discovery_policy": {
+    "mode": "READ_ONLY_PROJECT_LOCAL_AND_EXISTING_CONFIGURATION",
+    "broad_port_scan_performed": false,
+    "aggressive_network_enumeration_performed": false,
+    "arbitrary_neighbor_dns_resolution_performed": false,
+    "credentials_read_or_recorded": false
+  },
+  "sources": [
+    {"source": "canonical joint repository docs, registries, imported Sovereign canon, and old run evidence", "result": "Expected/test-fixture references only; no physical hostname or access target."},
+    {"source": "original Grounded RC3 repository", "result": "Four planning/test references; no physical hostname or access target."},
+    {"source": "provisional Sovereign Distillery workspace", "result": "Audit explicitly reports gfx906 absent/unverified; no access target."},
+    {"source": "active Sovereign product runtime", "result": "No gfx906, MI50, Vega 20, ROCm, or trainer-host reference; local Ollama runtime only."},
+    {"source": "D:/SOVEREIGN_SYSTEM top-level handoffs/manifests and selected active canon", "result": "No strong trainer reference. Root manifest contains storage lineage only."},
+    {"source": "D:/SOVEREIGN_SYSTEM inventory candidate_files.csv, raw_discovery_paths.txt, model_files.csv, and preflight_environment.txt", "result": "No gfx906, MI50, Vega 20, ROCm, trainer, or training-host match. Preflight machine name is the current workstation."},
+    {"source": "downloaded Grounded drafts/directives", "result": "Four files repeat the expected 32 GiB gfx906/ROCm plan and unsupported physical-availability claims; none names a host or access method."},
+    {"source": "PowerShell PSReadLine history", "result": "42099 lines inspected; zero strong trainer-term lines and zero SSH command lines."},
+    {"source": "Windows and D-drive SSH configuration/known-hosts", "result": "Both .ssh roots absent; no config or known_hosts metadata."},
+    {"source": "Windows Terminal", "result": "14 profiles inspected; zero SSH profiles."},
+    {"source": "PuTTY and saved RDP targets", "result": "Zero configured sessions/targets."},
+    {"source": "VS Code, Cursor, and VSCodium remote-development configuration", "result": "User configuration roots absent; no saved targets."},
+    {"source": "trainer/ROCm/HIP/SSH environment variables", "result": "Zero matching variables."},
+    {"source": "Docker, Podman, Tailscale, ZeroTier, SMB, and Git remotes", "result": "Docker has only two local named-pipe contexts; other remote/mesh mappings absent; Git remotes are repository hosting only."},
+    {"source": "Desktop/Documents/Downloads/Start Menu launchers and saved scripts", "result": "No trainer-named launcher or script. Two Claude SSH logs contained no trainer terms or parsed hostnames."},
+    {"source": "local neighbor, DNS, hosts-file, and connection caches", "result": "14 non-multicast neighbor entries and 9 cached/reachable entries summarized without addresses; zero active SSH connections and zero project/trainer hostname cache entries."},
+    {"source": "local VM and WSL inventory", "result": "No Hyper-V/VirtualBox inventory; three local WSL distributions, none a remote trainer target."}
+  ],
+  "current_workstation": {
+    "hostname": "DESKTOP-03PTABH",
+    "os": "Microsoft Windows 11 Home 10.0.26200 build 26200, 64-bit",
+    "system_manufacturer": "Micro-Star International Co., Ltd.",
+    "system_model": "MS-7D98",
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 5060 Ti",
+      "pci_bus_id": "00000000:01:00.0",
+      "vram_total_mib": 8151,
+      "vram_used_mib_at_probe": 2819,
+      "vram_free_mib_at_probe": 5073,
+      "nvidia_driver": "610.74"
+    },
+    "current_workstation_not_canonical_trainer": true
+  },
+  "candidate_trainer_hosts": [],
+  "live_probe": {
+    "performed": false,
+    "reason": "No candidate physical host or configured access method was found."
+  },
+  "conclusion": "TARGET_NOT_FOUND"
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/permission@1.0",
+  "title": "Permission profile",
+  "description": "Deny-by-default permission profile enforced by the Permission Broker + Node Runtime supervisor at the OS/process layer (invariant 29) — never by trusting the harness. Voice-derived actions pass the same broker (I-V3).",
+  "type": "object",
+  "required": ["profile_id", "node_class", "default_stance", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "profile_id": { "type": "string" },
+    "description": { "type": "string" },
+    "node_class": { "enum": ["conductor", "worker_reasoning", "worker_coding_specialist", "voice_input_service"] },
+    "default_stance": { "const": "deny" },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action_class", "effect"],
+        "additionalProperties": false,
+        "properties": {
+          "action_class": { "enum": ["fs_read", "fs_write", "shell_exec", "git", "network_egress", "mcp_tool", "spawn_node", "debate_request", "control_event"] },
+          "scope": { "type": "string", "description": "Path/pattern/tool-name scope. fs scopes resolve inside the node workspace only." },
+          "effect": { "enum": ["allow", "require_approval", "deny"] }
+        }
+      }
+    },
+    "fs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workspace_only": { "type": "boolean", "description": "Worktree-scoped ACL (Plan section 4.8)." },
+        "extra_read_paths": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "network": {
+      "type": "object",
+      "required": ["egress"],
+      "additionalProperties": false,
+      "properties": {
+        "egress": { "enum": ["deny_all", "allowlist"] },
+        "allowlist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "protected_actions": { "type": "array", "items": { "type": "string" }, "description": "Always routed to the operator approval queue regardless of rules." },
+    "schema": { "const": "permission@1.0" }
+  }
+}

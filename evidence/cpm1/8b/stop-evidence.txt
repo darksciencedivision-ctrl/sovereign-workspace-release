@@ -1,0 +1,20 @@
+# utc: 2026-08-25T19:14:24.557Z
+# producer: ox-alpha CP-M1 Band 2 / G16 STOPPED-requires-evidence
+# per-module stop evidence while the shell is still serving:
+# - sovereign (binds 5175): started -> READY observed -> stopped through its own
+#   job_object path; pid gone (no workspace python under modules\sovereign) and
+#   port 5175 LISTENING cleared after stop.
+# - sow: no port; pid evidence in sow-readiness.txt (electron 4 -> 0 before shell exit).
+# - debate: EXTERNAL operator-directed owner pid 82344 on 8700 is NOT ours to stop;
+#   untouched, see h9-noninterference.txt and external-debate-started.txt.
+# - distillery/tokencenter: not_started at this band; nothing binds.
+#
+# start requested : 2026-08-25T19:14:08.291Z -> (200, {'Server': 'BaseHTTP/0.6 Python/3.12.10', 'Date': 'Tue, 25 Aug 2
+# terminal state  : 2026-08-25T19:14:12.351Z
+# 5175 LISTENING during READY:
+  TCP    127.0.0.1:5175         0.0.0.0:0              LISTENING       41464
+# stop response   : (200, {'Server': 'BaseHTTP/0.6 Python/3.12.10', 'Date': 'Tue, 25 Aug 2026 19:14:22 GMT', '
+# STOPPED observed: 2026-08-25T19:14:22.499Z
+# 5175 LISTENING after stop:
+  (none)
+# VERDICT: pid gone, port free after Stop.

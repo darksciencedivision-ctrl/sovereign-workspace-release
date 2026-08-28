@@ -1,0 +1,9 @@
+# utc: 2026-08-26T21:02:31.846594Z
+# producer: ox-alpha CP-M1 ADD-07 wave9
+
+G66 protected roots spot-check vs G4 (S-7 data/** excluded).
+product-software: no differences (this session wrote only under Production Workspace)
+sow-upstream: no differences (not written)
+sovereign-distillery: no differences (not written)
+sov-1: no differences (not written)
+token-piggy-bank excl data: no differences (original not written; copy under modules/tokencenter)

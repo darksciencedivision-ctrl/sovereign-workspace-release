@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "matrix_id": "VERSION_MATRIX",
+  "recorded_at": "2026-08-23T07:29:34.614677Z",
+  "authority": "F-04 version/document identity reconciliation; directive v1.0 Tier-1 canonical decisions retained",
+  "software_package": {
+    "name": "sovereign-grounded-distillery",
+    "version": "1.1.0rc3",
+    "declared_in": "pyproject.toml",
+    "note": "Package version intentionally NOT bumped for thesis v1.2: the executable package is treaty-owned shared infrastructure plus the Grounded branch; thesis and package version namespaces are independent."
+  },
+  "thesis": {
+    "current": {
+      "version": "v1.2",
+      "document": "docs/THESIS-v1.2.md",
+      "status_line": "Post-Audit Remediation Candidate"
+    },
+    "historical": [
+      {
+        "version": "v1.1",
+        "document": "docs/THESIS.md",
+        "status_line": "GitHub Shipping Candidate"
+      }
+    ]
+  },
+  "specification": {
+    "draft_document": "docs/SPEC-v1.1-draft.md",
+    "draft_version": "v1.1",
+    "frozen_reference": {
+      "version": "v1.0",
+      "availability": "private frozen reference; not in repository"
+    }
+  },
+  "schemas": [
+    {
+      "path": "schema/g0_event_manifest.json",
+      "id": "https://sovereign.local/schema/g0_event_manifest.json",
+      "internal_version": "manifest schema_version const 1.2"
+    },
+    {
+      "path": "schema/gate_status_record.json",
+      "id": "https://sovereign.local/schema/gate_status_record.json",
+      "internal_version": "schema_version const 1.0"
+    },
+    {
+      "path": "schema/shard.json",
+      "id": "https://distillery.local/schema/shard.json",
+      "internal_version": "see file"
+    },
+    {
+      "path": "schema/source_admission.json",
+      "id": "https://distillery.local/schema/source_admission.json",
+      "internal_version": "see file"
+    },
+    {
+      "path": "schema/corpus_admission.json",
+      "id": "https://distillery.local/schema/corpus_admission.json",
+      "internal_version": "schema_version SCRUB_POLICY_VERSION 1.0"
+    }
+  ],
+  "registry_schema_versions": {
+    "registry/grounded/students.json": "1.0",
+    "registry/grounded/trainer.json": "2.0",
+    "registry/instrumentation_checksums.json": "1.2"
+  },
+  "snapshot_identity": {
+    "snapshot_id": "a332e68823ab426310c5d37f3c0bfed5c52cc1f0",
+    "role": "immutable accepted candidate implementation source (RC3)",
+    "bundle_path": "docs/integration/rc3/grounded-rc3-a332e688.bundle",
+    "bundle_sha256": "1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1",
+    "provenance_document": "docs/integration/rc3/SOURCE_PROVENANCE.json"
+  },
+  "evidence_packages": [
+    {
+      "record_id": "post-audit-remediation",
+      "path": "runs/post-audit-remediation/result.json"
+    },
+    {
+      "record_id": "hg0-live",
+      "path": "runs/G0-live/hg0-status.json"
+    },
+    {
+      "record_id": "hardware-rebaseline",
+      "path": "runs/HG-3/hardware-rebaseline/result.json"
+    },
+    {
+      "record_id": "completion-loop",
+      "path": "runs/completion-loop/LOOP_STATE.json"
+    }
+  ],
+  "git_identity_policy": "The repository Git SHA is resolved at runtime by distillery.identity.resolve_identity(); it is deliberately not pinned inside this static matrix."
+}

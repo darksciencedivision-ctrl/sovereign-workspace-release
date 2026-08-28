@@ -1,0 +1,37 @@
+{
+  "module": "debate",
+  "source": "D:/Product Software/Debate_Table_v1.2_Phase1_Production_20260811_201116 - Copy.zip",
+  "source_kind": "archive",
+  "source_sha256": "29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93",
+  "source_revision": "Debate_Table_v1.2_Phase1_Production",
+  "source_content_manifest_sha256": "557abac18a9586c54be38f27b89a0a42280f57f734535902b83b1f8898f76a2c",
+  "lockfiles": [
+    {
+      "path": "requirements.lock.txt",
+      "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2"
+    }
+  ],
+  "dependency_lock_status": "COMPLETE",
+  "installed_utc": "2026-08-21T02:18:00-05:00",
+  "install_commands_evidence": "evidence/phase2-install.txt",
+  "install_commands": [
+    "py -3.12 -m venv .venv",
+    ".venv/Scripts/python.exe -m pip install -r requirements.lock.txt"
+  ],
+  "integrity_verified": true,
+  "source_content_manifest_path": "modules/debate/MANIFEST-SHA256.json",
+  "contamination_removed": {
+    "path": "modules/debate/SOW_REVIEW_ROUND2_RAW",
+    "origin": "UNKNOWN",
+    "files": 9,
+    "evidence": "evidence/phase2-debate-verify.txt"
+  },
+  "instance_verified": {
+    "method": "module MANIFEST-SHA256.json verifier",
+    "files_checked": 34,
+    "mismatches": 0,
+    "evidence": "evidence/phase2-debate-verify.txt"
+  },
+  "producer": "claude-code REM-01",
+  "updated_utc": "2026-08-21T04:47:52.7378429Z"
+}

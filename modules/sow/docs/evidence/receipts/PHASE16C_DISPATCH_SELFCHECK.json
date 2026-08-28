@@ -1,0 +1,37 @@
+{
+  "check": "phase-16c.dispatch",
+  "started": "2026-07-26T19:49:14.621Z",
+  "ok": true,
+  "feed_ok": true,
+  "feed_schema": "conductor_dispatch_feed@1.0",
+  "feed_error": null,
+  "dispatched": true,
+  "assigned_count": 2,
+  "by_descriptor": true,
+  "accepted_count": 2,
+  "acceptance_verdict": "PASS",
+  "legs": {
+    "conductor": "mock",
+    "workers": "mock"
+  },
+  "legs_mock_honest": true,
+  "operator_disposition": "pending",
+  "live_workers_owed": true,
+  "torn_down": true,
+  "dispatch_ran": true,
+  "dispatch_sourced": true,
+  "state_text": "DISPATCH · 2 worker(s) by descriptor · 2 gate-accepted · 1 queued · legs mock/mock · live workers OWED (U58)",
+  "conductor_pane_id": "pane-1",
+  "dispatch_rendered": true,
+  "dispatch_text": "DISPATCH · 2 worker(s) by descriptor · 2 gate-accepted · 1 queued · legs mock/mock · live workers OWED (U58)",
+  "rendered_carries_owed": true,
+  "error": null,
+  "finished": "2026-07-26T19:49:14.625Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

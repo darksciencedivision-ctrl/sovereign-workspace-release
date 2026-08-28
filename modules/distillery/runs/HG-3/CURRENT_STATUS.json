@@ -1,0 +1,28 @@
+{
+    "schema_version":  "1.0",
+    "record_id":  "HG3-CURRENT-STATUS-001",
+    "gate":  "HG-3",
+    "status":  "BLOCKED_HARDWARE_CAPACITY",
+    "reason":  "No designated physical machine satisfies the GND-TRAINER-PRIMARY capability contract; the earlier BLOCKED_PRELOAD state was superseded by the accepted hardware reality rebaseline D-HW-01 after student identities were pinned.",
+    "recorded_at":  "2026-08-23T06:38:03.3838921Z",
+    "decision_authority":  "docs/decisions/D-HW-01-grounded-primary-trainer-reality-rebaseline.md",
+    "evidence_refs":  [
+                          "runs/HG-3/hardware-rebaseline/result.json",
+                          "registry/grounded/trainer.json",
+                          "docs/decisions/D-HW-01-grounded-primary-trainer-reality-rebaseline.md"
+                      ],
+    "supersedes":  [
+                       {
+                           "record_id":  "runs/HG-3/summary.json#hard_gates.HG-3",
+                           "path":  "runs/HG-3/summary.json",
+                           "claim":  "BLOCKED_PRELOAD",
+                           "record_sha256":  "ca3e5de08ea3d60139cc15c6e8d06af9cad97c9b0b813f5c0ca64dc5dc9f41e9"
+                       },
+                       {
+                           "record_id":  "runs/HG-3/manifest.json#status",
+                           "path":  "runs/HG-3/manifest.json",
+                           "claim":  "BLOCKED_PRELOAD",
+                           "record_sha256":  "15e5847e2464d9dc97b0e1573da80d8e5a3fd3206d1ee7792da9dc737fc59572"
+                       }
+                   ]
+}

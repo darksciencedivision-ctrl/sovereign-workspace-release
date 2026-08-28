@@ -1,0 +1,12 @@
+# utc: 2026-08-21T23:19:27.254353+00:00
+# producer: ox-alpha GATE5
+# source: modules/sovereign/SYSTEM_MANIFEST.json MODELS vs GET http://127.0.0.1:11434/api/tags (read-only)
+# installed_tags_count: 52
+
+PRIMARY_REASONER	qwen3:14b	PRESENT
+ADVERSARIAL_CHALLENGER	qwen3:32b	PRESENT
+CRITIC	qwen3:8b	PRESENT
+SYNTHESIZER	qwen2.5:14b-instruct	PRESENT
+EMBEDDING_MODEL	nomic-embed-text:latest	PRESENT
+
+summary: 5 required, 5 PRESENT, 0 MISSING

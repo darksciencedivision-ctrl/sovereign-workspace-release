@@ -1,0 +1,61 @@
+HG-3 TRAINER DISCOVERY VALIDATION
+
+DISCOVERY SCOPE
+PASS — canonical repository docs, imported Sovereign canon, old run evidence,
+       original RC3, provisional Distillery records, active Sovereign runtime,
+       selected active SOVEREIGN_SYSTEM canon, and large path inventories searched.
+PASS — PowerShell history, SSH/known-hosts, Windows Terminal, PuTTY, RDP,
+       remote-development targets, environment variables, launchers, saved scripts,
+       Docker/SMB/Git remotes, local VM/WSL inventory, and existing network caches searched.
+PASS — no broad port scan, arbitrary neighbor lookup, aggressive enumeration,
+       credential read, SSH attempt, or package/environment modification occurred.
+
+CURRENT WORKSTATION
+Hostname: DESKTOP-03PTABH
+OS: Microsoft Windows 11 Home 10.0.26200 build 26200, 64-bit
+GPU: NVIDIA GeForce RTX 5060 Ti
+PCI bus: 00000000:01:00.0
+VRAM at probe: total 8151 MiB; used 2819 MiB; free 5073 MiB
+Driver: 610.74
+CURRENT_WORKSTATION_NOT_CANONICAL_TRAINER: true
+
+TRAINER TARGET
+Physical target: NOT FOUND
+Access method: NOT FOUND
+Live probe: NOT PERFORMED — no target
+gfx906: NOT ESTABLISHED
+Trainer VRAM: NOT MEASURED
+ROCm/HIP/PyTorch: NOT MEASURED
+Disposition: TARGET_NOT_FOUND
+
+REGISTRY
+PASS — expected and measured fields are structurally separate.
+PASS — expected remains gfx906 / 32 GiB / ROCm 6.3.
+PASS — every physical/measured trainer field remains null.
+PASS — ACCESS_BLOCKED -> TARGET_NOT_FOUND transition is preserved in history.
+PASS — no credential material is present.
+trainer.json SHA-256: bb36ea8d1ddcefd89bd7e32fa0ef374e66673d92325e179b475631155a69f300
+evidence.json SHA-256: ea4a0d943bdb788a5ebb166700d36e6c0142243af707aa68c38b1aa360aa4213
+
+REPOSITORY VALIDATION
+Windows Python 3.14: 43 tests PASS.
+Windows Python 3.11.16: 43 tests PASS.
+Linux Ubuntu 24.04 Python 3.12: 43 tests PASS.
+Compilation on all three interpreters: PASS.
+JSON parsing and JSON Schema definitions: PASS.
+Markdown local links: PASS.
+Package build: PASS — sdist and wheel produced outside the repository.
+git diff --check: PASS.
+Credential scan: PASS.
+Model-weight/adapter/optimizer files added: 0.
+Oversized evidence artifacts: 0.
+Conflict markers: 0.
+D-9: 4/4 UNKNOWN; unchanged and fail closed.
+G2-G6 execution directories: 0.
+
+READINESS
+HG-3: NOT_READY.
+Operator decision required: restore/provide gfx906, designate another owned gfx906,
+revise the canonical target through a new evidence-backed decision, or defer HG-3.
+No model download/load, GPU drain, card lock, S0-S3, training, deployment,
+promotion, or push occurred.

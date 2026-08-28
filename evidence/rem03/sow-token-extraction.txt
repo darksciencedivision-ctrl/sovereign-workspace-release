@@ -1,0 +1,62 @@
+# utc: 2026-08-22T21:27:44.8877607Z
+# producer: ox-alpha REM03
+# REM-03 T1 token extraction from SOW's stylesheet(s), read-only.
+#
+# The live SOW tree contains NO .css theme file (glob **/*.css over
+# D:\multi model terminal app\sovereign-orchestration-workspace returns only the third-party
+# xterm dependency). The renderer theme is an embedded <style> block in:
+#
+#   D:\multi model terminal app\sovereign-orchestration-workspace\apps\desktop\renderer\index.html
+#   sha256: bcb30769491a928f74ace92519cd97848a387f7efa09e39434b01b934f9ba4a3
+#   <style> block at lines 8-189; file never written, never launched.
+#
+#   apps\desktop\node_modules\@xterm\xterm\css\xterm.css
+#   sha256: ba8e6985669488981ccf40c0cefe3aba80722cb6c92de7ad628b0bd717faf2b6
+#   third-party terminal styling, not SOW's theme; not used for tokens.
+#
+# Extracted verbatim (shell role -> SOW value -> source file:line):
+#
+# page background      -> #0b0e14   body background                        index.html:10
+# pane/panel surface   -> #151b28   .card/.railcard/.sb-chip/.ins-task/.appr-item/.pk-opt
+#                                                            index.html:18,26,89,109,135,162
+# pane header bar      -> #161c29   .bar background                        index.html:75
+# header/status strip  -> #121722   header / drawer .ihead background      index.html:11,103,131,148
+# rail/statusbar       -> #0d121c   #rail / #statusbar / drawers           index.html:25,85,100,129,145
+# control surface      -> #1b2333   button / .pk-role background           index.html:13,169
+# hover surface        -> #26314a   button:hover / .badge                  index.html:14,122
+# pane border          -> #232b3a   universal 1px border                   index.html:11,18,25,32,...
+# primary text         -> #c7d1de   body color                             index.html:10
+# muted text           -> #6b7687   .card .k / .rc-meta / #minimized / .dim / sb-label / idle chip
+#                                                            index.html:19,30,82,87,92,96,123
+# faint text           -> #3a4353   .rail-empty / .sb-chip.unknown border  index.html:31,95
+# violet accent        -> #bb9af7   conductor pane border + cbadge color   index.html:37,41
+# conductor bar bg     -> #211a33   .pane.conductor .bar                   index.html:38
+# violet dim border    -> #3a2f57   cbadge/csucc border                    index.html:41,49
+# blue accent (SOW secondary, informational) -> #7aa2f7  header b / focused pane /
+#                        inspector headings                      index.html:12,27,33,104,113
+# green (status chips) -> #9ece6a   card .v / bar .state / sb-count / st-ACCEPTED
+#                                                            index.html:20,77,91,117,121,167,173
+# mint green (secondary, informational) -> #7ee0a0  picker/mbadge/cptt  index.html:51,149,154,170
+# warning              -> #e0af68   at-capacity chip / st-CANDIDATE / recovery.recovering
+#                                                            index.html:93,94,112,121,137,168,186
+# warning dark         -> #b58900   sb-warn / ins-unatt                    index.html:97,114
+# danger               -> #f7768e   button.warn / bad states / st-REJECTED / recovery.degraded
+#                                                            index.html:15,21,78,121,123,155,185
+# monospace stack      -> ui-monospace, monospace   cards/bars/chips/panes
+#                                                            index.html:18,26,31,39,44,54,...
+# pane radius          -> 6px       .card/.railcard/.pane border-radius    index.html:18,26,32
+# body font            -> 13px/1.4 system-ui, sans-serif (body only; every component surface is
+#                         ui-monospace)                            index.html:10
+#
+# Proposed shell :root v2 mapping (all values verbatim from the lines above):
+#   --bg #0b0e14  --panel #151b28  --sidebar #0d121c  --input #1b2333  --border #232b3a
+#   --text #c7d1de  --text-muted #6b7687  --text-faint #3a4353
+#   --accent #bb9af7  --accent-dim #3a2f57
+#   --ok #9ece6a  --warning #e0af68  --danger #f7768e
+#   --radius 6px  --font ui-monospace, monospace   (--mono unchanged; light block unchanged)
+#
+# NOTE: NOT pinned as docs/THEME-BASELINE-v2.md. H-16 pre-flight (contrast-preview.txt) shows the
+# muted pairing fails: see docs/STOP-REPORT-REM-03.md. Pinning a baseline whose own required
+# pairing fails would create an artifact contradicting itself; T2 was therefore not applied and
+# shell/static/app.css is byte-identical to its Gate-4b PASS state
+# (sha256 13875bf113d8a0e68e97303fafb674d9ddd89d773dca6f30b8738ad59f505037).

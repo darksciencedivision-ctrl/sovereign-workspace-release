@@ -1,0 +1,10 @@
+# utc: 2026-08-27T05:04:26Z
+# producer: ox-alpha THEME01
+# proof: H-15 - every key loadDistillery() reads exists in /api/distillery
+
+data.snapshot                -> PRESENT (dict)
+data.questions               -> PRESENT (dict)
+data.links                   -> PRESENT (dict)
+
+note: dynamic accesses (data[variable]) cannot be resolved statically and are excluded by design.
+checked: 3 static paths; missing: none

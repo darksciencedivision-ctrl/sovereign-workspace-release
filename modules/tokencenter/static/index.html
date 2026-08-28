@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Sovereign Token Center is a local, read-only daily token monitor for hosted and local AI models." />
+    <meta name="theme-color" content="#07090d" />
+    <title>Sovereign Token Center</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
+    <div id="gold-field" class="gold-field" aria-hidden="true"></div>
+
+    <main class="shell">
+      <header class="command-bar">
+        <a class="brand" href="#top" aria-label="Sovereign Token Center home">
+          <span class="brand-mark" aria-hidden="true"><span></span></span>
+          <span>
+            <strong>Sovereign Token Center</strong>
+            <small>Private multi-model telemetry</small>
+          </span>
+        </a>
+
+        <div class="command-meta">
+          <span class="live-chip"><i></i> Live ledger</span>
+          <time id="clock" class="clock">--:--:--</time>
+          <button id="refresh" class="refresh" type="button" aria-label="Refresh all token ledgers">
+            <span class="refresh-icon" aria-hidden="true">↻</span>
+            <span class="refresh-copy">Refresh</span>
+          </button>
+        </div>
+      </header>
+
+      <section id="top" class="hero" aria-labelledby="today-title">
+        <div class="mascot-stage">
+          <div class="stage-grid" aria-hidden="true"></div>
+          <div class="orbit orbit-one" aria-hidden="true"></div>
+          <div class="orbit orbit-two" aria-hidden="true"></div>
+          <div class="pig" aria-hidden="true">
+            <span class="ear ear-a"></span><span class="ear ear-b"></span>
+            <span class="snout">••</span><span class="eye">•</span>
+            <span class="slot"></span><span class="coin">¢</span>
+            <span id="drop-origin" class="drop-origin"></span>
+          </div>
+          <div class="stage-floor" aria-hidden="true"></div>
+          <div class="gold-protocol">
+            <span class="protocol-dot"></span>
+            <span><strong>Gold protocol active</strong><small>1 drop / 1K · source-weighted faces</small></span>
+          </div>
+          <div class="drop-count"><span id="gold-count">0</span><small>thresholds today</small></div>
+        </div>
+
+        <div class="hero-copy">
+          <p id="coverage" class="coverage">Synchronizing local ledgers…</p>
+          <h1 id="today-title">Today’s observed flow</h1>
+          <p id="today-total" class="mega">—</p>
+          <p class="unit">processed tokens</p>
+          <div class="hero-breakdown" aria-label="Today's token breakdown">
+            <div><span>Fresh input</span><strong id="fresh-input">—</strong></div>
+            <div><span>Cached input</span><strong id="cached-input">—</strong></div>
+            <div><span>Output</span><strong id="output-total">—</strong></div>
+            <div><span>Reasoning</span><strong id="reasoning-total">—</strong></div>
+          </div>
+        </div>
+
+        <aside class="integrity-card">
+          <div class="integrity-head"><span class="shield" aria-hidden="true">◇</span><span>Telemetry integrity</span></div>
+          <strong>Observed. Local. Honest.</strong>
+          <p>Unknown provider telemetry remains unknown. This center never converts missing evidence into zero.</p>
+          <div class="integrity-foot"><span>Loopback only</span><span>No credentials</span></div>
+        </aside>
+      </section>
+
+      <section class="panel flow-panel" aria-labelledby="daily-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">14-DAY SIGNAL</p>
+            <h2 id="daily-title">Observed token flow</h2>
+          </div>
+          <div class="panel-total"><span id="range-total">—</span><small>range total</small></div>
+        </div>
+        <div id="chart" class="chart" role="group" aria-label="Observed tokens by day"></div>
+      </section>
+
+      <section class="grid">
+        <article class="panel models-panel" aria-labelledby="models-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">MODEL ATTRIBUTION</p>
+              <h2 id="models-title">Providers and models · <span id="selected-day">today</span></h2>
+            </div>
+            <span class="table-hint">Select a day above</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Provider / model</th><th>Execution</th><th>Observed tokens</th><th>Evidence</th></tr></thead>
+              <tbody id="models"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <aside class="panel coverage-panel" aria-labelledby="sources-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">COLLECTOR MATRIX</p>
+              <h2 id="sources-title">Coverage status</h2>
+            </div>
+          </div>
+          <div id="providers" class="providers"></div>
+        </aside>
+      </section>
+
+      <footer>
+        <span id="last-refresh">Awaiting first ledger sync</span>
+        <span class="footer-center">Sovereign Token Center</span>
+        <span>Private on-device display · 127.0.0.1</span>
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

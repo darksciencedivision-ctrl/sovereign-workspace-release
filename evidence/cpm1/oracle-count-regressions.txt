@@ -1,0 +1,6 @@
+﻿# utc: 2026-08-25T21:06:47.8588645Z
+# producer: ox-alpha CP-M1 / reviewer observation accounting
+
+goalcheck-8 17/124 -> goalcheck-9 16/124: goal G19 went FALSE - the Band-2 test suite regenerated shell/BUILD-MANIFEST.txt after app.js edits, so gate 8b's recorded evidence hash no longer matched disk; resolved by scoped hash resync (resync_8b.py) and now permanently guarded by the widened snapshot enforcement.
+
+goalcheck-13 21/124 -> goalcheck-14 20/124: goal G19 went FALSE again - the C-6 correction appended to evidence/cpm1/8b/sow-readiness.txt changed that artifact's hash after Gate 8b was written; same predicate, same resolution. Both movements are post-submission legitimate artifact mutations detected by the evidence-hash predicate, each followed by a scoped resync; neither involved a reviewer-evaluated entry.

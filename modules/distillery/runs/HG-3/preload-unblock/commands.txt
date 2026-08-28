@@ -1,0 +1,24 @@
+HG-3 preload-unblock commands
+
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/main
+git ls-remote https://huggingface.co/Qwen/Qwen3-4B-Base.git HEAD
+git ls-remote https://huggingface.co/Qwen/Qwen3-8B-Base.git HEAD
+GET https://huggingface.co/api/models/Qwen/Qwen3-4B-Base/revision/906bfd4b4dc7f14ee4320094d8b41684abff8539?blobs=true
+GET https://huggingface.co/api/models/Qwen/Qwen3-8B-Base/revision/49e3418fbbbca6ecbdf9608b4d22e5a407081db4?blobs=true
+HEAD/GET exact-revision config, model card, license, safetensor index, tokenizer, and tokenizer config files
+SHA-256 exact-revision small evidence files in memory
+Get-FileHash registry/grounded/students.json,registry/grounded/trainer.json,runs/HG-3/preload-unblock/upstream-evidence.json -Algorithm SHA256
+py -3.14 -m unittest discover -s tests -v
+<python-3.11.16> -m unittest discover -s tests -v
+wsl.exe -d Ubuntu-24.04 --cd /mnt/d/Sovereign-Grounded-Distillery -- python3 -m unittest discover -s tests -v
+Python compilation on Windows Python 3.14, Windows Python 3.11, and Linux Python 3.12
+py -3.13 -m build --outdir <external-temporary-directory>
+Draft202012Validator.check_schema over schema/*.json
+git diff --check
+credential, model-weight, oversized-artifact, conflict-marker, D-9, and G2-G6 scans
+
+No model weight download, model load, trainer access, card lock, serving drain,
+forward, backward, optimizer step, sequence measurement, push, deployment,
+promotion, full training, G2, or D-9 change was performed.

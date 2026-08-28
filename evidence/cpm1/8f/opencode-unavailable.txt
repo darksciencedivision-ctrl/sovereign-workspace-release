@@ -1,0 +1,6 @@
+# utc: 2026-08-26T15:39:54.219991Z
+# producer: ox-alpha CP-M1 ADD-07 wave2
+
+
+Companion to G34: the host binary named opencode is Bun 1.3.14, not a coding harness.
+NOT_RUN(OPENCODE_CLI_IS_BUN_NOT_HARNESS)

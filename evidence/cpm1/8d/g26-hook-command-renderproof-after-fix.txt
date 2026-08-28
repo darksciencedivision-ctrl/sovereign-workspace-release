@@ -1,0 +1,18 @@
+﻿# utc: 2026-08-26T04:30:29.5051181Z
+# producer: ox-alpha CP-M1 Band 4 / G26 renderproof AFTER Option-1 repair
+# method: BOTH real implementations driven - the Python producer (build_conductor_permission_profile,
+# pure construction only: no emitter run, no lease, no spend; cwd modules/sow) and the REAL
+# verifier-side renderer (powershellSingleQuoteArg exported by apps/desktop/conductor/launch-source.js),
+# compared on this host's actual argv. Supersedes g26-hook-command-renderproof.txt (before fix:
+# commands_equal false). Honesty note: two intermediate attempts at this artifact were defective -
+# one contained a False result from a node invocation that never ran (shell quoting), one a True
+# computed from two EMPTY strings after a wrong-cwd python failure. Both are superseded by this
+# file, whose inputs were each verified to parse as JSON before comparison.
+
+python_hook_command : & 'D:\Program Files\nodejs\node.exe' 'D:\Product Software\Production Workspace\modules\sow\tools\live\voice_turn_boundary.js'
+js_expected_command : & 'D:\Program Files\nodejs\node.exe' 'D:\Product Software\Production Workspace\modules\sow\tools\live\voice_turn_boundary.js'
+commands_equal      : True
+
+# Round-trip pin: apps/desktop/test/conductor-hook-command-roundtrip.test.js - 4 tests, 4 pass
+# (real py renderer x real js mirror over the adversarial corpus: spaces, apostrophe, dollar,
+# backtick, semicolon, parenthesis, trailing backslash, backslash-run before a quote).

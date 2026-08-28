@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.1",
+  "status": "PASS_WITH_PR_AUTHORIZATION_PENDING",
+  "accepted_integration_commit": "c3594cfc6284b7b5008bb131434436d5a3a77c9a",
+  "post_integration_commit": "b0b7f389f278531ef28c62215d636f9dc5d2ca37",
+  "completion_gate": {
+    "pr_exists_or_owner_deferred": false,
+    "live_G0_A_B_C_D_pass": true,
+    "dashboards_alarms_checksum_guards_pass": true,
+    "HG_0": "PASS",
+    "source_registry_fail_closed": true,
+    "G2_plus_started": false,
+    "repository_clean_after_commit": true
+  },
+  "tests": {
+    "accepted_integration_commit": "25/25",
+    "post_integration_branch": "27/27",
+    "original_RC3": "23/23"
+  },
+  "external_actions": {
+    "owner_push_authorization_received": false,
+    "branch_pushed": false,
+    "pr_opened": false,
+    "merged": false,
+    "deployed_or_promoted": false
+  },
+  "blocked_on": "Explicit owner authorization to push and open a non-merging PR, or explicit owner deferral of the PR.",
+  "next_engineering_gate_after_stage_completion": "HG-3 real 4B/8B architecture smoke on pinned gfx906; not started."
+}

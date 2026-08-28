@@ -1,0 +1,223 @@
+{
+  "schema": "phase17d_approvals_selfcheck@1.0",
+  "ok": true,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "checks": {
+    "launch_sourced": true,
+    "launch_source_is_session_events": true,
+    "launch_badge_zero": true,
+    "launch_no_rows": true,
+    "launch_no_demo_trio": true,
+    "launch_no_error": true,
+    "protected_not_delivered": true,
+    "one_row_after_one_event": true,
+    "row_is_protected_action": true,
+    "row_verb_from_classifier": true,
+    "row_carries_broker_ref": true,
+    "row_carries_provenance": true,
+    "badge_is_one": true,
+    "rendered_shows_the_real_row": true,
+    "decide_routed": true,
+    "decide_self_authorized_false": true,
+    "decide_resolved_by_python": true,
+    "decision_event_minted_by_authority": true,
+    "decision_persisted_empty_drawer": true,
+    "re_decide_governed_refused": true,
+    "no_demo_items_flag": true
+  },
+  "at_launch": {
+    "ok": true,
+    "schema": "approval_drawer@1.0",
+    "badgeCount": 0,
+    "kindCounts": {
+      "plan": 0,
+      "protected_action": 0,
+      "clarification": 0,
+      "unknown": 0
+    },
+    "rows": [],
+    "empty": true,
+    "error": null,
+    "summary": "no pending approvals",
+    "source": "session_events",
+    "sourced": true,
+    "eventCount": 0,
+    "decisionCount": 0,
+    "demoItems": false,
+    "sideEffectsOwed": {
+      "owed": true,
+      "issue": "17E",
+      "note": "a resolved item is recorded and stops being pending (it persists across fetches now); the downstream side effect of an APPROVE — the broker executing the queued command, ObjectiveIntake assigning an approved plan — is not fired from this read/decide path. A row's `ref` is therefore the pending id of the classification that rebuilt it, not a handle into a live broker: it is re-minted on every fetch and routes nowhere yet."
+    }
+  },
+  "after_event": {
+    "ok": true,
+    "schema": "approval_drawer@1.0",
+    "badgeCount": 1,
+    "kindCounts": {
+      "plan": 0,
+      "protected_action": 1,
+      "clarification": 0,
+      "unknown": 0
+    },
+    "rows": [
+      {
+        "id": "ap-1",
+        "seq": 1,
+        "kind": "protected_action",
+        "kindLabel": "Protected action",
+        "known": true,
+        "summary": "protected command: spawn worker",
+        "origin": "voice",
+        "approvable": true,
+        "ref": "q-483c0cc053d2",
+        "detail": {
+          "event_id": "ev-1",
+          "at": "2026-07-31T10:56:16.989Z",
+          "channel": "voice:capture",
+          "feed_schema": "conductor_voice_feed@1.0",
+          "verb": "spawn",
+          "target": "worker",
+          "args": {},
+          "category": "protected",
+          "reason": "protected verb requires operator approval"
+        }
+      }
+    ],
+    "empty": false,
+    "error": null,
+    "summary": "1 pending (1 protected action)",
+    "source": "session_events",
+    "sourced": true,
+    "eventCount": 1,
+    "decisionCount": 0,
+    "demoItems": false,
+    "sideEffectsOwed": {
+      "owed": true,
+      "issue": "17E",
+      "note": "a resolved item is recorded and stops being pending (it persists across fetches now); the downstream side effect of an APPROVE — the broker executing the queued command, ObjectiveIntake assigning an approved plan — is not fired from this read/decide path. A row's `ref` is therefore the pending id of the classification that rebuilt it, not a handle into a live broker: it is re-minted on every fetch and routes nowhere yet."
+    }
+  },
+  "after_decision": {
+    "ok": true,
+    "schema": "approval_drawer@1.0",
+    "badgeCount": 0,
+    "kindCounts": {
+      "plan": 0,
+      "protected_action": 0,
+      "clarification": 0,
+      "unknown": 0
+    },
+    "rows": [],
+    "empty": true,
+    "error": null,
+    "summary": "no pending approvals",
+    "source": "session_events",
+    "sourced": true,
+    "eventCount": 2,
+    "decisionCount": 1,
+    "demoItems": false,
+    "sideEffectsOwed": {
+      "owed": true,
+      "issue": "17E",
+      "note": "a resolved item is recorded and stops being pending (it persists across fetches now); the downstream side effect of an APPROVE — the broker executing the queued command, ObjectiveIntake assigning an approved plan — is not fired from this read/decide path. A row's `ref` is therefore the pending id of the classification that rebuilt it, not a handle into a live broker: it is re-minted on every fetch and routes nowhere yet."
+    }
+  },
+  "decision": {
+    "recorded": true,
+    "itemId": "ap-1",
+    "decision": "reject",
+    "routed": true,
+    "selfAuthorized": false,
+    "governed": {
+      "schema": "approval_decision_feed@1.1",
+      "item_id": "ap-1",
+      "decision": "reject",
+      "authority": "operator-only (ApprovalQueue.resolve enforces invariant 1 / invariant 16)",
+      "operator_identity_presumed": true,
+      "self_authorized": false,
+      "side_effects_owed": {
+        "owed": true,
+        "issue": "17E",
+        "note": "a resolved item is recorded and stops being pending (it persists across fetches now); the downstream side effect of an APPROVE — the broker executing the queued command, ObjectiveIntake assigning an approved plan — is not fired from this read/decide path. A row's `ref` is therefore the pending id of the classification that rebuilt it, not a handle into a live broker: it is re-minted on every fetch and routes nowhere yet."
+      },
+      "torn_down": true,
+      "resolved": true,
+      "refused": false,
+      "item": {
+        "item_id": "ap-1",
+        "seq": 1,
+        "kind": "protected_action",
+        "summary": "protected command: spawn worker",
+        "origin": "voice",
+        "approvable": true,
+        "ref": "q-e762320ca02e",
+        "resolved": true,
+        "decision": "reject",
+        "resolve_reason": "not now",
+        "detail": {
+          "event_id": "ev-1",
+          "at": "2026-07-31T10:56:16.989Z",
+          "channel": "voice:capture",
+          "feed_schema": "conductor_voice_feed@1.0",
+          "verb": "spawn",
+          "target": "worker",
+          "args": {},
+          "category": "protected",
+          "reason": "protected verb requires operator approval"
+        }
+      },
+      "decision_event": {
+        "schema": "session_approval_event@1.0",
+        "event_id": "dec-ap-1",
+        "kind": "decision",
+        "decision": {
+          "item_id": "ap-1",
+          "decision": "reject",
+          "reason": "not now",
+          "operator_role": "operator"
+        },
+        "provenance": {
+          "channel": "approvals:decide",
+          "feed_schema": "approval_decision_feed@1.1"
+        }
+      }
+    }
+  },
+  "refusal": {
+    "recorded": true,
+    "itemId": "ap-1",
+    "decision": "approve",
+    "routed": true,
+    "selfAuthorized": false,
+    "governed": {
+      "schema": "approval_decision_feed@1.1",
+      "item_id": "ap-1",
+      "decision": "approve",
+      "authority": "operator-only (ApprovalQueue.resolve enforces invariant 1 / invariant 16)",
+      "operator_identity_presumed": true,
+      "self_authorized": false,
+      "side_effects_owed": {
+        "owed": true,
+        "issue": "17E",
+        "note": "a resolved item is recorded and stops being pending (it persists across fetches now); the downstream side effect of an APPROVE — the broker executing the queued command, ObjectiveIntake assigning an approved plan — is not fired from this read/decide path. A row's `ref` is therefore the pending id of the classification that rebuilt it, not a handle into a live broker: it is re-minted on every fetch and routes nowhere yet."
+      },
+      "torn_down": true,
+      "resolved": false,
+      "refused": true,
+      "reason": "ApprovalError: approval item 'ap-1' is already 'reject' — not re-decidable"
+    }
+  },
+  "rendered_excerpt": "<div class=\"ins-sum\">1 pending (1 protected action)</div><div class=\"appr-item appr-protected_action\">\n    <div class=\"ins-title\">Protected action <span class=\"dim\">voice</span></div>\n    <div class=\"ins-ctx\">protected command: spawn worker</div>\n    <div class=\"appr-actions\">\n      <button class=\"appr-approve\" data-id=\"ap-1\">Approve</button>\n      <button class=\"appr-reject\" data-id=\"ap-1\">Reject</button>\n    </div></div>",
+  "capture": {
+    "delivered": false,
+    "self_authorized": false,
+    "engine": "mock-stt"
+  },
+  "side_effects_owed": "17E (an approved item's downstream effect — broker execute / ObjectiveIntake assign — is not fired from the decide path)",
+  "checks_passed": 21,
+  "checks_total": 21,
+  "duration_ms": 2499
+}

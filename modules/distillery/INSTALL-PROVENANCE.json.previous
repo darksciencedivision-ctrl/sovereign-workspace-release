@@ -1,0 +1,7 @@
+{
+  "utc": "2026-08-26T15:43:25.939739Z",
+  "source": "D:\\Product Software\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e\\SOURCE_TREE",
+  "method": "robocopy /E",
+  "option": "A",
+  "note": "Protected D:\\Sovereign Distillery\\ was not a copy source. serve.py added as local-first health/console; no pipeline entry invoked on start."
+}

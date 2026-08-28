@@ -1,0 +1,33 @@
+﻿# utc: 08/25/2026 22:24:15.ToUniversalTime().ToString("o")
+# producer: ox-alpha CP-M1 Band 4 / G26 governed round-trip run log (claude_code leg)
+# authorization: operator Option C decision this session (OPERATOR-INSTRUCTIONS.log verbatim;
+#   docs/CP-M1-G26-CONFIG-AUTHORIZATION.md sha256 0c7d177b224135b199879367c24465a87d1e1a9095e79c6a3b3c9d717bf90177)
+# config verified first: modules/sow/config/live_operation.json sha256
+#   dcc7f449762849b1ce721a64a55e4fe04bf7b8eff1c2ba508426effc2f8d3629  MATCHES the stated after-hash.
+#     scope.providers = ["openai_codex_cli","claude_code"]; conductor claude_code/fable-5 ("Claude Fable 5");
+#     live_operation_authorized true; register_row OP-12; terminals_per_subscription 1; pp-conductor-pane.
+
+## Launch mechanism (the product's own G26 evidence driver)
+
+FACT[apps/desktop/main.js:1519-1558]: startOperatorTextDriver() registers a LOOPBACK http bridge
+ONLY when SOW_OPERATOR_TEXT_DRIVER_PORT is set; POST /send routes through handleOperatorText -
+THE SAME handler the renderer's G25 input invokes via ipcMain.handle("conductor:operator-text")
+(main.js:1559) - POST /launch-conductor runs launchConductorSession({reason:"G26 governed round-trip"}),
+GET /state reports launchState/alive/transcript/emittedTail. No product code was modified for this run.
+
+launchConductorSession (main.js:843) ALWAYS mints a governed ticket via sourceConductorLaunchTicket
+-> tools/live/emit_conductor_launch.py; for CLAUDE_CODE_ADAPTER _apply_permission_profile
+(emit_conductor_launch.py:180-185) appends --settings <profile.settings_json> and returns the
+voice-turn boundary, so main.js:932 takes the TRUE branch and starts conductorVoiceAuthority
+(main.js:953-967). The persisted claude_code/fable-5 selection comes from live_operation.json via
+registry.py load_runtime_conductor_descriptor - the operator's own edit IS the selection step of
+the picker flow; the emitter's gates (scope OP-12 incl. claude_code per
+control_plane/profiles/live_authorization.py:79, CLI presence per P1, terminals<=1) then authorize.
+
+## Pre-launch environment proof
+
+- SOW_CONDUCTOR_AUTOLAUNCH=0 set in the child env before spawn (H-10 discipline); no autolaunch.
+- SOW_OPERATOR_TEXT_DRIVER_PORT=5199 (verified free: no listener on 127.0.0.1:5199 pre-launch).
+- PYTHONDONTWRITEBYTECODE=1 set.
+- child argv[0] absolute: modules\sow\apps\desktop\node_modules\electron\dist\electron.exe (exists, 180849664 bytes)
+- child cwd: modules\sow\apps\desktop ; electron arg: "." (package.json main entry)

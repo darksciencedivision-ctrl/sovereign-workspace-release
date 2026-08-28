@@ -1,0 +1,10 @@
+﻿# utc: 2026-08-25T17:37:49.5892345Z
+# producer: ox-alpha CP-M1 Band 0 / G5 (correction C-4 adoption)
+# The fs-watch helper is OPERATOR-OWNED for the remainder of this run (C-4). The builder does
+# not start, stop, restart or Start-Process it; at G117 closure is REQUESTED in the builder's
+# final message and the operator creates the sentinel.
+# adopted window: started_utc 2026-08-25T16:30:43Z, four roots [D:\Product Software,
+#   D:\multi model terminal app, D:\Sovereign Distillery, D:\Sov 1] - as C-1 requires.
+# pid file evidence/cpm1/tools/fswatch-driver.pid content: 47684
+# driver log evidence/cpm1/fs-watch-driver.log: FSWATCH-CPM1 started_utc=2026-08-25T16:30:43Z roots=['D:\\Product Software', 'D:\\multi model terminal app', 'D:\\Sovereign Distillery', 'D:\\Sov 1']
+# G117 predicate: evidence/cpm1/fs-watch-cpm1.txt written by this window when the operator closes it.

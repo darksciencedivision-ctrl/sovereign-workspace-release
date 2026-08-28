@@ -1,0 +1,8 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G103 demotion impact dry-run
+No production_context is being lowered (all validated_context remain null /
+NOT_MEASURED). Request classes that would newly fail: none.
+no request class would newly fail.
+OPERATOR ACCEPTANCE: AUTHORIZED-BY-STANDING-DELEGATION (no demotion applied).

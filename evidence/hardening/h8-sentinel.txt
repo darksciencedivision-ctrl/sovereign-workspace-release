@@ -1,0 +1,42 @@
+# utc: 2026-08-27T05:04:05Z
+# producer: claude-code REM-01
+# proof: H-8 - sentinel absent from all four surfaces
+# sentinel: SWS_SENTINEL_7f3a9c
+# exit code (test run): 0
+
+## Raw fixture output, 10837 bytes, sentinel occurrences: 12
+## After LogRing ingest (strip + redact)
+sentinel occurrences: 0
+[REDACTED] occurrences: 11
+
+## Redacted stream
+fixture_noisy start
+API_KEY=[REDACTED]
+api-key: [REDACTED]
+apikey=[REDACTED]
+token=[REDACTED]
+secret: [REDACTED]
+password=[REDACTED]
+passwd=[REDACTED]
+Authorization: [REDACTED]
+Bearer [REDACTED]
+GET https://example.invalid/v1/thing?api_key=[REDACTED] HTTP/1.1
+GET https://example.invalid/v1/thing?page=2&access_token=[REDACTED] HTTP/1.1
+red   done
+after-osc
+before-nulafter-nul
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX ...(truncated for the artifact)
+c1-controls:�� end
+fixture_noisy done
+
+
+## Four-surface test output
+
+test_long_line_is_bounded (shell.tests.test_redaction_surfaces.TestRedactionFourSurfaces.test_long_line_is_bounded)
+The 10 KB line must be truncated to the 4 KB per-line cap (§7.3 item 4). ... ok
+test_sentinel_absent_from_all_four_surfaces (shell.tests.test_redaction_surfaces.TestRedactionFourSurfaces.test_sentinel_absent_from_all_four_surfaces) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.897s
+
+OK

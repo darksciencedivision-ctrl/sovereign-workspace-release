@@ -1,0 +1,124 @@
+{
+  "artifact_generation_commit": null,
+  "artifact_hashes": {
+    "enterprise_bundle_sha256": "99a6be010b250724bac9126ae0a8ceff30ffa51f52cb6cc703ef59392e55c088",
+    "raw_source_zip_sha256": "132477d5c2a5775a8a410b7fc103194535470e86af44b0cb6c62cbd21de99efd"
+  },
+  "artifact_identity": {
+    "artifact_source_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+    "bundle_generated_from": "db83a94cbcd665cecd9c59134800fc084d86c5ca",
+    "zip_generated_from": "db83a94cbcd665cecd9c59134800fc084d86c5ca"
+  },
+  "artifact_source_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+  "audit_results": {
+    "delta_audit": "F-01 CLOSED no CRITICAL; HIGH routed and closed",
+    "findings_total": 10,
+    "open_high_or_critical_findings": [],
+    "software_items_not_closed": []
+  },
+  "base": "550bc0cbb4b91566684dd6ccdd14abe3609e0874 (origin/main merge-base)",
+  "branch": "remediation/release-baseline-v1",
+  "certification_rule": "The completion manifest certifies the immutable implementation source state identified by implementation_seal_commit and records evidence generated against the declared evidence_generation_base tree. The Git commit containing this manifest is NOT required to equal implementation_seal_commit; this prevents recursive HEAD invalidation.",
+  "d9_states": {
+    "operator_decisions": "UNSIGNED - human authority outstanding",
+    "research_dossiers": "runs/source-admission/dossiers.json (2 RECOMMEND_ELIGIBLE, 2 INSUFFICIENT_EVIDENCE)"
+  },
+  "deployment_performed": false,
+  "evidence_generation_base": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+  "external_blockers": [
+    "D-9 operator decisions unsigned (F-26)",
+    "Qualifying physical trainer unassigned >=24GiB (F-27)",
+    "Real HG-3 requires qualified hardware + authorization (F-28)",
+    "Real G2-G6 require prerequisites (F-29)",
+    "Promotion/deployment are human-only and not performed (F-30)"
+  ],
+  "final_disposition": "BUILD_COMPLETE_EXPERIMENT_PENDING",
+  "fixture_runs": "tests/test_end_to_end_dry_run.py paths A-I PASS (SYNTHETIC_FIXTURE_ONLY)",
+  "g_states": {
+    "G2": "NOT_EXECUTED",
+    "G3": "NOT_EXECUTED",
+    "G4": "NOT_EXECUTED",
+    "G5": "NOT_EXECUTED",
+    "G6": "NOT_EXECUTED"
+  },
+  "hg_states": {
+    "HG-0": "PASS_PROVISIONAL per historical records; supersession chain in runs/HG-3/CURRENT_STATUS.json",
+    "HG-3": "BLOCKED_HARDWARE_CAPACITY",
+    "HG-4..HG-8": "NOT_EXECUTED"
+  },
+  "implementation_seal_commit": "cb26214128d61c0d52e3d00d9067bc90ebc4cb47",
+  "implementation_tree_state": "SEALED_NO_SUBSTANTIVE_IMPLEMENTATION_CHANGES_AFTER_SEAL_LEDGER_AND_EVIDENCE_COMMITS_ONLY",
+  "kind": "BUILD_COMPLETION_MANIFEST",
+  "limitations": [
+    "seal_shard trusts caller-supplied snapshot blobs; corpus pipeline enforces registry freshness structurally (FND-009 mitigation).",
+    "Windows lacks portable directory-fsync; durability claims limited to file flush/fsync plus atomic replace.",
+    "Fixture results are SYNTHETIC_FIXTURE_ONLY and can never satisfy measured-evidence gates."
+  ],
+  "manifest_generated_at": "2026-08-23T23:45:17Z",
+  "manifest_schema_version": "2.0",
+  "model_compute_performed": false,
+  "p0_disposition": {
+    "F-00": "CLOSED",
+    "F-01": "CLOSED",
+    "F-02": "CLOSED",
+    "F-03": "CLOSED",
+    "F-04": "CLOSED",
+    "F-05": "CLOSED",
+    "F-06": "CLOSED",
+    "F-07": "CLOSED",
+    "F-08": "CLOSED",
+    "F-09": "CLOSED",
+    "F-10": "CLOSED",
+    "F-11": "CLOSED",
+    "F-12": "CLOSED",
+    "F-13": "CLOSED",
+    "F-14": "CLOSED",
+    "F-15": "CLOSED",
+    "F-16": "CLOSED",
+    "F-17": "CLOSED",
+    "F-18": "CLOSED",
+    "F-19": "CLOSED",
+    "F-20": "CLOSED",
+    "F-21": "CLOSED",
+    "F-22": "CLOSED",
+    "F-23": "CLOSED",
+    "F-24": "CLOSED",
+    "F-25": "CLOSED",
+    "F-26": "DEFERRED_EXTERNAL",
+    "F-27": "DEFERRED_EXTERNAL",
+    "F-28": "DEFERRED_EXTERNAL",
+    "F-29": "DEFERRED_EXTERNAL",
+    "F-30": "DEFERRED_EXTERNAL"
+  },
+  "promotion_performed": false,
+  "real_runs": "NONE - no model compute performed",
+  "repository": "ryguy-pixel/Sovereign-Distillery",
+  "schema_version": "2.0",
+  "schema_versions": {
+    "schema/corpus_admission.json": "schema_version SCRUB_POLICY_VERSION 1.0",
+    "schema/g0_event_manifest.json": "manifest schema_version const 1.2",
+    "schema/gate_status_record.json": "schema_version const 1.0",
+    "schema/shard.json": "see file",
+    "schema/source_admission.json": "see file"
+  },
+  "software_version": "1.1.0rc3",
+  "spec_version": "v1.1",
+  "test_matrix": {
+    "command": "python -m pytest -q -p no:cacheprovider",
+    "exit_code": 0,
+    "measured_at_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+    "python": "3.14.6",
+    "result": "229 passed, 429 subtests passed"
+  },
+  "test_result_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+  "thesis_version": "v1.2",
+  "trainer_state": {
+    "GND-DEV-EXEC-01": "ACCESS_VERIFIED_LOCAL, canonical_primary_trainer=false",
+    "GND-TRAINER-GFX906": "TARGET_NOT_FOUND / RETIRED_AS_UNVERIFIED_PLANNING_TARGET",
+    "GND-TRAINER-PRIMARY": "UNASSIGNED (requirement >=24GiB usable VRAM measured)"
+  },
+  "verified_branch_head": null,
+  "verified_branch_head_semantics": "UNBOUND_AT_GENERATION: bound only by external post-push verification records; a generated file never asserts its own future containing commit; artifact_generation_commit is likewise unbound when the generator itself is being sealed by the same commit",
+  "worktree_clean": false,
+  "worktree_clean_except_declared_evidence_paths": true
+}

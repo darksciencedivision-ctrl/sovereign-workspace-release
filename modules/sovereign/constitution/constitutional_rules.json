@@ -1,0 +1,30 @@
+﻿{
+  "schema_version": "1.0",
+  "rules": [
+    {
+      "id": "canonical-only-praxis-answer",
+      "description": "Only the Praxis Answer may be treated as canonical state.",
+      "enforcement": "hard"
+    },
+    {
+      "id": "exclude-sovereign-voice-from-memory",
+      "description": "Sovereign Voice must never be written to Praxis memory or used for control-plane decisions.",
+      "enforcement": "hard"
+    },
+    {
+      "id": "praxis-report-non-memory-default",
+      "description": "Praxis Report is non-memory by default until an explicit promotion event exists.",
+      "enforcement": "hard"
+    },
+    {
+      "id": "sandbox-before-promotion",
+      "description": "Any candidate operational change must exist in sandbox artifacts before promotion review.",
+      "enforcement": "hard"
+    },
+    {
+      "id": "logged-reversible-production-change",
+      "description": "Production changes require logging, rollback context, and constitutional validity.",
+      "enforcement": "hard"
+    }
+  ]
+}

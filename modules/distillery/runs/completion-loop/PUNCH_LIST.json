@@ -1,0 +1,545 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-08-23T17:28:31.237126Z",
+  "directive_version": "1.0",
+  "items": [
+    {
+      "id": "F-00",
+      "title": "Repository/remote/PR reality baseline",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 16",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "d91367d"
+      ],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_MEASURED_BASELINE"
+    },
+    {
+      "id": "F-01",
+      "title": "Post-remediation adversarial delta audit",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 17",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "c5209c8"
+      ],
+      "tests": [],
+      "evidence_refs": [
+        "runs/completion-loop/F01_DELTA_AUDIT.json",
+        "runs/completion-loop/FINDINGS_REGISTER.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_NO_CRITICAL_ONE_HIGH_ROUTED_TO_F05"
+    },
+    {
+      "id": "F-02",
+      "title": "Close delta audit blockers (HIGH/CRITICAL)",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 18",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "1a02c06"
+      ],
+      "tests": [
+        "python -m pytest -q"
+      ],
+      "evidence_refs": [
+        "runs/completion-loop/FINDINGS_REGISTER.json",
+        "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_ZERO_OPEN_HIGH_OR_CRITICAL_ALL_ROUTED_FINDINGS_CLOSED_OR_ACCEPTED"
+    },
+    {
+      "id": "F-03",
+      "title": "Formal build-completion state contract",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 19",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "2f47745"
+      ],
+      "tests": [
+        "tests/test_loop_state.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_VALIDATED_LOOP_STATE_CONTRACT_LOCKED_ATOMIC_UPDATES"
+    },
+    {
+      "id": "F-04",
+      "title": "Version/document identity reconciliation",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 20",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "42ada4a"
+      ],
+      "tests": [
+        "tests/test_version_identity.py"
+      ],
+      "evidence_refs": [
+        "docs/VERSION_MATRIX.json",
+        "distillery/identity.py",
+        "tests/test_version_identity.py"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_CANONICAL_VERSION_MATRIX_AND_RUNTIME_RESOLVER"
+    },
+    {
+      "id": "F-05",
+      "title": "HG-3 state supersession semantics",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 21",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "1cf9f4d"
+      ],
+      "tests": [
+        "tests/test_gate_status_chain.py"
+      ],
+      "evidence_refs": [
+        "runs/HG-3/CURRENT_STATUS.json",
+        "schema/gate_status_record.json",
+        "gate/status_chain.py",
+        "tests/test_gate_status_chain.py"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_SUPERSESSION_READER_AND_CANONICAL_RECORD"
+    },
+    {
+      "id": "F-06",
+      "title": "Revoked contract reconciliation",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 22",
+      "acceptance_contract": "Authorized revocation ELIGIBLE/INTERNAL_ONLY -> REJECTED with reason=revoked; REJECTED terminal; stale snapshots fail closed against live registry; revoked descendants excluded via lineage_id binding.",
+      "implementation_commits": [
+        "56e6b3c"
+      ],
+      "tests": [
+        "tests/test_revocation_semantics.py"
+      ],
+      "evidence_refs": [
+        "source_admission/__init__.py",
+        "schema/source_admission.json",
+        "tests/test_revocation_semantics.py"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_REVOCATION_SEMANTICS_AND_FRESHNESS_GATE"
+    },
+    {
+      "id": "F-07",
+      "title": "Normative corpus admission / privacy",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 23",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "56f66e6"
+      ],
+      "tests": [
+        "tests/test_corpus_admission.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_STRUCTURAL_SCRUB_POLICY_AND_FRESHNESS_GATE"
+    },
+    {
+      "id": "F-08",
+      "title": "GR-8 generalized exclusion graph generator+purge",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 24",
+      "acceptance_contract": "exclude() raises ContractError on malformed nodes (non-dict, missing/empty sample_id, malformed derived_from/source_ids, missing shard_hash) and on any lineage cycle (self-loop, closed, disconnected-from-source, upstream-of-root); purge properties hold across 50 seeded random DAGs; manifest shape unchanged.",
+      "implementation_commits": [
+        "a333565"
+      ],
+      "tests": [
+        "tests/test_exclusion_graph.py"
+      ],
+      "evidence_refs": [
+        "exclusion/__init__.py",
+        "tests/test_exclusion_graph.py",
+        "runs/completion-loop/FINDINGS_REGISTER.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_CYCLE_POLICY_AND_GRAPH_VALIDATION"
+    },
+    {
+      "id": "F-09",
+      "title": "GR-9 historical per-item vector bridge",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 25",
+      "acceptance_contract": "reference_vector(suite_version, item_ids) returns values ordered to request, each bound to the supplying record (bundle_id/promotion_time) plus sha256 vector hash; missing coverage fails closed; ties resolve deterministically; non-finite/legacy impersonation rejected at ingest and read.",
+      "implementation_commits": [
+        "827a758"
+      ],
+      "tests": [
+        "tests/test_historical_bridge.py"
+      ],
+      "evidence_refs": [
+        "gate/historical.py",
+        "tests/test_historical_bridge.py",
+        "runs/completion-loop/FINDINGS_REGISTER.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_PER_ITEM_VECTOR_BRIDGE"
+    },
+    {
+      "id": "F-10",
+      "title": "Executable Sovereign capability ledger",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 26",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "0240b4c"
+      ],
+      "tests": [
+        "tests/test_capability_ledger.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_ALL_DIRECTIVE_FIELDS_APPEND_PRESERVING_HISTORY"
+    },
+    {
+      "id": "F-11",
+      "title": "Governed floor / remediation enforcement",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 27",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "0240b4c"
+      ],
+      "tests": [
+        "tests/test_capability_ledger.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_CRITICAL_FLOOR_BREACH_BLOCKS_PROMOTION_AUTHORIZED_TRANSITION_REQUIRED_TO_LOWER"
+    },
+    {
+      "id": "F-12",
+      "title": "Durable run-state / resume engine",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 28",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "4d9d783"
+      ],
+      "tests": [
+        "tests/test_run_state.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_HASH_CHAINED_STAGE_MACHINE_FAIL_CLOSED_RESUME"
+    },
+    {
+      "id": "F-13",
+      "title": "Training-runner control plane + fixture backend + real adapter",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 29",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "36be836"
+      ],
+      "tests": [
+        "tests/test_train_runner.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_CONTROL_PLANE_FIXTURE_BACKEND_REAL_ADAPTER_GATED"
+    },
+    {
+      "id": "F-14",
+      "title": "Trainer preflight fail-closed",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 30",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "36be836"
+      ],
+      "tests": [
+        "tests/test_train_runner.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_FAIL_CLOSED_PREFLIGHT_BLOCKED_HARDWARE_CAPACITY_IS_SUCCESS"
+    },
+    {
+      "id": "F-15",
+      "title": "Operator CLI surface",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 31",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "232ee07"
+      ],
+      "tests": [
+        "tests/test_operator_cli.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_15_COMMANDS_JSON_OUT_NO_FORCE_FAIL_CLOSED_VISIBLE"
+    },
+    {
+      "id": "F-16",
+      "title": "End-to-end deterministic dry run (paths A-I)",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 32",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "06ad3eb"
+      ],
+      "tests": [
+        "tests/test_end_to_end_dry_run.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_PATHS_A_I_QUALIFY_REJECT_CRASH_RESUME_REVOKED_FRANKENSTEIN_ALTERED_CORPUS_IDENTITY_LATE_MTD_MALFORMED"
+    },
+    {
+      "id": "F-17",
+      "title": "D-9 primary-source research dossiers",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 33",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "1f944ae"
+      ],
+      "tests": [
+        "tests/test_d9_dossiers.py"
+      ],
+      "evidence_refs": [
+        "runs/source-admission/dossiers.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_RECOMMENDATIONS_RECORDED_OPERATOR_UNSIGNED_2ELIGIBLE_2INSUFFICIENT"
+    },
+    {
+      "id": "F-18",
+      "title": "Human D-9 authority boundary enforcement",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 34",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "1b58397"
+      ],
+      "tests": [
+        "tests/test_d9_authority.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_RECOMMENDATION_NEVER_AUTHORIZES_SIGNED_OPERATOR_REQUIRED"
+    },
+    {
+      "id": "F-19",
+      "title": "Sovereign decision / open-question reconciliation",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 35",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "a26fd6d"
+      ],
+      "tests": [
+        "tests/test_treaty_contracts.py"
+      ],
+      "evidence_refs": [
+        "runs/completion-loop/F19_OPEN_QUESTION_RECONCILIATION.json",
+        "docs/sovereign/F19_RECONCILIATION_APPENDIX.md"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_10_DETERMINATIONS_AUTHORITY_LINKED_CANON_IMMUTABILITY_RESPECTED"
+    },
+    {
+      "id": "F-20",
+      "title": "Raw source ambiguity = 0",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 36",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "a8ffb2f"
+      ],
+      "tests": [
+        "tests/test_raw_source_classification.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_RULE_ENCODED_IN_REPO_AMBIGUOUS_COUNT_0_HISTORICAL_FILES_SHARED_CORE"
+    },
+    {
+      "id": "F-21",
+      "title": "Cold restoration executed",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 37",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "51509b1"
+      ],
+      "tests": [],
+      "evidence_refs": [
+        "runs/export/LATEST_EXPORT_REPORT.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_ACTUAL_COLD_RESTORE_FROM_REGENERATED_BUNDLE_HEAD_AND_TRACKED_AND_BLOB_HASHES_MATCH_MINIMAL_TESTS_PASS"
+    },
+    {
+      "id": "F-22",
+      "title": "Sovereign teacher registry tooling hardening",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 38",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "e016d27"
+      ],
+      "tests": [
+        "tests/test_sovereign_teachers.py"
+      ],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": "CLOSED_12_MEASURED_ORDERED_31_EXPLICIT_UNORDERED_NO_PARAMETER_INVENTION"
+    },
+    {
+      "id": "F-23",
+      "title": "Build completion manifest",
+      "priority": "P0",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 39",
+      "acceptance_contract": "Generated build completion manifest records measured terminal state under explicit source/evidence identity semantics with final_disposition BUILD_COMPLETE_EXPERIMENT_PENDING.",
+      "implementation_commits": [
+        "1a02c06"
+      ],
+      "tests": [
+        "python tools/build_completion_manifest.py",
+        "python -m pytest -q"
+      ],
+      "evidence_refs": [
+        "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json",
+        "tools/build_completion_manifest.py"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_GENERATED_BUILD_COMPLETION_MANIFEST_IDENTITY_SEMANTICS_V2_DISPOSITION_BUILD_COMPLETE_EXPERIMENT_PENDING",
+      "closed_at": "2026-08-23T17:28:31.237126Z"
+    },
+    {
+      "id": "F-24",
+      "title": "Regenerate enterprise artifacts",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 40",
+      "acceptance_contract": "",
+      "implementation_commits": [
+        "51509b1"
+      ],
+      "tests": [],
+      "evidence_refs": [
+        "runs/export/LATEST_EXPORT_REPORT.json"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_DETERMINISTIC_IN_REPO_EXPORT_RAW_SOURCE_PASS_AMBIGUOUS_0_BUNDLE_VERIFIED"
+    },
+    {
+      "id": "F-25",
+      "title": "Remote protection / PR update",
+      "priority": "P1",
+      "status": "CLOSED",
+      "requirement_source": "Directive sec 41",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [
+        "https://github.com/ryguy-pixel/Sovereign-Distillery/pull/3"
+      ],
+      "blockers": [],
+      "disposition": "CLOSED_BRANCH_PUSHED_PR_3_OPEN_MERGE_IS_HUMAN_AUTHORITY"
+    },
+    {
+      "id": "F-26",
+      "title": "D-9 operator decisions",
+      "priority": "P0",
+      "status": "DEFERRED_EXTERNAL",
+      "requirement_source": "Directive sec 42",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": ""
+    },
+    {
+      "id": "F-27",
+      "title": "Physical trainer designation",
+      "priority": "P0",
+      "status": "DEFERRED_EXTERNAL",
+      "requirement_source": "Directive sec 43",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": ""
+    },
+    {
+      "id": "F-28",
+      "title": "Real HG-3 execution",
+      "priority": "P0",
+      "status": "DEFERRED_EXTERNAL",
+      "requirement_source": "Directive sec 44",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": ""
+    },
+    {
+      "id": "F-29",
+      "title": "Real G2-G6 execution",
+      "priority": "P0",
+      "status": "DEFERRED_EXTERNAL",
+      "requirement_source": "Directive sec 45",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": ""
+    },
+    {
+      "id": "F-30",
+      "title": "Promotion/deployment (human only)",
+      "priority": "P0",
+      "status": "DEFERRED_EXTERNAL",
+      "requirement_source": "Directive sec 46",
+      "acceptance_contract": "",
+      "implementation_commits": [],
+      "tests": [],
+      "evidence_refs": [],
+      "blockers": [],
+      "disposition": ""
+    }
+  ]
+}

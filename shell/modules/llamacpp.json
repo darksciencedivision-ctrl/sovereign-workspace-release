@@ -1,0 +1,53 @@
+{
+  "id": "llamacpp",
+  "display_name": "llama.cpp (candidate)",
+  "description": "Pinned llama.cpp router on 5183. Not production default.",
+  "state_class": "runnable",
+  "root": "D:/Product Software/Production Workspace/runtime/llama.cpp",
+  "runtime_writes": [
+    "${root}/logs"
+  ],
+  "launch": {
+    "cwd": "${root}/current",
+    "argv": [
+      "D:/Product Software/Production Workspace/runtime/llama.cpp/current/llama-server.exe",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "5183",
+      "--models-dir",
+      "D:/Product Software/Production Workspace/runtime/llama.cpp/test-models",
+      "--no-models-autoload"
+    ],
+    "env_allowlist": [
+      "SYSTEMROOT",
+      "PATH",
+      "TEMP",
+      "TMP"
+    ],
+    "env_set": {
+      "PYTHONDONTWRITEBYTECODE": "1"
+    }
+  },
+  "readiness": {
+    "kind": "http",
+    "url": "http://127.0.0.1:5183/models",
+    "expect_status": 200,
+    "timeout_s": 30,
+    "poll_ms": 400
+  },
+  "identity": {
+    "kind": "http_json",
+    "url": "http://127.0.0.1:5183/models",
+    "required_keys": [
+      "data"
+    ]
+  },
+  "open": {
+    "kind": "none"
+  },
+  "stop": {
+    "kind": "job_object",
+    "grace_s": 8
+  }
+}

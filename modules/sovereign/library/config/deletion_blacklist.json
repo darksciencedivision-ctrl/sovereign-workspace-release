@@ -1,0 +1,53 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Paths and patterns that are permanently protected from deletion, quarantine, and supersession in Phase 18.1 and beyond.",
+  "protected_patterns": [
+    "runtime_profile.json",
+    "CORE_RUNTIME_INDEX.md",
+    "library/**",
+    "research/evidence_index/**",
+    "research/integration_theorem_runs/**",
+    "archive_ledger*.json",
+    "*_ledger*.json",
+    "*_receipt*.jsonl",
+    "artifact_registry.jsonl",
+    "subsystem_registry.json",
+    "architecture_graph.json",
+    "runtime_contract.json",
+    "ontology_graph.json",
+    "lineage_graph.json",
+    "contradiction_registry.jsonl",
+    "truth_weight_registry.jsonl",
+    "operator_decisions/**",
+    "sandbox_agi/reports/**",
+    "audits/**",
+    "broker_v21/**",
+    "praxis/**",
+    "URI/app.py"
+  ],
+  "protected_exact_files": [
+    "runtime_profile.json",
+    "CORE_RUNTIME_INDEX.md",
+    "cycle_runner_v3.py",
+    "claim_arbitrator.py",
+    "quality_gate.py",
+    "artifact_integrity.py",
+    "publication_gate.py",
+    "evaluation/integrity.py",
+    "URI/app.py",
+    "broker_v21/broker.ps1",
+    "maintenance/archive_ledger_20260513T182701Z.json",
+    "library/config/runtime_mode.json",
+    "library/config/deletion_blacklist.json",
+    "library/index/artifact_registry.jsonl",
+    "library/index/runtime_contract.json",
+    "library/index/architecture_graph.json"
+  ],
+  "enforcement": {
+    "deletion_queue_check_required": true,
+    "blacklist_check_on_all_mutations": true,
+    "fail_on_blacklist_match": true,
+    "log_all_blacklist_hits": true
+  }
+}

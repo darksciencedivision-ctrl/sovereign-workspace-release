@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/node@1.0",
+  "title": "Sovereign node identity & registration",
+  "description": "Architecture Plan v1.0.1 section 9.1. Registration is refused if: adapter ineligible under active profile (TB-6); subscription already has an active terminal (I-X3); no permission profile; or the process was not spawned by the Node Runtime supervisor (I-C1, no naked sessions).",
+  "type": "object",
+  "required": ["node_id", "class", "adapter", "locality", "capabilities", "workspace", "permission_profile_id", "auth", "state", "offline_profile_eligible"],
+  "additionalProperties": false,
+  "properties": {
+    "node_id": { "type": "string", "format": "uuid" },
+    "class": { "enum": ["conductor", "worker_reasoning", "worker_coding_specialist", "voice_input_service"] },
+    "adapter": { "enum": ["claude_code", "openai_codex_cli", "opencode_local", "gemini_cli", "aider", "ollama_direct", "nvidia_parakeet", "mock"] },
+    "harness": { "type": ["string", "null"] },
+    "model_ref": { "type": ["string", "null"], "description": "Capability-resolved; recorded post-selection. Never used for scheduling (I-SC1)." },
+    "locality": { "enum": ["local", "frontier"] },
+    "subscription_ref": { "type": ["string", "null"] },
+    "capabilities": { "type": "array", "items": { "$ref": "#/definitions/capability_descriptor" } },
+    "workspace": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["git_worktree", "dir", "none"] },
+        "path": { "type": "string" }
+      }
+    },
+    "permission_profile_id": { "type": "string" },
+    "auth": {
+      "type": "object",
+      "required": ["mcp_credential_id"],
+      "additionalProperties": false,
+      "properties": { "mcp_credential_id": { "type": "string", "description": "Reference only. Credentials never transit MCP; they stay in host-native stores (Plan section 18.4)." } }
+    },
+    "state": { "enum": ["SPAWNING", "READY", "ASSIGNED", "BUSY", "PAUSED", "DISCONNECTED", "TERMINATED"] },
+    "offline_profile_eligible": { "type": "boolean" },
+    "spawned_by_supervisor": { "type": "boolean", "description": "Must be true to register (I-C1)." },
+    "schema": { "const": "node@1.0" }
+  },
+  "definitions": {
+    "capability_descriptor": {
+      "$comment": "Plan section 9.7. Canonical definition; task@1.0 references it via https://sovereign.local/schemas/node@1.0#/definitions/capability_descriptor.",
+      "type": "object",
+      "required": ["capability", "requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "capability": { "enum": ["coding", "reasoning", "review", "synthesis", "research", "voice_stt"] },
+        "requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool_use": { "type": "boolean" },
+            "min_context": { "type": "integer", "minimum": 0 },
+            "structured_output": { "type": "boolean" },
+            "locality": { "enum": ["any", "local_only", "frontier_ok"] },
+            "harness_class": { "enum": ["coding_tui", "chat_cli", "api", null] }
+          }
+        },
+        "cost_class": { "enum": ["local", "subscription"] },
+        "priority": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "deployment_profile": {
+      "$comment": "Canonical handoff v2.4 section 2.2 + Plan section 9.10. Loader is fail-closed: any requires_network or offline-ineligible member under offline_airgapped aborts startup before any node spawns (TB-6, T11).",
+      "type": "object",
+      "required": ["id", "network"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "enum": ["offline_airgapped", "hybrid", "cloud"] },
+        "network": { "enum": ["none", "egress_controlled", "open"] },
+        "eligible_adapters": { "type": "array", "items": { "type": "string" } },
+        "excluded_adapters": { "type": "array", "items": { "type": "string" } },
+        "voice_service": { "type": ["string", "null"] },
+        "conductor_constraint": { "type": "string" },
+        "sovereign_contract_version": { "type": "string", "description": "Identical across profiles (I-D1)." }
+      }
+    }
+  }
+}

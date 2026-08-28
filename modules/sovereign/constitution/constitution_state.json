@@ -1,0 +1,64 @@
+{
+  "mode": "OBSERVE",
+  "schema_version": "1.0",
+  "last_updated": "2026-03-22T12:04:27Z",
+  "updated_by": "codex_structural_guard_batch",
+  "history": [
+    {
+      "ts": "2026-03-21T15:22:15.280296+00:00",
+      "mode": "OFF",
+      "previous_mode": "OBSERVE",
+      "actor": "URI",
+      "reason": "ui_operator_change"
+    },
+    {
+      "ts": "2026-03-22T04:45:11Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OFF",
+      "actor": "codex_followup_batch",
+      "reason": "controlled_10_session_observe_validation_batch"
+    },
+    {
+      "ts": "2026-03-22T05:48:47Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_prompt_tuning_batch",
+      "reason": "controlled_12_session_observe_validation_batch"
+    },
+    {
+      "ts": "2026-03-22T08:42:14Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_strict_schema_batch",
+      "reason": "controlled_12_session_strict_schema_batch"
+    },
+    {
+      "ts": "2026-03-22T09:31:47Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_lean_prompt_batch",
+      "reason": "controlled_12_session_lean_prompt_validation_batch"
+    },
+    {
+      "ts": "2026-03-22T10:28:17Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_final_calibration_batch",
+      "reason": "controlled_12_session_final_calibration_batch"
+    },
+    {
+      "ts": "2026-03-22T11:16:16Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_subtraction_patch_batch",
+      "reason": "controlled_12_session_subtraction_validation_batch"
+    },
+    {
+      "ts": "2026-03-22T12:04:27Z",
+      "mode": "OBSERVE",
+      "previous_mode": "OBSERVE",
+      "actor": "codex_structural_guard_batch",
+      "reason": "controlled_12_session_structural_guard_batch"
+    }
+  ]
+}

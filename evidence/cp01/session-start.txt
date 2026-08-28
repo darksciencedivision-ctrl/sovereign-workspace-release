@@ -1,0 +1,81 @@
+﻿# utc: 2026-08-25T06:34:29.8266433Z
+# producer: ox-alpha CP-01
+
+session-start capture per docs/OX-ALPHA-DIRECTIVE-CP-01.md G0.
+supersedes: evidence/cp01/session-start.faulty-1.txt sha256 592c9bec7c459bb043a68042a5575974a9b0be11b3747e475d686569ecaa313f - that artifact recorded empty
+hash fields because the capture function was named 'H', which resolves to the built-in Get-History
+alias in Windows PowerShell 5.1. Content otherwise identical in intent; this file is authoritative.
+
+true_utc: 2026-08-25T06:34:29.8266433Z
+bash_tool_shell: Windows PowerShell 5.1 Desktop, version 5.1.26100.9168 (native cmdlet execution; no powershell.exe wrapping required)
+
+sha256_docs_DECISIONS_md: bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a
+sha256_AGENTS_md: 80c0d4a18cc1fa0c6c3fbab4feab80c6a86b756755d22096ad30ae38ed2c8fc5
+sha256_CLAUDE_md: 80c0d4a18cc1fa0c6c3fbab4feab80c6a86b756755d22096ad30ae38ed2c8fc5
+AGENTS_CLAUDE_equality: EQUAL
+sha256_ADDENDUM_01: 1ad6f06ca7a7c52256e69e368b6cb603c4610844b3a716991a0e3eb9d742a7b5
+sha256_CP01_directive: f2bc498933fb0f9c901867f1889f5812f447696d7f3659fe4b3e7bb6d8573a8f
+
+port listen-state as found:
+  port 5175: free
+  port 8700: free
+  port 8765: LISTENING pid=30608 exe=C:\Users\Sslaw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe cmdline="C:\Users\Sslaw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" piggybank.py --host 127.0.0.1 --port 8765
+  port 5180: free
+
+module processes under modules\* as found:
+  pid=72948 exe=C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.EXE cmdline=C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.EXE -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'
+$ws='D:\Product Software\Production Workspace'
+$bad=\"$ws\evidence\cp01\session-start.txt\"
+Move-Item -LiteralPath $bad -Destination \"$ws\evidence\cp01\session-start.faulty-1.txt\" -Force
+function Get-Sha([string]$p){ (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLower() }
+$utc=(Get-Date).ToUniversalTime().ToString('o')
+$hDec = Get-Sha \"$ws\docs\DECISIONS.md\"
+$hAg  = Get-Sha \"$ws\AGENTS.md\"
+$hCl  = Get-Sha \"$ws\CLAUDE.md\"
+$hAdd = Get-Sha \"$ws\docs\SWS-UI-001-v1.2-ADDENDUM-01.md\"
+$hCp  = Get-Sha \"$ws\docs\OX-ALPHA-DIRECTIVE-CP-01.md\"
+$hBad = Get-Sha \"$ws\evidence\cp01\session-start.faulty-1.txt\"
+$agentsEq = if($hAg -eq $hCl){'EQUAL'}else{'MISMATCH'}
+$L = @()
+$L += \"# utc: $utc\"
+$L += \"# producer: ox-alpha CP-01\"
+$L += \"\"
+$L += \"session-start capture per docs/OX-ALPHA-DIRECTIVE-CP-01.md G0.\"
+$L += \"supersedes: evidence/cp01/session-start.faulty-1.txt sha256 $hBad - that artifact recorded empty\"
+$L += \"hash fields because the capture function was named 'H', which resolves to the built-in Get-History\"
+$L += \"alias in Windows PowerShell 5.1. Content otherwise identical in intent; this file is authoritative.\"
+$L += \"\"
+$L += \"true_utc: $utc\"
+$L += \"bash_tool_shell: Windows PowerShell 5.1 Desktop, version $($PSVersionTable.PSVersion) (native cmdlet execution; no powershell.exe wrapping required)\"
+$L += \"\"
+$L += \"sha256_docs_DECISIONS_md: $hDec\"
+$L += \"sha256_AGENTS_md: $hAg\"
+$L += \"sha256_CLAUDE_md: $hCl\"
+$L += \"AGENTS_CLAUDE_equality: $agentsEq\"
+$L += \"sha256_ADDENDUM_01: $hAdd\"
+$L += \"sha256_CP01_directive: $hCp\"
+$L += \"\"
+$L += \"port listen-state as found:\"
+foreach($port in 5175,8700,8765,5180){
+  $c = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue
+  if($c){ foreach($x in ($c | Sort-Object OwningProcess -Unique)){
+    $pr=Get-CimInstance Win32_Process -Filter \"ProcessId=$($x.OwningProcess)\" -ErrorAction SilentlyContinue
+    $L += \"  port ${port}: LISTENING pid=$($x.OwningProcess) exe=$($pr.ExecutablePath) cmdline=$($pr.CommandLine)\"
+  }} else { $L += \"  port ${port}: free\" }
+}
+$L += \"\"
+$L += \"module processes under modules\* as found:\"
+$mods = Get-CimInstance Win32_Process | Where-Object { ($_.ExecutablePath -like '*\Production Workspace\modules\*') -or ($_.CommandLine -like '*\Production Workspace\modules\*') }
+if($mods){ foreach($m in $mods){ $L += \"  pid=$($m.ProcessId) exe=$($m.ExecutablePath) cmdline=$($m.CommandLine)\" } } else { $L += \"  none\" }
+$L += \"\"
+$L += \"operator authorization: ADD-01 s9 sentence logged verbatim with UTC in evidence/OPERATOR-INSTRUCTIONS.log (entry utc 2026-08-25T06:26:21.5770537Z) before any other mutation.\"
+Set-Content -LiteralPath \"$ws\evidence\cp01\session-start.txt\" -Value ($L -join \"`r`n\") -Encoding UTF8
+$hNew = Get-Sha \"$ws\evidence\cp01\session-start.txt\"
+\"written sha256: $hNew\"
+Get-Content -LiteralPath \"$ws\evidence\cp01\session-start.txt\""
+
+operator authorization: ADD-01 s9 sentence logged verbatim with UTC in evidence/OPERATOR-INSTRUCTIONS.log (entry utc 2026-08-25T06:26:21.5770537Z) before any other mutation.
+
+# annotation utc: 2026-08-25T06:38:23.8961029Z
+# producer: ox-alpha CP-01
+# note: the single 'modules\*' process row above is this capture's own powershell.exe whose -Command text mentions modules paths; it matched the CommandLine filter. No actual module runtime was running at capture.

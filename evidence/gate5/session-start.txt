@@ -1,0 +1,52 @@
+﻿# utc: 2026-08-21T21:21:15.2253971Z
+# producer: ox-alpha GATE5
+
+## Set-Location 'D:\Product Software\Production Workspace'
+Set-Location -LiteralPath 'D:\Product Software\Production Workspace'
+Location now: D:\Product Software\Production Workspace
+
+## $PSVersionTable.PSVersion
+5.1.26100.9168
+
+## (Get-Date).ToUniversalTime().ToString('o')  [captured at session start]
+2026-08-21T21:21:15.2610360Z
+
+## Get-FileHash docs\DECISIONS.md -Algorithm SHA256
+SHA256  bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a  Path=D:\Product Software\Production Workspace\docs\DECISIONS.md
+
+## py -3.12 --version
+Python 3.12.10
+
+## Get-NetTCPConnection -State Listen -LocalPort 5175,8700,5180 -ErrorAction SilentlyContinue
+(no output: no listener on 5175, 8700, or 5180)
+
+## Get-Process python,electron,node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path
+
+   Id ProcessName Path                                                                                
+   -- ----------- ----                                                                                
+ 3772 node        D:\Program Files\nodejs\node.exe                                                    
+40212 node        D:\Program Files\nodejs\node.exe                                                    
+ 2352 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+ 7236 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+ 8464 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+ 8924 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+11656 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+15124 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+17036 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+19152 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+21920 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+28600 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+31492 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+32736 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+35592 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+35956 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+37660 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+40088 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+40280 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+42944 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+
+## quiescence check: python.exe under modules\*\.venv or electron.exe under modules\sow
+(none)
+
+## node.exe / electron.exe under modules\sow (any name)
+(none)

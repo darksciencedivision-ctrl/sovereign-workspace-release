@@ -1,0 +1,31 @@
+# OUTCOME B evidence: config-channel attempt tail (codex 0.149.0)
+# launchState: exited
+
+K
+│ model:     loading   /model to change │
+│ directory: loading                    │
+╰───────────────────────────────────────╯
+
+
+› Ask Codex to do anything
+
+  ? for shortcuts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[0 q[0 q[0 q[0 q[0 qError loading configuration: approval_policy = "untrusted" is no longer supported; remove this setting

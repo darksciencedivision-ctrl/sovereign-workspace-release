@@ -1,0 +1,11 @@
+﻿# utc: 2026-08-25T16:30:43.2312885Z
+# producer: ox-alpha CP-M1 Band 0 / correction C-1(a)
+# superseded artifact (preserved byte-in-place under renamed file):
+#   evidence/cpm1/fs-watch-cpm1.stall-window-superseded.txt
+#   sha256: cf156d46a22340a0f268ed8b3e1ebc8b7acd95ed4ceaf1f9c590fc8225a45305
+#   its own header records: window 2026-08-25T09:33:01Z .. 16:22:29Z (24568 s), events: 0,
+#   errors: 0, roots: the three PROTECTED_ROOTS defaults of shell/tests/_fswatch.py.
+# reason: the window bracketed a builder stall (no workspace write 09:33:01Z..16:22:29Z), not the
+#   G5-to-G117 work O-6 requires; and it inherited FsWatch()'s three-root default, leaving
+#   D:\Sov 1 unwatched. Closed through its own sentinel by the operator at 16:22:29Z.
+# G117 predicate: the REPLACEMENT window's artifact evidence/cpm1/fs-watch-cpm1.txt, not this one.

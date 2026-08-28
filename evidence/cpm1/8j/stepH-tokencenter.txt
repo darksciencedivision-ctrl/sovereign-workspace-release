@@ -1,0 +1,4 @@
+# utc: 2026-08-26T21:00:20.211268Z
+# producer: ox-alpha CP-M1 ADD-07 wave7
+
+G57 stepH: Token Center integrated as central card; GET /healthz and /api/summary live; no secret rendered. FACT[evidence/cpm1/8i/tokencenter-start.txt] FACT[evidence/hardening/h19-tokencenter-contract.txt]

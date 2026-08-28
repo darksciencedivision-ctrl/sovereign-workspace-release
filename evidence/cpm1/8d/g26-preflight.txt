@@ -1,0 +1,167 @@
+﻿# utc: 2026-08-26T02:55:26.6282352Z
+# producer: ox-alpha CP-M1 Band 4 / G26 preflight
+# authorization: operator live instruction this session (verbatim in evidence/OPERATOR-INSTRUCTIONS.log,
+#   entry utc 2026-08-26T02:39Z; on-disk copy docs/CP-M1-G26-PREFLIGHT-PASTE.md,
+#   sha256 5ed96e08a6a89b0d74b355e6c237b442d34ee56483ea93c7ae1042c1182f1e89).
+# scope: reconnaissance only - no product edit, no spend, no conductor launch, no gate submission.
+# session-start capture: evidence/cpm1/8d/session-start-g26-preflight.txt
+#   sha256 e951bd667bf568502bd0e2ff99eac7f1d4854cd9d80f53b773af55eede70a1b1
+
+## P1 - IS claude_code AVAILABLE ON THIS HOST? YES.
+
+Baseline gap confirmed first - FACT[evidence/cpm1/baseline/runtime-inventory.json] records exactly
+py_3_12 / node / npm / git / powershell. No claude entry existed anywhere in G3 baseline evidence.
+
+The adapter's own detection path is modules/sow/adapters/detect.py:62-75:
+    for name in ("claude", "claude.cmd", "claude.exe"):
+        found = shutil.which(name)
+        if found: return found
+    return None
+
+Executed VERBATIM under py -3.12 (cwd=modules/sow, PYTHONDONTWRITEBYTECODE=1):
+
+    detect.claude_code_executable() -> 'C:\\Users\\Sslaw\\.local\\bin\\claude.EXE'
+
+claude --version, invoked as the RESOLVED ABSOLUTE PATH (the governed pattern: run exactly the
+binary the gate verified; one-shot probe only - no session, no authentication, no spend):
+
+    stdout: 2.1.240 (Claude Code)
+    stderr: (empty)
+    exit:   0
+
+Full verbatim capture, written to file then read back from disk (T-1):
+FACT[evidence/cpm1/8d/p1-claude-detect.txt]
+sha256 1637bf2082ad236b64902ea43855b0c06201e0efb48f253ee6354571627ae838
+
+INTERPRETATION: Option C is technically alive on this host - it died nowhere. Presence is NOT
+authorization: the spend envelope is unchanged (openai_codex_cli only, per the standing decision
+record), every provider leg other than that stays NOT_RUN(NO_SPEND_AUTHORIZATION), and any
+claude_code use remains an operator-only decision.
+
+## P2 - HOW MUCH OF BAND 5 DEPENDS ON THE BLOCKED CHANNEL?
+
+The blocked surface stated precisely: deliverConductorChat (voice/conductor-write.js:168 body
+write, :217 submit) guards HUMAN-typed directives INTO a conductor pane behind
+supervisorEnforcedBoundary (:57-62). No codex conductor can satisfy it (re-diagnosis Q2
+CONFIRMED, FACT[evidence/cpm1/8d/g26-rediagnosis.txt], frozen sha256
+884a73637144fac36797b700ece6dc9420c5eebf0c9e93404f0d148eacb3254d).
+
+Dispatch topology read from disk this session:
+
+- MCP worker-control tools declared: FACT[mcp_server/sovereign_tools.py:642-659] -
+  spawn_worker :644, assign_task :646, get_worker_status :647, send_message :648,
+  publish_synthesis :658 ("present it visibly to the operator").
+- Gateway binding: FACT[apps/desktop/main.js:2523-2535] ensureSovereignControl wires handlers
+  incl. assign_task (:2528); loopback 127.0.0.1, bearer credentials.
+- Role gate: FACT[apps/desktop/control/application-control.js:12-16] requireControlRole;
+  preflightAssignment :318-335 requires role "conductor" before any assignment write.
+- Task delivery to a named worker: assignTask application-control.js:337-355 delivers via
+  io.writePanePrompt(rec.paneId, taskPrompt(task)) at :342 -> main.js:2389-2391 ->
+  control/pane-writer.js writePrompt :313-371 (the SYSTEM write path; W-02 body flatten
+  :319-323). It never touches deliverConductorChat.
+- Result return to the Conductor: notifyMessage application-control.js:357-384 fans out via
+  io.notifyNode at :382-383; deliverableNodeIds :66-76 ALWAYS includes the conductor node;
+  deadline failures notify the conductor pane directly :123-131 and :191-212. pane-writer.js
+  notifyNode :377-392 resolves the CONDUCTOR pane itself (io.conductorTarget :378-380) and
+  writes through the same system path :385. Again never deliverConductorChat.
+- The Conductor's MCP credential is adapter-independent: FACT[main.js:971-980] EVERY governed
+  conductor launch - including the codex else-branch (:968-970) - receives
+  sovereignControl.childEnv({role: "conductor", ...}); childEnv mints the bearer token
+  (control/sovereign-control-server.js:176-181; identity shape :98-100).
+- Worker registry projection gap: FACT[apps/desktop/control/operational-state.js:36-66]
+  operationalNodeStatus carries no created_utc - exactly the field G28 names.
+- Worker spawning without any conductor chat: picker/worker-spawn.js createWorkerLauncher
+  (:95+); spawnWorker application-control.js:270-307 (conductor-role caller) or operator picker
+  flow; two workers on different models need nothing from deliverConductorChat.
+
+### Verdicts
+
+G28 - REACHABLE. Needs >= 2 live workers plus the created_utc projection
+(operational-state.js:36-66). No leg of it requires a human directive into a conductor pane.
+
+G29 - BLOCKED AT THE FIRST HOP ONLY. The delivery machinery is complete and independent of the
+blocked guard (assignTask -> writePanePrompt -> worker pane). But NOTHING ORIGINATES a task
+except a conductor-role MCP caller, and a launched codex conductor receives its marching orders
+through NO governed non-blocked channel:
+  (a) deliverConductorChat - blocked for codex (Q2 CONFIRMED);
+  (b) raw typing into the conductor TUI via the unguarded manager.write paths
+      (main.js:1486,1721,2375 per re-diagnosis Q3 table) - ungoverned, outside the G25 surface,
+      and relying on it would route around the very control the architecture built;
+  (c) new scope (pane-writer routing or a launch-ticket initial prompt). Greps this session
+      found NO initial-directive emission in the launch flow
+      (conductor/launch-source.js: zero hits for kickoff|initial|writePrompt|notifyNode;
+      emit_conductor_launch.py: no initial-prompt field).
+So "a task issued by the Conductor" cannot occur today without either the blocked channel or an
+operator-authorized new path. The human->Conductor hop IS on G29's critical path.
+
+G30 - BLOCKED (inherits G29's first hop). Its return legs are code-complete - results reach the
+conductor PANE via notifyNode (:377-392), publish_synthesis presents to the operator
+(sovereign_tools.py:658), and the transcript renders PTY output - but the chain begins with a
+task only G29 can mint. Two-workers-on-different-models is spawnable without the blocked
+channel.
+
+G31 - SPLIT. Failure MACHINERY is reachable without any conductor: deadline controller marks
+STALLED with structuredFailure (application-control.js:123-131, 191-212) and the mock-first
+dispatch feed carries live_workers_owed honestly (control_plane/orchestration/
+conductor_dispatch.py:63-71,94-109; apps/desktop/conductor/dispatch-source.js:31-39). The
+clause "identified as failed BY THE CONDUCTOR" needs a live conductor - same first-hop
+dependency as G29/G30.
+
+Honesty qualifier on ALL machine-to-machine legs: whether a codex CLI actually REACHES the
+gateway depends on host-global ~/.codex/config.toml declaring the sovereign MCP server -
+FACT[modules/sow/adapters/frontier/codex.py:346-353] (U32 recorded live-run item) and the
+modules/sow AGENTS.md STATUS notice (transport repaired 2026-08-16; end-to-end MCP path NOT
+re-established since; mcp_server cwd-dependence open). The host config file contents were
+deliberately NOT read this turn (credential risk, HC-6 / s2.2). So even the REACHABLE legs carry
+an UNVERIFIED-LIVE qualifier until a live run proves them.
+
+Net Band 5 damage if G26 stays NOT_RUN: G28 provable; G29 BLOCKED; G30 BLOCKED; G31 half
+(machinery yes, conductor clause no). Gate 8e becomes one registry proof + failure-machinery
+proof + a record of absences - R-05 and R-06 unproven at their Conductor legs, exactly as the
+operator's correction warned, now confirmed against the dispatch code.
+
+## Re-scored option set (P1 + P2 folded in)
+
+OPTION A - Defer (G26 NOT_RUN, prove in Band 10 stepD) - CORRECTED COST
+  Scope/spend cost: still zero product change, zero spend.
+  Evidence cost (previously unstated): G29 and G30 fully NOT_RUN; G31 half-proven; Gate 8e
+  largely absences; Band 10 inherits - stepD requires messaging the Conductor through the
+  surface and stepE's Human->Conductor leg of the G58 proof chain goes NOT_RUN with it. The
+  deferral moves the same wall three gates forward; it does not remove it.
+
+OPTION B - Route typed text through pane-writer (~25 lines, new scope)
+  P2 sharpens feasibility: writePrompt already addresses the conductor pane for system writes
+  (pane-writer.js:377-392), so the mechanism exists. Unchanged risks: a second write path
+  around the voice guards; U328's system-write reservation must be re-drawn so operator text
+  and system notices stay distinguishable; explicit operator authorization required. Cost
+  unchanged; risk unchanged.
+
+OPTION C - Authorize claude_code spend for the G25/G26 Conductor leg
+  P1 strengthens it decisively: binary present (C:\Users\Sslaw\.local\bin\claude.EXE, 2.1.240,
+  exit 0), so the option dies nowhere. Full picker flow mints voice_turn_boundary@1.0;
+  supervisorEnforcedBoundary satisfiable; G26 provable inside existing architecture; the SAME
+  live governed conductor gives G29/G30/G31 their missing first hop through the G25 surface,
+  with dispatch riding the already-wired MCP gateway. Costs: envelope widening (operator-only);
+  claude_code recorded by name in artifacts; all other provider legs keep
+  NOT_RUN(NO_SPEND_AUTHORIZATION). Residual unknown (INTERPRETATION, falsifiable): how the
+  claude_code conductor receives its sovereign MCP server declaration (--settings injection vs
+  host config) was not traced this turn; if C is chosen, verify that wiring before the run.
+
+RECOMMENDATION (authorizes nothing): Option C is now the only option that proves G26 AND
+unlocks Band 5's conductor clauses without new product scope; Option A is honest but prices
+Band 5 - and part of Band 10 - as absences; Option B remains a governance-risky new path with
+unchanged scope. The choice is the operator's alone.
+
+## Status
+
+E-8: goal count unchanged this turn - last persisted oracle run 26/124 TRUE
+(evidence/cpm1/goalcheck-58.txt, summary line); no oracle re-run, no product edit, no gate
+submitted, therefore no goal flipped TRUE->FALSE from this session's writes (evidence files
+only). Gates 0-7b byte-identical: the ledger file was read, never written, this session.
+
+Files written this session: evidence/OPERATOR-INSTRUCTIONS.log (append),
+evidence/cpm1/8d/session-start-g26-preflight.txt, evidence/cpm1/8d/p1-claude-detect.txt,
+evidence/cpm1/8d/g26-rediagnosis.txt (correction per operator instruction, provenance inside),
+this file. Nothing else.
+
+STOP for the operator. Do not implement.

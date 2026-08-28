@@ -1,0 +1,94 @@
+{
+  "check": "phase-19.3.system-pane-write",
+  "unit": "phase-19.3.round2",
+  "finding": "U328 — no system→pane write reaches the PTY unclassified, and none answers a modal classifyProviderScreen RECOGNISES, as the screen stood at the last read before each keystroke (invariant 1, D-P18-13). Unrecognised screens are still written into: U363.",
+  "source": {
+    "commit": "eada45cd39e90484883816a31fa7d0912b083734",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-10T13:17:42.325Z",
+  "electron_main_pid": 39732,
+  "ok": true,
+  "supervision_ready": true,
+  "panes": [
+    {
+      "pane": "A",
+      "pane_id": "pane-2",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "B",
+      "pane_id": "pane-3",
+      "term_created": true,
+      "banner_seen": true
+    }
+  ],
+  "legs": {
+    "clean_pane_write": {
+      "refusal": null,
+      "written": true,
+      "body_observed_executing": true,
+      "ok": true
+    },
+    "modal_pane_refused": {
+      "modal_screen_via_operator_input": true,
+      "refusal": {
+        "state": "WORKSPACE_TRUST_REQUIRED",
+        "terminal_state": "WORKSPACE_TRUST_REQUIRED",
+        "reason": "provider workspace trust is unresolved"
+      },
+      "terminal_state": "WORKSPACE_TRUST_REQUIRED",
+      "written": false,
+      "withheld_body_observed": false,
+      "submits_before": 3,
+      "submits_after": 3,
+      "stray_submit_observed": false,
+      "bridge_alive_after_window": true,
+      "ok": true
+    },
+    "own_echo_not_self_refusing": {
+      "refusal_before": null,
+      "body_contains_modal_text": "yes, proceed",
+      "written": true,
+      "body_observed_executing": true,
+      "ok": true
+    },
+    "sessionless_pane_unreadable": {
+      "refusal": {
+        "state": "STALLED",
+        "terminal_state": "PANE_SCREEN_UNREADABLE",
+        "reason": "the pane screen could not be read, so no write into it can be shown to be safe"
+      },
+      "terminal_state": "PANE_SCREEN_UNREADABLE",
+      "written": false,
+      "ok": true
+    }
+  },
+  "scope_note_screen_signal": "the gate's only signal is a whole-buffer screen read of a DENYLIST classifier, so it inherits U329's window weakness (unit 19.4 narrows it) and U363's fail-open default; this check measures the gate and its wiring, never the classifier's coverage — the panes it drives are powershell.exe printing text this check chose, so no real provider screen is evidenced here (U362)",
+  "live_exchanges": 0,
+  "error": null,
+  "sessions_killed_in_unit": [
+    "pane-2",
+    "pane-3"
+  ],
+  "finished": "2026-08-10T13:17:50.720Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

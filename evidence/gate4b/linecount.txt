@@ -1,0 +1,18 @@
+# utc: 2026-08-22T16:12:45.287784+00:00
+# producer: ox-alpha GATE4B
+# method: difflib.unified_diff over evidence/gate4b/before/* vs live files;
+#        changed = added + removed. This file supersedes its earlier drafts:
+#        draft 1 misattributed D2's three href lines to D1 (recount ran after both
+#        edits), and an interim D4 block counted 3 comment lines that were then
+#        stripped. Both superseded drafts are retained nowhere else; every number
+#        here is reproducible from before/ vs the live tree.
+
+D1 shell/static/index.html   asset paths x2            +2/-2   =  4
+D2 shell/src/server.py       /doc route               +34/-1  = 35
+D2 shell/static/index.html   3 doc hrefs              +3/-3   =  6
+D3 shell/static/app.js       loadDistillery contract  +12/-19  = 31
+D4 shell/static/app.css      light badge rules        +4/-0  =  4
+index.html cross-check: total changed lines 10 = D1(4) + D2-hrefs(6)
+
+# cumulative-total: 80
+# envelope cap: 80 -> WITHIN ENVELOPE

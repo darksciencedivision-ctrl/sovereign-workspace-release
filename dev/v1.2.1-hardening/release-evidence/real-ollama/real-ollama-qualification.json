@@ -1,0 +1,40 @@
+{
+  "started_utc": "2026-08-23T18:08:35Z",
+  "checks": {
+    "models_present": {
+      "phi4:14b": true,
+      "qwen2.5:14b-instruct": true
+    },
+    "http_health": true,
+    "ws_snapshot": true,
+    "two_real_completed_turns": true,
+    "terminal_done_observed": true,
+    "cancellation_live": true,
+    "topic_change_accepted": true,
+    "thesis_revision_accepted": true,
+    "position_revision_broadcast": true,
+    "ready_ready": true,
+    "shutdown_no_traceback": true
+  },
+  "latency": {
+    "turn1": {
+      "ttft_s": 0.7024162000161596,
+      "duration_s": 15.631634299992584,
+      "tokens_per_second": 6.14,
+      "done_seen": true
+    },
+    "turn2": {
+      "ttft_s": 12.515285299974494,
+      "duration_s": 30.35660659999121,
+      "tokens_per_second": 3.16,
+      "done_seen": true
+    },
+    "cancel_seconds": 10.007
+  },
+  "ready_payload": {
+    "status": "ready",
+    "missing_models": []
+  },
+  "finished_utc": "2026-08-23T18:09:50Z",
+  "verdict": "REAL_OLLAMA_QUALIFIED"
+}

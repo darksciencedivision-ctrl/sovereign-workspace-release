@@ -1,0 +1,15 @@
+# utc: 2026-08-26T21:02:31.846594Z
+# producer: ox-alpha CP-M1 ADD-07 wave9
+
+
+G85 errors map into G17 vocabulary (not a second taxonomy)
+Ollama connection refused -> HEALTH_CHECK_FAILED
+Ollama bad model name -> MODEL_UNAVAILABLE
+LlamaCpp port busy -> PORT_UNAVAILABLE
+LlamaCpp exe missing -> PROCESS_START_FAILED
+Identity JSON missing keys -> IDENTITY_MISMATCH
+Provider CLI absent -> PROVIDER_UNAVAILABLE
+OpenCode bun-not-harness -> OPENCODE_UNAVAILABLE
+Bad adapter JSON -> CONFIGURATION_FAILED
+Worker structured_failure -> WORKER_FAILED
+Conductor launch death -> CONDUCTOR_COMMUNICATION_FAILED

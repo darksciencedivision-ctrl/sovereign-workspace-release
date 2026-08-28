@@ -1,0 +1,86 @@
+{
+  "schema": "phase18c_acceptance_selfcheck@1.0",
+  "check": "phase-18c.close",
+  "authorization": "OP-12 (operator, 2026-07-31); acceptance criteria AUTONOMOUS_BUILD_DIRECTIVE.md §17",
+  "source": {
+    "commit": "a2fe591926021f134d9f599807d02380118bda6d",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-02T00:11:42.826Z",
+  "ok": false,
+  "world": {
+    "fail_closed": false,
+    "op12_authorized": [
+      "grok_build",
+      "google_antigravity"
+    ],
+    "authorized_providers": [
+      "claude_code",
+      "google_antigravity",
+      "grok_build",
+      "openai_codex_cli"
+    ],
+    "register_row": "OP-12",
+    "reason": "the operator's switch authorizes grok_build, google_antigravity — the 18C live acceptance legs are runnable and therefore OWED; a fail-closed receipt must not stand in for them"
+  },
+  "entry_conditions_met": true,
+  "live_legs_performed": true,
+  "supervision_ready": true,
+  "picker_sourced": true,
+  "options_offered": {},
+  "ux_guard": {},
+  "authority": {},
+  "launcher_record": {},
+  "sessions_before": null,
+  "sessions_after": null,
+  "lease_status": null,
+  "lease_zero": null,
+  "real_ledger_unchanged": false,
+  "statusbar_rows": null,
+  "statusbar_painted_text": null,
+  "statusbar_zero_of_one": null,
+  "credential_scan": null,
+  "credential_scan_log_file": null,
+  "ticket_key_release": [],
+  "credential_sentinel_names": [
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTIGRAVITY_API_KEY"
+  ],
+  "owed": {
+    "live_provider_probe": "§17's ONE harmless live probe per provider (GROK_PROVIDER_OK / GEMINI_PROVIDER_OK) has NEVER executed: the supervised path exists (U234, 18C .probe-path) and the operator's live switch cites OP-6, so the probe is refused before any CLI runs",
+    "live_in_electron_receipt": "§17's per-provider LIVE in-Electron receipt (picker → supervised pane → verified provider+model → harmless prompt → live response → teardown) is OWED — no pane has ever been opened for either provider (directive §17 entry condition unmet ⇒ skip-with-record)",
+    "provider_node_record": "no Sovereign node RECORD exists for either provider. Through 18C the reason was that none COULD: node@1.0's `adapter` enum is frozen and has no member for them, and NodeRegistry.register refused both with an append-only registration_refused event — which is why this gate did NOT close on U227 being answered. The operator ruled U227 on 2026-08-01 (OP-12.1, directive §17.1) by SUCCESSOR SCHEMA: schemas/node.schema@1.1.json admits both ids while the frozen @1.0 stays untouched, so the registry now accepts them. The leg stays OWED because nothing has been WIRED to create the records yet — phase 18D `.close`",
+    "antigravity_auth_state": "recorded at 18A: `agy` 1.1.9 exposes no offline auth surface, so whether the operator is signed in is UNVERIFIABLE here and only a live call can answer it (U233)",
+    "grok_auth_state": "the other half of §17's per-CLI login entry condition, stated so a reader can tell WHICH half is unmet: `grok models` answered with the CLI's own listing on this host, which is as far as an offline surface can go — a signed-out CLI reports it there. That is evidence of a usable session, NOT of a live reply, which stays owed with the probe (18A recon; U233's sibling)",
+    "probe_acceptance_holes": "U238, owner 18C: the live probe's acceptance has two narrow holes that would decide the LIVE verdict — whitespace-deleting echoes accepted by `_token_answered`, and `extract_probe_text` falling back to the whole JSON document so a token appearing in any field is ACCEPTED. They cannot fire in this fail-closed world (no probe runs), and they are NOT fixed here; they are re-owned to the operator's live acceptance run",
+    "operator_live_switch": "the entry condition itself: extending config/live_operation.json to name both providers is the operator's own edit to a never-committed file (directive §17; the code-pinned scope half shipped at 18B .scope per U237)"
+  },
+  "owed_named": null,
+  "error": "the operator's switch authorizes grok_build, google_antigravity — the 18C live acceptance legs are runnable and therefore OWED; a fail-closed receipt must not stand in for them — this receipt evidences the fail-closed world only; re-run 18C with the LIVE acceptance legs (directive §17)",
+  "finished": "2026-08-02T00:11:45.403Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "scope_note": "this is the SKIP-WITH-RECORD receipt directive §17 prescribes for an unmet entry condition, NOT the 18C live acceptance. No live MODEL call was made for either provider — no prompt, no completion (the token-free metadata calls that DID leave this host are disclosed and counted in scope_note_disclosed_cost) — no pane was opened, no terminal was leased, and no Sovereign node record exists for either (nothing is wired to create one yet; since OP-12.1 the vocabulary no longer forbids it — see OWED.provider_node_record). What it establishes is that the operator's switch is the ONLY thing refusing: both providers enumerate from their own CLIs, the host's own greyed option is verified against that enumeration (gates.selection_offered:true), the CLI is present (gates.cli_present:true), and the refusal comes from the live_operation gate by ID — with nothing spawned, no lease taken, the in-process governor slot returned, the durable ledger at 0 on both OP-12 subscriptions and the operator's ledger file byte-identical. The verdict module refuses to let this receipt be RECORDED AS EVIDENCE if the operator has opened the switch: the run throws, and the receipt is still written with ok:false and the reason, so it can never be reused as a substitute for the live legs.",
+  "scope_note_disclosed_cost": "verifying a selection against the host's own enumeration runs that provider's `--version` + `models` commands, which leave this host (D-P18-7 / U271). COUNTED, not estimated: this check performs THREE enumerations per provider — the picker read (which probes both) plus the launcher ask and the ticket read for that provider's own selection — i.e. 3 `grok --version`/`grok models` pairs and 3 `agy` pairs. It was 5 each before this unit narrowed `_host_offered_options` to the SELECTED OP-12 provider (U290): verifying an Antigravity selection used to emit a grok.com metadata call under the operator's SuperGrok session, which is the cross-provider half of the egress U276 closed for a local selection. No prompt, no completion, no model call, no credential read.",
+  "scope_note_gate_map": "gates.operator_terms_confirmed reads true for both providers, and a reader should know it is a PARAMETER DEFAULT on tools/live/emit_worker_launch.py's production path, not a measurement — no caller injects it (U91's shape; the equivalent fail-open was closed in provider_probe_session.py at 18C `.probe-path`, U283, and the pane/worker emitter still carries it). This receipt's verdict deliberately does not rest on that gate: the legs it requires are selection_offered, cli_present, live_operation_authorized and ix3_counted.",
+  "scope_note_credential_scan": "the sentinel scan covers the TWO sinks this run can read — the shell's own durable main-process log and this receipt's payload. In this world nothing was spawned, so there is no PTY transcript and no child environment to scan; that is a narrow leg, and it is narrow because the world is. The payload is re-scanned immediately before it is written, so fields added after the first scan (error, the scope notes, env, ok) are covered too (spec-audit MINOR-14)."
+}

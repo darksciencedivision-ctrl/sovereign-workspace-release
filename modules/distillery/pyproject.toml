@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sovereign-grounded-distillery"
+version = "1.1.0rc3"
+description = "Treaty-owned shared infrastructure and Grounded workload-specialization branch"
+requires-python = ">=3.11"
+
+[project.scripts]
+grounded = "grounded.cli:main"
+distillery = "ops.operator_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["distillery*", "validators*", "source_admission*", "curation*", "exclusion*", "gate*", "ops*", "train*", "grounded*", "corpus*", "runstate*", "sovereign*"]

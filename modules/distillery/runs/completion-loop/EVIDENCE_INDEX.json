@@ -1,0 +1,457 @@
+{
+  "recorded_at": "2026-08-23T17:28:31.237126Z",
+  "requirements": {
+    "F-00": {
+      "code": [],
+      "commands": [
+        "git rev-parse HEAD",
+        "git fetch origin",
+        "git merge-base --is-ancestor HEAD origin/main"
+      ],
+      "commits": [],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/F00_GIT_REALITY.json"
+      ],
+      "tests": [
+        "python -m pytest -q"
+      ]
+    },
+    "F-01": {
+      "code": [],
+      "commands": [
+        "git show c5209c8 --stat"
+      ],
+      "commits": [
+        "c5209c8"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/F01_DELTA_AUDIT.json",
+        "runs/completion-loop/FINDINGS_REGISTER.json"
+      ],
+      "tests": [
+        "python -m pytest -q"
+      ]
+    },
+    "F-02": {
+      "code": [],
+      "commands": [
+        "python tools/build_completion_manifest.py"
+      ],
+      "commits": [
+        "1a02c06"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json"
+      ],
+      "tests": [
+        "python -m pytest -q"
+      ]
+    },
+    "F-03": {
+      "code": [
+        "ops/loop_state.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_loop_state.py"
+      ],
+      "commits": [
+        "2f47745"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_loop_state.py"
+      ]
+    },
+    "F-04": {
+      "code": [
+        "distillery/identity.py",
+        "docs/VERSION_MATRIX.json"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_version_identity.py"
+      ],
+      "commits": [
+        "42ada4a"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_version_identity.py"
+      ]
+    },
+    "F-05": {
+      "code": [
+        "gate/status_chain.py",
+        "schema/gate_status_record.json"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_gate_status_chain.py"
+      ],
+      "commits": [
+        "1cf9f4d"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/HG-3/CURRENT_STATUS.json"
+      ],
+      "tests": [
+        "tests/test_gate_status_chain.py"
+      ]
+    },
+    "F-06": {
+      "code": [
+        "source_admission/__init__.py",
+        "schema/source_admission.json"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_revocation_semantics.py"
+      ],
+      "commits": [
+        "56e6b3c"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_revocation_semantics.py"
+      ]
+    },
+    "F-07": {
+      "code": [
+        "corpus/__init__.py",
+        "schema/corpus_admission.json"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_corpus_admission.py",
+        "python -m pytest -q"
+      ],
+      "commits": [
+        "56f66e6"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_corpus_admission.py"
+      ]
+    },
+    "F-08": {
+      "code": [
+        "exclusion/__init__.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_exclusion_graph.py"
+      ],
+      "commits": [
+        "a333565"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_exclusion_graph.py"
+      ]
+    },
+    "F-09": {
+      "code": [
+        "gate/historical.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_historical_bridge.py"
+      ],
+      "commits": [
+        "827a758",
+        "a864460"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/FINDINGS_REGISTER.json"
+      ],
+      "tests": [
+        "tests/test_historical_bridge.py"
+      ]
+    },
+    "F-10": {
+      "code": [
+        "gate/capability.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_capability_ledger.py"
+      ],
+      "commits": [
+        "0240b4c"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_capability_ledger.py"
+      ]
+    },
+    "F-11": {
+      "code": [
+        "gate/capability.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_capability_ledger.py"
+      ],
+      "commits": [
+        "0240b4c"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_capability_ledger.py"
+      ]
+    },
+    "F-12": {
+      "code": [
+        "runstate/__init__.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_run_state.py"
+      ],
+      "commits": [
+        "4d9d783"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_run_state.py"
+      ]
+    },
+    "F-13": {
+      "code": [
+        "train/runner.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_train_runner.py"
+      ],
+      "commits": [
+        "36be836"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_train_runner.py"
+      ]
+    },
+    "F-14": {
+      "code": [
+        "train/runner.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_train_runner.py"
+      ],
+      "commits": [
+        "36be836"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_train_runner.py"
+      ]
+    },
+    "F-15": {
+      "code": [
+        "ops/operator_cli.py",
+        "pyproject.toml"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_operator_cli.py"
+      ],
+      "commits": [
+        "232ee07"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_operator_cli.py"
+      ]
+    },
+    "F-16": {
+      "code": [
+        "tests/test_end_to_end_dry_run.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_end_to_end_dry_run.py"
+      ],
+      "commits": [
+        "06ad3eb"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_end_to_end_dry_run.py"
+      ]
+    },
+    "F-17": {
+      "code": [
+        "source_admission/dossier.py",
+        "source_admission/d9.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_d9_dossiers.py"
+      ],
+      "commits": [
+        "1f944ae"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/source-admission/dossiers.json"
+      ],
+      "tests": [
+        "tests/test_d9_dossiers.py"
+      ]
+    },
+    "F-18": {
+      "code": [
+        "source_admission/d9.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_d9_authority.py"
+      ],
+      "commits": [
+        "1b58397"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_d9_authority.py"
+      ]
+    },
+    "F-19": {
+      "code": [],
+      "commands": [
+        "python -m pytest -q tests/test_treaty_contracts.py"
+      ],
+      "commits": [
+        "a26fd6d"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/F19_OPEN_QUESTION_RECONCILIATION.json",
+        "docs/sovereign/F19_RECONCILIATION_APPENDIX.md"
+      ],
+      "tests": [
+        "tests/test_treaty_contracts.py"
+      ]
+    },
+    "F-20": {
+      "code": [
+        "tools/raw_source_classification.py"
+      ],
+      "commands": [
+        "python tools/raw_source_classification.py --check"
+      ],
+      "commits": [
+        "a8ffb2f"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_raw_source_classification.py"
+      ]
+    },
+    "F-21": {
+      "code": [
+        "tools/export_enterprise.py"
+      ],
+      "commands": [
+        "python tools/export_enterprise.py D:/Sovereign-Enterprise-Snapshots",
+        "python tools/verify_cold_restore.py --bundle runs/export/SOVEREIGN_DISTILLERY_fa89a2b9.bundle --source-commit fa89a2b94ca6946714f44e3853771907caed6503"
+      ],
+      "commits": [
+        "51509b1"
+      ],
+      "hashes": [
+        "runs/export/SOVEREIGN_DISTILLERY_fa89a2b9.bundle sha256=e642a569c46e47891e395d2398383b0472af8e6f3731bfd45d557d712775472a",
+        "runs/export/COLD_RESTORE_RECORD.json verdict=PASS files_compared=182"
+      ],
+      "reports": [
+        "runs/export/COLD_RESTORE_RECORD.json",
+        "runs/export/LATEST_EXPORT_REPORT.json"
+      ],
+      "tests": [
+        "tools/verify_cold_restore.py (clone bundle, verify HEAD, compare git blob hashes for every tracked file, run full suite in restored tree)",
+        "tests/test_cold_restore_record.py::ColdRestoreRecordTests (record exists, verdict PASS, hashes populated, mismatches empty)"
+      ]
+    },
+    "F-22": {
+      "code": [
+        "sovereign/teachers.py",
+        "sovereign/__init__.py"
+      ],
+      "commands": [
+        "python -m pytest -q tests/test_sovereign_teachers.py"
+      ],
+      "commits": [
+        "e016d27"
+      ],
+      "hashes": [],
+      "reports": [],
+      "tests": [
+        "tests/test_sovereign_teachers.py"
+      ]
+    },
+    "F-23": {
+      "code": [
+        "tools/build_completion_manifest.py"
+      ],
+      "commands": [
+        "python tools/build_completion_manifest.py"
+      ],
+      "commits": [
+        "1a02c06"
+      ],
+      "hashes": [],
+      "reports": [
+        "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json"
+      ],
+      "tests": [
+        "python tools/build_completion_manifest.py",
+        "python -m pytest -q"
+      ]
+    },
+    "F-24": {
+      "code": [
+        "tools/export_enterprise.py"
+      ],
+      "commands": [
+        "python tools/export_enterprise.py D:/Sovereign-Enterprise-Snapshots",
+        "python tools/verify_cold_restore.py --bundle runs/export/SOVEREIGN_DISTILLERY_fa89a2b9.bundle --source-commit fa89a2b94ca6946714f44e3853771907caed6503"
+      ],
+      "commits": [
+        "51509b1"
+      ],
+      "hashes": [
+        "runs/export/SOVEREIGN_DISTILLERY_fa89a2b9.bundle sha256=e642a569c46e47891e395d2398383b0472af8e6f3731bfd45d557d712775472a",
+        "runs/export/COLD_RESTORE_RECORD.json verdict=PASS files_compared=182"
+      ],
+      "reports": [
+        "runs/export/COLD_RESTORE_RECORD.json",
+        "runs/export/LATEST_EXPORT_REPORT.json"
+      ],
+      "tests": [
+        "tools/verify_cold_restore.py (clone bundle, verify HEAD, compare git blob hashes for every tracked file, run full suite in restored tree)",
+        "tests/test_cold_restore_record.py::ColdRestoreRecordTests (record exists, verdict PASS, hashes populated, mismatches empty)"
+      ]
+    },
+    "F-25": {
+      "code": [],
+      "commands": [
+        "git rev-parse origin/completion/build-completion-loop",
+        "gh pr view 3 --json state,headRefName,headRefOid"
+      ],
+      "commits": [
+        "cb26214"
+      ],
+      "hashes": [],
+      "reports": [
+        "https://github.com/ryguy-pixel/Sovereign-Distillery/pull/3"
+      ],
+      "tests": []
+    }
+  },
+  "schema_version": "1.0"
+}

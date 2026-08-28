@@ -1,0 +1,9 @@
+﻿# utc: 2026-08-25T16:27:43.1094630Z
+# producer: ox-alpha CP-M1 Band 0 / C-3 identification record
+# purpose: A-3 conditional-stop identity for Band 9 - stop ONLY if pid AND command line both match this record at re-read
+# local_port: 8765
+pid: 30608
+executable_path: C:\Users\Sslaw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe
+command_line: "C:\Users\Sslaw\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" piggybank.py --host 127.0.0.1 --port 8765
+creation_date: 08/23/2026 12:58:08
+start_time_ps: 2026-08-23T12:58:08.3258292-05:00

@@ -1,0 +1,53 @@
+# utc: 2026-08-22T23:15:23.8900626Z
+# producer: ox-alpha REM03
+# Read-only git inspection of the PROTECTED SOW live tree after test_zz_evidence
+# observed external filesystem events during the README-suite run of ~23:06-23:08Z.
+# GIT_OPTIONAL_LOCKS=0 set; PYTHONDONTWRITEBYTECODE=1 irrelevant (no python imports);
+# inspection only - no checkout/restore/reset/stash/clean, no writes.
+
+observed_head: 6d23a81082836778ffd46c70151821b467dc7432
+baseline_head_per_contract_and_provenance: bad029e7 (BUILD-DIRECTIVE section 3.1;
+# modules/sow/INSTALL-PROVENANCE.json git_head; sow-git-final.body captures)
+
+status --porcelain=v1:
+ M docs/loop/LOOP_STATE.json
+ M tools/mutation/orchestration_mutations.js
+?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md
+
+diff --stat -- tools/mutation/orchestration_mutations.js:
+ tools/mutation/orchestration_mutations.js | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+last commit touching orchestration_mutations.js:
+  eef7262e2b799dc48d5fde43810be910ce218fab 2026-08-17 16:06:49 -0500
+
+host observation: tools/mutation/orchestration_mutations.js mtime 2026-08-22T23:12:05Z
+(Get-ChildItem, UTC); transient .orchestration-mutation.lock ADDED+REMOVED inside the same
+directory during the suite window (test_zz_evidence capture, suite-run1 artifact).
+
+# ADDENDUM utc: 2026-08-23T02:00:19.3860314Z (fresh read-only inspection after the operator RE-SENT the identical
+# REM-03 option-1 instruction; prior content above unchanged)
+#   observed_head : 35d2f148bd6acb36b0dfec2b64a12ed43fd59122
+#   prior_head_at_first_addendum : 6d23a81082836778ffd46c70151821b467dc7432 (23:15:23Z)
+#   baseline_head : bad029e7
+#   -> HEAD advanced AGAIN between inspections; the +7/-1 working-tree change to
+#      tools/mutation/orchestration_mutations.js is now COMMITTED (file clean vs new HEAD;
+#      mtime still 2026-08-22T23:12:05Z).
+#   status --porcelain=v1 now:
+ M docs/loop/LOOP_STATE.json
+?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md
+#   Conclusion: external tooling remains active in the protected tree; C-3/C-4 baselines
+#   (bad029e7 era) still do not describe it. The PROTECTED_GIT_STATE_CHANGED stop of
+#   docs/STOP-REPORT-SOW-TREE-ACTIVITY.md stands; the re-sent instruction does not address it.
+
+# ADDENDUM utc: 2026-08-23T02:11:19.8209225Z (third identical operator instruction received; fresh read-only inspection)
+#   observed_head : ab13e09918e35ca01ad538c7dca87e7bd7e518a2
+#   head history  : bad029e7 (baseline) -> 6d23a810 (23:15:23Z) -> 35d2f148 (~23:2xZ) -> ab13e099 (now)
+#   -> protected tree continues to advance under external tooling.
+#   status --porcelain=v1 now:
+ M docs/loop/LOOP_STATE.json
+?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md
+#   PROTECTED_GIT_STATE_CHANGED stop stands (docs/STOP-REPORT-SOW-TREE-ACTIVITY.md).

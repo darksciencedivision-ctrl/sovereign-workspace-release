@@ -1,0 +1,49 @@
+﻿# utc: 2026-08-26T05:38:44.3520400Z
+# producer: ox-alpha CP-M1 Band 4 / G26 ConPTY isolation (S1/S2/S3)
+
+## S1 - CHARACTERIZE THE BINARY
+command: Get-Item -Force + direct 2-byte stream read over C:\Users\Sslaw\.local\bin\claude.EXE
+outcome: REAL native binary - 337,745,568 bytes, first two bytes 0x4D 0x5A ('MZ'), no reparse
+point, no claude.cmd/.ps1/.bat siblings, no npm shim. NOT a launcher stub.
+artifact: FACT[evidence/cpm1/8d/g26-claude-binary.txt]
+
+## S2 - node-pty SPAWN OUTSIDE ELECTRON (the experiment)
+script : %TEMP%\opencode\s2-conpty-probe.js (throwaway; requires the app's OWN
+         apps/desktop/node_modules/node-pty; spawns the ticket's executable+argv+cwd verbatim;
+         env = process.env minus the ticket's env_scrub_names - that list is EMPTY on this
+         ticket, so construction is identical to main.js scrubbedLaunchEnv here; writes one JSON
+         result itself and exits on its own; watchdog kills the pty at 8 s)
+run    : node s2-conpty-probe.js g26-diag-ticket-scratch.nobom.json g26-s2-conpty-result.json
+         (node exit code 0; short-lived child per C-8)
+outcome: **(b) - H3 REFUTED.**
+artifact: FACT[evidence/cpm1/8d/g26-s2-conpty-result.json]
+  stage "exited", why "pty-exit" - the pty exited ON ITS OWN before the watchdog;
+  pty_pid 72464; bytes_received 3998. The tail contains the GENUINE Claude Code TUI:
+  'Claude Code v2.1.240' / model line 'fable-5 A Claude Max' / the operator account's
+  organization / cwd banner 'D:\Product Software\Production Workspace\modules\sow'.
+  The binary SPAWNED through ConPTY, painted its interactive UI bound to fable-5, and exited
+  by itself within seconds (interactive CLIs exit when their pty input side closes or on a
+  first-run condition - which exact cause made it leave is not claimed).
+post-run: no lingering .local\bin\claude.EXE child process (CIM scan empty); nothing killed.
+defect in this probe, disclosed: RESULT.elapsed_ms was never assigned, so the result file lacks
+the elapsed metric. Everything else recorded.
+
+## S3 - child_process.spawn comparison
+NOT EXECUTED - S3 is conditional on S2 being (a) hard-death or (c) clean error; S2 came back (b),
+so there is no fault to isolate further at this layer.
+
+## Verdict
+
+H3 REFUTED: node-pty CAN spawn this binary through ConPTY on this host, outside Electron, with
+the conductor ticket's exact spawn parameters. The simultaneous-tree-death signature of attempt
+#3 is therefore NOT a generic node-pty-vs-this-binary fault. What differs in-app remains the
+suspect set: the shell-minted capability env vars injected by main.js:967/:974-980 (voice
+authority + MCP credential env), the supervised-admission wrapper (SessionManager.spawn vs this
+probe's bare pty.spawn), and the fact that in-app the spawn runs on Electron's main thread while
+its HTTP driver request is still open. None of these are tested by this turn, per instruction -
+characterize first, STOP reached.
+
+## Spend
+
+Zero. No conductor session, no provider turn; the CLI painted a first screen and exited without
+a prompt being sent. No lingering processes.

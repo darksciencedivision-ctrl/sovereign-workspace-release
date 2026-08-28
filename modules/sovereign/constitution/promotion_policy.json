@@ -1,0 +1,32 @@
+﻿{
+  "schema_version": "1.0",
+  "classes": [
+    {
+      "name": "observe_only",
+      "allowed_modes": [
+        "OBSERVE"
+      ],
+      "requires_benchmark": false,
+      "requires_constitutional_audit": true,
+      "description": "Audit-only mode; no production promotion."
+    },
+    {
+      "name": "sandbox_candidate",
+      "allowed_modes": [
+        "SANDBOX"
+      ],
+      "requires_benchmark": true,
+      "requires_constitutional_audit": true,
+      "description": "Candidate artifacts may be produced in sandbox only."
+    },
+    {
+      "name": "promotion_packet",
+      "allowed_modes": [
+        "PROMOTE"
+      ],
+      "requires_benchmark": true,
+      "requires_constitutional_audit": true,
+      "description": "Prepare promotion packet for explicit human approval; never auto-apply."
+    }
+  ]
+}

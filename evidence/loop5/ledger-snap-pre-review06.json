@@ -1,0 +1,947 @@
+{
+  "directive": "SWS-UI-001",
+  "version": "1.2",
+  "manifest_tool_sha256": "64c488ed07c95579c69bcb8dee42fb2aec88b821bf676cc7b259740d7f955d22",
+  "gates": {
+    "0": {
+      "status": "PASS",
+      "utc": "2026-08-21T05:28:29.0694294Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": "operator (session instruction, see evidence/OPERATOR-INSTRUCTIONS.log)",
+      "evidence": [
+        {
+          "path": "docs/DECISIONS.md",
+          "sha256": "bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a"
+        },
+        {
+          "path": "docs/STOP-REPORT-REM-01.md",
+          "sha256": "a04f25f006ac659d2248b833f7b7c255254784421b2af5a9da53f47c10b0122e"
+        },
+        {
+          "path": "evidence/phase2-install.txt",
+          "sha256": "48366438e20ffaad1be497386118651e90ce03f4b348540b5faf24ecd33db2fc"
+        },
+        {
+          "path": "docs/REM-01-STAGE-R1-REPORT.md",
+          "sha256": "45f46f69d042b765f64441ed1f6d9b95712aa93a6d9ea584f7aa0281107d470c"
+        }
+      ],
+      "note": "REM-01 R1-2 specifies CANDIDATE with authorized_by=operator and the UTC copied from the operator signature block. No operator signature block exists: docs/DECISIONS.md is byte-identical to the VOID builder-authored hash named in REM-01 section 1, and carries no checked box, no Signed line and no UTC line. Recording CANDIDATE here would assert an authorization that is not on disk, so the status is STOP and authorized_by is null. The utc field is the builder's observation time, not an operator timestamp.",
+      "reviewer_note": "Correctly STOP: operator signature absent. Builder instructed in chat to proceed; that instruction waives stage pauses but is not a signature. Operator must sign DECISIONS.md.",
+      "authorized_utc": "2026-08-22T01:07:28Z",
+      "authorization_note": "Operator session instruction quoted verbatim in evidence/OPERATOR-INSTRUCTIONS.log (entry utc 2026-08-22T01:07:28.4544624Z): 'OPERATOR AUTHORIZATION: REM-02 D1-D4 authorized; DECISIONS content adopted as written; stage pauses waived.' The operator adopts the existing docs/DECISIONS.md content (sha256 bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a) with one logged correction: a live SOVEREIGN tree exists at D:\\Sov 1\\. Prior STOP note and reviewer_note retained unchanged above.",
+      "evaluated_utc": "2026-08-22T17:05:00Z",
+      "reviewer_note_2": "REVIEW-BUILD-05: PASS. Authorization root is the operator's live-session instruction quoted verbatim with UTC in evidence/OPERATOR-INSTRUCTIONS.log (entry 2026-08-22T01:07:28.4544624Z), which AGENTS.md s1(3) defines as the authorization artifact; no hand signature is required. DECISIONS.md content adopted as written plus the logged D:\\Sov 1\\ correction. Earlier reviewer_note superseded."
+    },
+    "1": {
+      "status": "PASS",
+      "utc": "2026-08-21T05:28:29.0694294Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": "operator (session instruction, see evidence/OPERATOR-INSTRUCTIONS.log)",
+      "evidence": [
+        {
+          "path": "docs/DECISIONS.md",
+          "sha256": "bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a"
+        },
+        {
+          "path": "docs/DISCOVERY.md",
+          "sha256": "c80b67a8ab80857be9e924f7fa1631d2ebdd75e557b1b4d6c87ac89079583eeb"
+        },
+        {
+          "path": "docs/THEME-BASELINE.md",
+          "sha256": "0c84651b2479cc87ab47d51353abb5032121b791bf687a8f1c70f8750d6d5b50"
+        },
+        {
+          "path": "docs/ADR-001.md",
+          "sha256": "a62e93126d04a0fbd460be40dfeb0eba6f59b78c3e7fd46a63b5748cdaf8b070"
+        },
+        {
+          "path": "docs/ADR-002.md",
+          "sha256": "1726d66d86ef4a5888ab80322c8c35b90dd8f5cb87f760a439ef9125175201ba"
+        },
+        {
+          "path": "docs/ADR-003.md",
+          "sha256": "5ba2a47c354b7a9649f53fe51cb080b69b0180abf3352dba2ef54a5080584f40"
+        },
+        {
+          "path": "docs/ADR-004.md",
+          "sha256": "4e18a35cc163570150fad3bc4665d02f1b4f3bbcfc8e27e0a5bc274ae4633927"
+        },
+        {
+          "path": "docs/STOP-REPORT-REM-01.md",
+          "sha256": "a04f25f006ac659d2248b833f7b7c255254784421b2af5a9da53f47c10b0122e"
+        }
+      ],
+      "note": "Same authorization root as Gate 0. The Phase 1 discovery artifacts are present and hashed above; the reviewer found their content sound (REVIEW-BUILD-01 section 5). Only the authorization is absent.",
+      "reviewer_note": "Correctly STOP: operator signature absent. Builder instructed in chat to proceed; that instruction waives stage pauses but is not a signature. Operator must sign DECISIONS.md.",
+      "authorized_utc": "2026-08-22T01:07:28Z",
+      "authorization_note": "Operator session instruction quoted verbatim in evidence/OPERATOR-INSTRUCTIONS.log (entry utc 2026-08-22T01:07:28.4544624Z): 'OPERATOR AUTHORIZATION: REM-02 D1-D4 authorized; DECISIONS content adopted as written; stage pauses waived.' The operator adopts the existing docs/DECISIONS.md content (sha256 bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a) with one logged correction: a live SOVEREIGN tree exists at D:\\Sov 1\\. Prior STOP note and reviewer_note retained unchanged above.",
+      "evaluated_utc": "2026-08-22T17:05:00Z",
+      "reviewer_note_2": "REVIEW-BUILD-05: PASS. Same authorization root as Gate 0; discovery artifacts were found sound in REVIEW-BUILD-01 s5 and their hashes above are unchanged."
+    },
+    "2": {
+      "status": "PASS",
+      "utc": "2026-08-21T05:28:29.0694294Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": null,
+      "evidence": [
+        {
+          "path": "docs/ADR-005-sow-install-and-electron-provisioning.md",
+          "sha256": "08f832941dd93c3fe642fbc147f574c7eedb796273a39a8d365f501802ba56ca"
+        },
+        {
+          "path": "shell/tools/install_sow.py",
+          "sha256": "422630f419fd5ce0d90e8be4bd2a22023734a21ae86764577fd08eef5605e86a"
+        },
+        {
+          "path": "evidence/phase2-sow-install.txt",
+          "sha256": "d9ab08ad6ab8ee434aaf317c6325a1c049dc4e4bbc4b383f572ea85725b91f98"
+        },
+        {
+          "path": "evidence/phase2-debate-verify.txt",
+          "sha256": "717acd114e89c50e4674b662dc608c25404e8ad749364be566fd821c26e5fee0"
+        },
+        {
+          "path": "evidence/phase2-install.txt",
+          "sha256": "48366438e20ffaad1be497386118651e90ce03f4b348540b5faf24ecd33db2fc"
+        },
+        {
+          "path": "modules/sovereign/INSTALL-PROVENANCE.json",
+          "sha256": "ea96af3fe4d7dc6ad8b63ce5a04082707ee110b99aaccde9f5b790ccd41b04f9"
+        },
+        {
+          "path": "modules/debate/INSTALL-PROVENANCE.json",
+          "sha256": "025997032b8be9094719ef3e60696e4db55b51b0e08be65f01810e60484b30f0"
+        },
+        {
+          "path": "modules/sow/INSTALL-PROVENANCE.json",
+          "sha256": "7a6f8ab60ccd49b7b326bf8a29f1df967d6fd8f0a8bc8b85bc12318c93f5d8b8"
+        },
+        {
+          "path": "README.md",
+          "sha256": "783f413a17ccd6ffce4a227b96d606ae89dc1b7f790bcead87789070ff381e43"
+        },
+        {
+          "path": "docs/REM-01-STAGE-R2-REPORT.md",
+          "sha256": "9fc6449fc0ad23ccaa1eb4cdc0b947459a7e105cd4a5e3e5f698f9fce6915397"
+        }
+      ],
+      "note": "R2-1..R2-4 and R2-7. ADR-005 written from disk state; install_sow.py written and run once with all eight steps verified; modules/debate/SOW_REVIEW_ROUND2_RAW removed and the instance re-verified 34/34 with 0 mismatches; every *_sha256 field in the three provenance files is now 64 hex; README rewritten as the from-zero sequence. Gate 2's authorization root is still absent (see Gate 0) - this entry claims the remediation work, not the authorization.",
+      "evaluated_utc": "2026-08-21T16:48:56.628012Z",
+      "reviewer_note": "Install actions within §6; ADR-005 present; Debate instance re-verified; provenance hashes full. See docs/REVIEW-BUILD-02.md."
+    },
+    "3": {
+      "status": "PASS",
+      "utc": "2026-08-21T05:28:29.0694294Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": null,
+      "evidence": [
+        {
+          "path": "evidence/manifests/manifest-diff-product-software.txt",
+          "sha256": "f2104ad15d07f179020c7517af6be308435179ee900a5265994f30aed6e9079e"
+        },
+        {
+          "path": "evidence/manifests/manifest-diff-sow.txt",
+          "sha256": "6cf4081307f6f9a2883365eb5f2414684808173758055a4ec343b24f976915ed"
+        },
+        {
+          "path": "evidence/manifests/manifest-diff-distillery.txt",
+          "sha256": "3823e8ed6827535254c4b87b20142455b185f0f5c8c7581ed2a25d7a6cc620f1"
+        },
+        {
+          "path": "evidence/manifests/manifest-before-product-software.txt",
+          "sha256": "a3335e702d7a97232b8799e695d27e0d7889ff12b9099ae3e798e40bf6fbf21d"
+        },
+        {
+          "path": "evidence/manifests/manifest-after-product-software.txt",
+          "sha256": "a3335e702d7a97232b8799e695d27e0d7889ff12b9099ae3e798e40bf6fbf21d"
+        },
+        {
+          "path": "evidence/manifests/manifest-before-sow.txt",
+          "sha256": "4b0c2b9610c14a6ff6954b2e6780b4f392e407aa30613fb4a18d53be58a84545"
+        },
+        {
+          "path": "evidence/manifests/manifest-after-sow.txt",
+          "sha256": "4b0c2b9610c14a6ff6954b2e6780b4f392e407aa30613fb4a18d53be58a84545"
+        },
+        {
+          "path": "evidence/manifests/manifest-before-distillery.txt",
+          "sha256": "cdbe99323a98a19752623e6399ed0570a61483f3487dfc41d48eef0fe5f4428f"
+        },
+        {
+          "path": "evidence/manifests/manifest-after-distillery.txt",
+          "sha256": "cdbe99323a98a19752623e6399ed0570a61483f3487dfc41d48eef0fe5f4428f"
+        },
+        {
+          "path": "evidence/sow-git-before.body",
+          "sha256": "b9ed2c0b2fc6a4f2bc75ad3d11b06af6f266df8f09e3ad6c4b33ceed8c9a08da"
+        },
+        {
+          "path": "evidence/sow-git-after.body",
+          "sha256": "847f864db9ebdf21cd6f11e4f17158a9efcf8cd06ed17ffa212f6eac850c98e8"
+        },
+        {
+          "path": "evidence/sow-git-after.meta.json",
+          "sha256": "58398800ddd13c671ddee81bf51cb0bb3a0ba6c75855905c33d09b3b249a0233"
+        },
+        {
+          "path": "evidence/sow-git-body-diff.txt",
+          "sha256": "a2d2fd7fceb93e03cd67beae102fd8e8c087f485c0945bff9ade8493afb3feb4"
+        },
+        {
+          "path": "evidence/sow-git-body-semantic.txt",
+          "sha256": "4997fbd835f1cf7beb89a9cae35b95277e22f1f33f637bb42efdbc0254526c1b"
+        },
+        {
+          "path": "docs/REM-01-STAGE-R2-REPORT.md",
+          "sha256": "9fc6449fc0ad23ccaa1eb4cdc0b947459a7e105cd4a5e3e5f698f9fce6915397"
+        }
+      ],
+      "note": "R2-5 and R2-6. All three manifest fc.exe /b comparisons report 'no differences encountered' (exit 0): protected sources are unmodified. The git body comparison fc.exe /b exits 1; sow-git-body-semantic.txt establishes that HEAD, the porcelain status entries, the working-tree diff payload and the cached diff are all EQUAL between captures, and that the byte difference is capture format only (CRLF plus BOM, two extra sections, and PowerShell NativeCommandError text interleaved into the Phase 0 DIFF section). PROTECTED_GIT_STATE_CHANGED was therefore not raised. This is a deviation from R2-5's literal instruction and is called out in docs/REM-01-STAGE-R2-REPORT.md.",
+      "evaluated_utc": "2026-08-21T16:48:56.628012Z",
+      "reviewer_note": "Three manifest diffs empty, independently read. Git-body byte-identity not met; semantic equality (HEAD, status, diff payload sha dcafc063) accepted because the Phase-0 capture format was non-conforming, not the git state. Directive amended to normalize bodies before comparison."
+    },
+    "4": {
+      "status": "PASS",
+      "utc": "2026-08-21T17:12:55.2937171Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": null,
+      "evidence": [
+        {
+          "path": "evidence/test-run.txt",
+          "sha256": "c85779eba2b7f7d2b22db47c774f115e01646e1b7f51de43b8b8766f7d893734"
+        },
+        {
+          "path": "shell/BUILD-MANIFEST.txt",
+          "sha256": "659ff9b635a22ddbdc9065c56ac5fbb277dcce25d3110354acb5e9134fed9f6d"
+        },
+        {
+          "path": "evidence/hardening/deps-proof.txt",
+          "sha256": "60df871d9583cf040fafbd5a8547e5470cc5619bf73f4dfc5d5decd7e390947f"
+        },
+        {
+          "path": "evidence/hardening/fs-watch.txt",
+          "sha256": "8cf6bf34d34b3d3ec28d2f33c19c0e9a0e6f664f00924230f8217c2f3e32ee91"
+        },
+        {
+          "path": "evidence/hardening/h1-listen.txt",
+          "sha256": "aa6fedb66b1afd40ca0b84e341453138cb7823671813963ef6a48c337490017f"
+        },
+        {
+          "path": "evidence/hardening/h3-headers.txt",
+          "sha256": "5ed6d33d427b63b67eb13fb97263784eb9827d3deea22e89f0d9cdd9246695ea"
+        },
+        {
+          "path": "evidence/hardening/h4-dom.txt",
+          "sha256": "b42fab08e7213332b306b6a85f3fcde96c7bd452215dc7167ff8c36f116b504f"
+        },
+        {
+          "path": "evidence/hardening/h6-jobobject.txt",
+          "sha256": "6151ce886a24e9f4914b3e26534f835823eabf14a8a75756cb5eab16ce915fdf"
+        },
+        {
+          "path": "evidence/hardening/h8-sentinel.txt",
+          "sha256": "a153255b0dc5924dc3adc172aaf4be469720ed62819cdf5f357ede567c56a745"
+        },
+        {
+          "path": "evidence/hardening/sow-startup-test.txt",
+          "sha256": "50ca9748f1841a880496c5aa9a4ea8a158ef43e53a12f8d5419263b36a2d8be6"
+        },
+        {
+          "path": "evidence/startup-tests/sow-20260821T052050.534Z.json",
+          "sha256": "7a6f7a3a165a232dbb11c6273e78afadc224d0ed6ed5c4c2689696edb6226704"
+        },
+        {
+          "path": "shell/tests/_harness.py",
+          "sha256": "d0932963bbbe0fbae0998e63e14de43353152d41f5dcc560a83f99a036a64050"
+        },
+        {
+          "path": "shell/tests/_fswatch.py",
+          "sha256": "579730f1125e5dccef2e90a830e8d5da2c1b4a7ebc756c6326b54f6f6c97fda8"
+        },
+        {
+          "path": "shell/tests/__init__.py",
+          "sha256": "dc5387d70930ccb5c6e7ef4edaf14ffc64f1b12a5874e2e6f4e8673ae5edeb8a"
+        },
+        {
+          "path": "shell/tests/test_shell.py",
+          "sha256": "d18892dcc8ce37bc88200c4afe34975cb215e7bfb59d78deac50c934c9c043cf"
+        },
+        {
+          "path": "shell/tests/test_paths.py",
+          "sha256": "4937463b90d503208a773967c93968e946b252b025819ced80138ed4ef79d754"
+        },
+        {
+          "path": "shell/tests/test_supervisor.py",
+          "sha256": "e7dfa079d42ed1f0bfdfbea83bfb21b5af3a58e80f00b8b64590913ac63cd008"
+        },
+        {
+          "path": "shell/tests/test_states.py",
+          "sha256": "27e90af6c506ac56335df8847806ea237e87f5ff13aa3abfe2306e74bd3f86a8"
+        },
+        {
+          "path": "shell/tests/test_hardening.py",
+          "sha256": "fb3dac205c1c8506c108da68298cf10d314784e029410892c3048db3e2bdd551"
+        },
+        {
+          "path": "shell/tests/test_redaction_surfaces.py",
+          "sha256": "911d859dbbeb3108c24faf8ed272b87bb1529ec12198667707c42ebeb2fe40a2"
+        },
+        {
+          "path": "shell/tests/test_frontend.py",
+          "sha256": "d6146e37ecb5f72e380a577fcf9712a548fddb558c8485bccba4273d4161e5fd"
+        },
+        {
+          "path": "shell/tests/test_zz_evidence.py",
+          "sha256": "393de04b87d39dd5a34abc9adcac5abd32799636d8d2f1eb31acdec7896c611a"
+        },
+        {
+          "path": "shell/tests/fixtures/fixture_http.py",
+          "sha256": "b52e0ed2664d2a20a4d6153191fe1e453cc63a75a29438bd50d47e27a186fbef"
+        },
+        {
+          "path": "shell/tests/fixtures/fixture_tree.py",
+          "sha256": "93aa061962f8f67fd9e3ed57647fbd5bc4951bd8f04356d360186ff992837e93"
+        },
+        {
+          "path": "shell/tests/fixtures/fixture_leaf.py",
+          "sha256": "82b2dba7aba0d61c3e81b34c89b2630915e2fc0118606f7debf2a99b7d15a610"
+        },
+        {
+          "path": "shell/tests/fixtures/fixture_sleeper.py",
+          "sha256": "b6bed87ad338bdaec1906244ec3c1464718fb3951a9acc54ff0224158699ef5c"
+        },
+        {
+          "path": "shell/tests/fixtures/fixture_noisy.py",
+          "sha256": "39bd82fa8074cd511ae6560d5257b29eb4b294ed34a4a0b46b01a709e18d6f18"
+        },
+        {
+          "path": "shell/tests/fixtures/crash_driver.py",
+          "sha256": "557f7e90e1aa50e8cdff90b9755ea433e771e9a79f9d40c85f7dc236328683c3"
+        },
+        {
+          "path": "shell/src/adapter.py",
+          "sha256": "5ee7f0cc2ccb177dfa978f782b757e322e5092df5a394813b7d8fcc8dcb4d68d"
+        },
+        {
+          "path": "shell/src/supervisor.py",
+          "sha256": "bb09c62b2388229fcd729381d4f10cd1eb307cf9e7a74fc935ce3c32a3ae1fc7"
+        },
+        {
+          "path": "shell/src/server.py",
+          "sha256": "510c754859f8356eee81602587998f7b8a63cdfeaf155a47167b1bbbbf74d0c6"
+        },
+        {
+          "path": "shell/src/states.py",
+          "sha256": "4eb6c7535b6459c058fd736c040f1607dabd0d04ece72a345f773b3bcbcc3ef6"
+        },
+        {
+          "path": "shell/src/startup_test.py",
+          "sha256": "dfae2514e4972c93028b61c8a554f3b91a2f94f86b5fe124b2048309ea8006d6"
+        },
+        {
+          "path": "shell/src/probe.py",
+          "sha256": "607f3b76f90f8ac56790c4a8e48e33364e2b576a6de491c5f365c3226831065f"
+        },
+        {
+          "path": "shell/src/redact.py",
+          "sha256": "b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6"
+        },
+        {
+          "path": "shell/src/logring.py",
+          "sha256": "522aa77f3bfe39beaf4f90f41360fde1f0a43f5e3e77dbfeee1358f20fc371a9"
+        },
+        {
+          "path": "shell/src/__main__.py",
+          "sha256": "b64930cd673cdf4e37867b6667ea3b27c0d7aca92aef8d1a0aa759b1787df582"
+        },
+        {
+          "path": "shell/static/app.js",
+          "sha256": "861c54710fd32b1937f10ca137840892109697bf33c26aa5824cec5721b5dc85"
+        },
+        {
+          "path": "shell/static/index.html",
+          "sha256": "60fd37bb10eb30a3e5495760a6d74006510a1aba24529a4c40b02d0c6c1a11da"
+        },
+        {
+          "path": "shell/modules/schema.json",
+          "sha256": "2682bff8ac4806ea01a6f073dac43bf53071aef99fa6c68f66b699ad2bd054ac"
+        },
+        {
+          "path": "shell/modules/sow.json",
+          "sha256": "0d1f9a58f26150d668c01eaeb258042eb18bc65c397cecc19069fb39fd53a1d5"
+        },
+        {
+          "path": "docs/ADR-004.md",
+          "sha256": "4e18a35cc163570150fad3bc4665d02f1b4f3bbcfc8e27e0a5bc274ae4633927"
+        },
+        {
+          "path": "docs/REM-01-STAGE-R3-REPORT.md",
+          "sha256": "6ed1867552b0b6c683eb94d1f50a9a1e8f34dd42bce4051e1d2dc069e224210b"
+        },
+        {
+          "path": "docs/REM-01-STAGE-R3-ROUND2-REPORT.md",
+          "sha256": "0aad064398aad9fc2b39844cf71da11a8204acf89530c51207adb951f142fb60"
+        }
+      ],
+      "note": "Round-2 resubmission against REVIEW-BUILD-02 section 4. G4-1: evidence/hardening/fs-watch.txt regenerated by a full README test run and now records a 66s window matching the suite (the prior artifact recorded a zero-length window because a later single-module run overwrote it); FsWatch.write_report now refuses a report covering less than 50% of the recorded window, and TestFsWatchOverwriteGuard pins that behaviour with 5 tests. G4-2: startup records honour SWS_EVIDENCE_ROOT, the H-8 test redirects them to a tempfile root, and the twelve noisy-*.json fixture records were deleted; only the two sow-*.json records remain. G4-3: shell/tests/test_frontend.py adds 5 H-4 tests (zero hits for innerHTML, outerHTML, insertAdjacentHTML, eval(, new Function, document.write across shell/static/*.js with an empty allowlist; no inline script, style or on* handler in index.html; a <script> log line round-tripped through /api/logs and returned inside a JSON string as application/json with nosniff), and evidence/hardening/h4-dom.txt is the artifact. Suite is 116 tests, OK; evidence/test-run.txt ends in OK. Gates 0 and 1 are the reviewer's entries and remain STOP pending the operator's signature; Gates 2 and 3 are the reviewer's PASS entries and were not modified by this builder.",
+      "evaluated_utc": "2026-08-21T18:05:10.288505Z",
+      "reviewer_note": "G4-1/2/3 verified on disk: fs-watch window 17:09:10Z..17:10:16Z (66 s) matches test-run.txt (started 17:09:10Z, 65.868 s), 0 events; fixture records removed from evidence/startup-tests; h4-dom.txt with 5 frontend tests, zero sinks, textContent rendering. 116 tests OK. See docs/REVIEW-BUILD-03.md. Gate 5 may begin.",
+      "reviewer_addendum_utc": "2026-08-22T00:22:42.093084Z",
+      "reviewer_addendum": "PASS stands for H-1..H-12 as proven. Reviewer gap: no proof required a rendered page; index.html asset paths (D1) were never exercised by a browser. Reopened as Gate 4b under docs/REMEDIATION-02.md (D1-D4, H-13..H-17). See docs/REVIEW-BUILD-04.md."
+    },
+    "5": {
+      "status": "STOP",
+      "utc": "2026-08-22T00:18:00Z",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": null,
+      "evidence": [
+        {
+          "path": "evidence/gate5/session-start.txt",
+          "sha256": "89f4a450c4d40d87849eb2f792eb23ea9b2e123bc0f1d62f0698d031b843e60b"
+        },
+        {
+          "path": "evidence/gate5/preflight.json",
+          "sha256": "43ec3424a01f23255c52ea12c0f1d952ee5c94fc814cf691cf1b2c12064a3332"
+        },
+        {
+          "path": "evidence/gate5/model-inventory.txt",
+          "sha256": "c69d3ddfe1efdec7243a39a115cb9cf53886f5f4c683491f4841ff65510033f2"
+        },
+        {
+          "path": "evidence/gate5/startup-sovereign.json",
+          "sha256": "80124de9d0acdf41650acee74c3dc504975b91a61eacda9008b4843edafba9ad"
+        },
+        {
+          "path": "evidence/gate5/startup-debate.json",
+          "sha256": "986bf64b28745200c5c817fd5c73a5356484bb6fbb9bd6c9b88e69a41426b015"
+        },
+        {
+          "path": "evidence/gate5/startup-sow.json",
+          "sha256": "7a6f7a3a165a232dbb11c6273e78afadc224d0ed6ed5c4c2689696edb6226704"
+        },
+        {
+          "path": "evidence/gate5/startup-sow.meta.txt",
+          "sha256": "33745771a44580dee96766d58d0f62a8953398af17202d62fb397421092e24cd"
+        },
+        {
+          "path": "evidence/gate5/states-timeline.txt",
+          "sha256": "05653ac9de65dcdd68c39a81a92729aff14ce03f0b9296d05fb05e398fe42af8"
+        },
+        {
+          "path": "evidence/gate5/orphans-after.txt",
+          "sha256": "18a8e9ce87c7841bcd3d448ea66ba38af049834052c2511ebd80964e88e64a1a"
+        },
+        {
+          "path": "evidence/gate5/theme-contrast.txt",
+          "sha256": "ee8fecc249385926fcdb567dd80cca8fc9d331aa806c74d1faf76e909302b218"
+        },
+        {
+          "path": "evidence/gate5/fs-watch-gate5.txt",
+          "sha256": "1b4d43abf388988238a57d0662fff7c86c35117acff2a20fdd081d48b595a0fc"
+        },
+        {
+          "path": "evidence/gate5/shell-stdout.txt",
+          "sha256": "d5ed9cc64afc733622085207ab4b1b904a4c79fb4ec99972c60841dd5015e5a6"
+        },
+        {
+          "path": "evidence/gate5/shell-stderr.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "evidence/gate5/state-initial.json",
+          "sha256": "b5756045103853af79ffea9400c1ef8fcea54699a06d2f0fbdc2ecf48a93317a"
+        },
+        {
+          "path": "evidence/gate5/post-debate-response.txt",
+          "sha256": "294688de85fc21125a8539655ea9b40d1474ec4e955c255f47d4ad4cafdba4a2"
+        },
+        {
+          "path": "evidence/gate5/post-sovereign-response.txt",
+          "sha256": "d29064125eb0948a263774ec1ecb29e0cae8805d0eccd0c1237d49883d8e7867"
+        },
+        {
+          "path": "evidence/gate5/distillery.json",
+          "sha256": "1fd88b6331275208abd81ab3e071957c1d05845ce606e193e2816197c5f07343"
+        },
+        {
+          "path": "evidence/gate5/fs-watch-driver.log",
+          "sha256": "b6dd872c405b0bfc1fb91c8f2d3774ba50daf198a0f5f08bbee28d0aac150027"
+        },
+        {
+          "path": "evidence/gate5/screenshots/shell-grid-initial.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/card-sovereign-READY.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/card-debate-READY.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/card-sow-STOPPED.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/card-distillery-NOT_STARTED.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/shell-light-mode.png",
+          "sha256": "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
+        },
+        {
+          "path": "evidence/gate5/screenshots/side-by-side-sovereign.SKIPPED.txt",
+          "sha256": "295df2e32efe76c91642ce0c03ac996e86ef9bbd85846a368b28262ab41db928"
+        },
+        {
+          "path": "evidence/gate5/tools/fswatch_driver.py",
+          "sha256": "1ab447ecd54b34220f1bab78c2aa1f0fa8fe0db8cff6173ad21e0dfa34d700ef"
+        },
+        {
+          "path": "evidence/gate5/tools/shell_driver.py",
+          "sha256": "cfa2701131a0cef5eff3565a8fab67dc4b4aa91384362bfcbe1e43e7170068f1"
+        },
+        {
+          "path": "evidence/gate5/tools/state_poller.py",
+          "sha256": "47134b34dab9d01312930a84c5269f73e609dfce54660251d37d54f8c86dad6f"
+        },
+        {
+          "path": "evidence/gate5/tools/api_client.py",
+          "sha256": "da72436bd2efd3b2806a51fd932ffc72d18e7c1a377b157bed92d530c9a89c66"
+        },
+        {
+          "path": "evidence/manifests/manifest-final-product-software.txt",
+          "sha256": "a3335e702d7a97232b8799e695d27e0d7889ff12b9099ae3e798e40bf6fbf21d"
+        },
+        {
+          "path": "evidence/manifests/manifest-final-sow.txt",
+          "sha256": "4b0c2b9610c14a6ff6954b2e6780b4f392e407aa30613fb4a18d53be58a84545"
+        },
+        {
+          "path": "evidence/manifests/manifest-final-distillery.txt",
+          "sha256": "cdbe99323a98a19752623e6399ed0570a61483f3487dfc41d48eef0fe5f4428f"
+        },
+        {
+          "path": "evidence/manifests/manifest-diff-final-product-software.txt",
+          "sha256": "09bb25af3646fb7f3d4b15da2b95c13a89a6f769f635f9113517eaf5a414721a"
+        },
+        {
+          "path": "evidence/manifests/manifest-diff-final-sow.txt",
+          "sha256": "65aa6f844b3685d4b407abeecbd35a9eecf1074e8302e87554c278c3c1d920b9"
+        },
+        {
+          "path": "evidence/manifests/manifest-diff-final-distillery.txt",
+          "sha256": "7e7cae666c195589e8bc9456b3118cf6664f9bc651e251d613467d4ff74d6fd2"
+        },
+        {
+          "path": "evidence/sow-git-final.body",
+          "sha256": "847f864db9ebdf21cd6f11e4f17158a9efcf8cd06ed17ffa212f6eac850c98e8"
+        },
+        {
+          "path": "evidence/sow-git-final.meta.json",
+          "sha256": "de6a811ba6dfae74292f101b2807d08671ed146a661cbb628601d8f47f5647bf"
+        },
+        {
+          "path": "evidence/sow-git-body-diff-final.txt",
+          "sha256": "dabe32f9a1194dd3e255dc42b4bc369c993e92ddaa774f0d1b9017747eb59fff"
+        },
+        {
+          "path": "evidence/test-run.txt",
+          "sha256": "3283fe4bd360d9325af320e61e35d868e9c001211d87a120ffef8d752b770b59"
+        },
+        {
+          "path": "shell/BUILD-MANIFEST.txt",
+          "sha256": "df4cc05394c0a7756ea4e48666661cd8041686dc712ee54931bd0d73fb2c07d7"
+        },
+        {
+          "path": "docs/GATE5-REPORT.md",
+          "sha256": "a3f683d94b448ffcde3240a849e9a4279b92472611eea89dfb32862329c4f5b4"
+        },
+        {
+          "path": "docs/STOP-REPORT-GATE5.md",
+          "sha256": "e4aa53ae3a05cb996a26d60e34e25f2558920827d2fd50987d9124a13a4b309f"
+        }
+      ],
+      "note": "Session executed work-order steps A, B and C end to end. Module verification is clean (debate READY 2.16s identity PASS; sovereign READY 1.259s identity PASS with 5/5 Ollama tags PRESENT; SOW prior record re-verified hash-equal to the Gate-4 entry; distillery NOT_STARTED truthful; no DEGRADED in the timeline; three manifest diffs empty; git body fc-identical to the R2-5 capture; fs-watch 8871s events 0; suite 116 tests OK). Gate 5 is recorded STOP rather than CANDIDATE because DEFECT-G5-1 blocks required visual evidence: the served UI references /app.css, /app.js and three doc-link routes that the server 404s, so the grid never renders and truthful card/side-by-side screenshots cannot exist. Repairing exceeds this session's authorized mutation envelope (work order 0.1(4) and 6); analysis and bounded options are in docs/STOP-REPORT-GATE5.md. No shell source was modified by this builder.",
+      "evaluated_utc": "2026-08-22T00:22:42.093084Z",
+      "reviewer_note": "STOP adjudicated CORRECT. Non-visual evidence accepted and carried forward (startup records debate/sovereign READY, SOW record, distillery route, timeline 0 DEGRADED, 3 manifest diffs empty, git body byte-identical, orphans none, fs-watch 8871s/0 events, suite 116 OK). Visual deliverables blocked by D1. Re-run visual steps only after Gate 4b PASS. See docs/REVIEW-BUILD-04.md."
+    },
+    "6": {
+      "status": "NOT_REACHED",
+      "utc": "2026-08-21T05:28:29.0694294Z",
+      "claimed_by": "builder",
+      "evaluated_by": null,
+      "authorized_by": null,
+      "evidence": []
+    },
+    "4b": {
+      "status": "PASS",
+      "claimed_by": "builder",
+      "evaluated_by": "reviewer",
+      "authorized_by": null,
+      "utc": "2026-08-22T16:24:30Z",
+      "basis": "docs/REMEDIATION-02.md",
+      "defects": [
+        "D1",
+        "D2",
+        "D3",
+        "D4"
+      ],
+      "evidence": [
+        {
+          "path": "evidence/gate4b/precondition.txt",
+          "sha256": "208363a797dab4f435577ed7b45ac16c623eb18b391f1e0f9ba6d5630d439081"
+        },
+        {
+          "path": "evidence/gate4b/test-run-before.txt",
+          "sha256": "7fa97f8c0e39dbe5ecf2e0cb45d52315d5208ee0ad9eb6919a62940e529b755e"
+        },
+        {
+          "path": "evidence/gate4b/h13-fails-before.txt",
+          "sha256": "c69736a258a6a5e1bafe07b9320a662fd676bc13f7114f4128af6d8b205d2ef1"
+        },
+        {
+          "path": "evidence/gate4b/h13-after-D1-partial.txt",
+          "sha256": "4459305613bc1906ddab2210e9c6f455c6ff92216b80b5e87ebd321ab07251d3"
+        },
+        {
+          "path": "evidence/gate4b/h16-fails-before.txt",
+          "sha256": "43d9741a792a2808c60613948e4390aca15868dad67aacf767f1a08d6bd75262"
+        },
+        {
+          "path": "evidence/gate4b/linecount.txt",
+          "sha256": "7bacdaade3038782165165e065f69e1b3d61c366c43c8d10fa829596a56f43d4"
+        },
+        {
+          "path": "evidence/gate4b/orphans-after.txt",
+          "sha256": "01f0f677e31150b24bbb1b793fca953cb5a3b2936a1ec18fb7f96d6ca72f70de"
+        },
+        {
+          "path": "evidence/gate4b/fs-watch-gate4b.txt",
+          "sha256": "611976e3f825ec2d5c886da07c8907f97bac122a6f70c840553bb36ba0657c66"
+        },
+        {
+          "path": "evidence/gate4b/fs-watch-driver.log",
+          "sha256": "ee8e39b82df17f262d03ccefda854f41090ed0dfaf98f01c64d7fae6cc907da5"
+        },
+        {
+          "path": "evidence/gate4b/fs-watch-driver.err.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "evidence/gate4b/fswatch-driver.pid",
+          "sha256": "4dbfe5a02c4503e8183b113539950c00cc9c01c92592007c508e7a128ddaef84"
+        },
+        {
+          "path": "evidence/gate4b/before/index.html",
+          "sha256": "60fd37bb10eb30a3e5495760a6d74006510a1aba24529a4c40b02d0c6c1a11da"
+        },
+        {
+          "path": "evidence/gate4b/before/app.js",
+          "sha256": "861c54710fd32b1937f10ca137840892109697bf33c26aa5824cec5721b5dc85"
+        },
+        {
+          "path": "evidence/gate4b/before/app.css",
+          "sha256": "9732f9a58135a4519f231c83fce53a11d5598f8f776d74360e66bea5df8e3939"
+        },
+        {
+          "path": "evidence/gate4b/before/server.py",
+          "sha256": "510c754859f8356eee81602587998f7b8a63cdfeaf155a47167b1bbbbf74d0c6"
+        },
+        {
+          "path": "evidence/gate4b/after/index.html",
+          "sha256": "cfa71fe7d55735a0937bf6611b15190a38e1ecab314d20f2c9158638163fc623"
+        },
+        {
+          "path": "evidence/gate4b/after/app.js",
+          "sha256": "5b2e9daba91188869ed241fe912d1a99685130e757e9b6424883e0d8b597e422"
+        },
+        {
+          "path": "evidence/gate4b/after/app.css",
+          "sha256": "13875bf113d8a0e68e97303fafb674d9ddd89d773dca6f30b8738ad59f505037"
+        },
+        {
+          "path": "evidence/gate4b/after/server.py",
+          "sha256": "2d97d170ebddc25ae125fe68fffccbc38bfffe3c878a945822db524f21227532"
+        },
+        {
+          "path": "evidence/gate4b/tools/fswatch_driver_gate4b.py",
+          "sha256": "292edbb97179701fc61cdeda0197d9502e77695b63796698d142e8741fd02370"
+        },
+        {
+          "path": "evidence/gate4b/tools/linecount.py",
+          "sha256": "a19f19cbe31648a01644d047446afff09fff672f9105127e41b00eeaaabbe2de"
+        },
+        {
+          "path": "evidence/OPERATOR-INSTRUCTIONS.log",
+          "sha256": "fd866b5826fb7e9103d4ea5b4e5b57a3ab7b36a21912f185fed73edf102232c6"
+        },
+        {
+          "path": "evidence/hardening/h13-assets.txt",
+          "sha256": "4953e2042a614ae80902a126d470097375e7304a060ab528429cc2ae85065d1c"
+        },
+        {
+          "path": "evidence/hardening/h14-doclinks.txt",
+          "sha256": "cff323cf91248f4d3fa4290b4bafda48794b68e88d19eaa6ae616b75eaf073c1"
+        },
+        {
+          "path": "evidence/hardening/h15-distillery-contract.txt",
+          "sha256": "3822e9ed7902928ef7e4943ff499ba1e2f81f4571d78a9f6dc73a0e9b303ea1a"
+        },
+        {
+          "path": "evidence/hardening/h16-contrast.txt",
+          "sha256": "a5dd2cb96206a10e8fdba96153a8f8a4ae5c47c485ebd9737316cc09c253d1a3"
+        },
+        {
+          "path": "evidence/hardening/h17-dom.txt",
+          "sha256": "e9466d0033cbcc61b948533eda9999e823ab06c8c525fb698ea15bde99c89ded"
+        },
+        {
+          "path": "evidence/gate5/screenshots/shell-grid-rendered.png",
+          "sha256": "677b1236f97c36ed39b03ffeeb9d20de3f9b7315cb3f7170f3c1a8dceeb6dc1a"
+        },
+        {
+          "path": "evidence/test-run.txt",
+          "sha256": "6a61b3ed787c8da254442eaa30f10004c6aa9da24a900476e4c19581b91e845a"
+        },
+        {
+          "path": "shell/BUILD-MANIFEST.txt",
+          "sha256": "1231a469666be1f2cad6c43ce457ed1690ba8c2598661e32d91be289ee0b1300"
+        },
+        {
+          "path": "shell/tests/test_render.py",
+          "sha256": "1d8e7f9230cc225a2f143e299eef4ac845e40a833865154917100bc182794300"
+        },
+        {
+          "path": "shell/static/index.html",
+          "sha256": "cfa71fe7d55735a0937bf6611b15190a38e1ecab314d20f2c9158638163fc623"
+        },
+        {
+          "path": "shell/static/app.js",
+          "sha256": "5b2e9daba91188869ed241fe912d1a99685130e757e9b6424883e0d8b597e422"
+        },
+        {
+          "path": "shell/static/app.css",
+          "sha256": "13875bf113d8a0e68e97303fafb674d9ddd89d773dca6f30b8738ad59f505037"
+        },
+        {
+          "path": "shell/src/server.py",
+          "sha256": "2d97d170ebddc25ae125fe68fffccbc38bfffe3c878a945822db524f21227532"
+        },
+        {
+          "path": "docs/OX-ALPHA-DIRECTIVE-GATE4B.md",
+          "sha256": "3667973c18b6b3a53c4626cf1dff78a1935b92a3ff41ac89f21e512b1b39286f"
+        },
+        {
+          "path": "docs/REMEDIATION-02.md",
+          "sha256": "4cf8b1f66f5d3c06030f08052bb3c000f813b50bfab9f40ceab3cf6afb9f4606"
+        }
+      ],
+      "note": "REM-02 D1-D4 applied within the envelope: 80 changed lines total across shell/src + shell/static (see evidence/gate4b/linecount.txt; D1=4, D2=41, D3=31, D4=4), one new test file shell/tests/test_render.py (H-13..H-17), exactly one new read-only route (/doc/<name>). H-13/H-16 proven failing before the edits (h13-fails-before.txt, h16-fails-before.txt); full suite 121 tests OK (evidence/test-run.txt); three manifest diffs empty; SOW git untouched this session; fs-watch window 01:13:16Z..16:22:54Z events=0; no orphan processes. Authorization root: operator session instruction quoted verbatim in evidence/OPERATOR-INSTRUCTIONS.log (2026-08-22T01:07:28Z); Gates 0/1 moved STOP -> CANDIDATE on that instruction earlier this session.",
+      "evaluated_utc": "2026-08-22T17:05:00Z",
+      "reviewer_note": "REVIEW-BUILD-05: PASS. Reviewer recomputed on disk: all cited artifact hashes match; D1-D4 diffs vs evidence/gate4b/before/ total 80 changed lines (cap 80); one read-only route /doc/<name> with H-5 containment and nosniff, traversal/unknown/listing -> 404 (h14); H-15 independently re-run by the reviewer: 6 missing keys on before/app.js, 0 after; H-16 text pairings >= 4.5:1 both themes; H-17 DOM shows 4 cards in order, 6 actions each per contract s7.3(2), Distillery controls disabled; PNG 677b1236... renders header, pre-flight and cards (viewed by reviewer); test-run.txt 121 tests OK; manifest-4b-* byte-identical to manifest-before-*; fs-watch 54,578 s window, 0 events; orphans none. Supersedes the Gate 4 PASS of 2026-08-21 for the four named defects only. Accepted, not waived: light --ok/--warning dots at 2.03/2.19:1 on white remain below WCAG non-text 3:1 (token set has no darker variants) - carried as an open risk to the operator. Observation: H-15 regex only sees top-level keys of the new code (snapshot/questions/links); nested keys were verified by the reviewer, not by the test."
+    },
+"4c": {
+      "status": "CANDIDATE",
+      "claimed_by": "builder",
+      "evaluated_by": null,
+      "authorized_by": null,
+      "utc": "2026-08-24T16:11:13Z",
+      "basis": "docs/REMEDIATION-03.md",
+      "supersedes_entry_utc": "2026-08-22T23:18:40Z (STOP, external protected-tree write invalidated C-3/C-4 baselines; superseded by operator option 2, fresh REM-03 baselines, logged 2026-08-24T06:42:39Z in evidence/OPERATOR-INSTRUCTIONS.log)",
+      "evidence": [
+        {
+          "path": "docs/THEME-BASELINE-v2.md",
+          "sha256": "35311af375186654820866119ac6bfbbaeb8cfe88c8803ad5a86130204e1ba5b"
+        },
+        {
+          "path": "shell/static/app.css",
+          "sha256": "329a52a175da7ccb37909b5fbfa009dd2f444a9f4d2a1b748ee86c2080ecb8ab"
+        },
+        {
+          "path": "evidence/rem03/linecount.txt",
+          "sha256": "51aa50b0579d473de4705bfaec164846c51c320466c145ed1b074534e2f30296"
+        },
+        {
+          "path": "evidence/rem03/contrast-preview.txt",
+          "sha256": "7c13ac373094013933f2b3c0393de711ba12627d74ad161400414c4ab762dec4"
+        },
+        {
+          "path": "evidence/hardening/h16-contrast.txt",
+          "sha256": "d045059ad546918b4e08d293e1b57a39969a88c5df47c2d960489fa53194807e"
+        },
+        {
+          "path": "evidence/test-run.txt",
+          "sha256": "d361f9bf5f8a5f97b671daa2ce1632538416e0cbb9dca6a3d80c77634b091d00"
+        },
+        {
+          "path": "shell/BUILD-MANIFEST.txt",
+          "sha256": "22bc6417e8a8071c4a9b3be8e44f2f26ac24673574cb4a12780af5a8a02e951e"
+        }
+      ],
+      "note": "Re-opened under LOOP-01 after option-2 re-baselining. T1 v2 baseline pinned; T2 token swap in shell/static/app.css :root (34 changed lines, evidence/rem03/linecount.txt); H-16 contrast passes on v2 both themes (evidence/hardening/h16-contrast.txt); full README suite re-run this session: 121 tests OK (evidence/test-run.txt, run after the fresh G1 baselines); shell/BUILD-MANIFEST.txt entries match live hashes. Prior stop history preserved in evidence/loop5/ledger-snap-pre4c.json.",
+      "superseded_ledger_sha256": "b2ee9910457916116cb4f786a9d4d308f86f8037daf94438a77e12d36374866e"
+    },
+    "5b": {
+      "status": "CANDIDATE",
+      "claimed_by": "builder",
+      "evaluated_by": null,
+      "authorized_by": null,
+      "utc": "2026-08-24T16:29:33.9959660Z",
+      "basis": "docs/OX-ALPHA-DIRECTIVE-LOOP-01.md G4+G5 under docs/REMEDIATION-03.md",
+      "evidence": [
+        {
+          "path": "docs/THEME-BASELINE-v2.md",
+          "sha256": "35311af375186654820866119ac6bfbbaeb8cfe88c8803ad5a86130204e1ba5b"
+        },
+        {
+          "path": "shell/static/app.css",
+          "sha256": "329a52a175da7ccb37909b5fbfa009dd2f444a9f4d2a1b748ee86c2080ecb8ab"
+        },
+        {
+          "path": "evidence/rem03/linecount.txt",
+          "sha256": "51aa50b0579d473de4705bfaec164846c51c320466c145ed1b074534e2f30296"
+        },
+        {
+          "path": "evidence/rem03/contrast-preview.txt",
+          "sha256": "7c13ac373094013933f2b3c0393de711ba12627d74ad161400414c4ab762dec4"
+        },
+        {
+          "path": "evidence/hardening/h16-contrast.txt",
+          "sha256": "d045059ad546918b4e08d293e1b57a39969a88c5df47c2d960489fa53194807e"
+        },
+        {
+          "path": "evidence/test-run.txt",
+          "sha256": "d361f9bf5f8a5f97b671daa2ce1632538416e0cbb9dca6a3d80c77634b091d00"
+        },
+        {
+          "path": "shell/BUILD-MANIFEST.txt",
+          "sha256": "22bc6417e8a8071c4a9b3be8e44f2f26ac24673574cb4a12780af5a8a02e951e"
+        },
+        {
+          "path": "evidence/rem03/sow-git-rem03-before.body",
+          "sha256": "82f8485379cf78f41eb5e097a9c8aa3271b78d2ae9eddc52484652799a1cfc1d"
+        },
+        {
+          "path": "evidence/rem03/sow-git-rem03-before.meta.json",
+          "sha256": "da5dfa6f3d7ece3af0090c901e2e917ac5f615ef819c11b58616f9bcde958e2a"
+        },
+        {
+          "path": "evidence/manifests/manifest-rem03-before-product-software.txt",
+          "sha256": "a14bb33292bebe1789e1770965baddf2699b328a3111f2230d7d35bf23b64940"
+        },
+        {
+          "path": "evidence/manifests/manifest-rem03-before-sow.txt",
+          "sha256": "add103c774ef2b0d4cb260225cde75f79d8cb88eff562276bd4738a41efcf402"
+        },
+        {
+          "path": "evidence/manifests/manifest-rem03-before-distillery.txt",
+          "sha256": "26f25f8ed9ec53b997a7f88da889c2e08ab75d01538f8049795b7565f6cc481d"
+        },
+        {
+          "path": "evidence/rem03/quiescence-inspect-1.txt",
+          "sha256": "37089783e4244c8053fc6ac73a121c8c154fc2667bf749e03f6db4cc94141535"
+        },
+        {
+          "path": "evidence/rem03/quiescence-inspect-2.txt",
+          "sha256": "003913dbf15a41d1e82a0be5f1a66764e2861b57ada3f1997bd8c356baff8760"
+        },
+        {
+          "path": "evidence/loop5/screenshots/shell-grid-initial.png",
+          "sha256": "7e346316b0d939c058c30a31c99992b972e390887d656b15474361d1f04241f3"
+        },
+        {
+          "path": "evidence/loop5/screenshots/card-sovereign-READY.png",
+          "sha256": "48495f6d8aaa3652aef7d3d4f85d460fa6b3ab798b72a18ae7f2695e07912612"
+        },
+        {
+          "path": "evidence/loop5/screenshots/card-debate-READY.png",
+          "sha256": "34c8ec06a0e735e8db1c42b90830a23fc166be2cc229b88ea3fbdb89a6350086"
+        },
+        {
+          "path": "evidence/loop5/screenshots/card-sow-STOPPED.png",
+          "sha256": "365dffe29868e07220f854ee3ba8f171f97536b1586877a029d1871bd2931fa9"
+        },
+        {
+          "path": "evidence/loop5/screenshots/card-distillery-NOT_STARTED.png",
+          "sha256": "22657c10927dc526b1cbec58b01f3c2423d9d089ac939cc1e528b796203dbcf0"
+        },
+        {
+          "path": "evidence/loop5/screenshots/side-by-side-sovereign-shell.png",
+          "sha256": "cae11564590d6a3c4727228b1017e0f8bdc7ee2581aa3046a798bfcfcb7040cc"
+        },
+        {
+          "path": "evidence/loop5/screenshots/side-by-side-sovereign-module.png",
+          "sha256": "951b3e329090475818a407286afe641fc15b2ab76e5ddc61e316b7b4ef46c44b"
+        },
+        {
+          "path": "evidence/loop5/screenshots/shell-light-mode.png",
+          "sha256": "f408be502845c133079de5c279a18d4ac1a64af0728f900c794bf1cbb48ab360"
+        },
+        {
+          "path": "evidence/loop5/screenshots/b7-dom.txt",
+          "sha256": "fb842c446fa246f76a28b19250025011844f53432837b440dcffbf52d30f83ed"
+        },
+        {
+          "path": "evidence/loop5/fs-watch-loop01.txt",
+          "sha256": "b65f015ab290cb6bd3d5f04b9de1ba7df8bfa9d6b95567a5ca193fddb0579cfe"
+        },
+        {
+          "path": "evidence/loop5/orphans-after-loop01.txt",
+          "sha256": "a44c0d04d20a3221077268e356f7715de894762359b72a251ec3a22c6f2a67b9"
+        },
+        {
+          "path": "evidence/loop5/states-timeline.txt",
+          "sha256": "f76e1a0c4d41420ff282cbf82900a1c641a67f9c99af5ef0aebaa58bcd316d1f"
+        },
+        {
+          "path": "evidence/loop5/ollama-tags-fresh.txt",
+          "sha256": "582c51032ab943dd4a6bd5a0024e384dafc9dc7db0b2596c4ef391904d53dc17"
+        },
+        {
+          "path": "evidence/loop5/g4-captures.jsonl",
+          "sha256": "caa7c87ad10677a1f6f1f9364a5c7bf1223012c1401aef539d35d3a6d4f66afe"
+        },
+        {
+          "path": "evidence/loop5/g4-edge-commands.txt",
+          "sha256": "52a6efda4038a5f81e8e8997ffde90815e8ad1fe74f025e1449a9d932968d375"
+        },
+        {
+          "path": "evidence/loop5/startup-debate-keeprun.json",
+          "sha256": "c9d69d6754b7abae6cdab8b67fbb46bf20bd0edd2ad92a6287607057b8405c53"
+        },
+        {
+          "path": "evidence/loop5/startup-sovereign-keeprun.json",
+          "sha256": "2be117e79159a33b8922580945f88a12d9f134e3b50e5bbb14d1086443d9bd9c"
+        },
+        {
+          "path": "evidence/loop5/startup-debate-response-loop01.txt",
+          "sha256": "4d210cb62cd920e16eaf6d6c20c00296e55ae7b64cbdeaba6e4aa8e0a609abff"
+        },
+        {
+          "path": "evidence/loop5/startup-sovereign-response-loop01.txt",
+          "sha256": "70f4467ea90703114c56a91c56fb9585ff23e1c947b614f33773f85b82078d3e"
+        },
+        {
+          "path": "evidence/loop5/post-debate-stop-loop01.txt",
+          "sha256": "bf1581af250931d8334fbe70cfbc9991187a019b77079fa50107a00c8ac2f41c"
+        },
+        {
+          "path": "evidence/loop5/post-sovereign-stop-loop01.txt",
+          "sha256": "309d46724713eabc8d6255aefd2c172a8a0b28115f0da232dbc0d73b9f45ecb0"
+        }
+      ],
+      "note": "Visual re-run on v2 theme from the live shell (5180): grid, four cards with filename state equal to live /api/state at capture (sovereign READY and debate READY via /api/startup-test keep=true, sow never launched, distillery NOT_STARTED), side-by-side pair (SOVEREIGN UI on 5175 while READY, then stopped through /api/stop), light-mode capture, B-7 live DOM. Fresh Ollama tag check preceded the sovereign capture (5/5 PRESENT). Closeout: fs-watch events 0 across 07:24Z..16:25Z window bracketing G1..G4; shell stopped via CTRL_BREAK own path; poller/watcher sentinels honoured; orphans artifact clean; three ports free.",
+      "superseded_ledger_sha256": "8b9b3c31567ae0339aa35b250a4eb6c853d7837cee038785a98c3d0d43580fd4"
+    }
+  }
+}

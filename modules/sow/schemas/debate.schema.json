@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/debate@1.0",
+  "title": "Debate record (request + result)",
+  "description": "Architecture Plan v1.0.1 section 19.2 (I-DS1). Any authorized node may request; Permission Broker verifies caller quota + budget; hard cap 5 rounds; dissent preserved verbatim; no consensus forcing; budget exhaustion produces a clean cutoff with partial record, never silent truncation.",
+  "type": "object",
+  "required": ["debate_id", "request"],
+  "additionalProperties": false,
+  "properties": {
+    "debate_id": { "type": "string", "pattern": "^d-[A-Za-z0-9_-]+$" },
+    "request": {
+      "type": "object",
+      "required": ["caller_node", "topic", "participants", "max_rounds", "budget"],
+      "additionalProperties": false,
+      "properties": {
+        "caller_node": { "type": "string" },
+        "topic": { "type": "string", "minLength": 1 },
+        "artifact_refs": { "type": "array", "items": { "type": "string" } },
+        "participants": { "type": "array", "minItems": 1, "items": { "$ref": "https://sovereign.local/schemas/node@1.0#/definitions/capability_descriptor" }, "description": "Capability descriptors, never vendor names (I-SC1). The caller never solely judges itself (invariant 18)." },
+        "max_rounds": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "tokens": { "type": "integer", "minimum": 1 },
+            "usage_units": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "gate_id": { "type": ["string", "null"] },
+        "early_stop_criteria": { "type": ["string", "null"] }
+      }
+    },
+    "result": {
+      "type": ["object", "null"],
+      "required": ["rounds_used", "positions", "outcome", "cost_actual"],
+      "additionalProperties": false,
+      "properties": {
+        "rounds_used": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "positions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node", "position"],
+            "additionalProperties": false,
+            "properties": {
+              "node": { "type": "string" },
+              "position": { "type": "string" },
+              "evidence_refs": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "outcome": { "enum": ["CONVERGED", "DISSENT_PRESERVED", "BUDGET_EXHAUSTED", "CUT_OFF"] },
+        "dissent": { "type": ["string", "null"], "description": "Preserved verbatim when present." },
+        "evidence_map": { "type": "object", "description": "assertion -> evidence refs; unsupported assertions marked as such" },
+        "cost_actual": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tokens": { "type": "integer", "minimum": 0 },
+            "usage_units": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "schema": { "const": "debate@1.0" }
+  }
+}

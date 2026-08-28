@@ -1,0 +1,15 @@
+{
+  "utc": "2026-08-26T15:39:54.219991Z",
+  "producer": "ox-alpha CP-M1 ADD-07 wave2",
+  "result": "NOT_RUN(LIVE_WORKERS_UNAVAILABLE)",
+  "note": "No Electron/SOW tree live; Get-Process electron empty. Projection now includes created_utc and backend. Live dump of >=2 workers not possible without launching the tree (C-8b; prior G26 launches killed Electron).",
+  "workers": [],
+  "projection_fields": [
+    "session_id",
+    "provider_id",
+    "model_id",
+    "backend",
+    "state",
+    "created_utc"
+  ]
+}

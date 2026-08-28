@@ -1,0 +1,36 @@
+{
+  "module_id": "debate",
+  "adapter_hash": "4e2bf38bb1a4a9ec4f6231e7b18c8760d14e7185c0ee0053e4c17401526ce4b6",
+  "compiled_argv": [
+    "D:/Product Software/Production Workspace/modules/debate/.venv/Scripts/python.exe",
+    "app.py"
+  ],
+  "env_keys": [
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE"
+  ],
+  "startup_test_env_set": [],
+  "readiness_kind": "http",
+  "readiness_source": "adapter",
+  "start": "2026-08-22T20:54:09.562810+00:00",
+  "keep": true,
+  "readiness": {
+    "outcome": "READY",
+    "latency_s": 1.049
+  },
+  "identity": {
+    "outcome": "PASS",
+    "latency_s": 0
+  },
+  "exit_code": null,
+  "logs": [],
+  "undeclared_writes": [],
+  "quota_guard": null,
+  "end": "2026-08-22T20:54:10.611749+00:00"
+}

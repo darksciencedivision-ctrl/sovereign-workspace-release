@@ -1,0 +1,58 @@
+HG-3 PRELOAD UNBLOCK VALIDATION
+
+CANDIDATE IDENTITY
+PASS — GND-STUDENT-4B is Qwen/Qwen3-4B-Base at exact revision
+       906bfd4b4dc7f14ee4320094d8b41684abff8539.
+PASS — GND-STUDENT-8B is Qwen/Qwen3-8B-Base at exact revision
+       49e3418fbbbca6ecbdf9608b4d22e5a407081db4.
+PASS — both remote HEAD values and API revision values exactly matched the pins.
+PASS — both configs identify Qwen3ForCausalLM, context 32768, and bfloat16.
+PASS — HG-3 execution dtype is explicitly float16 with explicit_runtime_cast.
+PASS — no Ollama GGUF, instruct/chat variant, quantization, merge, or adapter was used.
+
+LICENSE AND MODEL EVIDENCE
+PASS — 4B exact revision contains an Apache-2.0 LICENSE; SHA-256
+       832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e.
+PASS WITH EVIDENCE QUALIFIER — 8B exact-revision upstream metadata advertises
+       license:apache-2.0, but the repository contains no LICENSE file at that
+       revision. The distinction is preserved and no repository-wide license
+       was inferred.
+PASS — exact-revision config, model-card, tokenizer, safetensor-index, and
+       remote LFS shard metadata/hashes are recorded without downloading weights.
+
+REGISTRIES
+students.json SHA-256: ab6f8fc573406aa8941b87a35419df411295773f36bfa4e04feecd321c65e47f
+trainer.json SHA-256: 52740b05fc3ad589f541c6d638efe55a61e15e3104910d909a3df2760d533411
+upstream-evidence.json SHA-256: bd7b6b41e11e3f8cde5301999c9631e1cba5d45e583b51f73cc890073b53b802
+
+TRAINER ACCESS
+BLOCKED — no hostname, local target identifier, or access method was supplied
+          or discoverable.
+NOT EXECUTED — no live read-only probe could be run.
+NOT PROVEN — gfx906 identity, measured VRAM, ROCm, PyTorch/HIP, repository
+             access, and free disk remain unknown.
+PASS — expected values are separated from measured null fields.
+PASS — no credential material is stored.
+
+REPOSITORY VALIDATION
+Windows Python 3.14: 43 tests PASS.
+Windows Python 3.11.16: 43 tests PASS.
+Linux Ubuntu 24.04 Python 3.12: 43 tests PASS.
+Compilation on all three interpreters: PASS.
+JSON parsing and JSON Schema definitions: PASS.
+Markdown local links: PASS.
+Package build: PASS — sdist and wheel produced outside the repository.
+git diff --check: PASS.
+Credential scan: PASS.
+Model-weight/adapter/optimizer files added: 0.
+Oversized evidence artifacts: 0.
+Conflict markers: 0.
+D-9: 4/4 UNKNOWN; unchanged and fail closed.
+G2-G6 execution directories: 0.
+HG-4 through HG-8 execution directories: 0.
+
+READINESS
+Candidate identity blocker: CLOSED.
+Trainer access/probe blocker: OPEN.
+HG-3: NOT_READY.
+No S0, model download/load, card lock, compute, deployment, or promotion occurred.

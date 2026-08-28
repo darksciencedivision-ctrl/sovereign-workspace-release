@@ -1,0 +1,16 @@
+# utc: 2026-08-22T21:42:30.5274437Z
+# producer: ox-alpha REM03
+# closeout check after REM-03 stop and session shutdown.
+
+shell stop path        : sentinel shell-gate5b.stop -> shell driver CTRL_BREAK_EVENT ->
+                         server main() finally -> supervisor.close() (H-9). Exit code 3221225786 (0xC000013A).
+watcher                : sentinel fswatch-gate5b.stop honoured; window closed 2026-08-22T21:41:36Z;
+                         window_s=7703; events=0; watcher-errors=0 (fs-watch-gate5b.txt)
+poller                 : sentinel poller-gate5b.stop honoured ('poller stopped')
+
+Get-Process python/electron/node with Path like *Production Workspace\modules*: (none)
+builder transient PIDs checked: 39432 (fswatch driver), 39840 (poller driver),
+  11684 (shell driver), 19332 (py launcher), 34676 (python child): all gone
+Get-NetTCPConnection -State Listen -LocalPort 5175 : (free)
+Get-NetTCPConnection -State Listen -LocalPort 8700 : (free)
+Get-NetTCPConnection -State Listen -LocalPort 5180 : (free)

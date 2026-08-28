@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.1",
+  "status": "CLASSIFICATION_RESEARCH_UPDATED",
+  "policy": "Telemetry collection continues regardless of classification. No model moves from UNKNOWN because a similarly named or exact artifact has a permissive model-weight license; UNKNOWN and REJECTED remain barred from training and synthetic seeding.",
+  "candidates": [
+    {
+      "provider": "ollama",
+      "teacher_or_model_id": "qwen2.5:14b-instruct",
+      "revision": "7cdf5a0187d5c58cc5d369b255592f7841d1c4696d45a8c8a9489440385b22f6",
+      "model_blob_sha256": "2049f5674b1e92b4464e5729975c9689fcfbf0b0e4443ccf10b5339f370f9a54",
+      "observed_provenance_snapshot_hash": "2bd7c11cf47d44828b9a9e7c4a804308215860b4e88f60d75ac7679164acacdc",
+      "artifact_source": "Local Ollama manifest and immutable Sovereign model-provenance record; upstream model card Qwen/Qwen2.5-14B-Instruct.",
+      "model_license": "Apache-2.0",
+      "embedded_license_sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+      "output_use_restrictions": "NOT_ESTABLISHED_BY_MODEL_WEIGHT_LICENSE",
+      "commercial_or_internal_restrictions": "PENDING_EXPLICIT_OUTPUT_USE_REVIEW",
+      "use_class": "UNKNOWN",
+      "evidence_refs": [
+        "sovereign-runtime:model-provenance/qwen2.5:14b-instruct@7cdf5a0187d5",
+        "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+        "https://ollama.com/library/qwen2.5:14b-instruct"
+      ],
+      "decision_authority": "PENDING_OPERATOR"
+    },
+    {
+      "provider": "ollama",
+      "teacher_or_model_id": "gemma4:26b",
+      "revision": "5571076f3d70050487b26b341705799e0ab29b808164f90d20d4cf84f699d251",
+      "model_blob_sha256": "7121486771cbfe218851513210c40b35dbdee93ab1ef43fe36283c883980f0df",
+      "observed_provenance_snapshot_hash": "af9593851bbb1a50d806a58072d87f0197b500d36016916276c2ef61318af911",
+      "artifact_source": "Local Ollama manifest and immutable Sovereign model-provenance record; upstream model card google/gemma-4-26B-A4B-it.",
+      "model_license": "Apache-2.0",
+      "embedded_license_sha256": "7339fa418c9ad3e8e12e74ad0fd26a9cc4be8703f9c110728a992b193be85cb2",
+      "output_use_restrictions": "NOT_ESTABLISHED_BY_MODEL_WEIGHT_LICENSE",
+      "commercial_or_internal_restrictions": "PENDING_EXPLICIT_OUTPUT_USE_REVIEW",
+      "use_class": "UNKNOWN",
+      "evidence_refs": [
+        "sovereign-runtime:model-provenance/gemma4:26b@5571076f3d70",
+        "https://huggingface.co/google/gemma-4-26B-A4B-it",
+        "https://ollama.com/library/gemma4"
+      ],
+      "decision_authority": "PENDING_OPERATOR"
+    },
+    {
+      "provider": "gateway-frontier",
+      "teacher_or_model_id": "UNKNOWN",
+      "revision": "UNKNOWN",
+      "model_blob_sha256": "UNKNOWN",
+      "artifact_source": "No exact provider/model/revision was recoverable from the canonical repository or the inspected Sovereign runtime evidence.",
+      "model_license": "UNKNOWN",
+      "output_use_restrictions": "UNKNOWN",
+      "commercial_or_internal_restrictions": "UNKNOWN",
+      "use_class": "UNKNOWN",
+      "evidence_refs": ["PENDING_HARNESS_INVENTORY"],
+      "decision_authority": "PENDING_OPERATOR"
+    },
+    {
+      "provider": "ollama",
+      "teacher_or_model_id": "qwen3.8:27b",
+      "revision": "22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+      "model_blob_sha256": "f5f1dd8920d417aac2718b0bda3403da274301efdd6760b4f0f4b864ff2ad57d",
+      "artifact_source": "Local Ollama manifest; exact upstream/quantization producer relationship remains unresolved.",
+      "model_license": "Apache-2.0 (embedded local artifact metadata)",
+      "embedded_license_sha256": "4c6a8e842ef0d8504549facfb03f1273a8d0022991519bc1888522cc1a5517d1",
+      "output_use_restrictions": "NOT_ESTABLISHED_BY_MODEL_WEIGHT_LICENSE",
+      "commercial_or_internal_restrictions": "PENDING_UPSTREAM_AND_OUTPUT_USE_REVIEW",
+      "use_class": "UNKNOWN",
+      "evidence_refs": [
+        "ollama-local:qwen3.8:27b@22130167c4c2",
+        "PENDING_VERIFIED_UPSTREAM_MODEL_CARD"
+      ],
+      "decision_authority": "PENDING_OPERATOR"
+    }
+  ]
+}

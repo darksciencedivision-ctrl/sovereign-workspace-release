@@ -1,0 +1,88 @@
+﻿{
+  "artifact": "Debate Table v1.2.1-hardening Distillery Module",
+  "directive": "OPENCODE / OX ALPHA MAX - DEBATE TABLE v1.2.1-HARDENING - SURGICAL DISTILLERY COMPLETION LOOP",
+  "primary_goal": "Take the verified Debate Table v1.2 Phase 1 baseline and surgically close all identified production-hardening P0 defects (plus selected high-value P1) until the frozen terminal acceptance contract is satisfied, producing one independently releasable production artifact.",
+  "terminal_artifacts": [
+    "Debate_Table_v1.2.1_Hardening_<YYYYMMDD_HHMMSS>/ directory containing only the intended application tree plus BUILD-INFO.json, MANIFEST-SHA256.json, PRODUCTION-README.md, defect register, and full test suite",
+    "Debate_Table_v1.2.1_Hardening_<YYYYMMDD_HHMMSS>.zip",
+    "Debate_Table_v1.2.1_Hardening_<YYYYMMDD_HHMMSS>.zip.sha256",
+    "release-evidence/ tree with FINAL-RELEASE-VERDICT.md"
+  ],
+  "p0_register_source": "Directive sections 11-18 and 37 are the authoritative enumeration of the 2026-08-23 independent adversarial review findings. No separate on-disk review document was located; the directive text itself is treated as the frozen contract.",
+  "p0_ids": {
+    "P0-02": "Malformed JSON config must fail closed: preserve original bytes, emit actionable diagnostic, prevent unsafe startup, never write normalized defaults over the file.",
+    "P0-03": "BOM handling must be consistent: one documented encoding interpretation shared by bootstrap and runtime (utf-8-sig recommended).",
+    "P0-04": "One canonical configuration resolver: config path, Ollama URL, remote opt-in, host, port, security settings resolved by a single code path consumed identically by runtime, bootstrap verification, health endpoints, and tests.",
+    "P0-05": "Ollama endpoint policy defaults to loopback-only; non-loopback requires deliberate named opt-in (allow_remote_ollama); environment overrides must not silently bypass policy; remote mode logged and exposed in diagnostics without local-only privacy claims.",
+    "P0-06": "Output guard must protect meaningful long operator values reproduced literally anywhere in public output (not prefix-only), with normalization of whitespace/line-endings/case per existing design.",
+    "P0-07": "Minimum dynamic-value threshold: tiny ordinary words (I/a/the) must never be registered as secret-blocking prefixes that suppress ordinary sentences.",
+    "P0-08": "Multiline private control values normalized so a model cannot leak by reproducing only a later line; bounded implementation.",
+    "P0-09": "Reasoning-tag sanitizer handles malformed/variant forms (<think>, <think >, attributes, <analysis>, <reasoning>, matching closers, stray closers) with chunk-boundary safety.",
+    "P0-10": "WebSocket Origin validated BEFORE accept(): foreign origins rejected; absent Origin rejected unless an explicitly authorized non-browser client policy exists; evil.example must not receive snapshot.",
+    "P0-11": "HTTP Host header validation: expected loopback hosts only (127.0.0.1:8700, localhost:8700, bracketed IPv6 if supported); unexpected Host rejected.",
+    "P0-12": "State-changing HTTP routes (pause/resume/topic/brief/interject/seat_thesis/seat_model) protected against cross-origin browser invocation via same-origin enforcement; no wildcard CORS.",
+    "P0-13": "Explicit stream lifecycle tracking (stream_started/public_output_seen/done_seen/interrupted/protocol_error). EOF without terminal done is STREAM_INCOMPLETE and never ordinary success.",
+    "P0-14": "Cancellation race fixed: operator cancellation waits concurrently with stream read and inactivity timer; measured SLA <=500ms under stalled stream; topic generation and continuity anchor cancellable where practical, residual behavior documented.",
+    "P0-15": "Typed TurnOutcome introduced; only COMPLETED counts toward completed public turns; speaker advancement policy explicit; failure/empty/interrupt/incomplete do not silently become completed turns.",
+    "P0-16": "Centralized payload limits (title/brief/name/persona/thesis/interjection/reason), enforced by backend validation, reflected through frontend maxlength, regression tested.",
+    "P0-17": "Seat identity schema: 2..4 seats, unique normalized names, non-empty model, bounded name/persona/thesis, valid color format; no silent truncation or invented fallback seats.",
+    "P0-18": "Numeric cross-field relational validation: turn_word_min <= turn_word_max, positive timings, valid queue/history/generation bounds; contradictions rejected; no prompts like '1000-20 words'.",
+    "P0-19": "Empty-public-turn accounting: an empty public output turn must not count as a completed public turn.",
+    "P0-20": "Topic epoch: topic replacement resets transcript/anchor/question queue/repetition/move state/argument memory and drops queued interjection; stale interjection cannot cross topics."
+  },
+  "p0_note_no_p0_01": "The directive enumerates P0-02 through P0-20 only. No P0-01 appears anywhere in the frozen contract text; none is invented. If the Director's original review document surfaces, reconcile then.",
+  "phase_mapping": {
+    "Phase 1 configuration integrity": ["P0-02", "P0-03", "P0-04", "P0-05", "P0-16", "P0-17", "P0-18"],
+    "Phase 2 control-plane isolation": ["P0-10", "P0-11", "P0-12"],
+    "Phase 3 stream protocol and cancellation": ["P0-13", "P0-14"],
+    "Phase 4 turn accounting and state hygiene": ["P0-15", "P0-19", "P0-20"],
+    "Phase 5 output-guard and reasoning-sanitizer hardening": ["P0-06", "P0-07", "P0-08", "P0-09"],
+    "Phase 6 selected P1": ["/health", "/ready", "structured rotating logs", "lifespan-managed httpx.AsyncClient", "per-client bounded WebSocket send queues", "Insight Manager recovery (TTL/retry/invalidation)"],
+    "Phase 7 control-heuristic corrections": ["directed-question detection strengthening", "disagreement token-boundary matching", "consensus-breaker honest assessment (baseline D1)", "min_turn_chars wire-or-remove decision (baseline D2)"]
+  },
+  "hard_prohibitions": {
+    "G-01": "No rearchitecture: no microservices, database, Redis, mandatory Docker, cloud, k8s, broker, external auth, SPA rewrite, alternate backend framework or language.",
+    "G-02": "No Phase 2 work: no voice/TTS/speech recognition/unrelated multimodal.",
+    "G-03": "No visual redesign; UI changes only when narrowly required for security/state sync/validation/accessibility of an altered control.",
+    "G-04": "Preserve safe rendering; never innerHTML/document.write/eval/unsafe HTML insertion for model output.",
+    "G-05": "Fail closed on config corruption; never auto-overwrite malformed config with defaults.",
+    "G-06": "No release-by-test-manipulation: no deleting/weakening/skipping/xfailing original tests; no mocking away the production path under test.",
+    "G-07": "No silent fallback changing operator intent (seat truncation/invention, URL redirect, model substitution).",
+    "G-08": "Single-worker runtime invariant preserved and documented; never multiple Uvicorn workers.",
+    "G-09": "Repetition remediation stays attributable to the causing seat; no cross-seat inheritance via global state.",
+    "G-10": "Worker cannot certify its own material changes: cold review / external Director gate required; never fabricate reviewer independence."
+  },
+  "required_regression_test_floor": [
+    "malformed JSON config", "BOM config", "duplicate seat identities", "invalid seat cardinality", "contradictory numeric configuration",
+    "oversized thesis", "oversized interjection", "multiline interjection", "one-character/short interjection",
+    "embedded long dynamic-control leakage", "reasoning tags containing whitespace", "reasoning tags containing attributes",
+    "stray reasoning closing tags", "Ollama EOF without terminal done", "stalled-stream cancellation",
+    "cancellation during topic generation", "cancellation during anchor generation", "generation failure accounting",
+    "empty-public-turn accounting", "stale interjection across topic reset", "repetition remediation attribution",
+    "false directed-question detection", "disagreement token-boundary false positives", "foreign WebSocket Origin",
+    "invalid Host", "foreign-origin mutation request", "slow WebSocket client isolation",
+    "Insight Manager recovery after transient unavailability", "model-context-budget behavior",
+    "multi-client Pause synchronization", "multi-client thesis synchronization",
+    "bootstrap/runtime effective Ollama-endpoint equivalence", "remote Ollama explicit opt-in enforcement",
+    "/health healthy/unhealthy", "/ready model/Ollama readiness"
+  ],
+  "hostile_e2e_scenarios": [
+    "valid stream", "HTTP 500", "connection failure", "malformed NDJSON", "partial NDJSON", "empty output",
+    "reasoning-channel output", "reasoning-tag variants", "long private-control echo", "short-control false positive",
+    "missing done", "deliberate stream stall", "continuation request", "cancellation", "unavailable model",
+    "recovery after temporary Ollama failure", "slow WebSocket consumer"
+  ],
+  "package_purity_requirements": "Release dir and ZIP contain only the intended application tree. Prohibited: SOW_REVIEW_ROUND2_RAW, unrelated Sovereign artifacts, temp test dirs, caches, .git, .pytest_cache, __pycache__, editor metadata, test junk, weights, home paths, credentials, secrets, scratchpads. Validation fails closed. Allowlist preferred over denylist.",
+  "integrity_chain": "Freeze -> manifest -> hash every file -> ZIP -> hash ZIP -> write .sha256 -> recompute ZIP SHA -> compare exact bytes -> cold-extract -> verify extracted files against manifest. Any mismatch = RELEASE INVALID. Post-freeze change requires entirely new artifact/manifest/SHA.",
+  "reviewer_independence_requirement": "After each cluster, cold review from fresh context receiving only contract, diff, evidence packet, test evidence, open-items ledger. If true independence unavailable, produce REVIEW_PACKET and mark AWAITING_EXTERNAL_REVIEW. Worker may propose Local PASS but never final acceptance of own material changes (G-10).",
+  "stop_condition": "Terminal Gate all-true: P0_OPEN=0, original+new+hostile suites green, package clean, manifest/ZIP verified, cold boot/HTTP/WS/shutdown PASS, zero orphans/listeners, RELEASE_REVIEW=ACCEPT. Then freeze, verdict, terminal statement, stop modifying.",
+  "round_1_target": "P0-02 + P0-03 with tests: test_malformed_config_is_preserved_and_rejected, test_bom_config_parses_consistently, test_invalid_config_does_not_write_defaults.",
+  "baseline_provenance": {
+    "pristine_baseline_path": "D:/Product Software/Production Workspace/modules/debate",
+    "source_zip_sha256": "29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93",
+    "upstream_commit": "d7be33579c0f986db74c0b221b5bdf06a9d280df",
+    "build_timestamp": "2026-08-11T20:11:29-05:00",
+    "pytest_recorded": {"passed": 84, "failed": 0},
+    "worktree_git_head_baseline_commit": "43ab217"
+  }
+}

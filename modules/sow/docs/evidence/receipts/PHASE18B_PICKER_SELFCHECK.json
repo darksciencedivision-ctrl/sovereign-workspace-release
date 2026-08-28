@@ -1,0 +1,112 @@
+{
+  "schema": "phase18b_picker_selfcheck@1.0",
+  "check": "phase-18b.picker",
+  "authorization": "OP-12 (operator, 2026-07-31)",
+  "source": {
+    "commit": "03f1c13c5ec3690f1e212c9bbf0f774ddd401161",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-01T13:30:22.635Z",
+  "ok": true,
+  "supervision_ready": true,
+  "target_pane_id": "pane-2",
+  "picker_opened": true,
+  "groups_rendered": {
+    "grok_build": "Grok Build",
+    "google_antigravity": "Gemini · Antigravity"
+  },
+  "options": {
+    "grok_build": {
+      "count": 1,
+      "slugs": [
+        "grok-4.5"
+      ],
+      "available": 0,
+      "group_available": false,
+      "group_reason": "live operation not authorized for 'grok_build': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+    },
+    "google_antigravity": {
+      "count": 11,
+      "slugs": [
+        "gemini-3.6-flash-high",
+        "gemini-3.6-flash-medium",
+        "gemini-3.6-flash-low",
+        "gemini-3.5-flash-high",
+        "gemini-3.5-flash-medium",
+        "gemini-3.5-flash-low",
+        "gemini-3.1-pro-high",
+        "gemini-3.1-pro-low",
+        "claude-sonnet-4-6",
+        "claude-opus-4-6-thinking",
+        "gpt-oss-120b-medium"
+      ],
+      "available": 0,
+      "group_available": false,
+      "group_reason": "live operation not authorized for 'google_antigravity': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+    }
+  },
+  "options_are_uncomposed": {
+    "grok_build": true,
+    "google_antigravity": true
+  },
+  "reasons_name_own_provider": {
+    "grok_build": true,
+    "google_antigravity": true
+  },
+  "group_reason_painted": {
+    "grok_build": "live operation not authorized for 'grok_build': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)",
+    "google_antigravity": "live operation not authorized for 'google_antigravity': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+  },
+  "selection_refused": {
+    "grok_build": {
+      "attempted": true,
+      "refused": true,
+      "recorded": false,
+      "reason": "option grok_build/grok-4.5 is unavailable (live operation not authorized for 'grok_build': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)) — cannot spawn a greyed option"
+    },
+    "google_antigravity": {
+      "attempted": true,
+      "refused": true,
+      "recorded": false,
+      "reason": "option google_antigravity/gemini-3.6-flash-high is unavailable (live operation not authorized for 'google_antigravity': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)) — cannot spawn a greyed option"
+    }
+  },
+  "statusbar_rows": {
+    "claude_code": [
+      "0/2"
+    ],
+    "openai_codex_cli": [
+      "0/2"
+    ],
+    "grok_build": [
+      "0/1"
+    ],
+    "google_antigravity": [
+      "0/1"
+    ]
+  },
+  "statusbar_chip_text": "subscriptionsclaude0/2codex0/2grok0/1agy0/1",
+  "statusbar_readable": true,
+  "live_switch_authorized_globally": true,
+  "error": null,
+  "expected_ceiling_source": "terminal/statusbar/statusbar-model.js PROVIDER_ALLOWANCE",
+  "finished": "2026-08-01T13:30:25.784Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

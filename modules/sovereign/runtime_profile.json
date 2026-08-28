@@ -1,0 +1,63 @@
+{
+  "schema_version": "sovereign.runtime-profile.v3.1.2",
+  "product_version": "3.1.2",
+  "generated_utc": "2026-08-12T20:05:00Z",
+  "status": "CURRENT_PRODUCT_PROFILE",
+  "profile_kind": "LIVE_UNIFIED_PRODUCT",
+  "current_product_state": {
+    "entrypoint": "python -m sovereign_product.server",
+    "operator_launcher": "Start-Sovereign.ps1",
+    "configuration_authority": "SYSTEM_MANIFEST.json via system_manifest.load_system_manifest",
+    "model_inventory_authority": "RUNTIME.OLLAMA_BASE_URL/api/tags",
+    "routes": [
+      "AUTO",
+      "STATUS",
+      "QUICK",
+      "DEEP",
+      "RESEARCH",
+      "CONTINUITY"
+    ],
+    "state_store": "runtime/sovereign.db",
+    "ui": "ui/ui_shell/dist"
+  },
+  "current_runtime_policy": {
+    "context_window": 131072,
+    "max_output_tokens": 32768,
+    "deep_initial_member_max": 2048,
+    "ollama_connect_timeout_seconds": 30,
+    "ollama_generation_read_timeout_seconds": 86400
+  },
+  "legacy_state": {
+    "entrypoint": "cycle_runner_v3.py",
+    "classification": "SUPPORTED_LEGACY_STANDALONE",
+    "unified_product_dependency": false,
+    "startup_readiness_dependency": false
+  },
+  "current_test_state": {
+    "authority": "release verification results, not this profile",
+    "claim": "No historical pass count is asserted as current."
+  },
+  "current_packaging_state": {
+    "authority": "release record and SHA-256 sidecar, not this profile",
+    "claim": "This profile does not assert that a source tree is packaged or boot-proven."
+  },
+  "historical_state": {
+    "v3.1.1_export": "historical only; not the current entrypoint or release authority",
+    "prior_boot_proof": "not carried forward as current 3.1.2 evidence"
+  },
+  "root_resolution": {
+    "authority": "tools/sovereign_paths.py",
+    "order": [
+      "--root",
+      "SOVEREIGN_ROOT environment variable",
+      ".sovereign-root marker"
+    ],
+    "fail_closed": true
+  },
+  "security_boundary": {
+    "bind": "loopback only",
+    "provider": "loopback/local only",
+    "same_origin_mutations": true,
+    "artifact_pointer_containment": true
+  }
+}

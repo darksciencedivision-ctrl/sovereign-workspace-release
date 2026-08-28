@@ -1,0 +1,45 @@
+HG-0 LIVE OPERATOR-MARK COMPLETION — COMMAND RECORD
+
+PRE-RUNTIME
+git status --short --branch
+git rev-parse HEAD
+git rev-parse main
+git rev-parse remediation/post-audit-pre-hg3
+git rev-parse origin/main
+git log --graph --decorate --oneline --all -20
+GET http://127.0.0.1:5175/v1/health
+GET http://127.0.0.1:5175/v1/models/profile
+
+LIVE SUCCESS
+POST /v1/sessions with a new directive-scoped session identity
+POST /v1/message with route_override=QUICK and a harmless bounded completion task
+GET /v1/jobs/<job-id> until status=completed
+Verify response is nonempty and contains the requested harmless completion token
+TraceStore.start(... route=QUICK, source_admission_class=UNKNOWN)
+TraceStore.turn(... content_hash=<runtime-output-sha256>, tool_status=passed)
+TraceStore.success(... runtime-finished-at)
+TraceStore.explicit_label(... success, label_origin=live_operator_mark)  # operator /success
+
+LIVE FAILURE
+POST /v1/sessions with a second new directive-scoped session identity
+POST /v1/message with route_override=DEEP and a harmless bounded task
+Observe the job in running state
+POST /v1/jobs/<job-id>/cancel
+GET /v1/jobs/<job-id> until status=cancelled and cancel_requested=true
+TraceStore.start(... route=DEEP, source_admission_class=UNKNOWN)
+TraceStore.turn(... content_hash=<runtime-result-sha256>, tool_status=failed, failure_type=controlled_operator_cancellation)
+TraceStore.fail(... runtime-finished-at)
+TraceStore.explicit_label(... fail, label_origin=live_operator_mark)  # operator /fail
+
+RE-EVALUATION AND VALIDATION
+reevaluate_hg0(... preserved content-free event log, checksum registry)
+python -m pytest -q
+python -m unittest tests.test_contract_files -v
+<Windows Python 3.11> -m pytest -q
+<Windows Python 3.12> validate Draft 2020-12 schemas, manifest, and JSONL rows
+wsl.exe -d Ubuntu-24.04 -- <Linux Python 3.12> -m pytest -q
+wsl.exe -d Ubuntu-24.04 -- <Linux Python 3.12> validate schemas and JSON/JSONL parity
+git diff --check
+git hygiene scans for raw payloads, secrets, weights, oversized files, licenses, G2-G6 artifacts, and conflict markers
+
+Raw session identifiers, job identifiers, prompts, responses, and runtime payloads are intentionally omitted from this tracked command record. Their cryptographic identifiers are in the manifests.

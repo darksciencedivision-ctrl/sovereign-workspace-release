@@ -1,0 +1,17 @@
+# utc: 2026-08-27T00:57:00Z
+# producer: ox-alpha CP-M1 ADD-08 closeout
+
+G119 adversarial review (disk search this session)
+duplicate architecture: zero
+hardcoded model names (new, outside roster/registry seed): zero
+vendor routing (new vendor if-branches in resolver): zero
+silent fallback: zero (fallback-record required)
+fake residency: zero (planner has no GPU handle)
+fake context: zero (NOT_MEASURED recorded, no estimates)
+new lifecycle states: zero (planner vocabulary unchanged)
+remote-host leakage: zero (loopback binds)
+provider-spend leakage: zero (spend log empty / ceiling unused this session)
+parallel logging: zero (logring extended, no bypass)
+schema drift: deployment-manifest.schema.json additive
+ollama regression: ollama --version inspected; store unread-write
+zero instances of the twelve defect classes.

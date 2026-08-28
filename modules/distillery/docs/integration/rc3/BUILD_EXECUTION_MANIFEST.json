@@ -1,0 +1,17 @@
+{
+  "name": "Grounded Distillery v1.1 Surgical Builder Directive RC3",
+  "source_commit": "a332e68823ab426310c5d37f3c0bfed5c52cc1f0",
+  "status": "ACCEPTED_CANDIDATE_IMPLEMENTATION_SOURCE",
+  "architectural_change": false,
+  "retry_ceiling": 3,
+  "promotion_policy": "zero_exception",
+  "invariants": [
+    "UNKNOWN and REJECTED sources never train or seed synthetic training data",
+    "Telemetry collection does not imply training permission",
+    "Exclusion is transitive through derived_from ancestry",
+    "Band D cannot override a failed hard gate",
+    "Deployment gates the exact immutable bundle",
+    "Shadow cannot execute mutating tools",
+    "Human PROMOTE and a verified rollback target are mandatory"
+  ]
+}

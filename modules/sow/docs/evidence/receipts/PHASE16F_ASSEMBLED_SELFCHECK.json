@@ -1,0 +1,80 @@
+{
+  "schema": "phase16f_assembled_selfcheck@1.0",
+  "check": "phase-16f.assembled",
+  "started": "2026-07-31T10:57:12.452Z",
+  "ok": true,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "legs": {
+    "supervision_ready": true,
+    "conductor_governed_born": true,
+    "conductor_input_refused_off_conductor": true,
+    "workers_dispatched": true,
+    "picker_worker_selected": true,
+    "approval_exercised": true,
+    "restart_recovered": true
+  },
+  "conductor": {
+    "pane_id": "pane-1",
+    "node_state": "awaiting_live_conductor",
+    "spawn_governed": true
+  },
+  "conductor_input": {
+    "admitted_session_pane_id": "pane-2",
+    "written": false,
+    "submitted": false,
+    "write_reason": "conductor session not admitted (owed 16F)",
+    "stand_in_pane_received_nothing": true,
+    "live_delivery_evidence": "docs/evidence/receipts/PHASE17C_CLOSE_SELFCHECK.json",
+    "note": "a voice/chat transcript may target only the governed live conductor. This supervised PowerShell pane is a negative witness: delivery must refuse it and its buffer must stay empty."
+  },
+  "dispatch": {
+    "feed_ok": true,
+    "dispatched": true,
+    "by_descriptor": true,
+    "accepted_count": 2,
+    "acceptance_verdict": "PASS",
+    "legs_mock_honest": true,
+    "live_workers_owed": true,
+    "torn_down": true
+  },
+  "picker": {
+    "worker_pane_id": "pane-3",
+    "selected_label": "Opus 4.8",
+    "recorded": true,
+    "badge_previewed": true
+  },
+  "approval": {
+    "sourced_from_session_events": true,
+    "empty_before_the_event": true,
+    "rows": 1,
+    "row_is_the_real_event": true,
+    "decide_routed": true,
+    "self_authorized_false": true,
+    "decide_governed_resolved": true,
+    "decision_persisted": true,
+    "re_decide_governed_refused": true
+  },
+  "recovery": {
+    "snapshot_carries_chrome": true,
+    "reconstructed_conductor_first": true,
+    "recovered_worker_chrome": true,
+    "recovered_not_reattached": true,
+    "badge_restored": true
+  },
+  "owed": {
+    "live_conductor_backend": "16F/§6 operator-run: the interactive `claude` conductor session is started by the operator, not the loop",
+    "live_workers": "U58 — the live worker CLI legs (dispatch ran mock-first, honestly)",
+    "live_worker_spawn": "U70 — the live governed worker SPAWN from a picker selection (this proves the recorded selection + its chrome survive a restart)"
+  },
+  "error": null,
+  "finished": "2026-07-31T10:57:19.911Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

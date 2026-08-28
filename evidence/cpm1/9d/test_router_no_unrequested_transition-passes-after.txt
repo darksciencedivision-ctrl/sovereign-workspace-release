@@ -1,0 +1,11 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+test_llamacpp_backend_contains_no_routing_policy (shell.tests.test_router_no_unrequested_transition.TestRouterNoUnrequestedTransition.test_llamacpp_backend_contains_no_routing_policy) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+OK
+
+OK

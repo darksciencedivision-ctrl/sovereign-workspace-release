@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "gate": "HG-3",
+  "title": "Real student architecture smoke",
+  "authorization": "LOCAL_EXECUTION_ONLY",
+  "authorization_head": "57eefd8c83cf7114325098ce73ae6e9aa1b5375f",
+  "started_at": "2026-08-20T22:55:04.3317852Z",
+  "completed_at": "2026-08-20T23:00:30.0849835Z",
+  "repository": "D:\\Sovereign-Grounded-Distillery",
+  "branch": "main",
+  "head_before_evidence": "57eefd8c83cf7114325098ce73ae6e9aa1b5375f",
+  "origin_main_observed": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+  "status": "BLOCKED_PRELOAD",
+  "candidate_states": {
+    "4b": "CANDIDATE_IDENTITY_BLOCKED",
+    "8b": "CANDIDATE_IDENTITY_BLOCKED"
+  },
+  "training_attempted": false,
+  "model_loaded": false,
+  "trainer_card_touched": false,
+  "synthetic_samples_used": 0,
+  "source_derived_samples_used": 0,
+  "weights_or_adapters_created": false,
+  "scope_guards": {
+    "push": false,
+    "full_training": false,
+    "G2_through_G6": false,
+    "deployment": false,
+    "promotion": false,
+    "D9_reclassification": false
+  },
+  "evidence": [
+    "environment.json",
+    "summary.json",
+    "commands.txt",
+    "validation.txt",
+    "4b/result.json",
+    "4b/measurements.json",
+    "4b/attempt-001/preflight.json",
+    "4b/attempt-001/validation.txt",
+    "8b/result.json",
+    "8b/measurements.json",
+    "8b/attempt-001/preflight.json",
+    "8b/attempt-001/validation.txt"
+  ]
+}

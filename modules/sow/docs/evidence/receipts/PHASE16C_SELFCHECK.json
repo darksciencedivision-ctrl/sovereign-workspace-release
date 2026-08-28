@@ -1,0 +1,25 @@
+{
+  "check": "phase-16c.selection",
+  "started": "2026-07-25T01:14:49.159Z",
+  "ok": true,
+  "feed_ok": true,
+  "feed_schema": "conductor_selection_feed@1.0",
+  "feed_error": null,
+  "selection_sourced": true,
+  "main_badge_model": "fable-5",
+  "feed_selection_model": "fable-5",
+  "conductor_pane_id": "pane-1",
+  "badge_rendered": true,
+  "badge_text": "CONDUCTOR · fable-5 (unverified) · awaiting_live_conductor",
+  "rendered_model_matches_feed": true,
+  "succession_available": true,
+  "error": null,
+  "finished": "2026-07-25T01:14:49.160Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

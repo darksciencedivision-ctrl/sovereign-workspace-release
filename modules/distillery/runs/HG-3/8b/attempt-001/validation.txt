@@ -1,0 +1,17 @@
+Candidate: Grounded 8B Qwen-lineage placeholder
+Identity preflight: FAIL
+Exact upstream repository: absent
+Exact model name: absent
+Immutable revision: absent
+Trainable local artifact: absent
+Weight format: absent
+Exact architecture/config: absent
+Declared context length: absent
+License identifier: absent
+Pinned gfx906 endpoint: absent
+
+Observed local qwen3:8b Ollama artifact was rejected as a substitute: it is a
+quantized serving artifact and is not an exact, revision-pinned FP16 Grounded base.
+
+Disposition: CANDIDATE_IDENTITY_BLOCKED
+No substitution, download, load, GPU mutation, or training step occurred.

@@ -1,0 +1,47 @@
+{
+  "added_tests": [
+    "tests/test_cold_restore_record.py::ColdRestoreRecordTests (7 tests, 30 subtests: record PASS verdict, head binding, complete clean blob comparison, bundle sha256 verifiable, green suite in restored tree, index references, no prose-only entries anywhere)"
+  ],
+  "cold_restore_record": {
+    "bundle_path": "D:\\Sovereign-Grounded-Distillery\\runs\\export\\SOVEREIGN_DISTILLERY_fa89a2b9.bundle",
+    "bundle_sha256": "e642a569c46e47891e395d2398383b0472af8e6f3731bfd45d557d712775472a",
+    "comparison_basis": "git blob hashes (autocrlf-safe)",
+    "files_compared": 182,
+    "mismatches": [],
+    "path": "runs/export/COLD_RESTORE_RECORD.json",
+    "restored_head": "fa89a2b94ca6946714f44e3853771907caed6503",
+    "source_commit": "fa89a2b94ca6946714f44e3853771907caed6503",
+    "suite": {
+      "command": "C:\\Python314\\python.exe -m pytest -q -p no:cacheprovider",
+      "exit_code": 0,
+      "result": "202 passed, 378 subtests passed in 6.14s"
+    },
+    "temp_clone_cleaned_up": true,
+    "tracked_bundle": "runs/export/SOVEREIGN_DISTILLERY_fa89a2b9.bundle",
+    "verdict": "PASS"
+  },
+  "directive": "SD-RBR-v1.0",
+  "evidence_index_updates": {
+    "F-21": {
+      "hashes_populated": true,
+      "prose_only_tests_removed": true,
+      "references_tool_and_record": true
+    },
+    "F-24": {
+      "hashes_populated": true,
+      "prose_only_tests_removed": true,
+      "references_tool_and_record": true
+    },
+    "prose_only_tests_entries_remaining_across_all_f_items": 0
+  },
+  "full_suite_at_gate": {
+    "exit_code": 0,
+    "measured_at_commit": "4292481764fdcb9f9ab8cd814d0008461d0a1e82",
+    "result": "209 passed, 411 subtests passed"
+  },
+  "gate": "G-3",
+  "recorded_at_utc": "2026-08-23T21:49:02Z",
+  "tool": "tools/verify_cold_restore.py",
+  "verdict": "PASS",
+  "work_item": "W-3"
+}

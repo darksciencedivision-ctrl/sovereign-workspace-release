@@ -1,0 +1,83 @@
+{
+  "schema": "sovereign-distillery/hardware_profile/v1",
+  "captured_at": "2026-08-19T23:45:42.577962+00:00",
+  "host": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel",
+    "python": "3.14.6",
+    "executable": "C:\\Python314\\python.exe",
+    "conda_env": null,
+    "virtual_env": null
+  },
+  "nvidia_smi": [
+    {
+      "name": "NVIDIA GeForce RTX 5060 Ti",
+      "driver_version": "610.74",
+      "memory_total": "8151 MiB",
+      "memory_used": "2509 MiB",
+      "memory_free": "5383 MiB",
+      "compute_capability": "12.0",
+      "pcie_gen_current": "4",
+      "pcie_width_current": "8",
+      "temperature_c": "30"
+    }
+  ],
+  "packages": {
+    "torch": null,
+    "torchvision": null,
+    "transformers": null,
+    "accelerate": null,
+    "peft": null,
+    "trl": null,
+    "datasets": null,
+    "bitsandbytes": null,
+    "triton": null,
+    "flash_attn": null,
+    "xformers": null,
+    "safetensors": null,
+    "sentencepiece": null,
+    "numpy": null,
+    "unsloth": null,
+    "llama_cpp": null
+  },
+  "torch": {},
+  "bitsandbytes": {},
+  "storage_and_ram": {
+    "system_ram": {
+      "total": 68399640576,
+      "total_gib": 63.7
+    },
+    "disks": {
+      "D:\\": {
+        "total_gib": 1862.31,
+        "used_gib": 1457.46,
+        "free_gib": 404.85
+      },
+      "C:\\": {
+        "total_gib": 1906.77,
+        "used_gib": 1264.92,
+        "free_gib": 641.85
+      },
+      "/": {
+        "total_gib": 1862.31,
+        "used_gib": 1457.46,
+        "free_gib": 404.85
+      }
+    }
+  },
+  "vram_probe": null,
+  "errors": [
+    "torch: ModuleNotFoundError: No module named 'torch'",
+    "bitsandbytes: ModuleNotFoundError: No module named 'torch'",
+    "psutil_ram: ModuleNotFoundError: No module named 'psutil'",
+    "vram_probe: ModuleNotFoundError: No module named 'torch'"
+  ],
+  "verdict": {
+    "blocking_issues": [
+      "PyTorch not importable \u2014 no local training possible."
+    ],
+    "warnings": [],
+    "notes": []
+  }
+}

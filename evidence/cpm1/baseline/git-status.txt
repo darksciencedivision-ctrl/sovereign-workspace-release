@@ -1,0 +1,5 @@
+﻿# utc: 2026-08-25T09:16:24.0271858Z
+# producer: ox-alpha CP-M1 Band 0 / G3 (SOW upstream inspection 1 of 2; porcelain=v1)
+ M docs/loop/LOOP_STATE.json
+?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md

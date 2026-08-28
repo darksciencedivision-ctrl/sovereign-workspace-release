@@ -1,0 +1,57 @@
+﻿{
+    "captured_utc":  "2026-08-25T09:16:57.0648175Z",
+    "schemas":  [
+                    {
+                        "path":  "modules/sow/schemas/artifact.schema.json",
+                        "sha256":  "6dc49cbffe0f1ad6e7487e08bdb83abfa288302d87925e827eeeddcb10521cf1"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/checkpoint.schema.json",
+                        "sha256":  "6c1d7ef2f25a7f255f3b6acc6f0d5f7d83616ae885d2373ad369e6d4cd3a46c8"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/debate.schema.json",
+                        "sha256":  "e158e25c4ddb6a05eaaf07dc72352d30a060d6944661b49e8736acc50c4a9d09"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/evidence.schema.json",
+                        "sha256":  "46bbb9c5bd9869389d7a936d780d56957c1e474475bc75a1f87881e2c25ed374"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/gate.schema.json",
+                        "sha256":  "81173f2146952adaf0833ce359902ffc22d7a814612b4ff54544abf5b26ce435"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/memory.schema.json",
+                        "sha256":  "adb1fe48ba0c50b2db0fb1b562fb4be5c8801e26edf46f0f3db99dc2630c561f"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/message.schema.json",
+                        "sha256":  "e777d4a5ebdc04cbbda903b555b3589e0ab8072687d5cd63d0911e71753f2e1e"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/node.schema.json",
+                        "sha256":  "ab8edd5d6d2678df03c4de197a2ee06bffe955a32c466801cdfc1bb7cb5cbc13"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/node.schema@1.1.json",
+                        "sha256":  "cdb4b02d56240fe25ae6607be0c5d28d9c4c910999e24669f62417b6bb24780a"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/permission.schema.json",
+                        "sha256":  "9d09ddd1d13814e8b4eba52e40c50583e051075131d5ee87b29966bf8656cafa"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/project.schema.json",
+                        "sha256":  "0bbabe9f9e045d04b9ba4e4ec5a922820bc3d47a7a3d0f26c9dfc381dc3729c4"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/task.schema.json",
+                        "sha256":  "a89ccb3abc2e73c593918b37c8e091c2d394be3710a0f31699c5ba2acf82d5f6"
+                    },
+                    {
+                        "path":  "modules/sow/schemas/usage.schema.json",
+                        "sha256":  "d2a5fbb14235bdb654acb83fa86ac872e0faac152606c914ff2491a5731f9fbf"
+                    }
+                ]
+}

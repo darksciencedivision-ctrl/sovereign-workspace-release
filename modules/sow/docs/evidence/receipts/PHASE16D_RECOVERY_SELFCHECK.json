@@ -1,0 +1,68 @@
+{
+  "schema": "phase16d_recovery_selfcheck@1.0",
+  "ok": true,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "checks": {
+    "supervision_ready": true,
+    "selection_available": true,
+    "selection_recorded": true,
+    "badge_previewed": true,
+    "snapshot_carries_chrome": true,
+    "snapshot_chrome_not_governed": true,
+    "recovered_carries_chrome": true,
+    "recovered_not_reattached": true,
+    "badge_cleared_on_reset": true,
+    "badge_restored_from_recovery": true
+  },
+  "target_pane_id": "pane-2",
+  "selected_label": "Opus 4.8",
+  "snapshot_chrome": {
+    "provider": "claude_code",
+    "adapter": "claude_code",
+    "locality": "frontier",
+    "model_label": "Opus 4.8",
+    "model_slug": "opus-4.8",
+    "model_verified": false,
+    "role": "reasoning",
+    "mode": "autonomous",
+    "node_state": "selected_awaiting_governed_spawn",
+    "governed": false,
+    "subscription": {
+      "allowance": 2,
+      "in_use": null
+    },
+    "residency": null
+  },
+  "recovered_chrome": {
+    "provider": "claude_code",
+    "adapter": "claude_code",
+    "locality": "frontier",
+    "model_label": "Opus 4.8",
+    "model_slug": "opus-4.8",
+    "model_verified": false,
+    "role": "reasoning",
+    "mode": "autonomous",
+    "node_state": "selected_awaiting_governed_spawn",
+    "governed": false,
+    "subscription": {
+      "allowance": 2,
+      "in_use": null
+    },
+    "residency": null
+  },
+  "badge_before_reset": {
+    "text": "Opus 4.8 (unverified) · reasoning · 0/2 · selected",
+    "shown": true
+  },
+  "badge_after_reset": {
+    "text": "",
+    "shown": false
+  },
+  "badge_after_recovery": {
+    "text": "Opus 4.8 (unverified) · reasoning · 0/2 · selected",
+    "shown": true
+  },
+  "owed_note": "16F/U70: the live governed worker SPAWN from a selection is still owed; this proves the RECORDED selection + its badge survive a restart (read/record half)."
+}

@@ -1,0 +1,21 @@
+# utc: 2026-08-25T22:23:51.183Z
+# producer: ox-alpha CP-M1 Band 4 / G25 FAILS-BEFORE
+# SOURCE-LEVEL fails-before (headless Electron DOM dumping is unavailable on this
+# host; the structural equivalent is an exhaustive inventory of every interactive
+# element in the pre-edit renderer surface).
+#
+# EVERY interactive element in modules/sow/apps/desktop/renderer/index.html BEFORE Band 4:
+#   buttons: btn-new, btn-picker, btn-inspector, btn-appr-refresh/close,
+#            btn-pk-refresh/close, inspector/approvals/picker drawers
+#   inputs / textareas / contenteditable: NONE
+#   index.html:194: <button id="btn-new">+ Terminal node</button>
+#   index.html:195: <button id="btn-picker" title="Pick provider × model × role for a new governed node (live host enumeration)">M
+#   index.html:196: <button id="btn-inspector">Inspector</button>
+#   index.html:197: <button id="btn-approvals">Approvals<span id="appr-badge"></span></button>
+#   index.html:213: <button id="insp-refresh">↻</button><button id="insp-close">✕</button></div>
+#   index.html:218: <button id="appr-refresh">↻</button><button id="appr-close">✕</button></div>
+#   index.html:223: <button id="pk-refresh">↻</button><button id="pk-close">✕</button></div>
+# renderer.js submit wiring to a Conductor text channel: ABSENT
+# preload.js sendOperatorText / onConductorTranscript: ABSENT
+# VERDICT: the operator had no persistent typing surface - voice push-to-talk and raw
+# PTY keystrokes were the only channels into the Conductor.

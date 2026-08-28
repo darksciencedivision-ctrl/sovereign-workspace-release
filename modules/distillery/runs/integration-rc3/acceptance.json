@@ -1,0 +1,40 @@
+{
+  "e7": {
+    "assertions": {
+      "excluded_hashes_absent": true,
+      "idempotent": true,
+      "x_descendants_removed": true,
+      "x_direct_removed": true,
+      "y_retained": true
+    },
+    "manifest": {
+      "excluded_sample_ids": [
+        "x-child",
+        "x-grandchild",
+        "x-root"
+      ],
+      "excluded_source": "TEST_CLIENT_X",
+      "lineage_snapshot_hash": "d41aed1ba8080386db0a5c41e34595e85b59b3fadeb459e4c99134113ef64ea8",
+      "manifest_hash": "8310e94086b87b413294ec055543d63bc5303b9dabf35b768d1358d4b5f2c7fd",
+      "remaining_sample_ids": [
+        "y-child",
+        "y-root"
+      ],
+      "remaining_shard_hashes": [
+        "sy1",
+        "sy2"
+      ]
+    },
+    "passed": true
+  },
+  "g0": {
+    "assertions": {
+      "G0-A": true,
+      "G0-B": true,
+      "G0-C": true,
+      "G0-D": true
+    },
+    "passed": true
+  },
+  "passed": true
+}

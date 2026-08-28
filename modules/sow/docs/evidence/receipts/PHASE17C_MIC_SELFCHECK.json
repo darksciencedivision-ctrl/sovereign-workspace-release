@@ -1,0 +1,378 @@
+{
+  "schema": "phase17c_mic_selfcheck@1.0",
+  "check": "phase-17c.mic",
+  "started": "2026-07-27T01:53:53.737Z",
+  "ok": true,
+  "supervision_ready": true,
+  "mic_wired": {
+    "recorder": true,
+    "encoder": true,
+    "button": true
+  },
+  "renderer_encode": {
+    "samples": 533,
+    "sampleRate": 16000,
+    "seconds": 0.0333125,
+    "bytes": 1110
+  },
+  "fixture": {
+    "schema": "voice_fixture@1.0",
+    "method": "OS System.Speech (test input only; NOT product TTS — I-V2/D-VOICE-02 stands)",
+    "phrase": "the conductor should summarize the build status",
+    "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\tools\\live\\_voice_fixture_selfcheck.wav",
+    "sample_rate": 16000,
+    "channels": 1,
+    "bits_per_sample": 16,
+    "wav_bytes": 105326,
+    "seconds": 3.29,
+    "ok": true,
+    "error": null,
+    "decoded": {
+      "sampleRate": 16000,
+      "samples": 52640,
+      "seconds": 3.29
+    }
+  },
+  "capture": {
+    "sourced": true,
+    "engine": {
+      "name": "parakeet-wsl",
+      "mock": false,
+      "real_available": true,
+      "probing": false,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "seeded from the shell's own probe: real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+        "elapsed_s": 21.368,
+        "timeout_s": 90
+      },
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": true,
+        "nemo_state": "available",
+        "probe": {
+          "state": "available",
+          "available": true,
+          "reason": "seeded from the shell's own probe: real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+          "elapsed_s": 21.368,
+          "timeout_s": 90
+        }
+      },
+      "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+    },
+    "outcome": {
+      "kind": "chat",
+      "source": "voice",
+      "text": "The conductor should summarize the build status.",
+      "confidence": 1,
+      "reason": "",
+      "queue_item_id": null
+    },
+    "delivered": true,
+    "delivered_text": "The conductor should summarize the build status.",
+    "queued": false,
+    "needs_clarification": false,
+    "delivered_to_conductor": false,
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "reason": "conductor session not admitted (owed 16F)"
+    },
+    "tts": false,
+    "note": "chat routed by the bridge; conductor ConPTY write OWED to 16F (no admitted live conductor session)",
+    "live_capture_owed": {
+      "owed": true,
+      "issue": "17C.mic",
+      "note": "real PCM was transcribed by the selected engine and routed by the real bridge — the capture, the engine selection and the routing WIRING are no longer owed. What remains: (1) the operator physically speaking into a microphone, which no automated check can reach (directive §16 track 17C — the spoken-mic half is operator first use); and (2) the routing is WIRED, not CALIBRATED — see `routing_limits` below. Neither is discharged by any receipt.",
+      "routing_limits": "U140: on the real engine confidence is 1.0 for any non-empty transcript (NeMo emits a log-probability, not a 0..1 score), so the bridge's low-confidence CLARIFY branch protects against silence, not against mishearing. U144: the protected/destructive gate matches the LEADING WORD only, with no stemming or paraphrase handling, so 'please delete the ledger' or 'stopped the worker' routes as ordinary CHAT into a live conductor whose own tool use is gated by the vendor harness's prompts (U78/U25 open), not by the CommandBroker.",
+      "live_conductor_write": "proven on this host by the Phase 17C `.close` in-Electron receipt (docs/evidence/receipts/PHASE17C_CLOSE_SELFCHECK.json): a routed CHAT transcript delivered into the ADMITTED LIVE `claude` conductor session in pane 1, which then answered. Whether any individual capture reached a live conductor is answered by that capture's `delivered_to_conductor` (body AND submit key), not by this record."
+    },
+    "capture": {
+      "real_pcm": true,
+      "bytes": 105326,
+      "sample_rate": 16000,
+      "seconds": 3.29,
+      "discarded": true,
+      "discard_reason": null,
+      "engine_state_seeded": true,
+      "engine_state_offered": true
+    },
+    "chromeEngine": {
+      "name": "parakeet-wsl",
+      "mock": false,
+      "real_available": true,
+      "probing": false,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "seeded from the shell's own probe: real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+        "elapsed_s": 21.368,
+        "timeout_s": 90
+      },
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": true,
+        "nemo_state": "available",
+        "probe": {
+          "state": "available",
+          "available": true,
+          "reason": "seeded from the shell's own probe: real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+          "elapsed_s": 21.368,
+          "timeout_s": 90
+        }
+      },
+      "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+    },
+    "selfAuthorized": false
+  },
+  "transcript": "The conductor should summarize the build status.",
+  "protected_capture": {
+    "sourced": true,
+    "engine": {
+      "name": "mock-stt",
+      "mock": true,
+      "real_available": false,
+      "probing": true,
+      "nemo_state": "unprobed",
+      "probe": null,
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": false,
+        "nemo_state": "unprobed",
+        "probe": null
+      },
+      "reason": "the WSL NeMo probe has not answered yet — voice engine state is PROBING (the mock STT produced this stand-in transcript; the real engine may still be available)"
+    },
+    "outcome": {
+      "kind": "proposed_action",
+      "source": "voice",
+      "text": "terminate node-B",
+      "confidence": 0.93,
+      "reason": "destructive verb requires operator approval",
+      "queue_item_id": "ap-1"
+    },
+    "delivered": false,
+    "delivered_text": null,
+    "queued": true,
+    "needs_clarification": false,
+    "delivered_to_conductor": false,
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "reason": "protected/destructive action — queued for approval (never delivered)"
+    },
+    "tts": false,
+    "note": "protected/destructive action — queued for approval (never delivered)",
+    "live_capture_owed": {
+      "owed": true,
+      "issue": "16F",
+      "note": "the ROUTING is real (bridge + broker) and the transcript is engine-selected, but real microphone capture and the write of a CHAT transcript into the interactive conductor ConPTY are the operator-run surfaces (a real PCM stream, an admitted live conductor session) — the assembled-run evidence is owed to 16F."
+    },
+    "capture": {
+      "real_pcm": false,
+      "audio_ref": "audio:terminate-node-b"
+    },
+    "chromeEngine": {
+      "name": "parakeet-wsl",
+      "mock": true,
+      "real_available": true,
+      "probing": false,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+        "elapsed_s": 21.235,
+        "timeout_s": 90
+      },
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": true,
+        "nemo_state": "available",
+        "probe": {
+          "state": "available",
+          "available": true,
+          "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+          "elapsed_s": 21.235,
+          "timeout_s": 90
+        }
+      },
+      "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+    },
+    "selfAuthorized": false
+  },
+  "refusal": {
+    "sourced": false,
+    "engine": {
+      "name": "unknown",
+      "mock": true,
+      "real_available": false,
+      "detection": {},
+      "reason": "engine unavailable (fail-closed)"
+    },
+    "outcome": {
+      "kind": "clarify",
+      "source": null,
+      "text": "",
+      "confidence": null,
+      "reason": "captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)",
+      "queue_item_id": null
+    },
+    "delivered": false,
+    "delivered_text": null,
+    "queued": false,
+    "needs_clarification": true,
+    "delivered_to_conductor": false,
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "reason": "voice unavailable: captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)"
+    },
+    "tts": false,
+    "note": "voice unavailable: captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)",
+    "live_capture_owed": {
+      "owed": true,
+      "issue": "16F",
+      "note": "the routing is real and the transcript is engine-selected; real mic capture + the live conductor ConPTY write are operator-run, owed to 16F."
+    },
+    "capture": {
+      "real_pcm": true,
+      "bytes": 0,
+      "discarded": true,
+      "discard_reason": null
+    },
+    "chromeEngine": {
+      "name": "parakeet-wsl",
+      "mock": true,
+      "real_available": true,
+      "probing": false,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+        "elapsed_s": 21.235,
+        "timeout_s": 90
+      },
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": true,
+        "nemo_state": "available",
+        "probe": {
+          "state": "available",
+          "available": true,
+          "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+          "elapsed_s": 21.235,
+          "timeout_s": 90
+        }
+      },
+      "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+    },
+    "selfAuthorized": false,
+    "error": "captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)"
+  },
+  "capture_files_during": true,
+  "capture_files_after": [],
+  "capturing_during": true,
+  "capturing_after": false,
+  "write_pane_id": "pane-2",
+  "checks": {
+    "mic_recorder_wired": true,
+    "mic_encoder_wired": true,
+    "ptt_button_present": true,
+    "renderer_encode_transcribable": true,
+    "probe_settled_before_capture": true,
+    "capture_sourced": true,
+    "capture_carried_real_pcm": true,
+    "engine_answer_seeded_across_the_seam": true,
+    "real_engine_transcribed": true,
+    "transcript_recognised_the_phrase": true,
+    "routed_as_chat": true,
+    "audio_existed_during_transcription": true,
+    "audio_discarded_after": true,
+    "capturing_visible_during": true,
+    "capturing_cleared_after": true,
+    "no_tts": true,
+    "self_authorized_false": true,
+    "owed_record_honest": true,
+    "write_reported_written": true,
+    "write_reported_submitted": true,
+    "write_was_echo_confirmed": true,
+    "write_echoed_into_pty": true,
+    "protected_queued_not_delivered": true,
+    "junk_pcm_refused": true,
+    "junk_pcm_wrote_no_file": true,
+    "stray_release_routes_nothing": true,
+    "press_without_a_mic_routes_nothing": true,
+    "talk_button_never_fabricates": true,
+    "device_not_left_hot_after_a_tap": true
+  },
+  "substitution": "the physical microphone is operator hardware and cannot be driven by an automated check (directive §16 track 17C: the spoken-mic half is operator first use). The fixture WAV's samples are injected at exactly the point MicRecorder.stop() hands its encoded bytes to S.captureVoice; every step below that — IPC payload, CaptureStore validation + write, real-engine selection, the WSL Parakeet transcription, bridge routing, ConPTY delivery, guaranteed discard — is the unmodified production path. The fixture is OS-synthesized TEST INPUT; the product has no TTS (I-V2/D-VOICE-02).",
+  "error": null,
+  "probe_settled": true,
+  "probe_at_capture": {
+    "state": "available",
+    "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+    "elapsed_ms": 21368,
+    "probes": 1,
+    "stale": false,
+    "reprobing": false
+  },
+  "transcribe_ms": 23152,
+  "engine_used": {
+    "name": "parakeet-wsl",
+    "mock": false,
+    "real_available": true
+  },
+  "write": {
+    "written": true,
+    "submitted": true,
+    "flattened": false,
+    "echo": {
+      "matched": 4,
+      "total": 5,
+      "ratio": 0.8,
+      "first_missing": "theconduct"
+    },
+    "reason": "written to conductor input (echo-confirmed 4/5)"
+  },
+  "stray_events": {
+    "before": "{\"ok\":true,\"kind\":\"clarify\",\"label\":\"Not understood — repeat\",\"delivered\":false,\"submitted\":false,\"queued\":false,\"needsClarification\":true,\"source\":null,\"reason\":\"captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)\"}",
+    "after": "{\"ok\":true,\"kind\":\"clarify\",\"label\":\"Not understood — repeat\",\"delivered\":false,\"submitted\":false,\"queued\":false,\"needsClarification\":true,\"source\":null,\"reason\":\"captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)\"}",
+    "label": "🎤 talk"
+  },
+  "held_without_mic": {
+    "before": "{\"ok\":true,\"kind\":\"clarify\",\"label\":\"Not understood — repeat\",\"delivered\":false,\"submitted\":false,\"queued\":false,\"needsClarification\":true,\"source\":null,\"reason\":\"captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)\"}",
+    "after": "{\"ok\":true,\"kind\":\"clarify\",\"label\":\"Not understood — repeat\",\"delivered\":false,\"submitted\":false,\"queued\":false,\"needsClarification\":true,\"source\":null,\"reason\":\"captured audio refused: captured audio is not a RIFF/WAVE file (refused before it touched disk)\"}",
+    "label": "🎤 talk"
+  },
+  "talk_label_after_tap": "🎤 talk",
+  "failed_checks": [],
+  "finished": "2026-07-27T01:54:42.931Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

@@ -1,0 +1,11 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G61 closeout observation (no builder spawn this session)
+5175: not listening
+8700: not listening
+5180: not listening
+8765: LISTENING — EXTERNAL operator-owned Token Center (pid observed earlier; not builder-started)
+5184: LISTENING — operator-owned Distillery (this session: observation only, no launch)
+Nothing under modules\* started by this builder this session.
+AUTHORIZED-BY-STANDING-DELEGATION

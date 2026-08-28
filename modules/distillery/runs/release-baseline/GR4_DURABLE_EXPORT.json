@@ -1,0 +1,23 @@
+{
+  "directive": "SD-RBR-v1.1",
+  "gate": "GR-4",
+  "recorded_at_utc": "2026-08-23T23:35:28Z",
+  "durable_root": "D:\\Sovereign-Enterprise-Snapshots",
+  "export_head": "db83a94cbcd665cecd9c59134800fc084d86c5ca",
+  "overall_disposition": "PASS_WITH_LIMITATIONS",
+  "failed_stages": [],
+  "enterprise_zip_sha256": "3589373946b861e1c08b996115d3d917fa92c64dcbbb73cb1f05e419f6c117c5",
+  "zip_sidecar_independent_hash_match": true,
+  "raw_source_zip_sha256": "132477d5c2a5775a8a410b7fc103194535470e86af44b0cb6c62cbd21de99efd",
+  "bundle_sha256": "99a6be010b250724bac9126ae0a8ceff30ffa51f52cb6cc703ef59392e55c088",
+  "tracked_bundle": "runs/export/SOVEREIGN_DISTILLERY_db83a94c.bundle",
+  "post_remediation_cold_restore": {
+    "record": "runs/export/COLD_RESTORE_RECORD_db83a94c.json",
+    "source_commit": "db83a94cbcd665cecd9c59134800fc084d86c5ca",
+    "verdict": "PASS",
+    "files_compared": 191
+  },
+  "verified_fa89a2b9_record_untouched": true,
+  "temp_copies_disposition": "DELETED",
+  "verdict": "PASS"
+}

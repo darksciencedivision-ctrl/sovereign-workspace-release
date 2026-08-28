@@ -1,0 +1,11 @@
+# utc: 2026-08-25T16:22:29Z
+# producer: claude-code REM-01
+# proof: H-12 - no runtime writes outside Production Workspace\
+# watcher: ReadDirectoryChangesW via ctypes, recursive, on each root
+# window: 2026-08-25T09:33:01Z .. 2026-08-25T16:22:29Z
+# root: D:\Product Software
+# root: D:\multi model terminal app
+# root: D:\Sovereign Distillery
+# ignored under D:\Product Software: Production Workspace\ (this workspace's own writes)
+# events: 0
+# window-seconds: 24568

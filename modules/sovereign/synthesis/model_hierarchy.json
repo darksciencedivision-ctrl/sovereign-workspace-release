@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-03-20T00:00:00Z",
+  "king_synthesizer": {
+    "role": "KING_SYNTHESIZER",
+    "model": "qwen3:14b",
+    "channel": "canonical",
+    "priority": 1
+  },
+  "alpha_wing": [
+    {
+      "role": "ALPHA_ADVOCATE",
+      "model": "qwen2.5:14b-instruct",
+      "stance": "Construct the strongest evidence-backed case."
+    },
+    {
+      "role": "ALPHA_SKEPTIC",
+      "model": "qwen3:8b",
+      "stance": "Stress hidden assumptions and weak inferences."
+    }
+  ],
+  "beta_wing": [
+    {
+      "role": "BETA_ADVOCATE",
+      "model": "qwen3:14b",
+      "stance": "Develop an alternative, grounded line of reasoning."
+    },
+    {
+      "role": "BETA_SKEPTIC",
+      "model": "qwen3:8b",
+      "stance": "Pressure-test edge cases, blind spots, and failure modes."
+    }
+  ],
+  "wing_reconciliation": {
+    "alpha": {
+      "role": "ALPHA_RECONCILER",
+      "model": "qwen2.5:14b-instruct"
+    },
+    "beta": {
+      "role": "BETA_RECONCILER",
+      "model": "qwen3:14b"
+    }
+  },
+  "cross_channel": {
+    "critique": {
+      "role": "CROSS_CRITIC",
+      "model": "qwen3:8b"
+    },
+    "cross_exam": {
+      "role": "CROSS_EXAMINER",
+      "model": "dolphin3:8b"
+    }
+  },
+  "clu_roles": {
+    "analyzer": {
+      "role": "CLU_ANALYZER",
+      "model": "qwen2.5:14b-instruct"
+    },
+    "architect": {
+      "role": "CLU_ARCHITECT",
+      "model": "qwen3:14b"
+    },
+    "coder": {
+      "role": "CLU_CODER",
+      "model": "qwen3:14b"
+    },
+    "tester": {
+      "role": "CLU_TESTER",
+      "model": "qwen3:8b"
+    },
+    "auditor": {
+      "role": "CLU_AUDITOR",
+      "model": "dolphin3:8b"
+    },
+    "benchmark": {
+      "role": "CLU_BENCHMARK",
+      "model": "qwen2.5:14b-instruct"
+    },
+    "promoter": {
+      "role": "CLU_PROMOTER",
+      "model": "dolphin3:8b"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "sovereign-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sovereign Orchestration Workspace \u2014 product desktop shell (Electron + xterm.js + node-pty). Phase 14A. Every terminal is a supervised Sovereign node; no naked sessions.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "test:falsify": "node ../../tools/mutation/pane_input_bypass_mutations.js",
+    "test:falsify:authority": "node ../../tools/mutation/disarm_authority_mutations.js",
+    "test:falsify:orchestration": "node ../../tools/mutation/orchestration_mutations.js",
+    "test:falsify:panewrite": "node ../../tools/mutation/system_pane_write_mutations.js",
+    "test:falsify:readiness": "node ../../tools/mutation/readiness_signal_mutations.js"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

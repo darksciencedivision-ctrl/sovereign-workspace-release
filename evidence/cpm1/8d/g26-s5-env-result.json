@@ -1,0 +1,6 @@
+{
+  "outcome": "pty-exited-on-its-own",
+  "pty_pid": 40608,
+  "bytes_received": 2862,
+  "tail": "2;215;119;87m\u001b[2m\u001b[26C│\u001b[22m\u001b[25C│\r\n│\u001b[38;2;153;153;153m\u001b[4Cdarksciencedivision@gmail.com's\u001b[1COrganization\u001b[38;2;215;119;87m\u001b[2m\u001b[4C│\u001b[22m\u001b[25C│\r\n│\u001b[38;2;153;153;153m\u001b[1CD:\\Product\u001b[1CSoftware\\Production\u001b[1CWorkspace\\modules\\…\u001b[38;2;215;119;87m\u001b[2m\u001b[1C│\u001b[22m\u001b[25C│\r\n╰──────────────────────────────────────────────────────────────────────────────╯\u001b[38;2;136;136;136m\u001b[20;1H────────────────────────────────────────────────────────────────────────────────\u001b[m\r\n❯ \u001b[2mTry\u001b[1C\"write\u001b[1Ca\u001b[1Ctest\u001b[1Cfor\u001b[1C<filepath>\"\u001b[38;2;136;136;136m\u001b[22m\r\n────────────────────────────────────────────────────────────────────────────────\u001b[38;2;255;193;7m\u001b[23;3H⏵⏵\u001b[1Cauto\u001b[1Cmode\u001b[1Con \u001b[38;2;153;153;153m(shift+tab\u001b[1Cto\u001b[1Ccycle)\u001b[1C·\u001b[1C←\u001b[1Cfor\u001b[1Cagents\u001b[9C●\u001b[1Chigh\u001b[1C·\u001b[1C/effort\u001b[21;3H\u001b[?25h\u001b[m\u001b[?9001l\u001b[?1004l"
+}

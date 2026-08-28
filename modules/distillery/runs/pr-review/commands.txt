@@ -1,0 +1,13 @@
+git status --porcelain=v1
+git diff --check f1904399ffc8cc357b2d413127b406fedf44b903 c3594cfc6284b7b5008bb131434436d5a3a77c9a
+git diff --name-status f1904399ffc8cc357b2d413127b406fedf44b903 c3594cfc6284b7b5008bb131434436d5a3a77c9a
+git diff --stat f1904399ffc8cc357b2d413127b406fedf44b903 c3594cfc6284b7b5008bb131434436d5a3a77c9a
+rg -n -o '\bD-(?:[1-9]|1[0-3])\b|\bHG-[0-8]\b|\bSL-(?:[0-9]|10)\b|\bG[0-6]\b|\bE(?:[1-9]|10)\b' README.md docs registry runs schema --glob '!*.bundle'
+rg -n 'def (assert_admitted|seal_shard|exclude|paired_gate|controlled_model_effect|assemble_bundle|verify_bundle)' --glob '*.py'
+py -3.13 -m unittest discover -s tests
+py -3.13 -m unittest discover -s tests  # in untouched RC3 source repository
+git bundle verify docs/integration/rc3/grounded-rc3-a332e688.bundle
+Get-FileHash docs/integration/rc3/grounded-rc3-a332e688.bundle -Algorithm SHA256
+git ls-tree -r --name-only c3594cfc6284b7b5008bb131434436d5a3a77c9a
+git grep -n -I -E 'AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}' c3594cfc6284b7b5008bb131434436d5a3a77c9a
+git grep -n -I -E 'SOVEREIGN_PRODUCT_COMPLETION_WORK|token-capacity-deep|session_7007959|\\runtime\\evidence|/runtime/evidence' c3594cfc6284b7b5008bb131434436d5a3a77c9a

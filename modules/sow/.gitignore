@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+.env
+.env.*
+secrets/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.DS_Store
+Thumbs.db
+docs/loop/logs/
+.sovereign_store/
+apps/desktop/.recovery/
+# Phase 17C `.mic` — captured operator speech, held only for the seconds of a transcription
+# (invariant 26, transcribe-then-discard). Recorded audio is NEVER committed.
+apps/desktop/.voice-captures/
+tools/live/_voice_fixture*.wav
+config/live_operation.json
+# Phase 17D `.events` - this run's approval events (the operator's transcripts among
+# them). Per-run, truncated at launch, diagnostic state - the canonical append-only
+# history is MCP's (invariant 12).
+apps/desktop/.approvals/

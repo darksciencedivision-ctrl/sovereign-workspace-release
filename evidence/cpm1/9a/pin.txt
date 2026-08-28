@@ -1,0 +1,14 @@
+# utc: 2026-08-26T21:00:20.211268Z
+# producer: ox-alpha CP-M1 ADD-07 wave7
+
+
+G68 pinned llama.cpp
+release identifier: lmstudio-cuda12-avx2-2.28.2 (binary --version: version: 1 (fe2adf0))
+origin: C:\Users\Sslaw\.lmstudio\extensions\backends\llama.cpp-win-x86_64-nvidia-cuda12-avx2-2.28.2
+vendor CUDA: win-llama-cuda12-vendor-v2 (copied beside exe)
+SHA-256 llama-server.exe: e25313077d8ed57a838c475ce2f3d31422881212caf2ddac2c18385e5e49ae69
+CUDA backend: ggml-cuda.dll present; gpu.framework=CUDA targets 7.5-12.0
+build: Clang 19.1.1 Windows AMD64 (from --version)
+current junction -> versions/lmstudio-cuda12-2.28.2
+No latest dependency. Ollama unmodified. PATH unchanged. No boot autostart. Not a production runtime.
+sha256 llama-server.exe: e25313077d8ed57a838c475ce2f3d31422881212caf2ddac2c18385e5e49ae69

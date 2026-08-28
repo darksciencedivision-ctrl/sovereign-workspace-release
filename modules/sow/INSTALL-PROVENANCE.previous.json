@@ -1,0 +1,41 @@
+{
+  "module": "sow",
+  "source": "D:/multi model terminal app/sovereign-orchestration-workspace",
+  "source_kind": "git_worktree_copy",
+  "git_head": "6d23a81082836778ffd46c70151821b467dc7432",
+  "working_tree_state": null,
+  "source_copy_exclusions": [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".sovereign_store"
+  ],
+  "source_content_manifest_sha256": "4b0c2b9610c14a6ff6954b2e6780b4f392e407aa30613fb4a18d53be58a84545",
+  "lockfiles": [
+    {
+      "path": "apps/desktop/package-lock.json",
+      "sha256": "573eba33d505d949ffa37e71609fbfb5df5f46ea6999ee482adb7d4cf6ffdbbf"
+    }
+  ],
+  "dependency_lock_status": "COMPLETE",
+  "installed_utc": "2026-08-21T02:18:00-05:00",
+  "install_commands_evidence": "evidence/phase2-sow-install.txt",
+  "install_commands": [
+    "py -3.12 shell\\tools\\install_sow.py"
+  ],
+  "install_note": "Provisioned by shell/tools/install_sow.py per ADR-005: npm ci --ignore-scripts, then hash-verified Electron zip extraction, then node-pty prebuild verification. The prior value of install_commands recorded the manual 'npm install --foreground-scripts' sequence that ADR-005 rejects and that the README no longer contains.",
+  "integrity_verified": true,
+  "source_content_manifest_path": "evidence/manifests/manifest-before-sow.txt",
+  "electron_zip_sha256": "e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f",
+  "electron_zip_name": "electron-v31.7.7-win32-x64.zip",
+  "electron_zip_expected_hash_source": "modules/sow/apps/desktop/node_modules/electron/checksums.json (vendor-shipped), corroborated by SHASUMS256.txt in the LOCALAPPDATA electron cache",
+  "electron_exe_sha256": "1fa93c3471c11dc8128998c662c705104e4528b98901b61c8a25216acda424c5",
+  "electron_version": "31.7.7",
+  "dirty_tracked": true,
+  "dirty_untracked": true,
+  "working_tree_state_note": "Prior value 'DIRTY_TRACKED_AND_UNTRACKED' is not in the directive's enum (REVIEW-BUILD-01 N-2). Recorded as two booleans; see evidence/sow-git-after.meta.json.",
+  "adr": "docs/ADR-005-sow-install-and-electron-provisioning.md",
+  "producer": "claude-code REM-01",
+  "updated_utc": "2026-08-21T04:47:52.7378429Z"
+}

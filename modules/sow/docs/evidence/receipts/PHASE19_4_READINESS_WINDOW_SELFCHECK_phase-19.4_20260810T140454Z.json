@@ -1,0 +1,89 @@
+{
+  "check": "phase-19.4.readiness-window",
+  "unit": "phase-19.4",
+  "finding": "U329 — in the packaged runtime, worker readiness reads exit code and structured provider signals before any screen text, and its screen read is the pane's bounded tail through RingBuffer.sliceFrom(), never buffer.snapshot(). Measured against the audited whole-buffer read on the same live pane.",
+  "source": {
+    "commit": "716673d7bc8f132fe87459b72b41c4ff9ee3eede",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-10T14:04:56.642Z",
+  "electron_main_pid": 38256,
+  "ok": true,
+  "supervision_ready": true,
+  "panes": [
+    {
+      "pane": "A",
+      "pane_id": "pane-2",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "B",
+      "pane_id": "pane-3",
+      "term_created": true,
+      "banner_seen": true
+    }
+  ],
+  "legs": {
+    "buried_overlay_is_not_current_state": {
+      "output_drawn": true,
+      "bounded_window_answerable": true,
+      "bounded_window_bytes": 3682,
+      "whole_buffer_bytes": 3682,
+      "bounded_verdict": null,
+      "whole_buffer_verdict": "AUTH_REQUIRED",
+      "bound_that_applied": "line_only",
+      "ok": true
+    },
+    "current_modal_still_classifies": {
+      "modal_drawn": true,
+      "terminal_state": "WORKSPACE_TRUST_REQUIRED",
+      "ok": true
+    },
+    "exit_code_and_structured_signals_first": {
+      "exited_source": "process_exit",
+      "exited_exit_code": 0,
+      "connected_source": "mcp_connection",
+      "screen_reads_while_answerable_by_stronger_signals": 0,
+      "ok": true
+    },
+    "nonce_window_is_exact_or_nothing": {
+      "fabricated_position_answerable": false,
+      "negative_position_answerable": false,
+      "nonce_occurrences": 2,
+      "ok": true
+    },
+    "sessionless_pane_unanswerable": {
+      "answerable": false,
+      "reason": "the pane holds no readable stream buffer",
+      "classified": null,
+      "ok": true
+    }
+  },
+  "scope_note_screen_signal": "the panes here are powershell.exe printing text this check chose, so no real provider screen is evidenced (U362 applies unchanged); what is measured is the WINDOW and the ORDER, not the classifier's coverage (U363) and not a terminal emulator's view of the visible screen (U372)",
+  "live_exchanges": 0,
+  "error": null,
+  "sessions_killed_in_unit": [
+    "pane-2",
+    "pane-3"
+  ],
+  "finished": "2026-08-10T14:04:58.917Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

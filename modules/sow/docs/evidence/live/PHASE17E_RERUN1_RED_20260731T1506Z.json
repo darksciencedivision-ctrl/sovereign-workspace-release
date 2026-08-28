@@ -1,0 +1,455 @@
+{
+  "schema": "phase17e_fully_live_selfcheck@1.0",
+  "check": "phase-17e.compose",
+  "started": "2026-07-31T14:58:08.925Z",
+  "source": {
+    "commit": "959613214a7830d40b3062e10e77c151b53453aa",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "ok": false,
+  "electron_main_pid": 99792,
+  "ledger_scope": "scratch",
+  "ledger_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\selfcheck-17e-99792.json",
+  "conductor": {
+    "pane_id": "pane-1",
+    "launched": true,
+    "launch_state": "running",
+    "launch_reason": null,
+    "argv": [
+      "claude",
+      "--model",
+      "claude-fable-5",
+      "--settings",
+      "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"PreToolUse\":[{\"matcher\":\".*\",\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"PermissionRequest\":[{\"matcher\":\".*\",\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"ConfigChange\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"StopFailure\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"SessionEnd\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}]}}"
+    ],
+    "session_id": "pane-1#99792.1",
+    "session_pid": 108124,
+    "session_state": "RUNNING",
+    "model_label": "fable-5",
+    "model_slug": "claude-fable-5",
+    "model_is_fallback": false,
+    "chrome_live": true,
+    "subscription_ref": "sub-claude_code",
+    "tui_ready": true,
+    "model_probe_state": "available"
+  },
+  "voice": {
+    "probe_settled": true,
+    "phrase": "Use a tool to calculate twenty-three plus forty-seven. Answer with only the sum and nothing else.",
+    "expected": "70",
+    "fixture": {
+      "schema": "voice_fixture@1.0",
+      "method": "OS System.Speech (test input only; NOT product TTS — I-V2/D-VOICE-02 stands)",
+      "phrase": "Use a tool to calculate twenty-three plus forty-seven. Answer with only the sum and nothing else.",
+      "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\tools\\live\\_voice_fixture_fully_live.wav",
+      "sample_rate": 16000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "wav_bytes": 227246,
+      "seconds": 7.1,
+      "ok": true,
+      "error": null
+    },
+    "transcribe_ms": 44337,
+    "transcript": "Use a tool to calculate 23 plus 47. Answer with only the sum and nothing else.",
+    "engine": {
+      "name": "parakeet-wsl",
+      "mock": false,
+      "real_available": true
+    },
+    "heard_expected": "70",
+    "asr_matched_the_spoken_operands": true,
+    "echo_seen": true,
+    "answer_seen": true,
+    "answer_number": 70,
+    "answer_matched": true,
+    "answer_latency_ms": 4006,
+    "capture_files_after": [],
+    "audio_existed_during": true,
+    "excerpt": "▐▛███▜▌ Claude Code v2.1.220 ▝▜█████▛▘ Fable 5 · Claude Max ▘▘ ▝▝ D:\\multi model terminal app\\sovereign-orchestration-workspace ❯ [[SOVEREIGN_VOICE_CHAT_V2:c3f7924eea41fc188e1e8dd6c8c1e40e]] Use a tool to calculate 23 plus 47. Answer with only the sum and not hing else. a tool to calculate 23 plus 47. ● 70 ✻ Baked for 3s ──────────────────────────────────────────────────────────────────────────────────────────────────── ❯ ──────────────────────────────────────────────────────────────────────────────────────────────────── ⏸ manual mode on · ? for shortcuts · ← for agents"
+  },
+  "approvals": {
+    "launch_source": "session_events",
+    "launch_badge_count": 0,
+    "before_badge_count": 0,
+    "rows": 1,
+    "row_ids": [
+      "ap-1"
+    ],
+    "event_count": 1,
+    "row_provenance": {
+      "event_id": "ev-1",
+      "at": "2026-07-31T14:59:36.979Z",
+      "channel": "voice:capture",
+      "feed_schema": "conductor_voice_feed@1.0",
+      "verb": "terminate",
+      "target": "node-b",
+      "args": {},
+      "category": "destructive",
+      "reason": "destructive verb requires operator approval"
+    },
+    "demo_ids_present": [
+      "ap-1"
+    ],
+    "protected_capture": {
+      "queued": true,
+      "delivered": false,
+      "delivered_to_conductor": false,
+      "kind": "proposed_action",
+      "engine": {
+        "name": "mock-stt",
+        "mock": true,
+        "real_available": false,
+        "probing": true,
+        "nemo_state": "unprobed",
+        "probe": null,
+        "real_engine": "parakeet-wsl",
+        "detection": {
+          "nvidia_gpu": true,
+          "wsl": true,
+          "nemo": false,
+          "nemo_state": "unprobed",
+          "probe": null
+        },
+        "reason": "the WSL NeMo probe has not answered yet — voice engine state is PROBING (the mock STT produced this stand-in transcript; the real engine may still be available)"
+      },
+      "real_pcm": false
+    },
+    "decide": {
+      "routed": true,
+      "selfAuthorized": false,
+      "resolved": true
+    },
+    "after_badge_count": 0,
+    "re_decide": {
+      "resolved": false,
+      "refused": true
+    },
+    "drawer_verdict": {
+      "ok": true,
+      "reasons": []
+    }
+  },
+  "typed": {
+    "disarm": {
+      "handled": false,
+      "consumed": false,
+      "disarmed": {
+        "key_kind": "printable",
+        "turn_id": "c3f7924eea41fc188e1e8dd6c8c1e40e",
+        "phase": "active",
+        "session_id": "84fd2f9b-8c51-49ef-88b7-b88f14177e20",
+        "source": "electron_main_before_input_event",
+        "basis": "Electron main observed the operator press a key, before the page saw it",
+        "tools_still_denied_for_turn": true,
+        "schema": "supervisor_voice_turn_audit@1.0",
+        "at": "2026-07-31T14:59:38.265Z",
+        "event": "voice_turn_disarmed"
+      },
+      "turn": {
+        "schema": "supervisor_voice_turn_state@1.0",
+        "restricted": false,
+        "phase": "ended",
+        "turn_id": null,
+        "session_id": null,
+        "since": null,
+        "tools_denied": true,
+        "denying_turn_id": "c3f7924eea41fc188e1e8dd6c8c1e40e",
+        "ended_at": "2026-07-31T14:59:38.265Z",
+        "recovery": "you ended the voice turn and your keyboard is yours again — the answer it is still producing cannot use tools until you send your next prompt"
+      }
+    },
+    "prompt": "What is forty-four plus thirty-one? Answer with only the sum and nothing else.",
+    "expected": "75",
+    "write": {
+      "written": true,
+      "echoed": true,
+      "submitted": true
+    },
+    "answer_seen": true,
+    "answer_number": 75,
+    "answer_matched": true,
+    "excerpt": "▐▛███▜▌ Claude Code v2.1.220 ▝▜█████▛▘ Fable 5 · Claude Max ▘▘ ▝▝ D:\\multi model terminal app\\sovereign-orchestration-workspace ❯ [[SOVEREIGN_VOICE_CHAT_V2:c3f7924eea41fc188e1e8dd6c8c1e40e]] Use a tool to calculate 23 plus 47. Answer with only the sum and not hing else. a tool to calculate 23 plus 47. ● 70 ✻ Baked for 3s ❯ What is forty-four plus thirty-one? Answer with only the sum and nothing else. ● 75 ✻ Roosting… (running stop hook · 2s · ↓ 25 tokens · thinking) ⎿ Tip: Run claude --continue or claude --resume to resume a conversation ──────────────────────────────────────────────────────────────────────────────────────────────────── ❯ ──────────────────────────────────────────────────────────────────────────────────────────────────── ⏸ manual mode on · esc to interrupt · ← for agents"
+  },
+  "worker": {
+    "picker_sourced": true,
+    "option_count": 49,
+    "option": {
+      "label": "qwen3:8b",
+      "model_slug": "qwen3:8b",
+      "locality": "local",
+      "adapter": "ollama_local"
+    },
+    "host_used_vram_mb": 0,
+    "budget_pinned_mb": "55248",
+    "pane_id": "pane-2",
+    "launched": true,
+    "reason": null,
+    "argv": [
+      "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Ollama\\ollama.EXE",
+      "run",
+      "qwen3:8b"
+    ],
+    "node_id": "worker-pane-2",
+    "session_state": "RUNNING",
+    "session_pid": 100716,
+    "chrome_node_state": "running",
+    "chrome_governed": true,
+    "subscription_governed": false,
+    "pane_output_seen": true,
+    "excerpt": "⠼",
+    "budget_source": "env SOW_VRAM_BUDGET_MB, pinned by this check from the host's real residency snapshot (used 0 MB + largest footprint 54224 MB + 1024 MB headroom, floor 24576 MB) — NOT this host's GPU capacity, and never verified against it"
+  },
+  "dispatch": {
+    "ok": true,
+    "elapsed_ms": 382374,
+    "legs": {
+      "conductor": "mock",
+      "workers": "attempted"
+    },
+    "worker_evidence": [
+      {
+        "node_id": "worker-claude-live",
+        "leg": "live",
+        "adapter": "claude_code",
+        "executed": true,
+        "spent": true,
+        "verified": false,
+        "model": null,
+        "tasks": [
+          "t-1"
+        ]
+      }
+    ],
+    "accepted_count": 0,
+    "acceptance_verdict": "FAIL",
+    "operator_disposition": "pending",
+    "synthesized_by": "conductor_fable5",
+    "synthesized_by_note": "legs.conductor=\"mock\" — `synthesized_by` is a fixed adapter literal, NOT evidence about which backend folded the accepted set. A reader beside a live Fable-5 pane must not read it as Fable 5.",
+    "live_run": {
+      "run_ts": "2026-07-31T15:06:04.714199+00:00",
+      "elapsed_s": 377.3,
+      "cli_present": true,
+      "repo_live_config_exists": true,
+      "requested_model": null,
+      "max_tokens": 200,
+      "timeout_s": 420
+    },
+    "torn_down": true,
+    "verdict": {
+      "ok": false,
+      "reasons": [
+        "legs.workers is \"attempted\", not \"live\"",
+        "worker-claude-live: live leg claimed but the checkpoint is not verified (U45)",
+        "no artifact was ACCEPTED by the gate",
+        "acceptance verdict \"FAIL\", not PASS",
+        "live_workers_owed still records the live worker legs as owed (U58)"
+      ],
+      "live_nodes": [
+        "worker-claude-live"
+      ]
+    }
+  },
+  "concurrency": {
+    "allowance": 2,
+    "scope": "diagnostic",
+    "in_use_after_conductor": 1,
+    "max_in_use_observed": 2,
+    "baseline_in_use": 0,
+    "samples": [
+      1,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      1
+    ],
+    "verdict": {
+      "ok": true,
+      "reasons": []
+    }
+  },
+  "ledger": {
+    "scratch_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\selfcheck-17e-99792.json",
+    "durable_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\terminal_leases.json",
+    "durable_digest_before": "5f0cb3a7fbf1257f660c8ddcf83204484206c346d1b9ab7d59b53d5a59bdac54",
+    "durable_digest_after": "5f0cb3a7fbf1257f660c8ddcf83204484206c346d1b9ab7d59b53d5a59bdac54",
+    "durable_unchanged": true,
+    "scratch_removed": true
+  },
+  "teardown": {
+    "conductor_killed": true,
+    "worker_killed": true,
+    "lease_released": true,
+    "in_use_after_release": 0,
+    "sessions_alive_after": []
+  },
+  "owed": {
+    "spoken_microphone": "the physical microphone cannot be driven by an automated check — directive §16 puts the spoken-mic half in the operator's own first use, and the loop never blocks on the operator (§1). Everything below MicRecorder.stop() is the production path and IS measured here.",
+    "physical_key_delivery": "U69 — 17D drove 28 TRUSTED keydowns into the focused xterm helper textarea with no terminal data resulting, while the textarea's own text-input path plus a delivered Return DID echo through to the PTY. No mechanism was isolated; the operator's own keyboard is the remaining witness. The typed legs here use the renderer's real onData → pane:input → SessionManager.write path.",
+    "conductor_initiated_dispatch": "U58 residual — the governed dispatch proven here is INVOKED by the shell (the same emitter the conductor chrome sources), not chosen by the live conductor CLI itself over MCP. The live worker, its CANDIDATE, the gate and the synthesis are real; 'the conductor decided to delegate' is not what this leg shows.",
+    "speech_out_tts": "I-V2 / D-VOICE-02 — the product has no TTS and this run asserts tts:false. A spoken ANSWER would be an operator reversal of a frozen invariant (would-be OP-9-TTS), recorded as OWED-BY-OPERATOR-DECISION, never built silently.",
+    "cloud_kimi_qwen": "OP-10 track 16B — Kimi K3 and Qwen 3.8 are offered only as cloud endpoints on this host; enabling them needs a new operator provider authorization. The LOCAL leg here runs the host's real `qwen3:8b`, enumerated from the daemon, never fabricated.",
+    "diagnostic_ledger_scope": "U111 — this run's two live frontier terminals are recorded in a DIAGNOSTIC (scratch) ledger, so the check can never adopt or release a terminal the operator's own shell holds. Until this unit that also meant the enforcing governor counted ZERO for the window, and an operator shell at its own allowance could have brought the true total to 4. A diagnostic ledger now COUNTS the durable one as a read-only baseline in every admission decision (`concurrency.baseline_in_use` records what it saw). The residual is the gap between reading that baseline and writing our own record: a terminal the operator's shell acquires inside that window is not in our count."
+  },
+  "checks": {
+    "receipt_matches_committed_tracked_product_tree_with_disclosed_exclusions": true,
+    "supervision_ready": true,
+    "the_conductor_model_slug_is_only_asserted_where_the_probe_confirmed_it": true,
+    "live_conductor_launched_through_the_governed_path": true,
+    "live_conductor_session_running": true,
+    "chrome_reports_pane1_live": true,
+    "the_ix3_count_is_the_governing_one": true,
+    "conductor_holds_exactly_one_governed_terminal": true,
+    "live_conductor_ready_for_input": true,
+    "real_stt_engine_probe_settled_before_capture": true,
+    "real_parakeet_transcribed_real_pcm": true,
+    "audio_was_transcribed_then_discarded": true,
+    "no_tts_on_any_path": true,
+    "shell_self_authorized_nothing": true,
+    "transcript_delivered_into_the_live_conductor": true,
+    "spoken_answer_absent_from_the_transcript_and_the_pane": true,
+    "whole_utterance_echoed_in_the_live_pane": true,
+    "the_live_conductor_answered_the_spoken_prompt": true,
+    "approval_drawer_was_empty_until_this_run_caused_something": true,
+    "the_protected_verb_leg_names_the_engine_that_produced_it": true,
+    "protected_verb_queued_not_delivered": true,
+    "protected_verb_reached_no_live_pane": true,
+    "approval_drawer_shows_only_real_session_events": true,
+    "the_queued_event_was_decided_through_the_governed_authority": true,
+    "operator_keystroke_ended_the_voice_turn": true,
+    "typed_prompt_reached_the_same_live_session": true,
+    "the_same_live_conductor_answered_the_typed_prompt": true,
+    "picker_selection_started_a_live_local_worker_pane": true,
+    "the_local_worker_held_no_subscription_terminal": true,
+    "a_live_worker_published_a_candidate_that_the_gate_accepted_and_the_conductor_synthesized": false,
+    "both_live_frontier_terminals_counted_against_one_allowance": true,
+    "every_live_session_this_check_started_was_torn_down": true,
+    "both_governed_terminals_were_handed_back": true,
+    "the_operator_own_lease_ledger_was_never_written_to": true,
+    "the_diagnostic_ledger_was_removed": true
+  },
+  "failed_checks": [
+    "a_live_worker_published_a_candidate_that_the_gate_accepted_and_the_conductor_synthesized"
+  ],
+  "error": "the live governed dispatch is not honest evidence: legs.workers is \"attempted\", not \"live\"; worker-claude-live: live leg claimed but the checkpoint is not verified (U45); no artifact was ACCEPTED by the gate; acceptance verdict \"FAIL\", not PASS; live_workers_owed still records the live worker legs as owed (U58)",
+  "finished": "2026-07-31T15:06:10.999Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "substitutions": [
+    {
+      "of": "the physical microphone",
+      "why": "operator hardware cannot be driven by an automated check — directive §16 puts the spoken-mic half in the operator's first use, and the loop never blocks on the operator (§1)",
+      "what_ran_instead": "the fixture WAV's samples are injected at exactly the point MicRecorder.stop() hands its encoded bytes to S.captureVoice; everything below that is the unmodified production path — IPC payload, CaptureStore validation + write, real-engine selection, WSL Parakeet transcription, bridge routing, the delivery into pane 1's LIVE ConPTY, the guaranteed discard. The fixture is OS-synthesized TEST INPUT (the 16E carve-out); the product has no TTS (I-V2/D-VOICE-02)"
+    },
+    {
+      "of": "OS key delivery for the typed prompt and for the operator's disarming keystroke",
+      "why": "an automated check cannot press a physical key, and U69 records that trusted keydowns into the focused xterm produced no terminal data on this host with no mechanism isolated",
+      "what_ran_instead": "typed text reaches the session through the renderer's real term.input → pane:input → SessionManager.write path (the production path), and the disarm drives main's production before-input-event handler with a synthesized keyDown — the same handler an operator keystroke enters, with the same decision behind it"
+    },
+    {
+      "of": "the operator's own objective, for the governed dispatch",
+      "why": "the live conductor CLI does not itself choose to delegate over MCP (the U58 residual, named in receipt.owed) — the dispatch is invoked by the shell with the emitter's own pinned objective, exactly as the conductor chrome sources its mock-first one at launch",
+      "what_ran_instead": "the SAME emitter, asked for `--live-workers` once: a real live `claude_code` worker node, a real CANDIDATE published over a loopback MCP server, the real gate engine, and the conductor's own synthesis into an acceptance packet whose operator_disposition stays `pending`. Its leg label is derived from a VERIFIED executing checkpoint (U45), not from the fact that a call was attempted"
+    },
+    {
+      "of": "real speech, for the PROTECTED-VERB half of the approval leg",
+      "why": "a protected verb must be refused before anything is delivered, and proving that needs no microphone and no live exchange — the leg is about the broker's refusal and the drawer's provenance, not about transcription",
+      "what_ran_instead": "a scripted `audio:` stand-in ref, which carries no PCM and is therefore routed through the VISIBLE mock engine (`approvals.protected_capture.engine.mock` is true, `real_pcm` false — recorded, because this receipt's `voice.engine` block says mock:false about the SPOKEN leg and a reader must not carry that across). Everything after the transcript is the production path: the real router, the real broker, the real append-only event record and the real Python fold"
+    },
+    {
+      "of": "the host's real GPU capacity, for the picker leg's admission budget",
+      "why": "the LOCAL option has to be admissible for the leg to test the SPAWN; the residency planner's own admission gate is 17B `.ticket`'s leg, and a leg that exercises a different gate than its name claims is evidence for the wrong thing",
+      "what_ran_instead": "`SOW_VRAM_BUDGET_MB` pinned to arithmetic on the host's REAL residency snapshot (recorded verbatim in `worker.budget_source`, with `host_used_vram_mb` as read from the live daemon). The enumeration itself is the host's own (`worker.option_count` is what the daemon offered, never fabricated) and the model this leg starts is a real local one the picker listed"
+    },
+    {
+      "of": "a FRONTIER worker pane from the picker",
+      "why": "I-X3 allows two terminals on this subscription and the live dispatch worker needs the second one; a frontier picker spawn would have taken it and made the dispatch refuse",
+      "what_ran_instead": "the picker leg launches the host's real LOCAL `qwen3:8b` (which holds no subscription terminal, invariant 19). The frontier picker spawn is 17B `.spawn`'s own gated leg — docs/evidence/receipts/PHASE17B_SPAWN_SELFCHECK.json"
+    }
+  ],
+  "substitution": "the physical microphone: the fixture WAV's samples are injected at exactly the point MicRecorder.stop() hands its encoded bytes to S.captureVoice; everything below that is the unmodified production path — IPC payload, CaptureStore validation + write, real-engine selection, WSL Parakeet transcription, bridge routing, the delivery into pane 1's LIVE ConPTY, the guaranteed discard. The fixture is OS-synthesized TEST INPUT (the 16E carve-out); the product has no TTS (I-V2/D-VOICE-02) · OS key delivery for the typed prompt and for the operator's disarming keystroke: typed text reaches the session through the renderer's real term.input → pane:input → SessionManager.write path (the production path), and the disarm drives main's production before-input-event handler with a synthesized keyDown — the same handler an operator keystroke enters, with the same decision behind it · the operator's own objective, for the governed dispatch: the SAME emitter, asked for `--live-workers` once: a real live `claude_code` worker node, a real CANDIDATE published over a loopback MCP server, the real gate engine, and the conductor's own synthesis into an acceptance packet whose operator_disposition stays `pending`. Its leg label is derived from a VERIFIED executing checkpoint (U45), not from the fact that a call was attempted · real speech, for the PROTECTED-VERB half of the approval leg: a scripted `audio:` stand-in ref, which carries no PCM and is therefore routed through the VISIBLE mock engine (`approvals.protected_capture.engine.mock` is true, `real_pcm` false — recorded, because this receipt's `voice.engine` block says mock:false about the SPOKEN leg and a reader must not carry that across). Everything after the transcript is the production path: the real router, the real broker, the real append-only event record and the real Python fold · the host's real GPU capacity, for the picker leg's admission budget: `SOW_VRAM_BUDGET_MB` pinned to arithmetic on the host's REAL residency snapshot (recorded verbatim in `worker.budget_source`, with `host_used_vram_mb` as read from the live daemon). The enumeration itself is the host's own (`worker.option_count` is what the daemon offered, never fabricated) and the model this leg starts is a real local one the picker listed · a FRONTIER worker pane from the picker: the picker leg launches the host's real LOCAL `qwen3:8b` (which holds no subscription terminal, invariant 19). The frontier picker spawn is 17B `.spawn`'s own gated leg — docs/evidence/receipts/PHASE17B_SPAWN_SELFCHECK.json",
+  "scope_note": "WHAT THIS RECEIPT IS: one Electron process in which the operator's stated DEFINITION OF DONE holds at once — a live conductor in pane 1 that answers both a spoken and a typed prompt, a picker selection that starts a live local worker, a governed dispatch whose worker really executed, and an approval drawer carrying only this session's own event. Each leg was proven alone by an earlier gated receipt; the claim here is the COMPOSITION, and nothing else in this file should be read as a stronger version of those earlier claims. WHAT IT DOES NOT CLAIM, in `receipt.owed` rather than buried here: a human spoke into a microphone; the operator's own OS keystrokes reach a pane (U69, still unexplained); the live conductor CLI decided to delegate (the dispatch is shell-invoked — the U58 residual); the product can speak (I-V2 stands, tts:false is asserted); cloud Kimi/Qwen exist here. MODEL ARITHMETIC IS RECORDED AND DOES NOT GATE, for 17C's measured reason: the gating fact is that the conductor REPLIED with a standalone number of its own after the whole prompt echoed and the prompt contains none — `answer_matched` says whether that number was right. THE I-X3 LEG is the one thing here that no earlier receipt could show: two live frontier terminals — pane 1's conductor and the dispatch's worker — held at once and counted against ONE subscription's allowance, sampled by a separate process while both were live. It is readable only because the dispatch emitter is a child of this process and inherits the DIAGNOSTIC (scratch) ledger. That redirection cuts BOTH ways and this unit stopped stating only the flattering half (U111, spec-audit F1): it is what stops this check from ever adopting or releasing a terminal the operator's own shell holds, AND it used to be why the enforcing governor counted zero for the window — an operator shell already at its allowance could have brought the true total to 4. A diagnostic ledger now COUNTS the durable one as a read-only baseline in every admission decision; `concurrency.scope` and `concurrency.baseline_in_use` record that this run's count was the governing one. The residual is the read-to-write window, named in `owed.diagnostic_ledger_scope`. WHOSE CONDUCTOR SYNTHESIZED the dispatch: `legs.conductor` says `mock`. `synthesized_by` reads `conductor_fable5` for every ConductorAdapter ever built — a fixed literal, not a measurement (gate-validator D3, `dispatch.synthesized_by_note`). The LIVE half of that leg is the WORKER, whose executed/spent/VERIFIED checkpoint is what the verdict reads. WHAT THE APPROVAL LEG READS, and why it is not the row's id: the first run of this receipt refused a genuine session event because the event-sourced queue mints `ap-1` for its FIRST real row — the same id the deterministic demonstration trio's first item uses. So the ids are not distinguishing in either direction (U213), `demo_ids_present` records the collision, and the leg is decided on PROVENANCE instead: the drawer was folded from a recorded event, and the queued row names the event id, the channel that recorded it (`voice:capture`) and that channel's feed schema — none of which a canned item has any way to carry."
+}

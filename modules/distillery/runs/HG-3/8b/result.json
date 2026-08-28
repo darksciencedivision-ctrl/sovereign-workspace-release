@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "candidate_id": "grounded-qwen-lineage-8b-unpinned",
+  "nominal_size": "8B",
+  "upstream_repository": null,
+  "exact_model_name": null,
+  "exact_revision_or_commit": null,
+  "local_artifact_identity": null,
+  "weight_format": null,
+  "parameter_count": null,
+  "architecture_class": "Qwen-lineage only; exact generation and architecture unresolved",
+  "declared_context_length": null,
+  "license_identifier": null,
+  "source_evidence": [
+    "docs/SPEC-v1.1-draft.md:98",
+    "docs/THESIS-v1.2.md:1257",
+    "docs/THESIS-v1.2.md:1308"
+  ],
+  "observed_but_not_accepted_substitute": {
+    "name": "qwen3:8b",
+    "runtime": "Ollama",
+    "local_manifest_id_prefix": "500a1f067a9f",
+    "format": "quantized GGUF serving artifact",
+    "reason_rejected": "It is not designated as the exact Grounded student revision and is not the required FP16 trainable base artifact."
+  },
+  "identity_complete": false,
+  "S0_load": "NOT_ATTEMPTED",
+  "S1_forward": "NOT_ATTEMPTED",
+  "S2_backward": "NOT_ATTEMPTED",
+  "S3_optimizer_step": "NOT_ATTEMPTED",
+  "sequence_envelope": "NOT_ATTEMPTED",
+  "trainer_card_lock": "NOT_ACQUIRED_IDENTITY_CHECK_PRECEDED_CARD_ACCESS",
+  "card_restoration": "NOT_APPLICABLE",
+  "disposition": "CANDIDATE_IDENTITY_BLOCKED",
+  "reason": "Canonical documents do not pin a repository, exact model, immutable revision, trainable artifact, weight format, exact architecture, context length, or license for the 8B candidate."
+}

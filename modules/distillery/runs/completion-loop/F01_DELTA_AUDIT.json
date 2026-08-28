@@ -1,0 +1,33 @@
+{
+    "schema_version":  "1.0",
+    "record_id":  "F01_DELTA_AUDIT",
+    "recorded_at":  "2026-08-23T06:32:55.0450169Z",
+    "evidence_class":  "MEASURED",
+    "review_range":  {
+                         "merge_commit":  "550bc0cbb4b91566684dd6ccdd14abe3609e0874",
+                         "merge_content_delta":  "EMPTY_PURE_MERGE",
+                         "tip":  "5ff6f56ea4448cbdf7384cbcba0f64073934ca05",
+                         "base":  "44f69077f0d674bd7bef5730c2fe41a685e64b03"
+                     },
+    "adversarial_questions":  {
+                                  "late_mtd_declaration_passes":  false,
+                                  "malformed_timestamp_passes":  false,
+                                  "rollback_failure_looks_like_success":  false,
+                                  "imported_telemetry_masquerades_as_live":  false,
+                                  "unknown_source_can_train":  false,
+                                  "serving_gguf_satisfies_student_contract":  "REGISTRY_DECLARED_ONLY_EXECUTABLE_CHECK_DEFERRED_TO_F13_F14",
+                                  "unverified_trainer_looks_measured":  false,
+                                  "stale_hg3_record_can_override":  "YES_NO_MACHINE_READABLE_SUPERSESSION_SEE_FND-001",
+                                  "fixture_can_claim_real_evidence":  false
+                              },
+    "verification_details":  {
+                                 "mtd_predeclaration":  "_assert_predeclared requires margins_declared_at \u003c eval_started_at strictly (gate/paired.py)",
+                                 "timestamps":  "_utc_timestamp rejects non-string/empty/unparseable/tz-naive/non-UTC-offset",
+                                 "promotion_router":  "ROLLBACK_FAILED and PROMOTION_WRITE_FAILED are distinct terminal states; read-back verification after os.replace; human PROMOTE authority mandatory; HG-7 bundle-hash binding enforced",
+                                 "label_origins":  "live_operator_mark vs import_time_classification separated; G0-A/G0-B require live marks else LIMITED_PENDING_LIVE_OPERATOR_MARKS",
+                                 "unknown_source":  "assert_admitted rejects UNKNOWN/REJECTED; TraceStore.admit_for_corpus/admit_as_seed record rejections; seal_shard validates admission snapshot match",
+                                 "trainer_registry":  "measured vs historical_expected separated; GND-TRAINER-GFX906 RETIRED_AS_UNVERIFIED_PLANNING_TARGET; GND-DEV-EXEC-01 canonical_fp16_hg3_capable=false; GND-TRAINER-PRIMARY UNASSIGNED",
+                                 "fixture_isolation":  "run_g0_probes uses fixture=True and synthetic_fixture origins; alerts carry fixture flag; manifest rows include fixture flag"
+                             },
+    "conclusion":  "NO CRITICAL FINDINGS; ONE HIGH FINDING (FND-001) ROUTED TO F-05; MEDIUM FINDINGS ROUTED TO DESIGNATED F-ITEMS"
+}

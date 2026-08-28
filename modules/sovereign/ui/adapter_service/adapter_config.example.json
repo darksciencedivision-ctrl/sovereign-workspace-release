@@ -1,0 +1,6 @@
+{
+  "schema_version": 2,
+  "retired": true,
+  "canonical_entrypoint": "python -m sovereign_product.server",
+  "note": "There is no adapter-local configuration. Use Start-Sovereign.ps1 -Root, -Port, and -Workers."
+}

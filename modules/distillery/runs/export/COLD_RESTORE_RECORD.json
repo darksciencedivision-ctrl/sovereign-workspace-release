@@ -1,0 +1,19 @@
+{
+  "bundle_path": "D:\\Sovereign-Grounded-Distillery\\runs\\export\\SOVEREIGN_DISTILLERY_fa89a2b9.bundle",
+  "bundle_sha256": "e642a569c46e47891e395d2398383b0472af8e6f3731bfd45d557d712775472a",
+  "files_compared": 182,
+  "finished_at_utc": "2026-08-23T21:47:15.622317Z",
+  "kind": "COLD_RESTORE_RECORD",
+  "mismatches": [],
+  "restored_head": "fa89a2b94ca6946714f44e3853771907caed6503",
+  "source_commit": "fa89a2b94ca6946714f44e3853771907caed6503",
+  "started_at_utc": "2026-08-23T21:47:07.378387Z",
+  "suite": {
+    "command": "C:\\Python314\\python.exe -m pytest -q -p no:cacheprovider",
+    "exit_code": 0,
+    "result": "202 passed, 378 subtests passed in 6.14s"
+  },
+  "temp_clone_cleaned_up": true,
+  "tool": "tools/verify_cold_restore.py",
+  "verdict": "PASS"
+}

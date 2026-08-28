@@ -1,0 +1,23 @@
+{
+  "probe": "phase6-light@1.0",
+  "generated": "2026-07-18T03:51:18.469843+00:00",
+  "host_models_count": 43,
+  "opencode_detected": true,
+  "results": [
+    {
+      "capability": "reasoning",
+      "model": "qwen2.5:14b-instruct",
+      "latency_s": 4.66,
+      "output_chars": 247,
+      "output_head": "Idempotence in distributed systems is the property of an operation or procedure that can be applied multiple times witho"
+    },
+    {
+      "capability": "coding",
+      "model": "qwen2.5-coder:7b",
+      "latency_s": 14.91,
+      "output_chars": 47,
+      "output_head": "```python\ndef is_even(n): return n % 2 == 0\n```"
+    }
+  ],
+  "note": "light roster probe; full Track E/R10 benchmark deferred (GPU-heavy, out of loop budget)"
+}

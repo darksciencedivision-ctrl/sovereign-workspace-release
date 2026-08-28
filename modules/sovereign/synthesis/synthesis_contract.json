@@ -1,0 +1,51 @@
+﻿{
+  "schema_version": "1.0",
+  "canonical_output": {
+    "filename": "praxis_answer.json",
+    "required_fields": [
+      "session_id",
+      "topic",
+      "claim",
+      "evidence",
+      "counterarguments",
+      "uncertainties",
+      "final_synthesis",
+      "canonical",
+      "memory_allowed"
+    ],
+    "memory_allowed": true,
+    "control_plane_allowed": true
+  },
+  "non_canonical_output": {
+    "filename": "sovereign_voice.md",
+    "required_markers": [
+      "NON_CANONICAL_CHANNEL: sovereign_voice",
+      "PRAXIS_MEMORY_ALLOWED: false",
+      "CONTROL_PLANE_ALLOWED: false"
+    ],
+    "memory_allowed": false,
+    "control_plane_allowed": false
+  },
+  "report_output": {
+    "filename": "praxis_report.md",
+    "required_markers": [
+      "REPORT_CHANNEL: praxis_report",
+      "PRAXIS_MEMORY_ALLOWED: false"
+    ],
+    "memory_allowed": false,
+    "control_plane_allowed": false
+  },
+  "canonical_sections": [
+    "CLAIM",
+    "EVIDENCE",
+    "COUNTERARGUMENTS",
+    "UNCERTAINTIES",
+    "FINAL_SYNTHESIS"
+  ],
+  "debate_sections": [
+    "CLAIM",
+    "CHALLENGE",
+    "EVIDENCE",
+    "UNCERTAINTY"
+  ]
+}

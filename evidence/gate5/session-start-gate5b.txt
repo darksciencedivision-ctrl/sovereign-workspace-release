@@ -1,0 +1,69 @@
+﻿# utc: 2026-08-22T19:24:02.3687758Z
+# producer: ox-alpha GATE5B
+# session-start precondition capture per docs/OX-ALPHA-DIRECTIVE-GATE5.md section 1;
+# visual re-run only per docs/REMEDIATION-02.md section 4 step 5.
+# Prior evidence/gate5/session-start.txt (2026-08-22T00:18Z STOP entry) left byte-identical;
+# this new artifact records the present session without superseding it.
+
+PSVersionTable.PSVersion : 5.1.26100.9168
+UTC at capture           : 2026-08-22T19:24:02.3687758Z
+docs/DECISIONS.md sha256 : bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a
+py -3.12 --version       : Python 3.12.10
+
+Get-NetTCPConnection -State Listen -LocalPort 5175,8700,5180:
+(none listening)
+
+Get-Process python,electron,node:
+
+   Id ProcessName Path                                                                                
+   -- ----------- ----                                                                                
+ 3772 node        D:\Program Files\nodejs\node.exe                                                    
+40212 node        D:\Program Files\nodejs\node.exe                                                    
+ 2352 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+ 8464 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+ 8924 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+11656 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+15124 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+17036 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+19152 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+21768 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+21920 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+28600 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+31492 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+32736 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+35592 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+35956 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+36252 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+37660 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+40280 python      C:\Users\Sslaw\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe            
+42944 python      C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\python.exe
+
+module-tree process check (Path like *Production Workspace\modules*): (none)
+
+quiescence_ports_free     : True
+quiescence_no_module_proc : True
+decisions_hash_matches    : True
+VERDICT: HOST_QUIESCENT
+
+# ADDENDUM utc: 2026-08-22T20:52:09.5708620Z (superseding note appended on operator instruction after a stalled,
+# operator-interrupted stretch of this session; nothing above is altered)
+# The session resumed without restarting any helper. Verification at 2026-08-22T20:52:09.5708620Z :
+#   Get-Process 39432 fswatch-driver : alive (py)
+#   Get-Process 39840 poller-driver  : alive (py)
+#   Get-Process 11684 shell-driver   : alive (py)
+#   Get-Process 19332 shell (py launcher): alive; python child pid 34676 owns the listener
+#   Get-NetTCPConnection -State Listen -LocalPort 5180 : 127.0.0.1:5180 only (OwningProcess 34676)
+#   module-tree process scan (*Production Workspace\modules*): none
+# H-12 watcher window opened 2026-08-22T19:33:13Z (fswatch-driver-gate5b.log) and was never
+# stopped; it stays unbroken across the interruption.
+
+# ADDENDUM utc: 2026-08-22T21:15:09.0626733Z (second superseding note, appended on operator instruction after the
+# second operator interruption; nothing above is altered)
+#   Get-Process 39432 fswatch-driver : alive (py)
+#   Get-Process 39840 poller-driver  : alive (py)
+#   Get-Process 11684 shell-driver   : alive (py)
+#   Get-Process 19332 shell (py launcher): alive; python child pid 34676 owns 127.0.0.1:5180
+#   Get-NetTCPConnection -State Listen -LocalPort 5180 : 127.0.0.1 only (OwningProcess 34676)
+#   sovereign was found READY (kept) from the pre-stall startup-test run and was stopped through
+#   the shell's own POST /api/stop at 2026-08-22T21:15:09.0626733Z ; all modules now STOPPED / NOT_STARTED, port 5175 free.
+#   No helper was restarted. H-12 watcher window (opened 2026-08-22T19:33:13Z) remains unbroken.

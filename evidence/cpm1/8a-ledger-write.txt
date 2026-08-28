@@ -1,0 +1,4 @@
+﻿# utc: 2026-08-25T18:16:24.2977556Z
+# producer: ox-alpha CP-M1 Band 1 / G12
+method: textual insertion via evidence/cpm1/tools/insert_gate_8a.py; untouched region (gates 0-7b) hash-proven equal to session-start known-good 176429fc4012ce57c1a19558e7aaed55e7f37ca268be0fdd067996fe79b8fc77 immediately before write; result parses as JSON; 8a CANDIDATE claimed_by builder evaluated_by null with 33 hash-verified evidence entries. Two earlier faulty insertion attempts aborted WITHOUT write (guards threw) and the pristine ledger was restored byte-identically between attempts.
+ledger sha256 after successful write: 820138ad93aade1f409ca61df85f89cbd2a8f8cdae4ffb03d3964e640ff30c4b

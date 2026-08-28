@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "directive": "HARDWARE REALITY REBASELINE PRE-HG-3",
+  "repository_head_before": "45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7",
+  "origin_main_observed": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+  "branch": "remediation/hardware-rebaseline-pre-hg3",
+  "history_rewritten": false,
+  "candidate_states": {
+    "GND-STUDENT-4B": "PINNED_FOR_HG3",
+    "GND-STUDENT-8B": "PINNED_FOR_HG3"
+  },
+  "machine_states": {
+    "GND-TRAINER-GFX906": {
+      "status": "TARGET_NOT_FOUND",
+      "disposition": "RETIRED_AS_UNVERIFIED_PLANNING_TARGET"
+    },
+    "GND-DEV-EXEC-01": "ACCESS_VERIFIED_LOCAL",
+    "GND-TRAINER-PRIMARY": "UNASSIGNED"
+  },
+  "hard_gates": {
+    "HG-0": "PASS",
+    "HG-1": "ENFORCEMENT_PASS_D9_PENDING",
+    "HG-2": "PASS_SYNTHETIC",
+    "HG-3": "BLOCKED_HARDWARE_CAPACITY",
+    "HG-4": "NOT_EXECUTED",
+    "HG-5_through_HG-8": "NOT_REACHED",
+    "G2_through_G6": "NOT_STARTED"
+  },
+  "D9": "4_OF_4_UNKNOWN_FAIL_CLOSED",
+  "model_downloads": 0,
+  "model_loads": 0,
+  "hg3_compute_steps": 0,
+  "push_performed": false,
+  "pr_opened": false,
+  "repository_validation": "PASS",
+  "validated_at": "2026-08-21T01:03:24Z",
+  "validation_summary": {
+    "windows_python_3_14_tests": "43_OF_43_PASS",
+    "windows_python_3_11_tests": "43_OF_43_PASS",
+    "ubuntu_wsl_python_tests": "43_OF_43_PASS",
+    "compilation": "PASS_WINDOWS_3_14_WINDOWS_3_11_UBUNTU_WSL",
+    "json_parse": "PASS",
+    "json_schema": "PASS_3_SCHEMAS_AND_LIVE_G0_MANIFEST",
+    "markdown_links": "PASS",
+    "package_build": "PASS_SDIST_AND_WHEEL",
+    "git_diff_check": "PASS",
+    "history_reachability": "PASS",
+    "rc3_bundle": "PASS_COMPLETE_HISTORY_HEAD_A332E688",
+    "secret_private_runtime_scan": "PASS",
+    "weight_model_cache_scan": "PASS",
+    "oversized_artifact_scan": "PASS",
+    "repository_wide_license_change": "NONE",
+    "frozen_v1_1_change": "NONE",
+    "g2_through_g6_artifacts_added": "NONE"
+  },
+  "artifact_sha256": {
+    "registry/grounded/trainer.json": "814515d8a19b6127ed81c726190ba3c08d353a681de97446ae02b623ff023c76",
+    "docs/decisions/D-HW-01-grounded-primary-trainer-reality-rebaseline.md": "a62cddce3d0941d825761c42a6c250f11425bf27243322780a381ef1e48aa88b",
+    "docs/THESIS-v1.2.md": "8962f2eb06cb0beb3b43b7b0600fae7015ca166b357a4e77b0dd00248cd3ae08",
+    "runs/HG-3/hardware-rebaseline/graph.txt": "79ef29ba472db170ffb1273642bbc54e3a2c274c0e7b591d91215764bc7ebe93",
+    "docs/integration/rc3/grounded-rc3-a332e688.bundle": "1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1"
+  },
+  "exact_next_event": "Designate a physical machine satisfying the GND-TRAINER-PRIMARY capability contract, then register it, measure VRAM, select and pin its backend stack, run the read-only environment probe, establish the card lock, and obtain separate HG-3 compute authorization."
+}

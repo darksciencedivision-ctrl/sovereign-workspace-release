@@ -1,0 +1,5 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G90 grep-proof: residency_planner.py contains none of CreateProcess, TerminateJobObject,
+taskkill, subprocess.Popen, os.kill. Planner actuates only via backend contract.

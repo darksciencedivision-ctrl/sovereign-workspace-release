@@ -1,0 +1,408 @@
+{
+  "schema": "phase18d_registration_selfcheck@1.0",
+  "check": "phase-18d.close",
+  "authorization": "OP-12.1 (operator, 2026-08-01); AUTONOMOUS_BUILD_DIRECTIVE.md §17.1",
+  "source": {
+    "commit": "cdcd45c76957a56cd60eb013f2887bdf97fb1334",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-01T22:55:34.654Z",
+  "ok": true,
+  "supervision_ready": true,
+  "picker_sourced": true,
+  "world": {
+    "fail_closed": true,
+    "op12_authorized": [],
+    "authorized_providers": [
+      "claude_code",
+      "openai_codex_cli"
+    ],
+    "register_row": "OP-6",
+    "reason": "the operator's switch cites OP-6 and authorizes claude_code, openai_codex_cli — both OP-12 providers are DENIED (skip-with-record, directive §17)"
+  },
+  "registration_report": {
+    "schema": "provider_node_registration@1.0",
+    "generated_at": "2026-08-01T22:55:38Z",
+    "authorization": "OP-12.1 (operator, 2026-08-01; AUTONOMOUS_BUILD_DIRECTIVE.md §17.1)",
+    "substitution": "FOUR inputs are injected and they are all named here, because the first version of this sentence said 'exactly one' and that concealed which gates the report answered for itself (spec-audit MAJOR-1): (1) the live-operation switch, a FIXTURE config in a scratch directory read by the REAL loader through the same code-pinned scope check - this is the substitution directive s17/s6 permit, because the operator's own file cites OP-6 and DENIES both OP-12 providers; (2) CLI presence and the executable, a scratch path that is never spawned; (3) a scratch lease ledger, so the operator's durable one is never written - the allowance still comes from the code-pinned map, 1 per OP-12 subscription, and this report asserts it; (4) the holder pid, this process. NOT injected: the deployment profile is the HOST's (so an air-gapped host refuses at gate 1 exactly as the product path would - invariant 20), and the operator's R8 s6 terms determination is the recorded one at directive s17, cited at the call site. Everything else is the product path: the real governed session and the rest of its gate chain, the real NodeRegistry, the real append-only hash-chained log, the real schema files and the real jsonschema validator. NO CLI IS EXECUTED, no live model call is made, and no credential is read.",
+    "injected": [
+      "live_operation_switch (fixture config, scratch dir)",
+      "cli_present + executable (never spawned)",
+      "terminal lease ledger (scratch)",
+      "holder_pid (this process)"
+    ],
+    "not_injected": [
+      "deployment profile (read from the host)",
+      "operator R8 s6 terms determination (recorded, directive s17)",
+      "the code-pinned live-authorization scope",
+      "the per-provider I-X3 allowance (1, code-pinned)"
+    ],
+    "deployment_profile": "cloud",
+    "cli_executed": false,
+    "live_model_call": false,
+    "vocabulary": {
+      "versions_consulted": [
+        "node@1.0",
+        "node@1.1"
+      ],
+      "admits": {
+        "grok_build": "node@1.1",
+        "google_antigravity": "node@1.1"
+      },
+      "unadmitted_example": {
+        "kimi_k3": null
+      },
+      "frozen_member_example": {
+        "claude_code": "node@1.0"
+      },
+      "size": 11
+    },
+    "real_switch": {
+      "readable": true,
+      "providers": [
+        "claude_code",
+        "openai_codex_cli"
+      ],
+      "op12_authorized": [],
+      "register_row": "OP-6",
+      "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\config\\live_operation.json",
+      "env_override": false,
+      "env_var": "SOVEREIGN_LIVE_OPERATION_CONFIG",
+      "denial_reason": {
+        "grok_build": "live operation not authorized for provider 'grok_build': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription) (register 'OP-6', scoped providers ['claude_code', 'openai_codex_cli']) — fail closed (directive §10.1/§11/§17; authorizing row OP-6)",
+        "google_antigravity": "live operation not authorized for provider 'google_antigravity': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription) (register 'OP-6', scoped providers ['claude_code', 'openai_codex_cli']) — fail closed (directive §10.1/§11/§17; authorizing row OP-6)"
+      },
+      "fail_closed_for_op12": true
+    },
+    "fixture_scope": {
+      "providers": [
+        "claude_code",
+        "openai_codex_cli",
+        "grok_build",
+        "google_antigravity"
+      ],
+      "terminals_per_subscription": 2
+    },
+    "registrations": {
+      "grok_build": {
+        "provider": "grok_build",
+        "registered": true,
+        "error": null,
+        "node_record": {
+          "node_key": "probe-grok_build-18d",
+          "incarnation": 1,
+          "adapter": "grok_build",
+          "adapter_schema_version": "node@1.1",
+          "validated_against": "node@1.1",
+          "node_id": "78c7a3ad-7e60-57ad-977e-2a6c3d23a2bf",
+          "schema": "node@1.1"
+        },
+        "node_key": "probe-grok_build-18d",
+        "subscription_ref": "grok_build_subscription",
+        "allowance": 1,
+        "lease_in_use_during": 1,
+        "node_state_during": "SPAWNING",
+        "record_document": {
+          "node_id": "78c7a3ad-7e60-57ad-977e-2a6c3d23a2bf",
+          "class": "worker_reasoning",
+          "adapter": "grok_build",
+          "harness": null,
+          "model_ref": null,
+          "locality": "frontier",
+          "subscription_ref": "grok_build_subscription",
+          "capabilities": [
+            {
+              "capability": "reasoning",
+              "requirements": {
+                "tool_use": true,
+                "structured_output": true,
+                "min_context": 128000,
+                "locality": "frontier_ok"
+              }
+            },
+            {
+              "capability": "synthesis",
+              "requirements": {
+                "structured_output": true,
+                "min_context": 128000
+              }
+            }
+          ],
+          "workspace": {
+            "type": "dir",
+            "path": "C:\\Users\\Sslaw\\AppData\\Local\\Temp\\sow-18d-registration-_3jwohma"
+          },
+          "permission_profile_id": "pp-probe-reasoning",
+          "auth": {
+            "mcp_credential_id": "mcp-ref"
+          },
+          "state": "SPAWNING",
+          "offline_profile_eligible": false,
+          "spawned_by_supervisor": true,
+          "schema": "node@1.1"
+        },
+        "teardown": {
+          "lease_released": true,
+          "governor_released": true,
+          "in_use_after": 0,
+          "process_tree_clean": null,
+          "node_exit_recorded": true,
+          "node_exit_error": null,
+          "node_exit_expected": true,
+          "measured": true
+        },
+        "lease_in_use_after": 0,
+        "node_state_after": "TERMINATED",
+        "node_exit_row": {
+          "exit_code": null,
+          "expected": true
+        },
+        "log": {
+          "path_is_scratch": true,
+          "chain_ok": true,
+          "rows": 3,
+          "kinds": [
+            "spawn",
+            "transition",
+            "exit"
+          ],
+          "lock_released": true,
+          "adapter_schema_version": "node@1.1"
+        }
+      },
+      "google_antigravity": {
+        "provider": "google_antigravity",
+        "registered": true,
+        "error": null,
+        "node_record": {
+          "node_key": "probe-google_antigravity-18d",
+          "incarnation": 1,
+          "adapter": "google_antigravity",
+          "adapter_schema_version": "node@1.1",
+          "validated_against": "node@1.1",
+          "node_id": "6c67114a-2ecd-5a8f-be01-c0db56bb4ee6",
+          "schema": "node@1.1"
+        },
+        "node_key": "probe-google_antigravity-18d",
+        "subscription_ref": "google_antigravity_subscription",
+        "allowance": 1,
+        "lease_in_use_during": 1,
+        "node_state_during": "SPAWNING",
+        "record_document": {
+          "node_id": "6c67114a-2ecd-5a8f-be01-c0db56bb4ee6",
+          "class": "worker_reasoning",
+          "adapter": "google_antigravity",
+          "harness": null,
+          "model_ref": null,
+          "locality": "frontier",
+          "subscription_ref": "google_antigravity_subscription",
+          "capabilities": [
+            {
+              "capability": "reasoning",
+              "requirements": {
+                "tool_use": true,
+                "structured_output": true,
+                "min_context": 128000,
+                "locality": "frontier_ok"
+              }
+            },
+            {
+              "capability": "synthesis",
+              "requirements": {
+                "structured_output": true,
+                "min_context": 128000
+              }
+            }
+          ],
+          "workspace": {
+            "type": "dir",
+            "path": "C:\\Users\\Sslaw\\AppData\\Local\\Temp\\sow-18d-registration-_3jwohma"
+          },
+          "permission_profile_id": "pp-probe-reasoning",
+          "auth": {
+            "mcp_credential_id": "mcp-ref"
+          },
+          "state": "SPAWNING",
+          "offline_profile_eligible": false,
+          "spawned_by_supervisor": true,
+          "schema": "node@1.1"
+        },
+        "teardown": {
+          "lease_released": true,
+          "governor_released": true,
+          "in_use_after": 0,
+          "process_tree_clean": null,
+          "node_exit_recorded": true,
+          "node_exit_error": null,
+          "node_exit_expected": true,
+          "measured": true
+        },
+        "lease_in_use_after": 0,
+        "node_state_after": "TERMINATED",
+        "node_exit_row": {
+          "exit_code": null,
+          "expected": true
+        },
+        "log": {
+          "path_is_scratch": true,
+          "chain_ok": true,
+          "rows": 3,
+          "kinds": [
+            "spawn",
+            "transition",
+            "exit"
+          ],
+          "lock_released": true,
+          "adapter_schema_version": "node@1.1"
+        }
+      }
+    },
+    "refusals": {
+      "unadmitted_adapter": {
+        "refused": true,
+        "reason": "node n-unadmitted: adapter 'kimi_k3' is not an enum member of any node schema version (node@1.0, node@1.1) and is not a recorded exemption [] — refuse to append a node record the canonical vocabulary does not admit (U227, invariant 12: the event log cannot be un-written). Admitting a new provider is an operator decision (OP-12.1 admitted grok_build/google_antigravity by successor schema).",
+        "id": "kimi_k3"
+      },
+      "unsupervised_session": {
+        "refused": true,
+        "gate": "node_registration_unsupervised",
+        "reason": "session for 'grok_build' does not claim supervision — a node record asserts the process was spawned by the Node Runtime supervisor (I-C1, invariant 2), and this registrar reads that claim rather than making it"
+      },
+      "not_spawned_by_supervisor": {
+        "refused": true,
+        "reason": "node n-naked: not spawned by supervisor (I-C1)"
+      },
+      "concurrent_log_holder": {
+        "refused": true,
+        "gate": "node_log_locked",
+        "reason": "another process holds the node event log C:\\Users\\Sslaw\\AppData\\Local\\Temp\\sow-18d-registration-_3jwohma\\nodes\\refusals.jsonl — refuse to interleave appends on a hash-chained log (fail closed; the holder is 108240)"
+      },
+      "refusals_are_auditable": true,
+      "refusal_rows": 2,
+      "lock_released": true
+    },
+    "durable_store": {
+      "before": {
+        "node_event_log": {
+          "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+          "exists": false,
+          "sha256": null
+        },
+        "terminal_lease_ledger": {
+          "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\terminal_leases.json",
+          "exists": true,
+          "sha256": "cba9c6c8404ca23d90ed735084c68efadb41731df7569b5280a60cb870a28295"
+        }
+      },
+      "after": {
+        "node_event_log": {
+          "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+          "exists": false,
+          "sha256": null
+        },
+        "terminal_lease_ledger": {
+          "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\terminal_leases.json",
+          "exists": true,
+          "sha256": "cba9c6c8404ca23d90ed735084c68efadb41731df7569b5280a60cb870a28295"
+        }
+      },
+      "unchanged": true
+    },
+    "ok": true
+  },
+  "registration_wired": {
+    "ok": true,
+    "reasons": []
+  },
+  "live_world_unchanged": {
+    "ok": true,
+    "reasons": []
+  },
+  "sessions_before": 0,
+  "sessions_after": 0,
+  "lease_status": {
+    "grok_build_subscription": 0,
+    "google_antigravity_subscription": 0
+  },
+  "lease_zero": {
+    "ok": true,
+    "reasons": []
+  },
+  "real_ledger_unchanged": true,
+  "statusbar_painted_text": "subscriptionsclaude0/2codex0/2grok0/1agy0/1",
+  "options_offered": {
+    "grok_build": {
+      "count": 1,
+      "available_count": 0,
+      "group_reason": "live operation not authorized for 'grok_build': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+    },
+    "google_antigravity": {
+      "count": 11,
+      "available_count": 0,
+      "group_reason": "live operation not authorized for 'google_antigravity': live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+    }
+  },
+  "credential_scan": {
+    "ok": true,
+    "reasons": [],
+    "sinks_checked": [
+      "C:\\Users\\Sslaw\\AppData\\Roaming\\sovereign-desktop\\logs\\main-process.log",
+      "PHASE18D_REGISTRATION_SELFCHECK.json (this receipt, pre-write)"
+    ],
+    "sentinels_checked": 5
+  },
+  "credential_scan_log_file": "C:\\Users\\Sslaw\\AppData\\Roaming\\sovereign-desktop\\logs\\main-process.log",
+  "credential_sentinel_names": [
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTIGRAVITY_API_KEY"
+  ],
+  "owed": {
+    "live_provider_probe": "§17's ONE harmless live probe per provider (GROK_PROVIDER_OK / GEMINI_PROVIDER_OK) has still NEVER executed. The supervised path exists (U234) and now registers a node record (18D `.close`), but the operator's live switch cites OP-6, so the probe is refused before any CLI runs",
+    "live_in_electron_receipt": "§17's per-provider LIVE in-Electron receipt (picker → supervised pane → verified provider+model → harmless prompt → live response → teardown) is OWED — no pane has ever been opened for either provider (entry condition unmet ⇒ skip-with-record)",
+    "durable_node_record_for_a_live_session": "U227 is RESOLVED and the wiring is proven here, but every record measured by this receipt was written on a SCRATCH log under a FIXTURE live-operation switch. No record exists on the operator's own durable node log (.sovereign_store/nodes/), because no live session has ever existed to write one — that lands with the live probe, not before it",
+    "antigravity_auth_state": "recorded at 18A: `agy` exposes no offline auth surface, so whether the operator is signed in is UNVERIFIABLE here and only a live call can answer it (U233)",
+    "grok_auth_state": "`grok models` answers with the CLI's own listing on this host, which is as far as an offline surface can go — evidence of a usable session, NOT of a live reply, which stays owed with the probe (18A recon; U233's sibling)",
+    "operator_live_switch": "the entry condition itself: extending config/live_operation.json to name both providers is the operator's own edit to a never-committed file, and the code-pinned scope half shipped at 18B `.scope` (U237). This build cannot write it — the switch is the operator's (invariant 1)"
+  },
+  "owed_named": {
+    "ok": true,
+    "reasons": [],
+    "keys": [
+      "live_provider_probe",
+      "live_in_electron_receipt",
+      "durable_node_record_for_a_live_session",
+      "antigravity_auth_state",
+      "grok_auth_state",
+      "operator_live_switch"
+    ]
+  },
+  "owed_agrees": {
+    "ok": true,
+    "reasons": []
+  },
+  "error": null,
+  "finished": "2026-08-01T22:55:38.793Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "scope_note": "this receipt establishes that the OP-12.1 amendment is WIRED: both providers register as Sovereign nodes through the real governed path, under node@1.1, on a verified append-only log, with the record closed when the session ends and the fence still refusing an id no schema version admits. It does NOT establish a live leg. The one substitution is named in the producer document and repeated here: leg 2 reads the live-operation switch from a FIXTURE config in a scratch directory, because the operator's own file cites OP-6 and denies both providers, and opening it is theirs alone (invariant 1). No CLI was executed, no live model call was made, no pane was opened, no operator terminal was leased, and no record was written to the operator's durable node log — see OWED.durable_node_record_for_a_live_session. The verdict module refuses to let this receipt be recorded as evidence if the operator has opened the switch: the run throws and the receipt is written with ok:false and the reason.",
+  "scope_note_disclosed_cost": "the picker read enumerates both OP-12 CLIs — one `grok --version`/`grok models` pair and one `agy` pair, token-free metadata that leaves this host (D-P18-7/U271). No prompt, no completion, no model call, no credential read. The registration report itself performs NO host calls of any kind."
+}

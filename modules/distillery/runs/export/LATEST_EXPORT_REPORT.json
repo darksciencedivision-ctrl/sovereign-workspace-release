@@ -1,0 +1,180 @@
+{
+  "branch": "remediation/release-baseline-v1",
+  "created_at_utc": "20260823T231928Z",
+  "deployment_performed": false,
+  "enterprise": {
+    "bundle": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_20260823T231928Z_db83a94c.bundle",
+    "bundle_sha256": "99a6be010b250724bac9126ae0a8ceff30ffa51f52cb6cc703ef59392e55c088",
+    "bundle_verify_exit_code": 0,
+    "disposition": "PASS_WITH_LIMITATIONS",
+    "gate_state": {
+      "d9_state": "4_OF_4_UNKNOWN_FAIL_CLOSED",
+      "deployment_state": "NO_PRODUCTION_DEPLOYMENT",
+      "g2_g6_state": "NOT_EXECUTED",
+      "hg0_state": "PASS",
+      "hg1_state": "ENFORCEMENT_PASS_D9_PENDING",
+      "hg2_state": "PASS_SYNTHETIC",
+      "hg3_state": "BLOCKED_HARDWARE_CAPACITY",
+      "private_runtime_payloads_present": false,
+      "promotion_state": "NO_MODEL_PROMOTED",
+      "trainer_primary_state": "UNASSIGNED",
+      "weights_present": false
+    },
+    "limitations": [
+      "Pattern-based secret scanning is not an absolute guarantee.",
+      "The in-archive manifest cannot contain the ZIP's self-referential checksum; the adjacent unpacked manifest carries it."
+    ],
+    "manifest": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260823T231928Z_db83a94c\\MANIFEST.json",
+    "root": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260823T231928Z_db83a94c",
+    "source_files": 191,
+    "total_zip_entries": 222,
+    "validation": {
+      "compilation": {
+        "compile_ubuntu_wsl_python": {
+          "exit_code": 0,
+          "passed": true
+        },
+        "compile_windows_python_3_11": {
+          "exit_code": 0,
+          "passed": true
+        },
+        "compile_windows_python_3_14": {
+          "exit_code": 0,
+          "passed": true
+        }
+      },
+      "failed_stages": [],
+      "hygiene": {
+        "conflict_markers": {
+          "findings": [],
+          "passed": true
+        },
+        "git_diff_check": {
+          "exit_code": 0,
+          "passed": true
+        },
+        "passed": true,
+        "private_runtime_payloads_present": false,
+        "rc3_bundle": {
+          "exit_code": 0,
+          "passed": true,
+          "sha256": "1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1"
+        },
+        "repository_worktree_clean_after_validation": true,
+        "weights_present": false
+      },
+      "json_parse": {
+        "errors": [],
+        "json_files": 59,
+        "jsonl_files": 1,
+        "passed": true
+      },
+      "json_schema": {
+        "detail": "schemas_well_formed=5\nwell_formed_errors=[]\nlive G0 manifest validates",
+        "exit_code": 0,
+        "passed": true
+      },
+      "markdown_links": {
+        "exit_code": 0,
+        "findings": [],
+        "passed": true
+      },
+      "overall_passed": true,
+      "package_build": {
+        "artifacts": [
+          "sovereign_grounded_distillery-1.1.0rc3-py3-none-any.whl",
+          "sovereign_grounded_distillery-1.1.0rc3.tar.gz"
+        ],
+        "exit_code": 0,
+        "passed": true
+      },
+      "roundtrip": {
+        "entry_count": 77,
+        "parity_basis": "git blob content at HEAD (autocrlf-safe)",
+        "passed": true,
+        "source_hash_mismatches": []
+      },
+      "security": {
+        "hard_secret_findings": [],
+        "known_private_runtime_payloads": [],
+        "model_weight_files": [],
+        "oversized_files": [],
+        "passed": true,
+        "scope_note": "Pattern-based scan; no scanner can guarantee absence of every possible secret.",
+        "suppressed_declared_fixtures": [
+          {
+            "path": "runs/release-baseline/SD_RBR_FINAL_REPORT.json",
+            "pattern": "sk-[A-Za-z0-9]{20,}",
+            "value": "sk-synthetic000000000000000000"
+          },
+          {
+            "path": "tests/test_corpus_admission.py",
+            "pattern": "sk-[A-Za-z0-9]{20,}",
+            "value": "sk-synthetic000000000000000000"
+          },
+          {
+            "path": "tests/test_end_to_end_dry_run.py",
+            "pattern": "sk-[A-Za-z0-9]{20,}",
+            "value": "sk-synthetic000000000000000000"
+          },
+          {
+            "path": "tests/test_secret_detector_net.py",
+            "pattern": "sk-[A-Za-z0-9]{20,}",
+            "value": "sk-synthetic000000000000000000"
+          },
+          {
+            "path": "tools/export_enterprise.py",
+            "pattern": "sk-[A-Za-z0-9]{20,}",
+            "value": "sk-synthetic000000000000000000"
+          }
+        ],
+        "unexpected_binary_files": []
+      },
+      "status": "PASS",
+      "tests": {
+        "test_ubuntu_wsl_python": {
+          "exit_code": 0,
+          "passed": true,
+          "reported_tests": 220
+        },
+        "test_windows_python_3_11": {
+          "exit_code": 0,
+          "passed": true,
+          "reported_tests": 220
+        },
+        "test_windows_python_3_14": {
+          "exit_code": 0,
+          "passed": true,
+          "reported_tests": 220
+        }
+      }
+    },
+    "zip": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260823T231928Z_db83a94c.zip",
+    "zip_sha256": "3589373946b861e1c08b996115d3d917fa92c64dcbbb73cb1f05e419f6c117c5",
+    "zip_sha256_sidecar": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260823T231928Z_db83a94c.zip.sha256"
+  },
+  "evidence_generation_base": "db83a94cbcd665cecd9c59134800fc084d86c5ca",
+  "git_head": "db83a94cbcd665cecd9c59134800fc084d86c5ca",
+  "identity_note": "Artifacts certify the immutable implementation_seal_commit source state; bytes were generated from the evidence_generation_base tree.",
+  "implementation_seal_commit": "cb26214128d61c0d52e3d00d9067bc90ebc4cb47",
+  "model_compute_performed": false,
+  "overall": "PASS_WITH_LIMITATIONS",
+  "promotion_performed": false,
+  "raw_source": {
+    "ambiguous": 0,
+    "disposition": "PASS",
+    "excluded_counts": {
+      "EXCLUDED_EXCLUDED_GROUNDED_ONLY_OR_NONESSENTIAL_CONFIGURATION": 58,
+      "EXCLUDED_EXCLUDED_NONESSENTIAL": 60
+    },
+    "root": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_RAW_SOURCE_20260823T231928Z_db83a94c",
+    "roundtrip": {
+      "entry_count": 77,
+      "passed": true,
+      "source_hash_mismatches": []
+    },
+    "source_files": 73,
+    "zip": "D:\\Sovereign-Enterprise-Snapshots\\SOVEREIGN_DISTILLERY_RAW_SOURCE_20260823T231928Z_db83a94c.zip",
+    "zip_sha256": "132477d5c2a5775a8a410b7fc103194535470e86af44b0cb6c62cbd21de99efd"
+  }
+}

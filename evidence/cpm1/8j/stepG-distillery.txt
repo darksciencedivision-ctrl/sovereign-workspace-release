@@ -1,0 +1,4 @@
+# utc: 2026-08-26T21:00:20.211268Z
+# producer: ox-alpha CP-M1 ADD-07 wave7
+
+G57 stepG: start observed GET /health compute=false; console served; stop pid gone port 5184 free. No training begun. FACT[evidence/cpm1/8h/distillery-start.txt] FACT[evidence/cpm1/8h/distillery-stop.txt]

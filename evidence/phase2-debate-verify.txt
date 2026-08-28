@@ -1,0 +1,72 @@
+# utc: 2026-08-21T04:47:00.6375252Z
+# producer: claude-code REM-01
+# step: REM-01 R2-3 -- Debate contamination removal and instance re-verification
+
+## 1. Removed folder
+
+Path removed: modules\debate\SOW_REVIEW_ROUND2_RAW\
+Command:      Remove-Item -Recurse -Force "modules\debate\SOW_REVIEW_ROUND2_RAW" -Confirm:$false
+Result:       Test-Path after removal -> False (REMOVED)
+
+Contents at time of removal (9 files, all top level):
+  5ed46f78c4aa5a4a8f150b10a9653ada7dcc02ecfff6d7fdbf63eea7c20aeccd  REPORT_adapters.md
+  05bea637381f32ba2d3decc9af0bd0496b1cce345c127044f4dea5ed3c676d8c  REPORT_control_plane.md
+  62f9f44d4958d1c84011c2d65f9f161e434ffaeb5afb183046f50698f69fe4a4  REPORT_desktop.md
+  c00cbba314ee634279a785b8c6463e85b85253fa234d1d877230ccb79d216732  REPORT_desktop2.md
+  8e885164e325a410396c8e1f2d711734f446d3e92aa5ef62b9344b25536561af  REPORT_evidence.md
+  2e0b1ef2def86d8d7e830547b8c68d210f0e4fd80af455e616c036a3e4b7477d  REPORT_mcp.md
+  30542f2815c9e9369c6c593b9a0b775bc35beeafa37b975b61df646ba6e687d7  REPORT_security.md
+  562ba202adbb74c6ddf5e071d7602a02107240f0adf7ffcbe27e2f8504b86997  REPORT_security2.md
+  340e65b4bdb49fc2a16616ccc60cd69644b045a0275e739e903cbff385fba9b9  REVIEWER_PREAMBLE.md
+
+## 2. Nothing unique was destroyed
+
+All 9 files are byte-identical (SHA-256 equal, listed above) to the copies at
+D:\Product Software\SOW_REVIEW_ROUND2_RAW\, which were read read-only and left untouched.
+The removal deleted a duplicate, not a sole copy.
+
+## 3. Origin of the folder
+
+ORIGIN: UNKNOWN.
+
+No log in this workspace records how it arrived. What was observed, without inference beyond it:
+  - The directory's own mtime was 2026-08-20 22:08 local, which coincides with the Phase 2
+    Debate install window recorded in evidence/phase2-install.txt.
+  - The 9 files inside retained mtime 2026-08-16 01:13-01:15, i.e. timestamps were preserved
+    by whatever copied them.
+  - The folder is listed in evidence/manifests/manifest-before-product-software.txt, so it
+    existed under D:\Product Software\ at Phase 0 baseline. Its presence INSIDE the Debate
+    runtime instance is the anomaly, not its existence.
+REM-01 R2-3 requires UNKNOWN unless a prior log proves otherwise. No such log exists, so no
+mechanism is asserted here.
+
+## 4. Module verifier output
+
+Command (run from modules\debate with PYTHONDONTWRITEBYTECODE=1):
+  .\.venv\Scripts\python.exe -c "import hashlib,json,pathlib,sys; r=pathlib.Path('.');
+  m=json.loads((r/'MANIFEST-SHA256.json').read_text(encoding='utf-8'));
+  bad=[e['path'] for e in m['files'] if not (r/e['path']).is_file() or
+  hashlib.sha256((r/e['path']).read_bytes()).hexdigest()!=e['sha256']];
+  print(len(m['files']),'checked',len(bad),'mismatches'); print(*bad,sep='\n'); sys.exit(bool(bad))"
+
+Output:
+  34 checked 0 mismatches
+
+Exit code: 0
+
+## 5. Files present in modules\debate but NOT in MANIFEST-SHA256.json
+
+  .venv                     2018 file(s)   -- workspace-owned virtualenv, expected (Option A)
+  INSTALL-PROVENANCE.json      1 file      -- written by the install phase, expected
+
+Total unmanifested: 2019 files, entirely accounted for by the two expected entries.
+No __pycache__ directories were present (PYTHONDONTWRITEBYTECODE=1 was set for every command
+this session that executed Python inside the module).
+
+R2-3 expected exactly {.venv, INSTALL-PROVENANCE.json, __pycache__}. Observed is a strict
+subset of that: the first two, and no __pycache__ at all.
+
+## 6. Disposition
+
+The Debate runtime instance now verifies clean against its own shipped manifest, and every
+file in the tree is either manifest-covered or one of the two expected install artifacts.

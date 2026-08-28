@@ -1,0 +1,165 @@
+# utc: 2026-08-21T05:20:33.2078230Z
+# producer: claude-code REM-01
+# proof: R3-11 - one real SOW startup test through the ADR-004 selfcheck path
+# command: py -3.12 -B <scratchpad>/sow_startup_test.py  (PYTHONIOENCODING=utf-8)
+
+=== ADR-004 encoding, as compiled ===
+identity.kind            : process_image
+identity.expected_image  : D:/Product Software/Production Workspace/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe
+readiness (normal start) : {"kind": "process_window", "timeout_s": 60, "poll_ms": 1000}
+readiness (startup test) : {"kind": "receipt_file", "path": "D:/Product Software/Production Workspace/modules/sow/docs/evidence/receipts/PHASE16A_SELFCHECK.json", "require": {"ok": true}, "timeout_s": 90, "poll_ms": 1000}
+startup_test.env_set     : {"SHELL_SELFCHECK": "1"}
+runtime_writes           : [
+  "D:/Product Software/Production Workspace/modules/sow/apps/desktop/.recovery",
+  "D:/Product Software/Production Workspace/modules/sow/docs/evidence/receipts"
+]
+
+=== Quota guard / autolaunch (HC-7, H-10) ===
+SOW_CONDUCTOR_AUTOLAUNCH : '0'
+SHELL_SELFCHECK          : '1'
+quota_guard (compiled)   : {"required": true, "autolaunch_value": "0"}
+AUTOLAUNCH DISABLED      : True
+env keys passed to child : ['APPDATA', 'LOCALAPPDATA', 'PATH', 'PYTHONDONTWRITEBYTECODE', 'SHELL_SELFCHECK', 'SOW_CONDUCTOR_AUTOLAUNCH', 'SYSTEMROOT', 'TEMP', 'TMP', 'USERPROFILE']
+
+=== Receipt BEFORE ===
+path   : D:\Product Software\Production Workspace\modules\sow\docs\evidence\receipts\PHASE16A_SELFCHECK.json
+exists : True
+sha256 : de07de5376d3fed78f702f1b9e5a4a5f5cd08edb52d96076153b7b073fa32c33
+mtime  : 2026-08-21T05:20:17Z
+
+=== Running startup test (this launches Electron via the selfcheck path) ===
+elapsed: 17.1s
+
+=== Startup-test record ===
+{
+  "module_id": "sow",
+  "adapter_hash": "6563d9682d191c3b824e76ce21e06619b7dac6d97365df69ec9f1aeccaddf808",
+  "compiled_argv": [
+    "D:/Product Software/Production Workspace/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe",
+    "."
+  ],
+  "env_keys": [
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "SHELL_SELFCHECK",
+    "SOW_CONDUCTOR_AUTOLAUNCH",
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE"
+  ],
+  "startup_test_env_set": [
+    "SHELL_SELFCHECK"
+  ],
+  "readiness_kind": "receipt_file",
+  "readiness_source": "startup_test",
+  "start": "2026-08-21T05:20:33.461945+00:00",
+  "keep": false,
+  "readiness": {
+    "outcome": "READY",
+    "latency_s": 17.019
+  },
+  "identity": {
+    "outcome": "PASS",
+    "latency_s": 0
+  },
+  "exit_code": null,
+  "undeclared_writes": [],
+  "quota_guard": {
+    "required": true,
+    "autolaunch_value": "0",
+    "verified_before_spawn": true
+  },
+  "end": "2026-08-21T05:20:50.533015+00:00",
+  "_record_path": "D:\\Product Software\\Production Workspace\\shell\\src\\..\\..\\evidence\\startup-tests\\sow-20260821T052050.534Z.json"
+}
+
+=== Captured module output (redacted, last 60 lines) ===
+    
+    
+    [shell] conductor: pane 1 GOVERNED-BORN via spawn_conductor_pane — node_state=awaiting_live_conductor, I-X3 released=true (D-LOOP-1)
+    
+    [shell] gateway spawned on 127.0.0.1:53871
+    
+    [shell] recovery: conductor-first layout reconstructed — CONDUCTOR pane 1 + 0 worker pane(s), 0 needing relaunch, admission SHUT (awaiting channel)
+    
+    [shell] supervision READY (verified control-plane channel)
+    
+    [shell] control: Sovereign MCP application gateway listening on 127.0.0.1:53873
+    
+    [shell] conductor: governed DISPATCH ran (mock-first) — 2 worker(s) by descriptor, 2 accepted, legs mock/mock, live workers OWED (U58); torn_down=true (D-LOOP-1)
+    
+    [shell] [selfcheck] spawned supervised pane pane-2
+    
+    [shell] [selfcheck] banner rendered into pane buffer
+    
+    [shell] [selfcheck] DOM-keystroke echo not seen (activeElement=xterm-helper-textarea)
+    
+    [shell] [selfcheck] xterm.onData echo seen
+    
+    [shell] [selfcheck] bridge-input echo seen
+    
+    [shell] [selfcheck] pane-io PASS → D:\Product Software\Production Workspace\modules\sow\docs\evidence\receipts\PHASE16A_SELFCHECK.json
+    
+    [shell] control: gateway stop closed in 1 ms (budget 5000 ms)
+    
+    [shell] [voice:probe] unavailable in 15641ms — Error: voice probe exited null
+    
+    [shell] voice: STT engine probe → unavailable (15641ms) — Error: voice probe exited null
+    
+    [shell] gateway process exited (null)
+    
+    [shell] [selfcheck] teardown complete: zero managed terminal sessions; gateway exited
+    
+    D:\Product Software\Production Workspace\modules\sow\apps\desktop\node_modules\node-pty\lib\conpty_console_list_agent.js:13
+    var consoleProcessList = getConsoleProcessList(shellPid);
+                             ^
+    
+    Error: AttachConsole failed
+        at Object.<anonymous> (D:\Product Software\Production Workspace\modules\sow\apps\desktop\node_modules\node-pty\lib\conpty_console_list_agent.js:13:26)
+        at Module._compile (node:internal/modules/cjs/loader:1484:14)
+        at Module._extensions..js (node:internal/modules/cjs/loader:1564:10)
+        at Module.load (node:internal/modules/cjs/loader:1295:32)
+        at Module._load (node:internal/modules/cjs/loader:1111:12)
+        at c._load (node:electron/js2c/node_init:2:16955)
+        at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:189:12)
+        at node:internal/main/run_main_module:28:49
+    
+    
+    Node.js v20.18.0
+    
+
+=== Receipt AFTER ===
+sha256 : 6be0cd9acba981168d5ab59b6c7b8d5b3456796a4386b943d4c677f04e940638
+mtime  : 2026-08-21T05:20:50Z
+rewritten by this run: True
+content: {
+  "check": "phase-16a.pane-io",
+  "started": "2026-08-21T05:20:36.119Z",
+  "ok": true,
+  "supervision_ready": true,
+  "pane_id": "pane-2",
+  "term_created": true,
+  "banner_seen": true,
+  "banner_excerpt": "SOVEREIGN_SELFCHECK_BANNER PS C:\\Users\\Sslaw>",
+  "echo_dom_seen": false,
+  "echo_xterm_seen": true,
+  "echo_bridge_seen": true,
+  "input_path": "xterm.onData+bridge",
+  "error": null,
+  "active_element": "xterm-helper-textarea",
+  "finished": "2026-08-21T05:20:50.380Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}
+
+
+OUTCOME readiness: READY
+OUTCOME identity : PASS

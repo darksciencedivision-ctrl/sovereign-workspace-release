@@ -1,0 +1,8 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G98 three axes stay separate (S-12)
+1. promotion_state on registry rows (CANDIDATE/RESEARCH/WITHDRAWN)
+2. node/process state (shell ModuleRunner / session EMPTY/CONFIGURING/...)
+3. VRAM residency (NOT_LOADED LOADING RESIDENT AWAITING_EVICTION QUEUED EVICTED)
+A test asserts promotion_state is not a residency word.

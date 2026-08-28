@@ -1,0 +1,19 @@
+[mcp_servers.sovereign]
+command = "py"
+args = ["-3.12", "-m", "mcp_server.sovereign_tools"]
+enabled = true
+startup_timeout_sec = 120
+tool_timeout_sec = 660
+
+[ui]
+screen_mode = "minimal"
+# `permission_mode` is deliberately NOT set here (Phase 19 unit 1, spec-audit MEDIUM-6). The
+# untagged post-18E range wrote `permission_mode = "default"` into this file while widening the
+# adapters to match. The pin lives in the argv the launch ticket authorizes — one place — and the
+# restored comment in adapters/frontier/grok_build.py names a config exactly like this one as the
+# threat it defends against. A repo-tracked config supplying the value the operator just reverted
+# is that threat wearing this build's own name.
+yolo = false
+
+[terminal]
+alt_screen = false

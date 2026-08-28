@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "directive": "HG-3 PRELOAD UNBLOCK — CANDIDATE PINNING + TRAINER ACCESS ONLY",
+  "repository_head_before": "5f33d2c8a1c43defd038c9dacfd363b4852af798",
+  "origin_main_observed": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+  "completed_at": "2026-08-20T23:56:08.9660394Z",
+  "registry_hashes": {
+    "registry/grounded/students.json": "ab6f8fc573406aa8941b87a35419df411295773f36bfa4e04feecd321c65e47f",
+    "registry/grounded/trainer.json": "52740b05fc3ad589f541c6d638efe55a61e15e3104910d909a3df2760d533411",
+    "runs/HG-3/preload-unblock/upstream-evidence.json": "bd7b6b41e11e3f8cde5301999c9631e1cba5d45e583b51f73cc890073b53b802"
+  },
+  "candidate_pinning": {
+    "GND-STUDENT-4B": "PINNED_FOR_HG3",
+    "GND-STUDENT-8B": "PINNED_FOR_HG3"
+  },
+  "trainer_target": "NOT_IDENTIFIED",
+  "trainer_access": "ACCESS_BLOCKED",
+  "live_probe": "NOT_PERFORMED_NO_ENDPOINT",
+  "gfx906_proven": false,
+  "hg3_preload_blocker": "PARTIALLY_RESOLVED_CANDIDATES_PINNED_TRAINER_ACCESS_BLOCKED",
+  "hg3_execution_readiness": "NOT_READY",
+  "model_downloads": 0,
+  "model_loads": 0,
+  "card_locks": 0,
+  "compute_steps": 0,
+  "D9_changed": false,
+  "push_performed": false,
+  "repository_validation": "PASS",
+  "remaining_blockers": [
+    "A concrete gfx906 trainer hostname or local identifier and access method are absent.",
+    "A read-only live probe has not established GPU identity, VRAM, ROCm, PyTorch/HIP, repository access, or free disk.",
+    "The 8B exact revision has Apache-2.0 model metadata but no repository LICENSE file; this evidence distinction is preserved."
+  ],
+  "exact_next_action": "Provide the credential-free trainer target details or preconfigured access alias for the physical 32 GiB gfx906 host; then run the authorized read-only probe and set trainer status to ACCESS_VERIFIED only if every identity check passes."
+}

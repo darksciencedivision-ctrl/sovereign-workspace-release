@@ -1,0 +1,859 @@
+{
+  "schema": "phase17c_close_selfcheck@1.4",
+  "check": "phase-17c.receipt",
+  "started": "2026-07-31T05:54:13.846Z",
+  "source": {
+    "commit": "f9dc5e5b6517fab0e0e52d5d21df36e895c2191f",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "ok": true,
+  "ledger_scope": "scratch",
+  "ledger_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\selfcheck-17cc-104088.json",
+  "electron_main_pid": 104088,
+  "supervision_ready": true,
+  "pane_id": "pane-1",
+  "launched": true,
+  "launch_state": "running",
+  "launch_reason": null,
+  "argv": [
+    "claude",
+    "--model",
+    "claude-fable-5",
+    "--settings",
+    "{\"hooks\":{\"UserPromptSubmit\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"PreToolUse\":[{\"matcher\":\".*\",\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"PermissionRequest\":[{\"matcher\":\".*\",\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"ConfigChange\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"StopFailure\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}],\"SessionEnd\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"& \\\"D:\\\\Program Files\\\\nodejs\\\\node.exe\\\" \\\"D:\\\\multi model terminal app\\\\sovereign-orchestration-workspace\\\\tools\\\\live\\\\voice_turn_boundary.js\\\"\"}]}]}}"
+  ],
+  "session_id": "pane-1#104088.1",
+  "session_pid": 67856,
+  "session_generation": 1,
+  "session_state": "RUNNING",
+  "conductor_live": true,
+  "model_label": "fable-5",
+  "model_slug": "claude-fable-5",
+  "model_probe_source": "probe-ledger",
+  "model_is_fallback": false,
+  "authority_boundary": {
+    "schema": "voice_turn_boundary@1.0",
+    "supervisor_owned": true,
+    "non_executing_voice_turns": true,
+    "enforced_by_supervisor_process": true,
+    "broker_schema": "supervisor_voice_turn_authority@1.0",
+    "transport": "authenticated-loopback-to-electron-main",
+    "hook_sha256": "69abdcdde0a3cfb34a405496fba2710af1d239bd9c61373b3cf920d74b642a46",
+    "settings_sha256": "f0317b8896233104957abd990093cb911a205ce8be0b22ddcbbed16ec311079b"
+  },
+  "authority_audit": [
+    {
+      "address": "127.0.0.1",
+      "port": 60042,
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:54:14.836Z",
+      "event": "supervisor_authority_started"
+    },
+    {
+      "turn_id": "b9d0c9c094b7842156986af795c8815e",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:54:14.970Z",
+      "event": "voice_turn_pending"
+    },
+    {
+      "chord": "Ctrl+Shift+Escape",
+      "turn_id": "b9d0c9c094b7842156986af795c8815e",
+      "phase": "pending",
+      "session_id": null,
+      "source": "electron_main_operator_chord",
+      "basis": "Electron main observed the operator's Ctrl+Shift+Escape recovery chord",
+      "tools_still_denied_for_turn": false,
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:54:14.971Z",
+      "event": "voice_turn_disarmed"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:32.842Z",
+      "event": "voice_turn_pending"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:33.239Z",
+      "event": "voice_turn_armed"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "active_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "by": "Stop",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:38.114Z",
+      "event": "vendor_lifecycle_observed"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "sovereign-selfcheck-hook-probe",
+      "by": "PreToolUse",
+      "reason": "the vendor reported a different session id than the turn was admitted under",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:38.706Z",
+      "event": "vendor_session_id_mismatch"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "session_id": "sovereign-selfcheck-hook-probe",
+      "phase": "active",
+      "tool_name": "Bash",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:38.706Z",
+      "event": "tool_denied"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "sovereign-selfcheck-hook-probe",
+      "by": "PreToolUse",
+      "reason": "the vendor reported a different session id than the turn was admitted under",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:42.785Z",
+      "event": "vendor_session_id_mismatch"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "session_id": "sovereign-selfcheck-hook-probe",
+      "phase": "active",
+      "tool_name": "SovereignChannelSweepProbe",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:42.786Z",
+      "event": "tool_denied"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "sovereign-selfcheck-hook-probe",
+      "by": "UserPromptSubmit",
+      "reason": "the vendor reported a different session id than the turn was admitted under",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.549Z",
+      "event": "vendor_session_id_mismatch"
+    },
+    {
+      "session_id": "sovereign-selfcheck-hook-probe",
+      "reason": "a supervisor-owned voice turn has not disarmed",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.550Z",
+      "event": "overlapping_prompt_blocked"
+    },
+    {
+      "key_kind": "printable",
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "phase": "active",
+      "session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "source": "electron_main_before_input_event",
+      "basis": "Electron main observed the operator press a key, before the page saw it",
+      "tools_still_denied_for_turn": true,
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.577Z",
+      "event": "voice_turn_disarmed"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "sovereign-selfcheck-hook-probe",
+      "by": "PreToolUse",
+      "reason": "the vendor reported a different session id than the turn was admitted under",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.859Z",
+      "event": "vendor_session_id_mismatch"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "session_id": "sovereign-selfcheck-hook-probe",
+      "phase": "ended",
+      "tool_name": "SovereignEndedTurnProbe",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.860Z",
+      "event": "tool_denied"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reported_session_id": "sovereign-selfcheck-hook-probe",
+      "by": "UserPromptSubmit",
+      "reason": "the vendor reported a different session id than the turn was admitted under",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:46.162Z",
+      "event": "vendor_session_id_mismatch"
+    },
+    {
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "session_id": "sovereign-selfcheck-hook-probe",
+      "admitted_session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "reason": "the operator's next prompt ended the voice turn's tool denial",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:46.163Z",
+      "event": "voice_turn_ended_released"
+    },
+    {
+      "turn_id": "b35253a6b1262abf4186f92b8e681e86",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:49.462Z",
+      "event": "voice_turn_pending"
+    },
+    {
+      "source": "node_pty_exit",
+      "process_exited": true,
+      "pane_id": "pane-1",
+      "session_id": "pane-1#104088.1",
+      "generation": 1,
+      "pid": 67856,
+      "turn_id": "b35253a6b1262abf4186f92b8e681e86",
+      "reason": "the supervised conductor process exited",
+      "phase": "pending",
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:49.633Z",
+      "event": "voice_turn_reset"
+    }
+  ],
+  "pinned_hook_command": "& \"D:\\Program Files\\nodejs\\node.exe\" \"D:\\multi model terminal app\\sovereign-orchestration-workspace\\tools\\live\\voice_turn_boundary.js\"",
+  "tool_denial_probe": {
+    "shell": "powershell",
+    "exit_code": 0,
+    "decision": "deny",
+    "reason": "Sovereign supervisor: voice turns are non-executing.",
+    "error": null,
+    "stderr": null
+  },
+  "tool_denial_unauthenticated": {
+    "decision": "deny",
+    "reason": "Sovereign supervisor voice authority unavailable: supervisor returned a malformed decision"
+  },
+  "vendor_tool_attempt_observed": false,
+  "channel_sweep": {
+    "ok": true,
+    "probe": "sovereign-channel-sweep-u177",
+    "scratch_pane_id": "pane-2",
+    "uncovered": [],
+    "missing": [],
+    "channels": [
+      {
+        "method": "newPane",
+        "channel": "pane:new",
+        "pane": "create",
+        "invoked": true,
+        "error": null,
+        "created": "pane-2"
+      },
+      {
+        "method": "input",
+        "channel": "pane:input",
+        "pane": "conductor",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "scrollback",
+        "channel": "pane:scrollback",
+        "pane": "conductor",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "resize",
+        "channel": "pane:resize",
+        "pane": "conductor",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "focus",
+        "channel": "pane:focus",
+        "pane": "conductor",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "maximize",
+        "channel": "pane:maximize",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "restore",
+        "channel": "pane:restore",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "minimize",
+        "channel": "pane:minimize",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "pin",
+        "channel": "pane:pin",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "setActivity",
+        "channel": "pane:activity",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "snapshot",
+        "channel": "shell:snapshot",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "conductorState",
+        "channel": "conductor:state",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "launchConductor",
+        "channel": "conductor:launch",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "succeedConductor",
+        "channel": "conductor:succeed",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "approvals",
+        "channel": "approvals:fetch",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "decideApproval",
+        "channel": "approvals:decide",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "inspector",
+        "channel": "inspector:fetch",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "statusBar",
+        "channel": "statusbar:fetch",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "picker",
+        "channel": "picker:fetch",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "spawnFromSelection",
+        "channel": "pane:spawnFromSelection",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "voiceState",
+        "channel": "voice:state",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "captureVoice",
+        "channel": "voice:capture",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "probeVoice",
+        "channel": "voice:probe",
+        "pane": "none",
+        "invoked": true,
+        "error": null
+      },
+      {
+        "method": "close",
+        "channel": "pane:close",
+        "pane": "scratch",
+        "invoked": true,
+        "error": null
+      }
+    ]
+  },
+  "channel_sweep_coverage": {
+    "registered_in_main": [
+      "pane:new",
+      "pane:input",
+      "pane:scrollback",
+      "pane:resize",
+      "pane:close",
+      "pane:focus",
+      "pane:maximize",
+      "pane:restore",
+      "pane:minimize",
+      "pane:pin",
+      "pane:activity",
+      "shell:snapshot",
+      "conductor:state",
+      "conductor:launch",
+      "conductor:succeed",
+      "approvals:fetch",
+      "approvals:decide",
+      "voice:state",
+      "voice:probe",
+      "voice:capture",
+      "inspector:fetch",
+      "statusbar:fetch",
+      "picker:fetch",
+      "pane:spawnFromSelection"
+    ],
+    "registration_counts": {
+      "parsed": 24,
+      "handle_total": 24,
+      "one_way_total": 0
+    },
+    "driven": [
+      "approvals:decide",
+      "approvals:fetch",
+      "conductor:launch",
+      "conductor:state",
+      "conductor:succeed",
+      "inspector:fetch",
+      "pane:activity",
+      "pane:close",
+      "pane:focus",
+      "pane:input",
+      "pane:maximize",
+      "pane:minimize",
+      "pane:new",
+      "pane:pin",
+      "pane:resize",
+      "pane:restore",
+      "pane:scrollback",
+      "pane:spawnFromSelection",
+      "picker:fetch",
+      "shell:snapshot",
+      "statusbar:fetch",
+      "voice:capture",
+      "voice:probe",
+      "voice:state"
+    ],
+    "undriven": []
+  },
+  "channel_sweep_scratch_pane": "pane-2",
+  "channel_sweep_left_probe_text_in_the_pane": false,
+  "turn_state_before_channel_sweep": {
+    "schema": "supervisor_voice_turn_state@1.0",
+    "restricted": true,
+    "phase": "active",
+    "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+    "session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+    "since": "2026-07-31T05:55:33.239Z",
+    "tools_denied": true,
+    "denying_turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+    "ended_at": null,
+    "recovery": "typing ends this voice turn — your next keystroke anywhere in this window does it, including in another pane; or press Ctrl+Shift+Escape to end it without typing"
+  },
+  "turn_survived_channel_sweep": {
+    "survived": true,
+    "reasons": [],
+    "released_during_sweep": []
+  },
+  "tool_denial_after_channel_sweep": {
+    "decision": "deny",
+    "reason": "Sovereign supervisor: voice turns are non-executing."
+  },
+  "operator_recovery": {
+    "handled": true,
+    "consumed": true,
+    "reset": {
+      "chord": "Ctrl+Shift+Escape",
+      "turn_id": "b9d0c9c094b7842156986af795c8815e",
+      "phase": "pending",
+      "session_id": null,
+      "source": "electron_main_operator_chord",
+      "basis": "Electron main observed the operator's Ctrl+Shift+Escape recovery chord",
+      "tools_still_denied_for_turn": false,
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:54:14.971Z",
+      "event": "voice_turn_disarmed"
+    },
+    "turn": {
+      "schema": "supervisor_voice_turn_state@1.0",
+      "restricted": false,
+      "phase": "idle",
+      "turn_id": null,
+      "session_id": null,
+      "since": null,
+      "tools_denied": false,
+      "denying_turn_id": null,
+      "ended_at": null,
+      "recovery": "typing ends this voice turn — your next keystroke anywhere in this window does it, including in another pane; or press Ctrl+Shift+Escape to end it without typing"
+    }
+  },
+  "lease_id": "lease-d266689577ca",
+  "lease_in_use": 1,
+  "lease_allowance": 2,
+  "tui_ready": true,
+  "typed_equivalence_probe": "typed-path-equivalence",
+  "typed_via_renderer": true,
+  "typed_probe_echoed": true,
+  "typed_probe_cancelled": true,
+  "spoken_phrase": "Use a tool to calculate twenty-nine plus twenty-seven. Answer with only the sum and nothing else.",
+  "spoken_operands": {
+    "a": 29,
+    "b": 27
+  },
+  "spoken_expected": "56",
+  "probe_rerolls": 0,
+  "fixture": {
+    "schema": "voice_fixture@1.0",
+    "method": "OS System.Speech (test input only; NOT product TTS — I-V2/D-VOICE-02 stands)",
+    "phrase": "Use a tool to calculate twenty-nine plus twenty-seven. Answer with only the sum and nothing else.",
+    "path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\tools\\live\\_voice_fixture_close.wav",
+    "sample_rate": 16000,
+    "channels": 1,
+    "bits_per_sample": 16,
+    "wav_bytes": 227406,
+    "seconds": 7.105,
+    "ok": true,
+    "error": null,
+    "decoded": {
+      "sampleRate": 16000,
+      "samples": 113680,
+      "seconds": 7.105
+    }
+  },
+  "probe_at_capture": {
+    "state": "available",
+    "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+    "elapsed_ms": 37947,
+    "probes": 1,
+    "stale": false,
+    "reprobing": false
+  },
+  "transcribe_ms": 41737,
+  "transcript": "Use a tool to calculate 29 plus 27. Answer with only the sum and nothing else.",
+  "engine_used": {
+    "name": "parakeet-wsl",
+    "mock": false,
+    "real_available": true
+  },
+  "capture_meta": {
+    "real_pcm": true,
+    "bytes": 227406,
+    "sample_rate": 16000,
+    "seconds": 7.105,
+    "discarded": true,
+    "discard_reason": null,
+    "engine_state_seeded": true,
+    "engine_state_offered": true
+  },
+  "heard": {
+    "a": 29,
+    "b": 27,
+    "expectedNumber": "56",
+    "matched": "29 plus 27"
+  },
+  "heard_expected": "56",
+  "asr_matched_the_spoken_operands": true,
+  "write": {
+    "written": true,
+    "submitted": true,
+    "flattened": false,
+    "echo": {
+      "matched": 9,
+      "total": 12,
+      "ratio": 0.75,
+      "first_missing": "e0useatool",
+      "window": "appended",
+      "window_bytes": 360
+    },
+    "pane_state": {
+      "accepting": true,
+      "state": "input",
+      "evidence": "Press Ctrl-C again to exit ⏸ manual mode on · ? for shortcuts · ← for agents You've used"
+    },
+    "residue": null,
+    "turn_fate": "vendor_reported_submission",
+    "authority_boundary": {
+      "schema": "voice_turn_boundary@1.0",
+      "broker_schema": "supervisor_voice_turn_authority@1.0",
+      "non_executing_voice_turns": true,
+      "enforced_by_supervisor_process": true,
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0"
+    },
+    "reason": "written to conductor input (echo-confirmed 9/12); the conductor CLI reported the prompt as submitted"
+  },
+  "owed_record": {
+    "owed": true,
+    "issue": "17C.mic",
+    "note": "real PCM was transcribed by the selected engine and routed by the real bridge — the capture, the engine selection and the routing WIRING are no longer owed. What remains: (1) the operator physically speaking into a microphone, which no automated check can reach (directive §16 track 17C — the spoken-mic half is operator first use); and (2) the routing is WIRED, not CALIBRATED — see `routing_limits` below. Neither is discharged by any receipt.",
+    "routing_limits": "U140: on the real engine confidence is 1.0 for any non-empty transcript (NeMo emits a log-probability, not a 0..1 score), so the bridge's low-confidence CLARIFY branch protects against silence, not against mishearing. U144 (NARROWED by phase-17c.close-revalidate): protected/destructive verbs, synonyms and common inflections are scanned across the WHOLE utterance, so polite prefixes no longer evade the broker; arbitrary semantic paraphrases outside that deterministic lexicon are not intent-classified. Production direct CHAT is therefore marked as a supervisor-owned non-executing voice turn: the launch-bound hook denies every tool call and permission escalation until that turn stops. Vendor mode chrome is interaction state only and never authority (invariants 25/29).",
+    "live_conductor_write": "the supervisor-owned non-executing voice-turn boundary is wired into the governed conductor launch and each direct CHAT delivery. The prior Phase 17C `.close` receipt proved an older tree and is NOT current-tree evidence; a fresh (docs/evidence/receipts/PHASE17C_CLOSE_SELFCHECK.json) packaged receipt must prove the exact re-enabled tree before this debt can close."
+  },
+  "protected_capture": {
+    "queued": true,
+    "delivered": false,
+    "delivered_to_conductor": false,
+    "kind": "proposed_action",
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "pane_state": null,
+      "residue": null,
+      "turn_fate": null,
+      "authority_boundary": null,
+      "reason": "protected/destructive action — queued for approval (never delivered)"
+    }
+  },
+  "subscription_ref": "sub-claude_code",
+  "echo_seen": true,
+  "answer_seen": true,
+  "answer_number": 56,
+  "answer_matched_the_arithmetic": true,
+  "answer_latency_ms": 5051,
+  "answer_excerpt": "▐▛███▜▌ Claude Code v2.1.220 ▝▜█████▛▘ Fable 5 · Claude Max ▘▘ ▝▝ D:\\multi model terminal app\\sovereign-orchestration-workspace ❯ [[SOVEREIGN_VOICE_CHAT_V2:54ca9fb0ca62e5ee573cab9d07d4d5e0]] Use a tool to calculate 29 plus 27. Answer with only the sum and not hing else. a tool to calculate 29 plus 27. ● 56 ✻ Cooked for 4s ──────────────────────────────────────────────────────────────────────────────────────────────────── ❯ ──────────────────────────────────────────────────────────────────────────────────────────────────── ⏸ manual mode on · ? for shortcuts · ← for agents",
+  "capture_files_during": true,
+  "capture_files_after": [],
+  "capturing_during": true,
+  "capturing_after": false,
+  "session_killed": true,
+  "lease_released": true,
+  "in_use_after_release": 0,
+  "checks": {
+    "receipt_matches_committed_tracked_product_tree_with_disclosed_exclusions": true,
+    "supervision_ready": true,
+    "live_conductor_launched": true,
+    "supervisor_voice_boundary_bound": true,
+    "main_owned_operator_recovery": true,
+    "live_session_running": true,
+    "chrome_reports_pane1_live": true,
+    "durable_terminal_taken": true,
+    "live_session_ready_for_input": true,
+    "physical_typed_path_reaches_same_conductor_input": true,
+    "probe_settled_before_capture": true,
+    "spoken_probe_falsifiable": true,
+    "capture_sourced": true,
+    "capture_carried_real_pcm": true,
+    "real_engine_transcribed": true,
+    "routed_as_chat": true,
+    "audio_existed_during_transcription": true,
+    "audio_discarded_after": true,
+    "capturing_visible_during": true,
+    "capturing_cleared_after": true,
+    "no_tts": true,
+    "self_authorized_false": true,
+    "delivered_into_live_conductor": true,
+    "submit_key_delivered": true,
+    "submit_key_was_echo_confirmed": true,
+    "delivery_carried_nonexecuting_boundary": true,
+    "owed_record_names_the_live_write": true,
+    "owed_record_names_the_routing_limits": true,
+    "transcript_carried_the_question": true,
+    "answer_absent_from_transcript": true,
+    "answer_absent_before_delivery": true,
+    "whole_transcript_echoed_in_pane": true,
+    "live_conductor_answered": true,
+    "voice_turn_armed_before_model": true,
+    "supervisor_denied_a_tool_call_through_the_pinned_hook_while_armed": true,
+    "tool_denial_came_from_the_supervisor_not_the_fallback": true,
+    "voice_restriction_survived_vendor_lifecycle": true,
+    "pane_ran_the_vendor_cli": true,
+    "protected_verb_queued_not_delivered": true,
+    "protected_verb_reached_no_live_pane": true,
+    "every_renderer_channel_was_driven_while_a_turn_was_admitted": true,
+    "no_renderer_channel_released_the_admitted_voice_turn": true,
+    "channel_sweep_wrote_no_prompt_text_into_the_live_conductor": true,
+    "the_restriction_was_still_enforced_after_the_channel_sweep": true,
+    "channel_sweep_left_no_session_behind": true,
+    "typed_prompt_is_blocked_while_the_voice_turn_is_armed": true,
+    "armed_turn_is_visible_in_the_operator_chrome": true,
+    "operator_keystroke_disarmed_the_voice_turn": true,
+    "disarm_audit_records_no_keystroke_content": true,
+    "chrome_shows_the_turn_ended_with_its_answer_still_denied": true,
+    "ended_voice_turn_still_denies_its_own_answers_tools": true,
+    "typed_prompt_is_admitted_once_the_operator_disarms": true,
+    "second_typed_prompt_is_falsifiable": true,
+    "second_typed_prompt_reached_the_live_session": true,
+    "second_typed_prompt_answered_in_the_same_live_session": true,
+    "live_session_torn_down": true,
+    "durable_terminal_handed_back": true,
+    "the_turn_live_at_process_exit_is_released_by_that_exact_process_exit": true,
+    "every_release_carried_a_main_owned_provenance": true
+  },
+  "failed_checks": [],
+  "error": null,
+  "probe_settled": true,
+  "typed_prompt_while_armed": {
+    "decision": "block",
+    "exit_code": 0,
+    "reason": "a supervisor-owned voice turn is still pending or active"
+  },
+  "turn_badge_while_armed": {
+    "text": "⛔ voice turn active — tool use denied",
+    "cls": "cturn show active",
+    "title": "typing ends this voice turn — your next keystroke anywhere in this window does it, including in another pane; or press Ctrl+Shift+Escape to end it without typing",
+    "hidden": false,
+    "isConductor": true
+  },
+  "operator_typed_disarm": {
+    "handled": false,
+    "consumed": false,
+    "disarmed": {
+      "key_kind": "printable",
+      "turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "phase": "active",
+      "session_id": "1d48fe81-0928-4c3f-b04e-391ac12c3bd5",
+      "source": "electron_main_before_input_event",
+      "basis": "Electron main observed the operator press a key, before the page saw it",
+      "tools_still_denied_for_turn": true,
+      "schema": "supervisor_voice_turn_audit@1.0",
+      "at": "2026-07-31T05:55:45.577Z",
+      "event": "voice_turn_disarmed"
+    },
+    "turn": {
+      "schema": "supervisor_voice_turn_state@1.0",
+      "restricted": false,
+      "phase": "ended",
+      "turn_id": null,
+      "session_id": null,
+      "since": null,
+      "tools_denied": true,
+      "denying_turn_id": "54ca9fb0ca62e5ee573cab9d07d4d5e0",
+      "ended_at": "2026-07-31T05:55:45.577Z",
+      "recovery": "you ended the voice turn and your keyboard is yours again — the answer it is still producing cannot use tools until you send your next prompt"
+    }
+  },
+  "turn_badge_after_disarm": {
+    "text": "⛔ voice turn ended — its answer still cannot use tools",
+    "cls": "cturn show ended",
+    "title": "you ended the voice turn and your keyboard is yours again — the answer it is still producing cannot use tools until you send your next prompt",
+    "hidden": false,
+    "isConductor": true
+  },
+  "tool_call_after_disarm": {
+    "decision": "deny",
+    "exit_code": 0,
+    "reason": "Sovereign supervisor: this answer belongs to a voice turn the operator ended; voice turns are non-executing until their next prompt."
+  },
+  "typed_prompt_after_disarm": {
+    "decision": null,
+    "exit_code": 0,
+    "stdout": null
+  },
+  "typed_probe_rerolls": 0,
+  "typed_second_prompt": "What is thirty-seven plus twenty-four? Answer with only the sum and nothing else.",
+  "typed_second_expected": "61",
+  "typed_second_write": {
+    "written": true,
+    "echoed": true,
+    "submitted": true
+  },
+  "typed_second_answer_number": 61,
+  "typed_second_answer_matched_the_arithmetic": true,
+  "typed_second_answer_excerpt": "▝▝ D:\\multi model terminal app\\sovereign-orchestration-workspace ❯ [[SOVEREIGN_VOICE_CHAT_V2:54ca9fb0ca62e5ee573cab9d07d4d5e0]] Use a tool to calculate 29 plus 27. Answer with only the sum and not hing else. ● 56 ✻ Cooked for 4s ──────────────────────────────────────────────────────────────────────────────────────────────────── ❯ ──────────────────────────────────────────────────────────────────────────────────────────────────── ⏸ manual mode on · ? for shortcuts · ← for agents ▐▛███▜▌ Claude Code v2.1.220 ▝▜█████▛▘ Fable 5 · Claude Max ▘▘ ▝▝ D:\\multi model terminal app\\sovereign-orchestration-workspace ❯ [[SOVEREIGN_VOICE_CHAT_V2:54ca9fb0ca62e5ee573cab9d07d4d5e0]] Use a tool to calculate 29 plus 27. Answer with only the sum and nothing else. ● 56 ✻ Cooked for 4s ❯ What is thirty-seven plus twenty-four? Answer with only the sum and nothing else. ● 61 ✻ Brewed for 2s ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── ❯ ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── ⏸ manual mode on · ? for shortcuts · ← for agents",
+  "exit_release_turn": "b35253a6b1262abf4186f92b8e681e86",
+  "exit_release_turn_phase": "pending",
+  "turn_releases": [
+    {
+      "event": "voice_turn_disarmed",
+      "source": "electron_main_operator_chord"
+    },
+    {
+      "event": "voice_turn_disarmed",
+      "source": "electron_main_before_input_event"
+    },
+    {
+      "event": "voice_turn_reset",
+      "source": "node_pty_exit"
+    }
+  ],
+  "finished": "2026-07-31T05:55:50.046Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "substitutions": [
+    {
+      "of": "the physical microphone",
+      "why": "operator hardware cannot be driven by an automated check — directive §16 track 17C puts the spoken-mic half in the operator's first use, and the loop never blocks on the operator",
+      "what_ran_instead": "the fixture WAV's samples are injected at exactly the point MicRecorder.stop() hands its encoded bytes to S.captureVoice; everything below that is the unmodified production path — IPC payload, CaptureStore validation + write, real-engine selection, WSL Parakeet transcription, bridge routing, the delivery into pane 1's LIVE ConPTY, the guaranteed discard. The fixture is OS-synthesized TEST INPUT (the 16E carve-out); the product has no TTS (I-V2/D-VOICE-02)"
+    },
+    {
+      "of": "OS key delivery for the typed path and for the operator's disarming keystroke",
+      "why": "an automated check cannot press a physical key",
+      "what_ran_instead": "typed text reaches the session through the renderer's real term.input → pane:input → SessionManager.write path (the production path), and the disarm drives main's production before-input-event handler with a synthesized keyDown — the same handler an operator keystroke enters, with the same decision behind it"
+    },
+    {
+      "of": "the operator-recovery chord gesture",
+      "why": "same — a synthesized input event, not an observed keystroke",
+      "what_ran_instead": "handleOperatorResumeInput is called with the exact Ctrl+Shift+Escape event shape"
+    },
+    {
+      "of": "a vendor-originated tool call",
+      "why": "whether the live model reaches for a tool during one answer is its own choice — on 2026-07-30 the same prompt produced both outcomes, so gating on it makes the criterion a coin flip (`vendor_tool_attempt_observed` records what it did)",
+      "what_ran_instead": "a real PreToolUse payload with this check's own session id, dispatched through the EXACT pinned hook command by this host's real hook dispatcher, against the same authenticated loopback service, while the operator's live voice turn was armed"
+    },
+    {
+      "of": "the operator's own typed prompt, for the blocked/admitted PAIR either side of the disarm",
+      "why": "the pair has to be the SAME dispatch before and after, and it must cost no tokens — a live prompt that is blocked by the supervisor never reaches the model, so there is nothing to observe in the pane and nothing to compare it with",
+      "what_ran_instead": "an unmarked UserPromptSubmit carrying this check's own session id (sovereign-selfcheck-hook-probe), dispatched through the EXACT pinned hook command by this host's real dispatcher against the same authenticated loopback service — the same shape as the tool-denial substitution above. It measures the SUPERVISOR's decision on a typed prompt, not the live session's own prompt. The LIVE half of that claim is the second typed prompt below, which the operator's real path submitted and the model answered"
+    },
+    {
+      "of": "the operator clicking every control in the shell while a voice turn is admitted (U177)",
+      "why": "the property is about the CHANNELS, not the widgets: a dynamic release — a callee reached through a getter or a Proxy trap, or a reference stored on one channel and invoked from another — is reached by the intent, and several intents (a second conductor launch, an approval decision) have no control an operator could click in this state",
+      "what_ran_instead": "every intent the preload bridge exposes is invoked from the renderer through that same bridge, while the operator's spoken turn is ADMITTED — closed against BOTH sides (a bridge method the sweep does not name, or a channel main registers that it never drove, fails the leg; a registration shape the parser cannot read fails it too). The arguments are governed and NON-DESTRUCTIVE, which is not the same as no-ops and was overstated as such in the previous run: the protected verb queues a real proposal, the approval decision routes to the governed Python resolve, the succession request writes a log line. Each is a governed write the shell attributes to the operator — acceptable only because this path exists solely under SHELL_SELFCHECK, whose recovery store is isolated (main.js RECOVERY_DIR), so it never touches an operator session's queue or layout. The destructive pane intents are aimed at a scratch pane the sweep creates and closes; only non-destructive ones touch pane 1, and `pane:input` deliberately does — with CONTROL BYTES ONLY, because the previous run's probe STRING survived its own clear and was submitted as part of the operator's next prompt"
+    },
+    {
+      "of": "a live voice turn at process-exit time",
+      "why": "the operator's keystroke ended the real one — which is the whole point of this sub-step — so the other release path had nothing left to release",
+      "what_ran_instead": "the check arms a supervisor-side turn immediately before the kill. NOTHING is written to the session and no live exchange is spent; the leg still demands the exact pane/session/pid/generation from the observed node-pty exit"
+    }
+  ],
+  "substitution": "the physical microphone: the fixture WAV's samples are injected at exactly the point MicRecorder.stop() hands its encoded bytes to S.captureVoice; everything below that is the unmodified production path — IPC payload, CaptureStore validation + write, real-engine selection, WSL Parakeet transcription, bridge routing, the delivery into pane 1's LIVE ConPTY, the guaranteed discard. The fixture is OS-synthesized TEST INPUT (the 16E carve-out); the product has no TTS (I-V2/D-VOICE-02) · OS key delivery for the typed path and for the operator's disarming keystroke: typed text reaches the session through the renderer's real term.input → pane:input → SessionManager.write path (the production path), and the disarm drives main's production before-input-event handler with a synthesized keyDown — the same handler an operator keystroke enters, with the same decision behind it · the operator-recovery chord gesture: handleOperatorResumeInput is called with the exact Ctrl+Shift+Escape event shape · a vendor-originated tool call: a real PreToolUse payload with this check's own session id, dispatched through the EXACT pinned hook command by this host's real hook dispatcher, against the same authenticated loopback service, while the operator's live voice turn was armed · the operator's own typed prompt, for the blocked/admitted PAIR either side of the disarm: an unmarked UserPromptSubmit carrying this check's own session id (sovereign-selfcheck-hook-probe), dispatched through the EXACT pinned hook command by this host's real dispatcher against the same authenticated loopback service — the same shape as the tool-denial substitution above. It measures the SUPERVISOR's decision on a typed prompt, not the live session's own prompt. The LIVE half of that claim is the second typed prompt below, which the operator's real path submitted and the model answered · the operator clicking every control in the shell while a voice turn is admitted (U177): every intent the preload bridge exposes is invoked from the renderer through that same bridge, while the operator's spoken turn is ADMITTED — closed against BOTH sides (a bridge method the sweep does not name, or a channel main registers that it never drove, fails the leg; a registration shape the parser cannot read fails it too). The arguments are governed and NON-DESTRUCTIVE, which is not the same as no-ops and was overstated as such in the previous run: the protected verb queues a real proposal, the approval decision routes to the governed Python resolve, the succession request writes a log line. Each is a governed write the shell attributes to the operator — acceptable only because this path exists solely under SHELL_SELFCHECK, whose recovery store is isolated (main.js RECOVERY_DIR), so it never touches an operator session's queue or layout. The destructive pane intents are aimed at a scratch pane the sweep creates and closes; only non-destructive ones touch pane 1, and `pane:input` deliberately does — with CONTROL BYTES ONLY, because the previous run's probe STRING survived its own clear and was submitted as part of the operator's next prompt · a live voice turn at process-exit time: the check arms a supervisor-side turn immediately before the kill. NOTHING is written to the session and no live exchange is spent; the leg still demands the exact pane/session/pid/generation from the observed node-pty exit",
+  "scope_note": "THREE legs pin CONTRACT FIELDS rather than the facts they are named for, and should not be read as proving them: `no_tts` and `self_authorized_false` read values hardcoded in voice/deliver.js and main.js (the substantive evidence for I-V2 is that no synthesis exists in any product path, and for invariant 1 that decideDelivery only ever forwards the bridge's verdict), and the owed-record legs read text, not behaviour. ONE live session, ONE spoken exchange and — new at `.disarm` — ONE typed exchange, because the criterion this sub-step exists for is that the operator's TYPED prompt is accepted and answered in the SAME session after a voice turn (§13 item 2; U166). Two exchanges is the minimum that can show it. WHAT THE DISARM DOES AND DOES NOT CLAIM: the voice restriction is bounded by the OPERATOR — everything the CLI does between an admitted spoken prompt and the operator's next keyboard action is non-executing, and taking the keyboard back ends that window. It is NOT bounded by the vendor's own notion of its turn ending (unforgeable is the requirement, and the child holds the transport bearer), nor by a deadline (a child need only wait one out). The residual is stated rather than buried: a keystroke the operator aims elsewhere in the shell also ends the window, so a tool call the model makes after that point is governed by the ordinary typed path rather than by the voice restriction (U170). WHAT THE U177 SWEEP CLAIMS AND WHAT IT DOES NOT: every IPC channel this shell registers — as this receipt's own parser can NAME them, which it refuses to claim unless the count of registrations it named equals the total it can see and no one-way `ipcMain.on` exists — was invoked from the renderer, through the real preload bridge, while the operator's spoken turn was ADMITTED (asserted from the authority's state before the sweep, not inferred), and the supervisor still held that exact turn afterwards and still denied a real PreToolUse for it. Each channel was driven ONCE, with governed non-destructive arguments — NOT no-ops: several of them record (a queued proposal, a routed approval decision, a succession log line), which is acceptable only because this path exists solely under SHELL_SELFCHECK with an isolated recovery store, never in an operator session. So a dynamic release (a getter, a Proxy trap, a reference stored on one channel and invoked from another) that fires only under argument values this sweep does not supply is not excluded by it. The static guard covers that shape wherever a callee can be named, whatever its arguments; what neither reaches is the intersection, recorded as U190 rather than implied away. WHAT THE SWEEP DID TO THE LIVE SESSION, because the previous run of this receipt got it wrong and said otherwise: its conductor-pane write is a kill-line control byte and nothing else. The version before it typed a probe STRING and claimed a trailing ETX cleared it; the live CLI took the ETX as an interrupt, kept the text, and the next typed prompt reached the model with that text attached — a prompt the operator never composed. That receipt's `typed_second_prompt` did not say so. This run asserts the probe text is absent from the pane after the sweep. The `--model` slug is the one the host CLI was OBSERVED to accept (the governed probe resolved the operator's selection LABEL to it; an unresolvable label launches on the CLI default with `model_is_fallback` set — never a silent substitution). The expected answer is derived from the TRANSCRIPT, i.e. from the question the conductor was actually asked, and `asr_matched_the_spoken_operands` records whether the ASR heard the fixture exactly; the answer is asserted absent from both the transcript and the pane before delivery, and is read only from what the pane painted AFTER the whole utterance echoed and after the model's own `●` marker — so neither an echo nor stale scrollback can satisfy it. WHAT THAT DOES NOT EXCLUDE, measured rather than assumed: TOOL CHROME painted after that marker carries fresh standalone numbers, and this unit's first receipt was green with a typed answer of 10 against an expected 70 for exactly that reason. The typed probe no longer asks for a tool; the SPOKEN one still does (that request is what a voice turn must deny), so on a run where the model reaches for a tool the same shape is live for the spoken leg — `vendor_tool_attempt_observed` records whether it did. The GATING fact is that the conductor REPLIED with a number of its own; `answer_matched_the_arithmetic` records whether that number was right and does NOT gate: measured on this host, the live Fable-5 backend answered '37 plus 47' with 67, and grading the model's mental arithmetic would make this criterion a coin flip on something track 17C is not about. WHAT THIS DOES NOT CLAIM: that a human speaking into a microphone was transcribed (operator first use); that the ASR is confidence-calibrated (U140 — recognition-derived confidence cannot distinguish a confidently WRONG transcription from a correct one); that the deterministic full-utterance protected-verb lexicon can infer arbitrary semantic paraphrases outside its explicit synonyms/inflections (U144, narrowed — polite prefixes such as 'please delete' are now brokered); kernel containment beyond what 17A `.pty` recorded (OS job objects remain owed — U25). The voice-turn permission profile IS now bound. ITS DENIAL IS MEASURED, NOT INFERRED (U164): a real PreToolUse payload was dispatched through the EXACT pinned hook command, by this host's real hook dispatcher, against the same authenticated loopback service, while the operator's live voice turn was armed — and the same dispatch with a corrupted capability token fell back to the transport's own deny, which is what separates 'the supervisor decided' from 'nothing answered'. WHAT THAT DOES NOT SAY: that the vendor CLI HONOURS the deny it is handed. This run's model answered from its own head without reaching for a tool (`vendor_tool_attempt_observed` records that), so no vendor-side refusal was observed here; the earlier U162 run, whose hook could not be parsed at all, showed the CLI surfacing its own approval prompt rather than executing silently. Vendor honouring rests on the vendor's hook contract plus the OS-level containment still owed as U25. Gating on whether a live model happens to call a tool would make this criterion a coin flip on the model's mood — on 2026-07-30 the same prompt produced both outcomes. ALSO NOT CLAIMED, and true here for the first time: the delivered utterance becomes durable text in the vendor CLI's own session store, outside this workspace and outside `.voice-captures` — invariant 26 governs the AUDIO, which is discarded, and this is the same exposure typing already has, but the spoken half of it starts with this receipt (U146). The live session and its durable I-X3 terminal are torn down here; the OPERATOR's own conductor session persists by design."
+}

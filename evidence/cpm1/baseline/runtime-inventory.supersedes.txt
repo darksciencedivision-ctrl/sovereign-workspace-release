@@ -1,0 +1,11 @@
+﻿# utc: 2026-08-25T16:30:05.0460421Z
+# producer: ox-alpha CP-M1 Band 0 / correction C-2
+# superseded artifact (preserved byte-in-place under renamed file):
+#   evidence/cpm1/baseline/runtime-inventory.faulty-git-field.json
+#   sha256: 031675cc470fc5eeaf48d53a259646bd85849040aecf5c2bc9719563a56def52
+#   fault: field 'git' carried empty string - capture assigned $gv but interpolated $gitv.
+# superseding artifact:
+#   evidence/cpm1/baseline/runtime-inventory.json
+#   sha256: f67b50dd2e4708894370ad1ee73a69016588e0c1401f9810987885f895cd5980
+# reason: builder transcription fault, same class as the CP-01 H/Get-History alias collision.
+#   Re-captured live this session; all five fields verified non-empty.

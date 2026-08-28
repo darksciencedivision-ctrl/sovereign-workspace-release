@@ -1,0 +1,326 @@
+{
+  "schema": "sovereign.frontier_provider_recon.probe/1.0",
+  "phase": "18A",
+  "authorization": "OP-12 (operator, 2026-07-31)",
+  "probes": [
+    {
+      "provider": "grok_build",
+      "display": "Grok Build",
+      "executed": true,
+      "gate": {
+        "allowed": true,
+        "reason": "grok_build is within the authorized live scope"
+      },
+      "command": [
+        "C:\\Users\\Sslaw\\AppData\\Roaming\\npm\\grok.CMD",
+        "--cwd",
+        "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+        "--permission-mode",
+        "plan",
+        "--output-format",
+        "json",
+        "-p",
+        "Reply with exactly: GROK_PROVIDER_OK"
+      ],
+      "response_excerpt": "{\"text\": \"\", \"stopReason\": \"cancelled\", \"sessionId\": \"019fc044-489b-7993-9610-fa625fb3054d\", \"requestId\": \"e2565e97-9664-4ac0-8f62-9682cb66bc6a\", \"thought\": \"The user wants me to reply with exactly \\\"GROK_PROVIDER_OK\\\". This is a simple request with no tools needed.\", \"usage\": {\"input_tokens\": 13659…[truncated]",
+      "document_shape": {
+        "parsed": true,
+        "top_level_type": "object",
+        "top_level_keys": [
+          "modelUsage",
+          "num_turns",
+          "requestId",
+          "sessionId",
+          "stopReason",
+          "text",
+          "thought",
+          "total_cost_usd",
+          "total_cost_usd_ticks",
+          "usage"
+        ],
+        "key_types": {
+          "text": "string",
+          "stopReason": "string",
+          "sessionId": "string",
+          "requestId": "string",
+          "thought": "string",
+          "usage": "object",
+          "num_turns": "number",
+          "total_cost_usd": "number",
+          "total_cost_usd_ticks": "number",
+          "modelUsage": "object"
+        },
+        "string_paths": [
+          "text",
+          "stopReason",
+          "sessionId",
+          "requestId",
+          "thought"
+        ],
+        "number_paths": [
+          "usage.input_tokens",
+          "usage.cache_read_input_tokens",
+          "usage.cache_creation_input_tokens",
+          "usage.output_tokens",
+          "usage.reasoning_tokens",
+          "usage.total_tokens",
+          "num_turns",
+          "total_cost_usd",
+          "total_cost_usd_ticks",
+          "modelUsage.grok-4.5.inputTokens",
+          "modelUsage.grok-4.5.outputTokens",
+          "modelUsage.grok-4.5.cacheReadInputTokens",
+          "modelUsage.grok-4.5.cacheCreationInputTokens",
+          "modelUsage.grok-4.5.modelCalls",
+          "modelUsage.grok-4.5.costUSD"
+        ],
+        "response_key_matched": null,
+        "strict_response_found": false,
+        "token_paths": [
+          "thought"
+        ],
+        "token_visible_to_strict_reader": false,
+        "skeleton": {
+          "text": "<str:0>",
+          "stopReason": "<str:9>",
+          "sessionId": "<str:36>",
+          "requestId": "<str:36>",
+          "thought": "GROK_PROVIDER_OK",
+          "usage": {
+            "input_tokens": 0,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "num_turns": 0,
+          "total_cost_usd": 0,
+          "total_cost_usd_ticks": 0,
+          "modelUsage": {
+            "grok-4.5": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0,
+              "modelCalls": 0,
+              "costUSD": 0
+            }
+          }
+        },
+        "truncated": false,
+        "note": ""
+      },
+      "governed": {
+        "provider": "grok_build",
+        "display": "Grok Build",
+        "node_id": "probe-grok",
+        "session_id": "924dc759d17d",
+        "lease_key": "probe-grok#924dc759d17d",
+        "permission_profile_id": "pp-probe-reasoning",
+        "role": "reasoning",
+        "subscription_ref": "grok_build_subscription",
+        "allowance": 1,
+        "in_use": 1,
+        "lease_id": "lease-2e292ee4e886",
+        "executable": "C:\\Users\\Sslaw\\AppData\\Roaming\\npm\\grok.CMD",
+        "workspace": "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+        "env_scrub_names": [
+          "CLAUDE_CODE_CHILD_SESSION",
+          "CLAUDE_CODE_ENTRYPOINT",
+          "CLAUDE_CODE_EXECPATH",
+          "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS",
+          "CLAUDE_CODE_SESSION_ID"
+        ],
+        "seeded_from_ledger": [],
+        "spawned_pids": [
+          96944,
+          110196,
+          114840,
+          115468,
+          116728,
+          118408
+        ],
+        "process_tree_clean": true,
+        "supervised": true,
+        "interactive": false,
+        "one_shot": true,
+        "node_registered": true,
+        "node_record": {
+          "node_key": "probe-grok",
+          "incarnation": 2,
+          "adapter": "grok_build",
+          "adapter_schema_version": "node@1.1",
+          "validated_against": "node@1.1",
+          "node_id": "a5a56e7f-6ef3-5be9-bbb9-df8c0c15ff31",
+          "schema": "node@1.1"
+        },
+        "teardown": {
+          "lease_released": true,
+          "governor_released": true,
+          "in_use_after": 0,
+          "process_tree_clean": true,
+          "node_exit_recorded": true,
+          "node_exit_error": null,
+          "node_exit_expected": true,
+          "measured": true
+        }
+      },
+      "supervised_execution": true,
+      "accepted": false,
+      "token": "GROK_PROVIDER_OK",
+      "token_seen": false,
+      "structured_output_parsed": true,
+      "repo_unchanged": true,
+      "outcome": {
+        "outcome": "SUCCESS",
+        "exit_code": 0,
+        "basis": "exit-code-zero",
+        "detail": "{\n  \"text\": \"\",\n  \"stopReason\": \"cancelled\",\n  \"sessionId\": \"019fc044-489b-7993-9610-fa625fb3054d\",\n  \"requestId\": \"e2565e97-9664-4ac0-8f62-9682cb66bc6a\",\n  \"thought\": \"The user wants me to reply with…[truncated]"
+      },
+      "reason": "the CLI's structured output carried no recognised response field (result/response/text/content/message/output), so the model's own response is empty; GROK_PROVIDER_OK appearing elsewhere in the document is not an answer"
+    },
+    {
+      "provider": "google_antigravity",
+      "display": "Gemini · Antigravity",
+      "executed": true,
+      "gate": {
+        "allowed": true,
+        "reason": "google_antigravity is within the authorized live scope"
+      },
+      "command": [
+        "C:\\Users\\Sslaw\\AppData\\Local\\agy\\bin\\agy.EXE",
+        "--mode",
+        "plan",
+        "--output-format",
+        "json",
+        "-p",
+        "Reply with exactly: GEMINI_PROVIDER_OK"
+      ],
+      "response_excerpt": "GEMINI_PROVIDER_OK",
+      "document_shape": {
+        "parsed": true,
+        "top_level_type": "object",
+        "top_level_keys": [
+          "conversation_id",
+          "duration_seconds",
+          "num_turns",
+          "response",
+          "status",
+          "usage"
+        ],
+        "key_types": {
+          "conversation_id": "string",
+          "status": "string",
+          "response": "string",
+          "duration_seconds": "number",
+          "num_turns": "number",
+          "usage": "object"
+        },
+        "string_paths": [
+          "conversation_id",
+          "status",
+          "response"
+        ],
+        "number_paths": [
+          "duration_seconds",
+          "num_turns",
+          "usage.input_tokens",
+          "usage.output_tokens",
+          "usage.thinking_tokens",
+          "usage.cache_read_tokens",
+          "usage.total_tokens"
+        ],
+        "response_key_matched": "response",
+        "strict_response_found": true,
+        "token_paths": [
+          "response"
+        ],
+        "token_visible_to_strict_reader": true,
+        "skeleton": {
+          "conversation_id": "<str:36>",
+          "status": "<str:7>",
+          "response": "GEMINI_PROVIDER_OK",
+          "duration_seconds": 0,
+          "num_turns": 0,
+          "usage": {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "thinking_tokens": 0,
+            "cache_read_tokens": 0,
+            "total_tokens": 0
+          }
+        },
+        "truncated": false,
+        "note": ""
+      },
+      "governed": {
+        "provider": "google_antigravity",
+        "display": "Gemini · Antigravity",
+        "node_id": "probe-agy",
+        "session_id": "e4cad1ae7b1f",
+        "lease_key": "probe-agy#e4cad1ae7b1f",
+        "permission_profile_id": "pp-probe-reasoning",
+        "role": "reasoning",
+        "subscription_ref": "google_antigravity_subscription",
+        "allowance": 1,
+        "in_use": 1,
+        "lease_id": "lease-f8f42fe715b5",
+        "executable": "C:\\Users\\Sslaw\\AppData\\Local\\agy\\bin\\agy.EXE",
+        "workspace": "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+        "env_scrub_names": [
+          "CLAUDE_CODE_CHILD_SESSION",
+          "CLAUDE_CODE_ENTRYPOINT",
+          "CLAUDE_CODE_EXECPATH",
+          "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS",
+          "CLAUDE_CODE_SESSION_ID"
+        ],
+        "seeded_from_ledger": [],
+        "spawned_pids": [
+          29132,
+          86024,
+          95180,
+          106548,
+          116148
+        ],
+        "process_tree_clean": true,
+        "supervised": true,
+        "interactive": false,
+        "one_shot": true,
+        "node_registered": true,
+        "node_record": {
+          "node_key": "probe-agy",
+          "incarnation": 2,
+          "adapter": "google_antigravity",
+          "adapter_schema_version": "node@1.1",
+          "validated_against": "node@1.1",
+          "node_id": "e8d5b354-235d-58d2-a13b-e418ca9f608c",
+          "schema": "node@1.1"
+        },
+        "teardown": {
+          "lease_released": true,
+          "governor_released": true,
+          "in_use_after": 0,
+          "process_tree_clean": true,
+          "node_exit_recorded": true,
+          "node_exit_error": null,
+          "node_exit_expected": true,
+          "measured": true
+        }
+      },
+      "supervised_execution": true,
+      "accepted": true,
+      "token": "GEMINI_PROVIDER_OK",
+      "token_seen": true,
+      "structured_output_parsed": true,
+      "repo_unchanged": true,
+      "outcome": {
+        "outcome": "SUCCESS",
+        "exit_code": 0,
+        "basis": "exit-code-zero",
+        "detail": "{\"conversation_id\":\"3ccb8360-fe08-49b1-827c-59675febef3e\",\"status\":\"SUCCESS\",\"response\":\"GEMINI_PROVIDER_OK\\n\",\"duration_seconds\":1.0210451,\"num_turns\":1,\"usage\":{\"input_tokens\":18227,\"output_tokens\":…[truncated]"
+      },
+      "reason": "accepted"
+    }
+  ]
+}

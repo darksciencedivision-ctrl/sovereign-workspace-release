@@ -1,0 +1,4 @@
+# utc: 2026-08-26T21:02:31.846594Z
+# producer: ox-alpha CP-M1 ADD-07 wave9
+
+G86 production path still resolves to Ollama. roster.build_roster uses OllamaBackend when a local model is detected. llama.cpp is a candidate module (shell/modules/llamacpp.json) and is not the default. No promotion.

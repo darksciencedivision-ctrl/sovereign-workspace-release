@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-08-23T07:21:39.334536Z",
+  "findings": [
+    {
+      "id": "FND-001",
+      "discovered_during": "F-01",
+      "severity": "HIGH",
+      "affected_files": [
+        "runs/HG-3/summary.json",
+        "runs/HG-3/manifest.json",
+        "runs/HG-3/hardware-rebaseline/result.json",
+        "registry/grounded/trainer.json"
+      ],
+      "description": "Stale BLOCKED_PRELOAD records coexist with BLOCKED_HARDWARE_CAPACITY records without a machine-readable supersession relation; a status reader must not depend on filename ordering or timestamps.",
+      "evidence": "grep BLOCKED_PRELOAD|BLOCKED_HARDWARE_CAPACITY across repo",
+      "invalidates_current_work": false,
+      "required_action": "DONE: gate/status_chain.py resolver + runs/HG-3/CURRENT_STATUS.json canonical record + 13-test suite.",
+      "disposition": "CLOSED_BY_F05"
+    },
+    {
+      "id": "FND-002",
+      "discovered_during": "F-01",
+      "severity": "MEDIUM",
+      "affected_files": [
+        "pyproject.toml",
+        "docs/THESIS-v1.2.md",
+        "docs/THESIS.md"
+      ],
+      "description": "Package version 1.1.0rc3 coexists with thesis v1.2 and spec v1.1-draft; version identities underdeclared.",
+      "evidence": "pyproject.toml line 7; docs inventory",
+      "invalidates_current_work": false,
+      "required_action": "Canonical version matrix consumed by tooling (F-04).",
+      "disposition": "CLOSED_BY_F04"
+    },
+    {
+      "id": "FND-003",
+      "discovered_during": "F-01",
+      "severity": "MEDIUM",
+      "affected_files": [
+        "source_admission/__init__.py"
+      ],
+      "description": "ELIGIBLE->REJECTED transition exists but lacks revocation-specific reason marking and descendant propagation guarantees.",
+      "evidence": "ALLOWED_TRANSITIONS table review",
+      "invalidates_current_work": false,
+      "required_action": "DONE: revoke() authorized transition (reason=revoked), revoked_keys(), lineage_id() binding, admission_state_hash + assert_snapshot_matches_registry freshness gate; tests/test_revocation_semantics.py (commit 56e6b3c).",
+      "disposition": "CLOSED_BY_F06"
+    },
+    {
+      "id": "FND-004",
+      "discovered_during": "F-01",
+      "severity": "MEDIUM",
+      "affected_files": [
+        "exclusion/__init__.py"
+      ],
+      "description": "Exclusion core handles dangling edges/duplicates/residual ancestry but has no explicit illegal-cycle policy or generalized graph acceptance beyond X/Y fixture.",
+      "evidence": "exclusion/__init__.py review",
+      "invalidates_current_work": false,
+      "required_action": "DONE: _validate_lineage_nodes fail-closed shape contract; _reject_illegal_cycles Kahn-peel cycle policy (incl. cycles disconnected from the excluded source); tests/test_exclusion_graph.py with 50-seed randomized purge-property campaign.",
+      "disposition": "CLOSED_BY_F08"
+    },
+    {
+      "id": "FND-005",
+      "discovered_during": "F-01",
+      "severity": "MEDIUM",
+      "affected_files": [
+        "gate/historical.py",
+        "gate/paired.py"
+      ],
+      "description": "Historical best aggregates bundle means without per-item identity/bundle binding; cross-bundle maxima are representable at this layer.",
+      "evidence": "HistoricalBestStore.reference review",
+      "invalidates_current_work": false,
+      "required_action": "DONE: HistoricalBestStore.reference_vector per-item bridge with record-level bundle binding, deterministic tie policy (earliest promotion_time/bundle_id), ingest+read-side finite validation, legacy aggregate rows barred from impersonating item identity; 9-test suite incl. store tamper.",
+      "disposition": "CLOSED_BY_F09",
+      "corrections": [
+        {
+          "recorded_at": "2026-08-23T07:21:39.334536Z",
+          "round": "R4",
+          "type": "LOCAL_PASS_REVOKED_AND_CORRECTED",
+          "description": "Original F-09 bridge (commit 827a758) took per-item maxima across records/bundles, violating the frozen GR-9 hard invariant in docs/G2_WORK_ITEMS.md. Reworked to select ONE governed bundle via reference() governance rule, then ONE latest covering run; composite stitching and cross-bundle poaching fail closed."
+        }
+      ]
+    },
+    {
+      "id": "FND-006",
+      "discovered_during": "F-01",
+      "severity": "LOW",
+      "affected_files": [
+        "ops/promotion.py"
+      ],
+      "description": "Read-back verification failure after successful os.replace reports PROMOTION_WRITE_FAILED while router file may hold promoted state; reporting is conservative (claims less than may be true) and readable state is included for recovery.",
+      "evidence": "PromotionRouter._atomic_write/_write_failure review",
+      "invalidates_current_work": false,
+      "required_action": "Acceptable documented limitation; revisit during hardening pass if platform primitive allows stronger guarantee.",
+      "disposition": "ACCEPTED_LIMITATION"
+    },
+    {
+      "id": "FND-007",
+      "discovered_during": "F-01",
+      "severity": "LOW",
+      "affected_files": [
+        "runs/HG-3/summary.json",
+        "runs/HG-3/hardware-rebaseline/result.json"
+      ],
+      "description": "HG-1 label drift between historical records: ENFORCEMENT_PASS_SOURCE_DECISIONS_PENDING vs ENFORCEMENT_PASS_D9_PENDING (same meaning).",
+      "evidence": "record comparison",
+      "invalidates_current_work": false,
+      "required_action": "Covered by F-05 canonical status reader normalization.",
+      "disposition": "CLOSED_BY_F05"
+    },
+    {
+      "id": "FND-008",
+      "discovered_during": "F-01",
+      "severity": "INFO",
+      "affected_files": [
+        "550bc0c"
+      ],
+      "description": "PR #2 merge verified content-free (EMPTY_PURE_MERGE); historical review range remains authoritative.",
+      "evidence": "git diff --stat HEAD 550bc0c empty",
+      "invalidates_current_work": false,
+      "required_action": "None.",
+      "disposition": "CLOSED_INFO"
+    },
+    {
+      "id": "FND-009",
+      "discovered_during": "F-06",
+      "severity": "LOW",
+      "affected_files": [
+        "curation/shard.py",
+        "source_admission/__init__.py"
+      ],
+      "description": "seal_shard trusts the caller-supplied admission snapshot blob; revocation enforcement is the mandatory caller-side freshness gate (assert_snapshot_matches_registry) rather than an in-seal registry comparison.",
+      "evidence": "tests/test_revocation_semantics.py seam-characterization test; commit 56e6b3c docstring",
+      "invalidates_current_work": false,
+      "required_action": "Structurally enforce the freshness gate inside the F-07 corpus-admission pipeline so no shard can be sealed without a registry-fresh snapshot.",
+      "disposition": "ACCEPTED_DESIGN_RECORDED_MITIGATION_F07"
+    },
+    {
+      "id": "FND-010",
+      "discovered_during": "F-06",
+      "severity": "INFO",
+      "affected_files": [
+        "runs/completion-loop/"
+      ],
+      "description": "Concurrent completion-loop instance detected actively editing the same worktree mid-iteration (committed 56e6b3c F-06 and later a333565 F-08 while this session held F-06). Collision avoided: accepted Tier-0 measured state, verified independently instead of double-implementing.",
+      "evidence": "git log 56e6b3c,a333565; independent MEASURED regressions: 74 passed/180 subtests (post F-06) and 85 passed/230 subtests (post F-08), exit 0, Python 3.14.6.",
+      "invalidates_current_work": false,
+      "required_action": "Sessions must reload durable state immediately before every write window and keep write->test->commit windows short; record reconciliation at entry per established convention.",
+      "disposition": "RECONCILIATION_RECORDED"
+    }
+  ]
+}

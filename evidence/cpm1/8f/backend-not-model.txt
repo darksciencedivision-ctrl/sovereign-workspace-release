@@ -1,0 +1,8 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G36 grep-proof (this session)
+opencode as model_id in nodes + adapters: NONE
+'backend ==' branches in control_plane + adapters: NONE after descriptor refactor
+(BACKEND_TAKES_MODEL / BACKEND_FORBIDDEN_LOCALITY in canonical_registry.py).
+Zero new if backend == / if model == branches. AUTHORIZED-BY-STANDING-DELEGATION

@@ -1,0 +1,11 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+test_new_fields_pass_through_redaction (shell.tests.test_log_fields_redacted.TestLogFieldsRedacted.test_new_fields_pass_through_redaction) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+OK
+
+OK

@@ -1,0 +1,12 @@
+# utc: 2026-08-25T19:06:17.197Z
+# producer: ox-alpha CP-M1 Band 2 / G15 fails-before (old process_window probe)
+# start requested: 2026-08-25T19:05:43.994Z -> (200, {'Server': 'BaseHTTP/0.6 Python/3.12.10', 'Date': 'Tue, 25 Aug 2026 19:05:43 GMT', 'Content-Ty
+# state timeline:
+  2026-08-25T19:05:44.019Z  STARTING
+  2026-08-25T19:05:45.101Z  READY
+# first READY claimed at: 2026-08-25T19:05:45.101Z
+# PHASE16A_SELFCHECK.json exists at that moment: True
+# SHELL-LIVE-READY.json exists at that moment: False
+# -> READY claimed with NO real boot evidence on disk (fake RUNNING).
+# stop response: error: <HTTPError 403: 'Forbidden'> ; STOPPED observed at: None
+# VERDICT: old probe FAILS-BEFORE.

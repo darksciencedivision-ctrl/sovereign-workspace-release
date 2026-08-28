@@ -1,0 +1,12 @@
+# utc: 2026-08-22T21:41:36.726245+00:00
+# producer: ox-alpha GATE5B
+# proof: H-12 - no runtime writes outside Production Workspace\
+# watcher: ReadDirectoryChangesW via ctypes, recursive, on each root
+# driver: evidence/gate5/tools/gate5b_driver.py imports shell.tests._fswatch.FsWatch unmodified
+# window: 2026-08-22T19:33:13Z .. 2026-08-22T21:41:36Z
+# root: D:\Product Software
+# root: D:\multi model terminal app
+# root: D:\Sovereign Distillery
+# ignored under D:\Product Software: Production Workspace\ (this workspace's own writes)
+# events: 0
+# window-seconds: 7703

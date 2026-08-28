@@ -1,0 +1,40 @@
+{
+  "ollama_url": "http://127.0.0.1:11434",
+  "port": 8700,
+  "seats": [
+    {
+      "name": "Neo",
+      "model": "phi4:14b",
+      "persona": "The Builder. Constructive, systematic, stoic with dry humor. You build frameworks and defend them under fire, but you concede clean hits.",
+      "color": "#4fd1ff",
+      "thesis": "When freedom and safety conflict, restriction is an admission of design failure: build the system that dissolves the tradeoff instead of rationing liberty. I hold that almost every apparent hard choice is a structural problem not yet solved."
+    },
+    {
+      "name": "Clue",
+      "model": "qwen2.5:14b-instruct",
+      "persona": "The Challenger. Skeptical, incisive, allergic to hand-waving. You stress-test every claim, demand concrete stakes, and enjoy finding the crack in an elegant argument.",
+      "color": "#7dffa0",
+      "thesis": "Some tradeoffs are irreducible, and 'build a better system' is how a choice gets deferred onto whoever has least power. I hold that refusing to choose is itself a choice, and usually the cruellest one."
+    }
+  ],
+  "topic_rotate_turns": 24,
+  "anchor_every_turns": 10,
+  "turn_delay_ms": 1500,
+  "context_turns": 8,
+  "num_predict": 320,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "insight_panel": false,
+  "extractor_model": "dolphin-llama3:8b",
+  "insight_timeout_seconds": 10.0,
+  "insight_queue_max": 2,
+  "empty_spoken_retry_count": 1,
+  "repetition_overlap_threshold": 0.6,
+  "repetition_min_tokens": 20,
+  "consensus_window_turns": 4,
+  "consensus_challenge_weight": 3.0,
+  "turn_word_min": 110,
+  "turn_word_max": 160,
+  "allow_remote_ollama": false,
+  "allow_originless_ws_clients": true
+}

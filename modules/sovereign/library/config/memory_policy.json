@@ -1,0 +1,50 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Memory management policy for the SOVEREIGN Master Library.",
+  "tiers": {
+    "active": {
+      "path": "library/memory/active/",
+      "description": "Artifacts currently in active use by the runtime.",
+      "retention": "indefinite",
+      "retrieval_priority": "high",
+      "compression_eligible": false
+    },
+    "compressed": {
+      "path": "library/memory/compressed/",
+      "description": "Compressed summary representations of artifacts. Originals preserved.",
+      "retention": "indefinite",
+      "retrieval_priority": "medium",
+      "compression_eligible": false,
+      "original_preserved": true
+    },
+    "cold_archive": {
+      "path": "library/memory/cold_archive/",
+      "description": "Low-retrieval artifacts moved to cold storage. Phase 18.1: dry-run only.",
+      "retention": "indefinite",
+      "retrieval_priority": "low",
+      "compression_eligible": true,
+      "phase_18_1_enabled": false
+    },
+    "quarantine": {
+      "path": "library/memory/quarantine/",
+      "description": "Artifacts flagged for contradictions or suspicious provenance. Phase 18.1: dry-run only.",
+      "retention": "indefinite",
+      "retrieval_priority": "blocked",
+      "phase_18_1_enabled": false
+    },
+    "rejected": {
+      "path": "library/memory/rejected/",
+      "description": "Artifacts rejected from indexing due to policy violations.",
+      "retention": "indefinite",
+      "phase_18_1_enabled": false
+    }
+  },
+  "global_rules": {
+    "deletion_enabled": false,
+    "max_active_tier_size_mb": null,
+    "max_compressed_tier_size_mb": null,
+    "operator_approval_required_for_tier_transition": true,
+    "log_all_tier_transitions": true
+  }
+}

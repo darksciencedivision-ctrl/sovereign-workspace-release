@@ -1,0 +1,37 @@
+HARDWARE REALITY REBASELINE — PRE-CHANGE GRAPH
+Captured from clean main at 45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7.
+
+* 45cc79f (main) Record HG-3 trainer target not found
+* 91e01cc Pin HG-3 students and record trainer access blocker
+* 5f33d2c Record fail-closed HG-3 candidate preflight
+* 57eefd8 Record explicit HG-0 operator mark paths
+* a0c359d Complete HG-0 live operator-mark evidence
+* 7318f97 (remediation/post-audit-pre-hg3) Record local canonical main handoff
+* fdfe915 Record post-audit remediation validation
+* 55969b7 Remediate post-audit gate and evidence integrity
+* 44f6907 (origin/main, origin/HEAD) record PR #1 merge verification
+*   39aa889 Merge pull request #1 from ryguy-pixel/integration/grounded-rc3
+|\
+| *   864419d (origin/integration/grounded-rc3, integration/grounded-rc3) reconcile grounded v1.1 thesis with advanced main
+| |\
+| |/
+|/|
+* | 23523bd Correct README claims about the shipped thesis
+* | a34187c Ship Grounded Distillery thesis v1.1
+| * 7b3eb96 Record post-integration completion gate
+| * b0b7f38 Complete live G0 and pre-PR review
+| * c3594cf Integrate Grounded RC3 into joint treaty repository
+|/
+* f190439 Add Grounded Distillery thesis v1.1 and design spec (draft)
+
+REACHABILITY
+PASS — all eight commits in 44f6907..45cc79f are ancestors of the remediation branch.
+PASS — c3594cf, 7b3eb96, and 864419d are ancestors through the merged PR history.
+PASS — no history was rewritten or squashed.
+
+RC3 SOURCE PROVENANCE
+The joint repository intentionally does not import a332e68823ab426310c5d37f3c0bfed5c52cc1f0
+as a repository object. It remains reachable from the complete verified Git bundle:
+docs/integration/rc3/grounded-rc3-a332e688.bundle
+Bundle SHA-256: 1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1
+Bundle head: a332e68823ab426310c5d37f3c0bfed5c52cc1f0 refs/heads/main

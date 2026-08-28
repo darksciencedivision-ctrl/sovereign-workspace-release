@@ -1,0 +1,53 @@
+# utc: 2026-08-27T05:04:06Z
+# producer: claude-code REM-01
+# proof: H-4 - no dangerous DOM sinks; logs rendered as text
+
+
+## 1. Static scan of shell/static/*.js
+
+files scanned: app.js
+  app.js       922 lines  sha256=487c67606aadc8f50fda7786d6d8492e475da1b3da855822ea733f6e7e839f3a
+total lines scanned: 922
+
+pattern                 hits
+  innerHTML              0
+  outerHTML              0
+  insertAdjacentHTML     0
+  eval(                  0
+  new Function           0
+  document.write         0
+
+allowlisted exceptions: none - the allowlist is empty
+
+## 2. index.html
+
+inline <script> blocks     : 0 (only <script src="app.js" defer>)
+inline on* handlers        : 0
+inline <style> blocks      : 0
+sha256                     : cfa71fe7d55735a0937bf6611b15190a38e1ecab314d20f2c9158638163fc623
+
+## 3. <script> log-line round trip through /api/logs
+
+payload written to the ring buffer:
+    <script>alert("xss")</script> & <img src=x onerror=alert(1)> </script>
+served as Content-Type: application/json with X-Content-Type-Options: nosniff,
+so the payload is data inside a JSON string and is never parsed as markup. Embedded
+double quotes are escaped on the wire; the frontend assigns it via textContent.
+
+## 4. test_frontend.py output
+
+exit code: 0
+
+test_payload_is_not_altered_by_redaction (shell.tests.test_frontend.TestFrontendLogRoundTrip.test_payload_is_not_altered_by_redaction)
+Control: the round trip proves escaping, not accidental removal of the payload. ... ok
+test_script_tag_returned_as_json_string (shell.tests.test_frontend.TestFrontendLogRoundTrip.test_script_tag_returned_as_json_string) ... ok
+test_dynamic_text_uses_textcontent (shell.tests.test_frontend.TestFrontendStatic.test_dynamic_text_uses_textcontent)
+§7.3 item 4: log and status text is set as text nodes, not parsed as markup. ... ok
+test_no_dangerous_dom_sinks (shell.tests.test_frontend.TestFrontendStatic.test_no_dangerous_dom_sinks) ... ok
+test_no_inline_script_or_handlers (shell.tests.test_frontend.TestFrontendStatic.test_no_inline_script_or_handlers)
+CSP is script-src 'self'; inline script or an on* attribute would break it. ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.534s
+
+OK

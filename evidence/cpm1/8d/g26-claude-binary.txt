@@ -1,0 +1,22 @@
+﻿# utc: 2026-08-26T05:36:51.8246981Z
+# producer: ox-alpha CP-M1 Band 4 / G26 S1 - claude binary characterization
+
+subject: C:\Users\Sslaw\.local\bin\claude.EXE
+
+size_bytes        : 337745568
+first_two_bytes   : 0x4D 0x5A ('MZ') - valid DOS/PE header; a real native executable, not a script
+attributes        : Archive (no ReparsePoint, no SparseFile)
+reparse/symlink   : none - Get-Item -Force reports plain Archive; .Target empty
+siblings in dir   : claude.exe (337745568 bytes, same file - Windows case-insensitivity), nothing else
+claude.cmd        : does not exist in C:\Users\Sslaw\.local\bin
+claude.ps1        : does not exist
+claude.bat        : does not exist
+npm shim          : %APPDATA%\npm\claude.cmd does not exist
+
+CONCLUSION: this is NOT a shim or launcher stub - it is a ~322 MB self-contained native console
+binary (the Claude Code native installer layout). The off-ramp's 'shim the codebase cannot
+legitimately spawn' branch does not apply. The .exe-only launch chain rule (A-14 heritage) is
+satisfiable by this binary directly. H3 proceeds to S2.
+
+method note (T-1): values read from the filesystem via Get-Item/-Force and a direct 2-byte read of
+the file stream; recorded here verbatim, not from console memory.

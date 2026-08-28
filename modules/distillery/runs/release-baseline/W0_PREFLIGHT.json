@@ -1,0 +1,44 @@
+{
+  "directive": "SD-RBR-v1.0",
+  "gate": "G-0",
+  "timestamp_utc": "2026-08-23T21:02:46Z",
+  "checks": [
+    {
+      "observed": "bc65eba5e5f9defec751e09466e859c16b06bb30",
+      "passed": true,
+      "required": "bc65eba5e5f9defec751e09466e859c16b06bb30",
+      "check": "git rev-parse HEAD"
+    },
+    {
+      "observed": "empty",
+      "passed": true,
+      "required": "empty",
+      "check": "git status --porcelain"
+    },
+    {
+      "observed": "completion/build-completion-loop",
+      "passed": true,
+      "required": "completion/build-completion-loop",
+      "check": "git rev-parse --abbrev-ref HEAD"
+    },
+    {
+      "observed": "200 passed, 375 subtests passed in 3.64s, exit 0",
+      "passed": true,
+      "required": "200 passed, 375 subtests passed, exit 0",
+      "check": "python -m pytest -q -p no:cacheprovider"
+    },
+    {
+      "observed": "empty",
+      "passed": true,
+      "required": "empty",
+      "check": "git tag -l"
+    },
+    {
+      "observed": "cb26214128d61c0d52e3d00d9067bc90ebc4cb47",
+      "passed": true,
+      "required": "cb26214128d61c0d52e3d00d9067bc90ebc4cb47",
+      "check": "LOOP_STATE.implementation_seal_commit"
+    }
+  ],
+  "verdict": "PASS"
+}

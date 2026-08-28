@@ -1,0 +1,43 @@
+py.exe : FF
+At line:1 char:42
++ ... '1'; $out = & py -3.12 -B -m unittest shell.tests.test_shell.TestServ ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FF:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+======================================================================
+FAIL: test_preflight_panel_ids_resolved (shell.tests.test_shell.TestServerEndpoints.test_preflight_panel_ids_resolved)
+THEME-01 G7 (D4): every panel id resolves end-to-end through /api/preflight.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Product Software\Production Workspace\shell\tests\test_shell.py", line 318, in test_preflight_panel_ids_resolved
+    self.assertEqual(
+AssertionError: Lists differ: [('ollama', 'missing from payload.checks')[257 chars]ks')] != []
+
+First list contains 7 additional elements.
+First extra element 0:
+('ollama', 'missing from payload.checks')
+
++ []
+- [('ollama', 'missing from payload.checks'),
+-  ('py312', 'missing from payload.checks'),
+-  ('node', 'missing from payload.checks'),
+-  ('npm', 'missing from payload.checks'),
+-  ('port_5175', 'missing from payload.checks'),
+-  ('port_8700', 'missing from payload.checks'),
+-  ('port_5180', 'missing from payload.checks')] : pre-flight ids without a definite status/detail: [('ollama', 'missing from payload.checks'), ('py312', 'missing from payload.checks'), ('node', 'missing from 
+payload.checks'), ('npm', 'missing from payload.checks'), ('port_5175', 'missing from payload.checks'), ('port_8700', 'missing from payload.checks'), ('port_5180', 'missing from payload.checks')]
+
+======================================================================
+FAIL: test_get_preflight (shell.tests.test_shell.TestServerEndpoints.test_get_preflight)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\Product Software\Production Workspace\shell\tests\test_shell.py", line 290, in test_get_preflight
+    self.assertIsInstance(payload.get("checks"), list)
+AssertionError: None is not an instance of <class 'list'>
+
+----------------------------------------------------------------------
+Ran 2 tests in 4.971s
+
+FAILED (failures=2)
+

@@ -1,0 +1,47 @@
+HARDWARE REALITY REBASELINE VALIDATION
+Validated: 2026-08-21T01:03:24Z
+Branch: remediation/hardware-rebaseline-pre-hg3
+Base working-tree HEAD: 45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7
+Observed origin/main: 44f69077f0d674bd7bef5730c2fe41a685e64b03
+
+PASS — Windows Python 3.14: 43/43 tests.
+PASS — Windows Python 3.11.16: 43/43 tests.
+PASS — Ubuntu 24.04 / WSL Python: 43/43 tests.
+NOTE — WSL emitted `Failed to translate 'E:\Program Files\Git\cmd'` for a host PATH
+entry; the Python test and compilation processes completed with exit code 0.
+PASS — compilation on Windows Python 3.14, Windows Python 3.11.16, and Ubuntu/WSL.
+PASS — every repository .json file parses.
+PASS — all three Draft 2020-12 schemas are well formed.
+PASS — the content-free live G0 hashed manifest validates against its schema.
+PASS — local Markdown links resolve (contract test).
+PASS — isolated package build produced sdist and wheel outside the repository.
+PASS — git diff --check.
+PASS — all eight local post-merge commits remain ancestors of this branch.
+PASS — c3594cfc, 7b3eb96a, and 864419de remain reachable through merged history.
+PASS — RC3 Git bundle is complete, verifies, and names a332e688 as its head.
+PASS — D-9 remains 4/4 UNKNOWN and fail closed.
+PASS — no credential signature or private-runtime payload in the remediation set.
+PASS — no model weight, adapter, optimizer-state, or model-cache artifact added.
+PASS — no file over 10 MiB added by the remediation.
+PASS — no repository-wide license file added or changed.
+PASS — frozen docs/THESIS.md and docs/SPEC-v1.1-draft.md unchanged.
+PASS — no G2-G6 execution artifact added.
+PASS — no HG-3 compute, model download/load, deployment, or promotion performed.
+
+HARD-GATE STATE
+HG-0: PASS
+HG-1: ENFORCEMENT PASS / D-9 PENDING
+HG-2: PASS_SYNTHETIC
+HG-3: BLOCKED_HARDWARE_CAPACITY
+HG-4: NOT EXECUTED
+HG-5-HG-8: NOT REACHED
+G2-G6: NOT STARTED
+
+EXACT BLOCKER
+NO DESIGNATED MACHINE CURRENTLY SATISFIES THE GND-TRAINER-PRIMARY CAPABILITY CONTRACT.
+
+EXACT NEXT EVENT
+Designate a physical machine satisfying GND-TRAINER-PRIMARY; register its exact
+hardware; measure VRAM; select and pin the backend stack; run the read-only
+environment probe; establish the card lock; then obtain separate HG-3 compute
+authorization before running S0-S3 and characterizing the sequence envelope.

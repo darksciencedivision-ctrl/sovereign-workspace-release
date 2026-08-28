@@ -1,0 +1,29 @@
+{
+  "schema": "final_talk_worker_spawn_acceptance@1.0",
+  "recorded_at_utc": "2026-08-03T13:59:09.3815283Z",
+  "result": "PARTIAL_ACCEPTANCE",
+  "starting_head": "a6dd83f70df2c6bf5ee4544ec80702c5adcb0a9b",
+  "repository_head_during_live_run": "a6dd83f70df2c6bf5ee4544ec80702c5adcb0a9b",
+  "audio_source": null,
+  "transcript": null,
+  "conductor_receipt": null,
+  "spawn_tool_calls": [],
+  "worker_node_identities": [],
+  "pane_creation": false,
+  "readiness": false,
+  "cleanup": {
+    "provider_processes": 0,
+    "durable_leases": 0
+  },
+  "talk_path_implementation_evidence": {
+    "stt_probe": "The real Parakeet/NeMo engine was detected as available in WSL during the typed live run.",
+    "routing": "Automated coverage verifies the Talk transcript uses the standard conductor input channel and cannot directly invoke worker spawning.",
+    "live_microphone_utterance_completed": false
+  },
+  "failed_leg": "No real microphone utterance was submitted. Phase D was not run after Phase A failed strict worker readiness (Gemini AUTH_REQUIRED and Grok USAGE_LIMIT), so no spoken worker-spawn acceptance is claimed.",
+  "validation": {
+    "desktop": "836 passed, including Talk-path and voice-disarm wiring",
+    "voice_authority_mutations": "11/11 caught",
+    "overall_mutations": "52/52 caught across 3 harnesses"
+  }
+}

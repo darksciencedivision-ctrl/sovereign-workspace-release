@@ -1,0 +1,398 @@
+{
+  "schema": "phase18e_live_acceptance_selfcheck@1.0",
+  "check": "phase-18e.live.electron",
+  "unit": "phase-18e.close",
+  "authorization": "OP-12.2 (operator, 2026-08-02); acceptance criteria AUTONOMOUS_BUILD_DIRECTIVE.md §17 + §17.2(1)",
+  "source": {
+    "commit": "f5f0c3ff24d1679b9ba9c91ec8e6531c38accd84",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-02T08:25:38.696Z",
+  "ok": false,
+  "ledger_scope": "the OPERATOR's real durable ledger and node log — see scope_note_real_stores",
+  "electron_main_pid": 117784,
+  "supervision_ready": true,
+  "picker_sourced": true,
+  "world": {
+    "live": true,
+    "op12_authorized": [
+      "grok_build",
+      "google_antigravity"
+    ],
+    "op12_denied": [],
+    "authorized_providers": [
+      "claude_code",
+      "google_antigravity",
+      "grok_build",
+      "openai_codex_cli"
+    ],
+    "register_row": "OP-12",
+    "reason": "the operator's switch cites OP-12 and authorizes both OP-12 providers (grok_build, google_antigravity) — §17's live acceptance legs are runnable and OWED"
+  },
+  "legs": {
+    "grok_build": {
+      "provider": "grok_build",
+      "display": "Grok Build",
+      "option": {
+        "label": "grok-4.5",
+        "model_slug": "grok-4.5",
+        "verified": true,
+        "preferred": true
+      },
+      "sessions_at_start": 0,
+      "no_other_session_live": true,
+      "pane_id": "pane-2",
+      "launched": true,
+      "launch_reason": null,
+      "launch_refused_by": null,
+      "node_id": "worker-pane-2",
+      "session_pid": 121520,
+      "session_state": "RUNNING",
+      "argv": [
+        "C:\\Users\\Sslaw\\AppData\\Roaming\\npm\\grok.CMD",
+        "--cwd",
+        "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+        "--permission-mode",
+        "plan",
+        "--no-memory",
+        "-m",
+        "grok-4.5"
+      ],
+      "model_slug_launched": "grok-4.5",
+      "exact_selection": {
+        "ok": true,
+        "reasons": []
+      },
+      "child_env": {
+        "ok": true,
+        "reasons": [],
+        "inherited": false
+      },
+      "env_scrub_count": 10,
+      "lease_id": "lease-1ea8d3ee87f7",
+      "lease_in_use": 1,
+      "lease_session_keyed": true,
+      "lease_visible_cross_process": true,
+      "banner_seen": true,
+      "banner_excerpt": "Grok Build may run or modify contents in this directory, posing security risks. Yes, proceed y No, quit n ⠀⠀⠀⠀⠀ ⠀⠀⠀⣠⣾⠿ ⠀⠀⣼⡟⠁⠀⠀ ⠀⠀⣿⡇⠀⠀⠀⠔ ⠀⠀⢹⣷⠀⠀⠀⠀⠀ ⠀⢀⠞⠁⠠⢶⣶⣶⣶⠿ ⠐⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀ Grok Build 0.2.118 Beta",
+      "quiescent": true,
+      "probe_prompt": null,
+      "probe_expected_token": null,
+      "probe_falsifiable": false,
+      "probe_rerolls": 0,
+      "consent_gate": "workspace_trust",
+      "consent_operator_step": "run `grok` once from a terminal in this workspace and answer its \"Yes, proceed\" directory-trust prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11: no always-approve, no unsandboxed defaults)",
+      "consent_detected_before_typing": true,
+      "consent_outcome": {
+        "ok": true,
+        "reasons": []
+      },
+      "skipped_with_record": true,
+      "answer_absent_before_submit": false,
+      "typed_via_renderer": false,
+      "prompt_echoed": false,
+      "submitted": false,
+      "answer_seen": false,
+      "answer_form": null,
+      "answer_latency_ms": null,
+      "answer_excerpt": null,
+      "pane_excerpt_at_teardown": "Grok Build may run or modify contents in this directory, posing security risks. Yes, proceed y No, quit n ⠀⠀⠀⠀⠀⠀⣀⣀⡀⠀⠀⠀⢀⠄ ⠀⠀⠀⣠⣾⠿⠛⠛⠛⠛⢀⡴⠁⠀ ⠀⠀⣼⡟⠁⠀⠀⠀⢀⡴⠻⣿⡀⠀ ⠀⠀⣿⡇⠀⠀⠀⠔⠁⠀⠀⣿⡇⠀ ⠀⠀⢹⣷⠀⠀⠀⠀⠀⢀⣴⡿⠀⠀ ⠀⢀⠞⠁⠠⢶⣶⣶⣶⠿⠋⠀⠀⠀ ⠐⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀ Grok Build 0.2.118 Beta",
+      "live_answer": null,
+      "session_killed": true,
+      "lease_released": true,
+      "in_use_after_release": 0,
+      "node_registration": {
+        "registered": true,
+        "node_key": "worker-pane-2",
+        "incarnation": 8,
+        "schema_version": "node@1.1",
+        "node_id": "dbd5b609-f7ea-57a1-818b-cb4d542dfbb2",
+        "log_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+        "adapter_admitted_by": "node@1.1",
+        "reason": null
+      },
+      "node_attested": {
+        "attested": true,
+        "outcome": {
+          "ok": true,
+          "attested": true,
+          "state": "READY",
+          "logPath": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+          "incarnation": 8,
+          "error": null
+        }
+      },
+      "node_closure": {
+        "closed": true,
+        "node_key": "worker-pane-2",
+        "incarnation": 8,
+        "state": "TERMINATED",
+        "exit_code": null,
+        "expected": true,
+        "log_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+        "adapter": "grok_build",
+        "reason": null
+      },
+      "node_lifecycle": {
+        "ok": true,
+        "reasons": [],
+        "incarnation": 8,
+        "states": [
+          "READY",
+          "TERMINATED"
+        ]
+      },
+      "ok": false,
+      "error": "Grok Build is waiting on its own workspace_trust gate, which the loop may not answer (invariant 1; operator directive §11) — this leg is SKIPPED WITH RECORD. One-time operator step: run `grok` once from a terminal in this workspace and answer its \"Yes, proceed\" directory-trust prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11: no always-approve, no unsandboxed defaults)"
+    },
+    "google_antigravity": {
+      "provider": "google_antigravity",
+      "display": "Gemini · Antigravity",
+      "option": {
+        "label": "gemini-3.6-flash-low",
+        "model_slug": "gemini-3.6-flash-low",
+        "verified": true,
+        "preferred": true
+      },
+      "sessions_at_start": 0,
+      "no_other_session_live": true,
+      "pane_id": "pane-3",
+      "launched": true,
+      "launch_reason": null,
+      "launch_refused_by": null,
+      "node_id": "worker-pane-3",
+      "session_pid": 121808,
+      "session_state": "RUNNING",
+      "argv": [
+        "C:\\Users\\Sslaw\\AppData\\Local\\agy\\bin\\agy.EXE",
+        "--mode",
+        "plan",
+        "--model",
+        "gemini-3.6-flash-low",
+        "--add-dir",
+        "D:\\multi model terminal app\\sovereign-orchestration-workspace"
+      ],
+      "model_slug_launched": "gemini-3.6-flash-low",
+      "exact_selection": {
+        "ok": true,
+        "reasons": []
+      },
+      "child_env": {
+        "ok": true,
+        "reasons": [],
+        "inherited": false
+      },
+      "env_scrub_count": 10,
+      "lease_id": "lease-e1f71cd76f74",
+      "lease_in_use": 1,
+      "lease_session_keyed": true,
+      "lease_visible_cross_process": true,
+      "banner_seen": true,
+      "banner_excerpt": "Welcome to the Antigravity CLI. You are currently not signed in. ⣯ Signing in... ⡿",
+      "quiescent": true,
+      "probe_prompt": null,
+      "probe_expected_token": null,
+      "probe_falsifiable": false,
+      "probe_rerolls": 0,
+      "consent_gate": "workspace_trust",
+      "consent_operator_step": "run `agy` once from a terminal in this workspace and answer its \"Do you trust the contents of this project?\" prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11)",
+      "consent_detected_before_typing": true,
+      "consent_outcome": {
+        "ok": true,
+        "reasons": []
+      },
+      "skipped_with_record": true,
+      "answer_absent_before_submit": false,
+      "typed_via_renderer": false,
+      "prompt_echoed": false,
+      "submitted": false,
+      "answer_seen": false,
+      "answer_form": null,
+      "answer_latency_ms": null,
+      "answer_excerpt": null,
+      "pane_excerpt_at_teardown": ".. Accessing workspace: D:\\multi model terminal app\\sovereign-orchestration-workspace Do you trust the contents of this project? Antigravity CLI requires permission to read, edit, and execute fi les here. > Yes, I trust this folder No, exit ↑/↓ Navigate · enter Confirm p lan · Gemini 3.6 Flash · low",
+      "live_answer": null,
+      "session_killed": true,
+      "lease_released": true,
+      "in_use_after_release": 0,
+      "node_registration": {
+        "registered": true,
+        "node_key": "worker-pane-3",
+        "incarnation": 8,
+        "schema_version": "node@1.1",
+        "node_id": "59de111e-ea04-54ce-a458-56210089fffc",
+        "log_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+        "adapter_admitted_by": "node@1.1",
+        "reason": null
+      },
+      "node_attested": {
+        "attested": true,
+        "outcome": {
+          "ok": true,
+          "attested": true,
+          "state": "READY",
+          "logPath": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+          "incarnation": 8,
+          "error": null
+        }
+      },
+      "node_closure": {
+        "closed": true,
+        "node_key": "worker-pane-3",
+        "incarnation": 8,
+        "state": "TERMINATED",
+        "exit_code": null,
+        "expected": true,
+        "log_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+        "adapter": "google_antigravity",
+        "reason": null
+      },
+      "node_lifecycle": {
+        "ok": true,
+        "reasons": [],
+        "incarnation": 8,
+        "states": [
+          "READY",
+          "TERMINATED"
+        ]
+      },
+      "ok": false,
+      "error": "Gemini · Antigravity is waiting on its own workspace_trust gate, which the loop may not answer (invariant 1; operator directive §11) — this leg is SKIPPED WITH RECORD. One-time operator step: run `agy` once from a terminal in this workspace and answer its \"Do you trust the contents of this project?\" prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11)"
+    }
+  },
+  "providers_attempted": [
+    "grok_build",
+    "google_antigravity"
+  ],
+  "providers_live": [],
+  "providers_consent_gated": [
+    "grok_build",
+    "google_antigravity"
+  ],
+  "operator_steps": [
+    "Grok Build (workspace_trust): run `grok` once from a terminal in this workspace and answer its \"Yes, proceed\" directory-trust prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11: no always-approve, no unsandboxed defaults). What answering it grants: directory-scoped authority for that CLI to read, edit and execute in this workspace — which is why the decision is yours and not the loop's.",
+    "Gemini · Antigravity (workspace_trust): run `agy` once from a terminal in this workspace and answer its \"Do you trust the contents of this project?\" prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11). What answering it grants: directory-scoped authority for that CLI to read, edit and execute in this workspace — which is why the decision is yours and not the loop's."
+  ],
+  "sessions_before": 0,
+  "sessions_after": 0,
+  "lease_status": {
+    "grok_build_subscription": 0,
+    "google_antigravity_subscription": 0
+  },
+  "lease_zero": {
+    "ok": true,
+    "reasons": []
+  },
+  "real_ledger_leases_empty": true,
+  "node_log_rows_before": 71,
+  "node_log_rows_after": 79,
+  "node_log_chain": {
+    "ok": true,
+    "reasons": [],
+    "rows": 79
+  },
+  "source_after": {
+    "commit": "f5f0c3ff24d1679b9ba9c91ec8e6531c38accd84",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "repo_unchanged_by_the_run": {
+    "ok": true,
+    "before": {
+      "clean": true,
+      "untracked": 0
+    },
+    "after": {
+      "clean": true,
+      "untracked": 0
+    },
+    "scope": "the product paths git can speak for, CLEAN at both ends rather than merely equal; a change elsewhere in the repo is NOT measured here and is not claimed"
+  },
+  "live_exchanges_spent": 0,
+  "credential_scan": {
+    "ok": true,
+    "reasons": [],
+    "sinks_checked": [
+      "C:\\Users\\Sslaw\\AppData\\Roaming\\sovereign-desktop\\logs\\main-process.log",
+      "PHASE18E_LIVE_ACCEPTANCE_SELFCHECK_phase-18e.close_20260802T082536Z.json (this receipt, pre-write)",
+      "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl (the operator's durable node log)",
+      "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\terminal_leases.json (the operator's durable lease ledger)",
+      "grok_build pane screen as rendered at teardown",
+      "google_antigravity pane screen as rendered at teardown"
+    ],
+    "sentinels_checked": 5
+  },
+  "credential_scan_log_file": "C:\\Users\\Sslaw\\AppData\\Roaming\\sovereign-desktop\\logs\\main-process.log",
+  "lease_ledger_file": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\terminal_leases.json",
+  "node_log_file": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\nodes\\node_events.jsonl",
+  "credential_sentinel_names": [
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTIGRAVITY_API_KEY"
+  ],
+  "owed": {
+    "operator_first_use": "the operator has not typed into either pane themselves. Where this receipt types at all it drives the RENDERER's own input path (invariant 27's surface, not a back door), which is as close as a machine can get; the operator's own use is the half only they can discharge, exactly as directive §16's DEFINITION OF DONE reserves the spoken-mic leg to them",
+    "provider_answer_quality": "for a provider listed in `providers_live` — and ONLY for one listed there — what is established is that a live model answered one arithmetic probe: nothing about that provider's capability, tool use, agentic behaviour or fitness for any role. §17 asks for one harmless prompt and this receipt claims no more than that. A provider absent from that list has no answer of any quality on this run",
+    "concurrent_same_provider": "§17 forbids simultaneous same-provider sessions, so the allowance-1 refusal path (a second grok/agy pane while one is live) is NOT exercised here. Its governed refusal is covered by the headless suite and by 18B's picker legs; deliberately unexercised is not the same as unknown, and it is stated rather than left to inference",
+    "op6_provider_pane_records": "U313: `claude_code` and `openai_codex_cli` panes hold a durable terminal and STILL no Sovereign node record — registering them would change behaviour OP-12's own supersession list names untouchable. This receipt covers the two OP-12 providers only",
+    "provider_workspace_trust": "each OP-12 CLI raises its OWN directory-trust consent on an interactive launch in this workspace (grok: \"Yes, proceed\"; agy: \"Do you trust the contents of this project?\"), and no argv flag dismisses it — both panes already run in the least-authority mode each CLI offers (`--permission-mode plan` / `--mode plan`) and are asked anyway. Answering it grants a frontier CLI read/edit/execute authority over the operator's workspace, which is a protected action the loop never self-authorizes (invariant 1) and which OP-12's own directive §11 refuses as an unsandboxed default. Until the operator answers it once themselves, that provider's typed round trip is skip-with-record, and this receipt names the step rather than pressing the key",
+    "containment_beyond_env": "U25 (the OS job-object handoff) and U78(a) (permission-profile binding) are unchanged and still owed. What is measured here is supervised admission, the Python-minted identity, the governed workspace as the ConPTY cwd, and the §2.2 credential scrub on the child's environment — not that the pid is provably the pane's own descendant (invariant 29's harness-level half)"
+  },
+  "owed_named": {
+    "ok": true,
+    "reasons": [],
+    "keys": [
+      "operator_first_use",
+      "provider_answer_quality",
+      "concurrent_same_provider",
+      "op6_provider_pane_records",
+      "containment_beyond_env",
+      "provider_workspace_trust"
+    ]
+  },
+  "error": "Grok Build: Grok Build is waiting on its own workspace_trust gate, which the loop may not answer (invariant 1; operator directive §11) — this leg is SKIPPED WITH RECORD. One-time operator step: run `grok` once from a terminal in this workspace and answer its \"Yes, proceed\" directory-trust prompt yourself — the loop must not answer it (invariant 1; OP-12 operator directive §11: no always-approve, no unsandboxed defaults)",
+  "credential_sentinels_planted": [
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTIGRAVITY_API_KEY"
+  ],
+  "credential_sentinels_skipped_present_on_host": [],
+  "finished": "2026-08-02T08:25:54.717Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "scope_note": "this is the LIVE OP-12 acceptance leg directive §17.2(1) asks for. The chain it is built to measure, per provider, is: a real picker selection this host enumerated from the provider's own CLI → a supervised ConPTY pane holding a durable I-X3 terminal on that provider's own allowance-1 resource → a `node@1.1` Sovereign node record on the OPERATOR's durable node log, moved to READY with the supervised pid → the exact provider and model verified off the binary that was spawned and the model id the argv asked for → ONE harmless falsifiable prompt typed through the RENDERER's own input path → a live answer read back out of the xterm buffer → the session killed here, the terminal back at 0/1 read from a separate process, and the node record closed on the same append-only log. A provider is only claimed to have completed that chain if it is listed in `providers_live`. NO LIVE ANSWER IS CLAIMED FOR EITHER PROVIDER ON THIS RUN. grok_build, google_antigravity stopped at the CLI's own directory-trust modal (see `scope_note_consent_gate` and `operator_steps`) — everything BEFORE the typed prompt is still measured and still claimed for them. What this leg does NOT claim even when green is in `owed`: the operator's own first use, anything about a model's capability beyond one arithmetic token, the deliberately unexercised same-provider concurrency refusal, U313's OP-6 pane records, the workspace-trust consent that is the operator's alone, and the containment U25/U78(a) still owe.",
+  "scope_note_real_stores": "unlike every other live self-check in this build, this one does NOT redirect the lease ledger to a scratch file, and it reads and writes the operator's real node log. That is the leg, not an oversight: §17.2(1) asks for durable-ledger AND node-log consistency, which is a statement about the operator's real I-X3 accounting. The two OP-12 resources have allowance 1 each and no other LEASED session can hold them (the conductor runs on claude_code), so this check cannot adopt or release a terminal a governed session holds. What the ledger CANNOT see is a provider CLI the operator ran by hand — including the `grok`/`agy` invocation `operator_steps` asks for, which takes no lease (U325); let that one exit before re-running this check, or §17's no-simultaneous-same-provider-sessions line is answered by an accounting that cannot see the other session. The ledger is asserted EMPTY at the end rather than unchanged — it legitimately changed, twice, and 'unchanged' would have been the wrong question.",
+  "scope_note_live_cost": "0 live exchange(s) spent on this run — counted from the legs that actually submitted a prompt, never from the plan. The CEILING is one prompt and one answer per provider, which is the budget directive §17/§17.2 sets and which the `.live.shape` unit overran and recorded as U312; a leg that stopped at a consent gate submitted nothing and therefore cost nothing. The sessions run strictly sequentially and each is killed before the next is asked for, so no two provider sessions ever exist at once. On top of that the run makes TOKEN-FREE metadata calls that leave this host (D-P18-7/U271): one picker enumeration (`--version` + `models` for both CLIs) plus, inside each provider's governed ticket, one further enumeration scoped to that provider alone (U290). No credential is read, stored or transmitted at any point (§2.2) — both CLIs use their own host-native auth.",
+  "scope_note_consent_gate": "a leg listed in `providers_consent_gated` carries `ok:false` and an `error`, and the §17 criterion it was to establish is UNMET — but not by anything the product did: it stopped at the CLI's own directory-trust modal, which only the operator may answer (invariant 1; operator directive §11's no-always-approve, no-unsandboxed-defaults rule, and its line that a provider CLI's own always-approve setting is never operator approval). No PERMITTED argv flag dismisses that modal — the two that might are the ones §11 forbids, and neither was tried. It is recorded, not skipped silently, with the one-time operator step named in `operator_steps`. Everything BEFORE the typed prompt is still measured and still claimed for that provider — the governed picker spawn, the supervised ConPTY pane, the exact provider+model, the durable I-X3 terminal seen from a separate process, the `node@1.1` record's whole life on the operator's append-only log, the §2.2 child-environment scrub and teardown to zero. What is NOT claimed is the live exchange itself, and `ok` stays false while any of it is owed. The gated leg spends no live budget: no prompt is pushed into a modal that reaches no model.",
+  "scope_note_credential_scan": "the sentinel scan in `credential_scan` covers FOUR sink classes — the shell's durable main-process log, this receipt's payload, each pane's screen as rendered at teardown, and the two DURABLE STORES this run writes into (the operator's node event log and lease ledger, written by py children that inherit this process's environment); `sinks_checked` lists every file by path. A FIFTH sink, each child's ENVIRONMENT, is measured separately and reported per leg in `child_env`, by NAME rather than by value, because the shell observes the child's env keys and never its values — which is also the only §2.2-safe way to measure it. WHAT THE PANE SINK IS NOT (U324): grok and agy are full-screen TUIs on xterm's ALTERNATE buffer, which keeps no scrollback, so that sink is the screen at teardown and NOT the session's whole output — anything printed and then repainted over is outside it, and no claim is made that it is covered. The payload is re-scanned immediately before it is written, so fields added after the first scan are covered too, and a hit there refuses the write outright: publishing the leak is worse than publishing nothing."
+}

@@ -1,0 +1,104 @@
+{
+  "directive": "SD-RBR-v1.1",
+  "start_head": "a05e17a3e9d81647078ebf5ef423eaae71bd7643",
+  "end_head": "fa2dd01c76e8fd1ead4f3f430d1f9a5f5e9b3154",
+  "gates": {
+    "GR-0": "PASS",
+    "GR-1": "PASS",
+    "GR-2": "PASS",
+    "GR-3": "PASS",
+    "GR-4": "PASS"
+  },
+  "regression": {
+    "command": "python -m pytest -q -p no:cacheprovider",
+    "result": "229 passed, 429 subtests passed",
+    "exit_code": 0,
+    "measured_at_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3"
+  },
+  "locus_verification": {
+    "verdict": "PASS",
+    "observed": "229 passed, 429 subtests passed",
+    "recorded": "229 passed, 429 subtests passed"
+  },
+  "reproduce_command": "python tools/verify_regression_locus.py   (exit 0, verdict PASS; overlay snapshots sealing commit 0ab875bfa07d856d1e5fa48185cc31a5dc3e1058; manual equivalent: git worktree add --detach <tmp> e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3, copy LOOP_STATE+BUILD_COMPLETION_MANIFEST from that seal commit, cd <tmp>, python -m pytest -q -p no:cacheprovider -> expect exactly '229 passed, 429 subtests passed')",
+  "secret_detector": {
+    "sk_pattern": "sk-[A-Za-z0-9]{20,}",
+    "declared_fixture_suppressions": [
+      {
+        "path": "runs/release-baseline/SD_RBR_FINAL_REPORT.json",
+        "pattern": "sk-[A-Za-z0-9]{20,}",
+        "value": "sk-synthetic000000000000000000"
+      },
+      {
+        "path": "tests/test_corpus_admission.py",
+        "pattern": "sk-[A-Za-z0-9]{20,}",
+        "value": "sk-synthetic000000000000000000"
+      },
+      {
+        "path": "tests/test_end_to_end_dry_run.py",
+        "pattern": "sk-[A-Za-z0-9]{20,}",
+        "value": "sk-synthetic000000000000000000"
+      },
+      {
+        "path": "tests/test_secret_detector_net.py",
+        "pattern": "sk-[A-Za-z0-9]{20,}",
+        "value": "sk-synthetic000000000000000000"
+      },
+      {
+        "path": "tools/export_enterprise.py",
+        "pattern": "sk-[A-Za-z0-9]{20,}",
+        "value": "sk-synthetic000000000000000000"
+      }
+    ],
+    "regression_net_passed": true
+  },
+  "artifacts": {
+    "root": "D:\\Sovereign-Enterprise-Snapshots",
+    "enterprise_zip_sha256": "3589373946b861e1c08b996115d3d917fa92c64dcbbb73cb1f05e419f6c117c5",
+    "bundle_sha256": "99a6be010b250724bac9126ae0a8ceff30ffa51f52cb6cc703ef59392e55c088",
+    "raw_source_zip_sha256": "132477d5c2a5775a8a410b7fc103194535470e86af44b0cb6c62cbd21de99efd"
+  },
+  "temp_copies_disposition": "DELETED",
+  "controls_weakened": [],
+  "tests_removed_or_weakened": [],
+  "test_accounting": {
+    "baseline_for_this_addendum": "209 passed, 413 subtests passed at a05e17a",
+    "final_head_measured": "229 passed, 430 subtests passed",
+    "added_modules": [
+      "tests/test_secret_detector_net.py",
+      "tests/test_security_polarity.py",
+      "tests/test_cold_restore_record.py::PostRemediationColdRestoreTests",
+      "tests/test_terminal_evidence_seal.py::RegressionLocusVerifierGateTests"
+    ],
+    "modified_tests": [
+      "tests/test_terminal_evidence_seal.py: vacuous equality assertion replaced by ancestor+evidence-delta mechanics and verification-lifecycle test; shape regex unchanged; no assertion removed"
+    ],
+    "final_head_measured_at_commit": "fa2dd01c76e8fd1ead4f3f430d1f9a5f5e9b3154",
+    "subtest_count_note": "subtests grow with every tracked .json the contract parse test enumerates; recorded locus strings remain exact for their named configurations"
+  },
+  "invariants_held": {
+    "model_compute_performed": false,
+    "promotion_performed": false,
+    "deployment_performed": false,
+    "d9_state": "4_OF_4_UNKNOWN_FAIL_CLOSED",
+    "hg3_state": "BLOCKED_HARDWARE_CAPACITY",
+    "g2_g6_state": "NOT_EXECUTED",
+    "implementation_seal_commit": "cb26214128d61c0d52e3d00d9067bc90ebc4cb47",
+    "main_at": "45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7",
+    "tags": "(none)",
+    "working_tree_clean": true,
+    "fa89a2b9_cold_restore_record_untouched": true
+  },
+  "deviations": [
+    "R-1 bootstrap: the de-vacuumed mechanics test necessarily reads the sealed manifest, so the manifest must be regenerated before measurement; the old binding (ac380d1) poisoned that first cycle and produced transient red runs between R-1 code commits and the final seal. All intermediate states are committed history; nothing was amended or rewritten.",
+    "Verification-record lifecycle: REGRESSION_LOCUS_VERIFICATION.json cannot exist inside the configuration it verifies (self-reference), so its seal test treats absence as legal only pre-verification; once present it strictly requires verdict PASS with observed result/exit equal to recorded. The record was produced by actually running the recorded command in a temporary worktree at the sealed locus with the declared evidence payloads overlaid; every overlay is listed with blob hashes in the record.",
+    "Verifier compares duration-normalized pytest summary lines (recorded convention strips the 'in <t>s' suffix); the raw line is preserved in observed.raw_last_line for full transparency.",
+    "Two intermediate sealed loci (37fd825 via 78df1ef, a676ac2 via b7404e9) were superseded by later code-bearing commits during R-1 convergence; each was honestly bound and verified at its time. The terminal binding is e4e24be.",
+    "Detector-net samples are runtime-assembled from inert fragments so the tracked tree stays scannable-clean without any suppression for synthetic net values; DECLARED_FIXTURE_SECRETS remains exactly {sk-synthetic000000000000000000}.",
+    "R-4 export/cold-restore artifacts were captured at db83a94c (post-R-2/R-3/R-4-code head, pre-R-1 tooling commits); the delta db83a94c..end_head contains only R-1 tooling/tests and declared evidence records. Both records name their exact source commits and reproduce there.",
+    "Second execution request (duplicate instruction) triggered a re-audit instead of a re-run: GR-0 starting head no longer matched, so R-items were not re-executed; the re-audit itself caught that the verifier's overlay used HEAD, letting post-seal evidence rows shift restored-tree subtest counts (430 vs recorded 425). Fixed by snapshotting the overlay at the sealing commit (git log -1 on LOOP_STATE) and reproducing deletions as well as additions; locus re-sealed at e80a5b1 (229 passed, 429 subtests passed), verified PASS twice - once immediately and once after further evidence commits - proving immunity to post-seal ledger appends.",
+    "Transient intermediate sealed loci during this convergence: 675d24b (18b370a, incomplete), 4f3835c (466df30). Each superseded honestly; nothing amended or rewritten.",
+    "Generator allowed_pending now includes runs/release-baseline/REGRESSION_LOCUS_VERIFICATION.json so its lifecycle (absent -> PASS record) can pass through regeneration gates."
+  ],
+  "final_disposition": "COMPLETE_HALTED_AWAITING_TOKEN"
+}

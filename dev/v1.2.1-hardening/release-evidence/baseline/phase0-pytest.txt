@@ -1,0 +1,7 @@
+﻿Command: python -m pytest tests -q
+Workdir: D:\Product Software\Production Workspace\modules\debate (pristine baseline)
+Interpreter: CPython 3.14.6 (matches BUILD-INFO python_version_tested)
+Date: 2026-08-23T07:0xZ
+
+Result:
+84 passed in 15.78s

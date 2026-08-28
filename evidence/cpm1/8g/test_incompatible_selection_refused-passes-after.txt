@@ -1,0 +1,12 @@
+# utc: 2026-08-26T15:40:41.599492Z
+# producer: ox-alpha CP-M1 ADD-07 wave3
+
+test_powershell_rejects_model_ref (shell.tests.test_incompatible_selection_refused.TestIncompatibleSelectionRefused.test_powershell_rejects_model_ref) ... ok
+test_runtime_name_refused_as_model (shell.tests.test_incompatible_selection_refused.TestIncompatibleSelectionRefused.test_runtime_name_refused_as_model) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.055s
+
+OK
+
+OK

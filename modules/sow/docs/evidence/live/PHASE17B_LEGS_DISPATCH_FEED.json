@@ -1,0 +1,72 @@
+{
+  "schema": "conductor_dispatch_feed@1.0",
+  "dispatched": true,
+  "reason": null,
+  "objective": "Design the offline conductor roster",
+  "assignments": [
+    {
+      "task": "t-1",
+      "node": "worker-claude-live",
+      "rationale": "resolved 'reasoning' to worker-claude-live by descriptor (score-ranked, 1 eligible)"
+    }
+  ],
+  "assigned_count": 1,
+  "by_descriptor": true,
+  "queued_count": 2,
+  "failed_count": 0,
+  "accepted_count": 1,
+  "acceptance_packet": "m-beb6b01c38a28413",
+  "acceptance_verdict": "PASS",
+  "operator_disposition": "pending",
+  "legs": {
+    "conductor": "mock",
+    "workers": "live"
+  },
+  "worker_legs": {
+    "worker:worker-claude-live": "live"
+  },
+  "worker_evidence": [
+    {
+      "node_id": "worker-claude-live",
+      "leg": "live",
+      "adapter": "claude_code",
+      "executed": true,
+      "spent": true,
+      "verified": true,
+      "model": "claude-opus-5[1m]",
+      "tasks": [
+        "t-1"
+      ]
+    }
+  ],
+  "node_refusals": [],
+  "gate_summary": {
+    "plan": "PASS",
+    "stage_pass": 1,
+    "stage_total": 1,
+    "acceptance": "PASS"
+  },
+  "synthesized_by": "conductor_fable5",
+  "live_workers_owed": {
+    "owed": false,
+    "issue": "U58",
+    "note": "a LIVE worker executed this dispatch: it published a CANDIDATE over MCP, the real gate engine accepted it, and its leg is derived from a VERIFIED executing checkpoint dated to a call spent in this run.",
+    "live_nodes": [
+      {
+        "node_id": "worker-claude-live",
+        "model": "claude-opus-5[1m]"
+      }
+    ]
+  },
+  "ts": "2026-07-26T19:19:27.216499+00:00",
+  "torn_down": true,
+  "live_run": {
+    "run_ts": "2026-07-26T19:19:27.719911+00:00",
+    "elapsed_s": 277.4,
+    "cli_present": true,
+    "repo_live_config_exists": true,
+    "requested_model": null,
+    "max_tokens": 200,
+    "timeout_s": 420.0
+  }
+}

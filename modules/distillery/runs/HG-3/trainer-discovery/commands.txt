@@ -1,0 +1,34 @@
+HG-3 trainer discovery — read-only commands
+
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/main
+rg path-only searches for gfx906, MI50, Vega 20, ROCm, trainer-host, SSH,
+HSA_OVERRIDE_GFX_VERSION, and TORCH_BLAS_PREFER_HIPBLASLT over authorized roots
+rg direct searches over selected SOVEREIGN_SYSTEM inventory files
+sanitized inspection of PowerShell PSReadLine history (counts/parsed hosts only)
+sanitized inspection of SSH config and known_hosts metadata
+sanitized inspection of Windows Terminal, PuTTY, RDP, and remote-development targets
+inspection of matching environment-variable names
+docker context ls (local contexts only)
+Get-SmbMapping
+git remote -v over known repositories
+hostname / Win32_OperatingSystem / Win32_ComputerSystem / Win32_VideoController
+nvidia-smi --query-gpu=name,pci.bus_id,memory.total,memory.used,memory.free,driver_version
+Get-NetNeighbor summarized by count/interface only
+Get-NetTCPConnection -RemotePort 22 -State Established summarized by count only
+Get-DnsClientCache filtered to already named project/trainer terms
+hosts-file filtered to already named project/trainer terms
+wsl.exe --list --verbose
+presence-only checks for Hyper-V, VirtualBox, Tailscale, ZeroTier, and Podman
+Get-FileHash registry/grounded/trainer.json,runs/HG-3/trainer-discovery/evidence.json -Algorithm SHA256
+py -3.14 -m unittest discover -s tests -v
+<python-3.11.16> -m unittest discover -s tests -v
+wsl.exe -d Ubuntu-24.04 --cd /mnt/d/Sovereign-Grounded-Distillery -- python3 -m unittest discover -s tests -v
+Python compilation on Windows Python 3.14, Windows Python 3.11, and Linux Python 3.12
+py -3.13 -m build --outdir <external-temporary-directory>
+Draft202012Validator.check_schema over schema/*.json
+git diff --check and credential/model-weight/oversized-artifact/conflict scans
+
+No port scan, arbitrary DNS lookup, SSH attempt, credential read, model download,
+model load, GPU drain, card lock, training step, HG-3 compute, or push occurred.

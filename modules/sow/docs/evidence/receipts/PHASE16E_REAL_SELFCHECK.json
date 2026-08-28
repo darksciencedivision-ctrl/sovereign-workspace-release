@@ -1,0 +1,171 @@
+{
+  "schema": "phase16e_real_selfcheck@1.0",
+  "check": "phase-16e.real",
+  "started": "2026-07-27T01:50:44.142Z",
+  "ok": true,
+  "supervision_ready": true,
+  "conductor_pane_id": "pane-1",
+  "capture": {
+    "sourced": true,
+    "engine": {
+      "name": "mock-stt",
+      "mock": true,
+      "real_available": false,
+      "probing": true,
+      "nemo_state": "unprobed",
+      "probe": null,
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": false,
+        "nemo_state": "unprobed",
+        "probe": null
+      },
+      "reason": "the WSL NeMo probe has not answered yet — voice engine state is PROBING (the mock STT produced this stand-in transcript; the real engine may still be available)"
+    },
+    "outcome": {
+      "kind": "chat",
+      "source": "voice",
+      "text": "show status",
+      "confidence": 0.95,
+      "reason": "",
+      "queue_item_id": null
+    },
+    "delivered": true,
+    "delivered_text": "show status",
+    "queued": false,
+    "needs_clarification": false,
+    "delivered_to_conductor": false,
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "reason": "conductor session not admitted (owed 16F)"
+    },
+    "tts": false,
+    "note": "chat routed by the bridge; conductor ConPTY write OWED to 16F (no admitted live conductor session)",
+    "live_capture_owed": {
+      "owed": true,
+      "issue": "16F",
+      "note": "the ROUTING is real (bridge + broker) and the transcript is engine-selected, but real microphone capture and the write of a CHAT transcript into the interactive conductor ConPTY are the operator-run surfaces (a real PCM stream, an admitted live conductor session) — the assembled-run evidence is owed to 16F."
+    },
+    "capture": {
+      "real_pcm": false,
+      "audio_ref": "audio:show-status"
+    },
+    "chromeEngine": {
+      "name": "unknown",
+      "mock": true,
+      "real_available": false,
+      "probing": true,
+      "nemo_state": "unprobed",
+      "probe": null,
+      "real_engine": null,
+      "detection": {},
+      "reason": "probing the WSL NeMo stack…"
+    },
+    "selfAuthorized": false
+  },
+  "protected_capture": {
+    "sourced": true,
+    "engine": {
+      "name": "mock-stt",
+      "mock": true,
+      "real_available": false,
+      "probing": true,
+      "nemo_state": "unprobed",
+      "probe": null,
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": false,
+        "nemo_state": "unprobed",
+        "probe": null
+      },
+      "reason": "the WSL NeMo probe has not answered yet — voice engine state is PROBING (the mock STT produced this stand-in transcript; the real engine may still be available)"
+    },
+    "outcome": {
+      "kind": "proposed_action",
+      "source": "voice",
+      "text": "terminate node-B",
+      "confidence": 0.93,
+      "reason": "destructive verb requires operator approval",
+      "queue_item_id": "ap-1"
+    },
+    "delivered": false,
+    "delivered_text": null,
+    "queued": true,
+    "needs_clarification": false,
+    "delivered_to_conductor": false,
+    "write": {
+      "written": false,
+      "submitted": false,
+      "flattened": false,
+      "echo": null,
+      "reason": "protected/destructive action — queued for approval (never delivered)"
+    },
+    "tts": false,
+    "note": "protected/destructive action — queued for approval (never delivered)",
+    "live_capture_owed": {
+      "owed": true,
+      "issue": "16F",
+      "note": "the ROUTING is real (bridge + broker) and the transcript is engine-selected, but real microphone capture and the write of a CHAT transcript into the interactive conductor ConPTY are the operator-run surfaces (a real PCM stream, an admitted live conductor session) — the assembled-run evidence is owed to 16F."
+    },
+    "capture": {
+      "real_pcm": false,
+      "audio_ref": "audio:terminate-node-b"
+    },
+    "chromeEngine": {
+      "name": "unknown",
+      "mock": true,
+      "real_available": false,
+      "probing": true,
+      "nemo_state": "unprobed",
+      "probe": null,
+      "real_engine": null,
+      "detection": {},
+      "reason": "probing the WSL NeMo stack…"
+    },
+    "selfAuthorized": false
+  },
+  "checks": {
+    "capture_sourced": true,
+    "capture_is_chat": true,
+    "capture_has_transcript": true,
+    "engine_detection_honest": true,
+    "no_fabricated_real_transcript": true,
+    "self_authorized_false": true,
+    "no_tts": true,
+    "conductor_write_owed_honest": true,
+    "rendered_engine_indicator": true,
+    "badge_not_mislabelled_mock": true,
+    "rendered_outcome": true,
+    "badge_never_claims_undelivered_as_delivered": true,
+    "write_reported_written": true,
+    "write_echoed_into_pty": true,
+    "protected_queued": true,
+    "protected_not_delivered": true
+  },
+  "voice_badge_text": "🎙 probing… · Routed — not delivered to the conductor",
+  "write_pane_id": "pane-2",
+  "error": null,
+  "engine_real_available": false,
+  "self_authorized_false_note": "shell forwarded; Python decided",
+  "chrome_engine_real_available": false,
+  "badge_expectation": {
+    "delivered_to_conductor": false,
+    "pattern": "/not delivered to the conductor/i"
+  },
+  "live_capture_owed": "16F (routing + engine selection + conductor-input write are real; real mic PCM capture + the admitted live interactive conductor ConPTY session are operator-run; the real WSL Parakeet transcription itself is proven on this host by tools/live/real_parakeet_smoke.py)",
+  "finished": "2026-07-27T01:50:52.847Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

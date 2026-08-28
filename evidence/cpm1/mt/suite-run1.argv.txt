@@ -1,0 +1,16 @@
+﻿-3.12
+-m
+pytest
+tests/
+-ra
+--durations=0
+--deselect
+tests/integration/test_assembled_roster.py::test_item7_ollama_smoke_runs_live
+--deselect
+tests/integration/test_assembled_run.py::test_assembled_run_live_ollama_leg_or_skip_with_record
+--deselect
+tests/integration/test_multi_model_adapters.py::test_live_ollama_backend_smoke
+--deselect
+tests/integration/test_opencode_candidate_live.py::test_live_drive_then_governed_candidate_and_merge
+--deselect
+tests/integration/test_opencode_worktree_live.py::test_live_opencode_drives_local_model_in_isolated_worktree

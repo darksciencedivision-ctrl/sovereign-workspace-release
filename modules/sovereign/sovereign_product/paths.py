@@ -1,0 +1,379 @@
+"""Portable, fail-closed paths for the SOVEREIGN product surface.
+
+The install root is authoritative only when it contains the canonical
+``.sovereign-root`` marker.  Runtime state ships root-relative by default:
+
+* ``<root>/runtime``
+* ``<root>/runtime/sovereign.db``
+* ``<root>/runtime/evidence``
+
+Artifact references are portable ``sovereign://`` pointers.  Absolute legacy
+paths are deliberately rejected during normal resolution; migration requires
+an explicit legacy root.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Iterable, Mapping
+from urllib.parse import quote, unquote
+
+
+ROOT_MARKER = ".sovereign-root"
+ROOT_MARKER_CONTENT = "SOVEREIGN_ROOT_MARKER=1"
+POINTER_PREFIX = "sovereign://"
+
+
+class PathResolutionError(RuntimeError):
+    """A trusted product path could not be resolved."""
+
+
+class UnsafeArtifactPointer(ValueError):
+    """An artifact pointer escaped, or could escape, its trusted root."""
+
+
+def _resolved(path: str | os.PathLike[str] | Path) -> Path:
+    return Path(path).expanduser().resolve(strict=False)
+
+
+def _is_within(path: Path, base: Path) -> bool:
+    try:
+        path.relative_to(base)
+        return True
+    except ValueError:
+        return False
+
+
+def _marker_is_valid(candidate: Path) -> bool:
+    marker = candidate / ROOT_MARKER
+    try:
+        return marker.is_file() and marker.read_text(encoding="utf-8").strip() == ROOT_MARKER_CONTENT
+    except OSError:
+        return False
+
+
+def validate_root(root: str | os.PathLike[str] | Path) -> Path:
+    """Resolve and validate one explicit SOVEREIGN install root."""
+
+    candidate = _resolved(root)
+    if not candidate.is_dir():
+        raise PathResolutionError(f"SOVEREIGN root is not a directory: {candidate}")
+    if not _marker_is_valid(candidate):
+        raise PathResolutionError(
+            f"SOVEREIGN root lacks a valid {ROOT_MARKER} marker: {candidate}"
+        )
+    return candidate
+
+
+def resolve_root(
+    root: str | os.PathLike[str] | Path | None = None,
+    *,
+    start: str | os.PathLike[str] | Path | None = None,
+    env: Mapping[str, str] | None = None,
+) -> Path:
+    """Resolve the install root by explicit value, environment, then marker walk.
+
+    ``SOVEREIGN_ROOT`` is authoritative when present and is validated rather
+    than silently falling back.  The marker walk starts from ``start`` or this
+    module, never from a hard-coded drive or repository name.
+    """
+
+    environment = os.environ if env is None else env
+    if root is not None:
+        return validate_root(root)
+
+    configured = str(environment.get("SOVEREIGN_ROOT", "")).strip()
+    if configured:
+        return validate_root(configured)
+
+    origin = _resolved(start if start is not None else __file__)
+    if origin.is_file() or (not origin.exists() and origin.suffix):
+        origin = origin.parent
+    for candidate in (origin, *origin.parents):
+        if _marker_is_valid(candidate):
+            return candidate
+    raise PathResolutionError(
+        f"Unable to locate {ROOT_MARKER} while walking upward from {origin}"
+    )
+
+
+def find_root(
+    start: str | os.PathLike[str] | Path | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+) -> Path:
+    """Compatibility alias for marker-based root discovery."""
+
+    return resolve_root(start=start, env=env)
+
+
+def _resolve_override(
+    value: str | os.PathLike[str] | Path | None,
+    *,
+    default: Path,
+    root: Path,
+    approved_roots: Iterable[str | os.PathLike[str] | Path] = (),
+    label: str,
+) -> Path:
+    if value is None or not str(value).strip():
+        candidate = default.resolve(strict=False)
+    else:
+        raw = Path(value).expanduser()
+        candidate = (root / raw if not raw.is_absolute() else raw).resolve(strict=False)
+
+    trusted = [root, *(_resolved(path) for path in approved_roots)]
+    if not any(_is_within(candidate, base) for base in trusted):
+        raise PathResolutionError(
+            f"{label} is outside the install root and caller-approved roots: {candidate}"
+        )
+    return candidate
+
+
+def resolve_state_dir(
+    root: str | os.PathLike[str] | Path | None = None,
+    *,
+    override: str | os.PathLike[str] | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    approved_roots: Iterable[str | os.PathLike[str] | Path] = (),
+    create: bool = False,
+) -> Path:
+    product_root = resolve_root(root, env=env)
+    environment = os.environ if env is None else env
+    configured = override
+    if configured is None:
+        configured = str(environment.get("SOVEREIGN_STATE_DIR", "")).strip() or None
+    state = _resolve_override(
+        configured,
+        default=product_root / "runtime",
+        root=product_root,
+        approved_roots=approved_roots,
+        label="Runtime state directory",
+    )
+    if create:
+        state.mkdir(parents=True, exist_ok=True)
+    return state
+
+
+def resolve_evidence_dir(
+    root: str | os.PathLike[str] | Path | None = None,
+    *,
+    state_dir: str | os.PathLike[str] | Path | None = None,
+    override: str | os.PathLike[str] | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    approved_roots: Iterable[str | os.PathLike[str] | Path] = (),
+    create: bool = False,
+) -> Path:
+    product_root = resolve_root(root, env=env)
+    environment = os.environ if env is None else env
+    state = (
+        _resolved(state_dir)
+        if state_dir is not None
+        else resolve_state_dir(
+            product_root,
+            env=environment,
+            approved_roots=approved_roots,
+            create=create,
+        )
+    )
+    configured = override
+    if configured is None:
+        configured = str(environment.get("SOVEREIGN_EVIDENCE_DIR", "")).strip() or None
+    evidence = _resolve_override(
+        configured,
+        default=state / "evidence",
+        root=product_root,
+        approved_roots=approved_roots,
+        label="Evidence directory",
+    )
+    if create:
+        evidence.mkdir(parents=True, exist_ok=True)
+    return evidence
+
+
+def resolve_db_path(
+    root: str | os.PathLike[str] | Path | None = None,
+    *,
+    state_dir: str | os.PathLike[str] | Path | None = None,
+    override: str | os.PathLike[str] | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    approved_roots: Iterable[str | os.PathLike[str] | Path] = (),
+) -> Path:
+    product_root = resolve_root(root, env=env)
+    environment = os.environ if env is None else env
+    state = (
+        _resolved(state_dir)
+        if state_dir is not None
+        else resolve_state_dir(
+            product_root,
+            env=environment,
+            approved_roots=approved_roots,
+        )
+    )
+    configured = override
+    if configured is None:
+        configured = str(environment.get("SOVEREIGN_DB_PATH", "")).strip() or None
+    return _resolve_override(
+        configured,
+        default=state / "sovereign.db",
+        root=product_root,
+        approved_roots=approved_roots,
+        label="Product database path",
+    )
+
+
+@dataclass(frozen=True)
+class ProductPaths:
+    """Resolved locations shared by the adapter, store, and introspection."""
+
+    root: Path
+    state_dir: Path
+    db_path: Path
+    evidence_dir: Path
+
+    def pointer(self, path: str | os.PathLike[str] | Path) -> str:
+        return artifact_pointer(path, root=self.root)
+
+    def resolve_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
+        return resolve_artifact_pointer(pointer, root=self.root, must_exist=must_exist)
+
+
+def resolve_product_paths(
+    root: str | os.PathLike[str] | Path | None = None,
+    *,
+    start: str | os.PathLike[str] | Path | None = None,
+    state_dir: str | os.PathLike[str] | Path | None = None,
+    db_path: str | os.PathLike[str] | Path | None = None,
+    evidence_dir: str | os.PathLike[str] | Path | None = None,
+    env: Mapping[str, str] | None = None,
+    approved_roots: Iterable[str | os.PathLike[str] | Path] = (),
+    create: bool = False,
+) -> ProductPaths:
+    product_root = resolve_root(root, start=start, env=env)
+    state = resolve_state_dir(
+        product_root,
+        override=state_dir,
+        env=env,
+        approved_roots=approved_roots,
+        create=create,
+    )
+    evidence = resolve_evidence_dir(
+        product_root,
+        state_dir=state,
+        override=evidence_dir,
+        env=env,
+        approved_roots=approved_roots,
+        create=create,
+    )
+    database = resolve_db_path(
+        product_root,
+        state_dir=state,
+        override=db_path,
+        env=env,
+        approved_roots=approved_roots,
+    )
+    return ProductPaths(product_root, state, database, evidence)
+
+
+def _pointer_parts(pointer: str) -> tuple[str, ...]:
+    if not isinstance(pointer, str) or not pointer.startswith(POINTER_PREFIX):
+        raise UnsafeArtifactPointer(
+            f"Artifact pointer must use the {POINTER_PREFIX} scheme"
+        )
+    payload = pointer[len(POINTER_PREFIX) :]
+    if not payload or "\x00" in payload or "?" in payload or "#" in payload:
+        raise UnsafeArtifactPointer("Artifact pointer is empty or contains URL metadata")
+    if "\\" in payload:
+        raise UnsafeArtifactPointer("Artifact pointers must use POSIX separators")
+
+    decoded = unquote(payload)
+    raw_parts = decoded.split("/")
+    if any(part in ("", ".", "..") for part in raw_parts):
+        raise UnsafeArtifactPointer("Artifact pointer contains empty or traversal segments")
+    if PurePosixPath(decoded).is_absolute() or PureWindowsPath(decoded).is_absolute():
+        raise UnsafeArtifactPointer("Absolute artifact pointers are not portable")
+    if PureWindowsPath(decoded).drive:
+        raise UnsafeArtifactPointer("Drive-qualified artifact pointers are not portable")
+    return tuple(raw_parts)
+
+
+def resolve_artifact_pointer(
+    pointer: str,
+    *,
+    root: str | os.PathLike[str] | Path | None = None,
+    must_exist: bool = False,
+) -> Path:
+    """Resolve one portable pointer under the current marker-validated root."""
+
+    product_root = resolve_root(root)
+    parts = _pointer_parts(pointer)
+    candidate = product_root.joinpath(*parts).resolve(strict=False)
+    if not _is_within(candidate, product_root):
+        raise UnsafeArtifactPointer("Artifact pointer escapes the SOVEREIGN root")
+    if must_exist and not candidate.exists():
+        raise PathResolutionError(f"Artifact does not exist: {pointer}")
+    return candidate
+
+
+def artifact_pointer(
+    path: str | os.PathLike[str] | Path,
+    *,
+    root: str | os.PathLike[str] | Path | None = None,
+) -> str:
+    """Return a relocation-safe pointer for a path under the product root."""
+
+    product_root = resolve_root(root)
+    raw = Path(path).expanduser()
+    candidate = (product_root / raw if not raw.is_absolute() else raw).resolve(strict=False)
+    if not _is_within(candidate, product_root):
+        raise UnsafeArtifactPointer(f"Artifact path escapes the SOVEREIGN root: {candidate}")
+    relative = candidate.relative_to(product_root)
+    if not relative.parts:
+        raise UnsafeArtifactPointer("The install root itself is not an artifact")
+    payload = quote(PurePosixPath(*relative.parts).as_posix(), safe="/-._~")
+    pointer = POINTER_PREFIX + payload
+    # Round-trip validation also catches symlink escapes.
+    resolve_artifact_pointer(pointer, root=product_root)
+    return pointer
+
+
+def migrate_legacy_pointer(
+    pointer: str | os.PathLike[str] | Path,
+    *,
+    legacy_root: str | os.PathLike[str] | Path,
+    new_root: str | os.PathLike[str] | Path,
+) -> str:
+    """Explicitly migrate one trusted absolute pointer from an old install.
+
+    Normal pointer resolution never accepts absolute paths.  Migration is
+    intentionally separate and requires both the old trusted root and the new
+    marker-validated root.
+    """
+
+    raw_text = str(pointer)
+    if raw_text.startswith(POINTER_PREFIX):
+        # Already portable: validate it against the destination and normalize.
+        target = resolve_artifact_pointer(raw_text, root=new_root)
+        return artifact_pointer(target, root=new_root)
+    if "\x00" in raw_text:
+        raise UnsafeArtifactPointer("Legacy pointer contains a NUL byte")
+    if any(part == ".." for part in raw_text.replace("\\", "/").split("/")):
+        raise UnsafeArtifactPointer("Legacy pointer contains traversal")
+
+    old_base = _resolved(legacy_root)
+    legacy_path = Path(pointer).expanduser()
+    if not legacy_path.is_absolute():
+        raise UnsafeArtifactPointer("Legacy migration requires an absolute path")
+    legacy_path = legacy_path.resolve(strict=False)
+    if not _is_within(legacy_path, old_base):
+        raise UnsafeArtifactPointer("Legacy pointer is outside the explicitly trusted root")
+
+    relative = legacy_path.relative_to(old_base)
+    destination_root = validate_root(new_root)
+    return artifact_pointer(destination_root / relative, root=destination_root)
+
+
+# Small compatibility aliases for call sites that prefer explicit safety names.
+safe_artifact_pointer = artifact_pointer
+resolve_pointer = resolve_artifact_pointer

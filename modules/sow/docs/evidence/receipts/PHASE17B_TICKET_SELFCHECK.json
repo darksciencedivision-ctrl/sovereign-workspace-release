@@ -1,0 +1,150 @@
+{
+  "check": "phase-17b.ticket",
+  "started": "2026-07-26T13:05:03.118Z",
+  "ok": true,
+  "picker_sourced": true,
+  "picker_option_count": 49,
+  "local_option": {
+    "label": "qwen3:8b",
+    "model_slug": "qwen3:8b",
+    "residency": "not_loaded"
+  },
+  "frontier_option": {
+    "label": "Fable 5",
+    "model_slug": "fable-5",
+    "verified": false
+  },
+  "local_authorized": true,
+  "local_argv": [
+    "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Ollama\\ollama.EXE",
+    "run",
+    "qwen3:8b"
+  ],
+  "local_interactive": true,
+  "local_lease": "none (correct — local holds no subscription terminal)",
+  "local_subscription_governed": false,
+  "local_residency": {
+    "model": "qwen3:8b",
+    "scheduled": true,
+    "status": "loading",
+    "evicted": [],
+    "awaiting_eviction": [],
+    "reason": "fits in free VRAM",
+    "budget": {
+      "vram_budget_mb": 59776,
+      "budget_source": "env SOW_VRAM_BUDGET_MB (unverified against real GPU capacity)",
+      "estimate": true,
+      "established": true,
+      "running_vram_mb": 4528
+    }
+  },
+  "local_residency_budget": {
+    "vram_budget_mb": 59776,
+    "budget_source": "env SOW_VRAM_BUDGET_MB (unverified against real GPU capacity)",
+    "estimate": true,
+    "established": true,
+    "running_vram_mb": 4528
+  },
+  "host_residency_probed": true,
+  "host_used_vram_mb": 4528,
+  "local_budget_pinned_mb": "59776",
+  "local_squeeze_target": "qwen3:8b",
+  "local_squeeze_footprint_mb": 4983,
+  "local_budget_squeezed_mb": "9510",
+  "local_node_id": "worker-selfcheck-pane-local",
+  "local_node_state": "launch_authorized",
+  "local_reason": null,
+  "frontier_authorized": true,
+  "frontier_argv": [
+    "C:\\Users\\Sslaw\\.local\\bin\\claude.EXE",
+    "--model",
+    "claude-fable-5"
+  ],
+  "frontier_model_probe": {
+    "label": "fable-5",
+    "model": "claude-fable-5",
+    "model_available": true,
+    "source": "probe-ledger",
+    "record": {
+      "schema": "claude_model_probe@1.0",
+      "rule": "claude_model_probe@1: a slug is ACCEPTED only when the exact vendor CLI class ran a real one-shot call on it and the reply was not the CLI's own model-unavailable message; auth/rate conditions are inconclusive, never a demotion",
+      "label": "fable-5",
+      "candidates": [
+        "fable-5",
+        "claude-fable-5"
+      ],
+      "accepted_slug": "claude-fable-5",
+      "checkpoint": "claude-fable-5",
+      "conclusive": true,
+      "is_fallback": false,
+      "probed_at": "2026-07-26T02:41:11Z",
+      "note": "the host `claude` CLI accepted --model 'claude-fable-5' for the selection 'fable-5'; it reported executing checkpoint 'claude-fable-5' on the probe call",
+      "attempts": [
+        {
+          "slug": "fable-5",
+          "accepted": false,
+          "classification": "model_unavailable",
+          "checkpoint": null,
+          "detail": "claude CLI exited 1: There's an issue with the selected model (fable-5). It may not exist or you may not have access to it. Run --model to pick a different model."
+        },
+        {
+          "slug": "claude-fable-5",
+          "accepted": true,
+          "classification": "accepted",
+          "checkpoint": "claude-fable-5",
+          "detail": "ok"
+        }
+      ]
+    }
+  },
+  "frontier_no_headless_flags": true,
+  "frontier_env_scrub_name_count": 5,
+  "frontier_env_values_absent": true,
+  "frontier_identity": {
+    "node_id": "worker-selfcheck-pane-frontier",
+    "permission_profile_id": "pp-worker-reasoning",
+    "subscription_ref": "sub-claude_code",
+    "session_id": "selfcheck-17b-frontier#79176",
+    "pane_id": "selfcheck-pane-frontier",
+    "workspace": "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+    "role": "reasoning",
+    "mode": "autonomous"
+  },
+  "frontier_node_state": "launch_authorized",
+  "frontier_containment_disclosed": true,
+  "frontier_lease_id": "lease-d2c893a6984e",
+  "frontier_lease_durable": true,
+  "frontier_lease_holder_pid": 79176,
+  "electron_main_pid": 79176,
+  "frontier_lease_held_by_this_process": true,
+  "frontier_lease_visible_cross_process": true,
+  "frontier_emitter_governor_released": true,
+  "frontier_reason": null,
+  "forged_option_refused": true,
+  "forged_refusal_reason": "SpawnRefused: the selected option claude_code/Fable 99 (fabricated by the self-check) (slug 'fable-99-not-offered-by-this-host', available=True) is not one this host currently offers on those terms - refuse to authorize a selection the host enumeration does not presently back (fail closed; re-open the picker to refresh it). NOTE: `available` is part of the identity, so a model the operator WAS shown, greyed, lands here too - the picker's reason for greying it is the answer they need (validator MINOR-5)",
+  "forged_refused_by": "host_enumeration",
+  "local_budget_refused": true,
+  "local_budget_refusal_reason": "WorkerPaneRefused: a local pane for 'qwen3:8b' (4983MB) would only fit by displacing another resident model (free VRAM 4982MB of 9510MB, 4528MB in use) — this planner mirrors the Ollama daemon's residency, it does not own the host's VRAM, and it cannot tell whether a resident model is mid-generation (invariant 22). Refused: free VRAM on the host, or set SOW_VRAM_BUDGET_MB if the budget is understated (U96)",
+  "local_budget_refused_by": "vram_admission",
+  "conductor_role_refused": true,
+  "conductor_refusal_reason": "WorkerPaneRefused: unknown worker role 'conductor' — expected reasoning|coding (the conductor role is born by the dedicated conductor-first path, fail closed)",
+  "conductor_refused_by": "worker_role",
+  "local_greyed_leg": "exercised (runtime absent from a scrubbed PATH; the daemon stays reachable so the models are still enumerated)",
+  "local_greyed_when_no_pane_can_be_authorized": true,
+  "local_greyed_reason": "no local pane can be authorized: the local `ollama` runtime is not on this host's PATH, so no local pane can be launched (the daemon this list came from is reachable over HTTP; the CLI is a separate fact)",
+  "local_greyed_ticket_refused_by": "host_enumeration",
+  "ledger_scope": "scratch",
+  "ledger_path": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\.sovereign_store\\leases\\selfcheck-17b-79176.json",
+  "terminals_released": true,
+  "in_use_after_release": 0,
+  "error": null,
+  "finished": "2026-07-26T13:05:11.590Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "scope_note": "every VRAM budget here is COMPUTED from this host's own residency snapshot (read once under an unfalsifiable probe budget) so each leg exercises the branch its name claims on a busy host and an idle one alike. What that survives is stated narrowly, because the earlier wording ('if the resident set changes mid-run every leg throws and the receipt is RED') was not true of every leg — the authorized leg's generous budget can stay green if the resident set SHRINKS (spec-audit MINOR-4, 2026-07-26). What is actually established is narrower and sufficient: no leg can go green on a gate other than its own, because each asserts its gate id and the fit leg asserts the gate's own arithmetic: the authorized leg clears what is resident and is deliberately generous (used + the largest known footprint + headroom), so it tests admission MECHANICS, not this host's real capacity; the refusal leg stands above what is resident and falls short of the target, so the FIT gate is what says no; the greying leg scrubs PATH for its own children so the runtime is unlaunchable while the daemon stays reachable. The real GPU budget is not what this check tests. It obtains + releases governed worker AUTHORIZATIONS for options the host picker really offered, against a SCRATCH ledger; makes NO live model call and spawns NO session. The ConPTY launch of these argvs — and the pane chrome that follows it — is 17B `.spawn`; live worker CANDIDATE→gate→synthesis legs (U58) are 17B `.legs`. Over-allowance refusal, gate honesty, dead-holder reaping and the shape contract are covered by the Python and Node suites (tests/unit/test_emit_worker_launch.py, test_worker_pane_spawn.py, apps/desktop/test/worker-launch-source.test.js), not here."
+}

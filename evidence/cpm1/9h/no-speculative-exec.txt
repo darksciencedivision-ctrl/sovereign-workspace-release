@@ -1,0 +1,4 @@
+# utc: 2026-08-26T21:02:31.846594Z
+# producer: ox-alpha CP-M1 ADD-07 wave9
+
+G112: no target+draft simultaneous residency, no MTP execution, no DFlash execution, no speculative scheduler. S-5 8 GiB host.

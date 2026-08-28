@@ -1,0 +1,196 @@
+{
+  "check": "phase-19.6.conductor-descriptor",
+  "unit": "19.6-clean-tree",
+  "finding": "U331/U386(c)/U393 MINOR-1 — in the packaged runtime, conductor readiness admits the descriptor THIS shell resolved (whatever provider that is) and refuses only on descriptor properties; the classifier applies universal rules to every provider and a scoped rule to its own; and the submit-key behaviour is read from declared traits, measured in bytes on a real ConPTY. It evidences the DECISION PATHS, not any live provider: no model is started and no live exchange is spent.",
+  "source": {
+    "commit": "4bc6957d2f27256158d13660d8615171d44a2f42",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-11T08:45:29.225Z",
+  "electron_main_pid": 33276,
+  "ok": false,
+  "supervision_ready": true,
+  "declared_providers": [
+    "claude_code",
+    "openai_codex_cli",
+    "grok_build",
+    "google_antigravity"
+  ],
+  "panes": [
+    {
+      "pane": "D",
+      "pane_id": "pane-2",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "E-confirming",
+      "pane_id": "pane-3",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "E-undeclared",
+      "pane_id": "pane-4",
+      "term_created": true,
+      "banner_seen": true
+    }
+  ],
+  "legs": {
+    "host_descriptor_admitted": {
+      "descriptor_present": true,
+      "provider_id": "openai_codex_cli",
+      "model_id": "gpt-5.6-sol",
+      "selection_source": "live_operation_preference",
+      "readiness_turns": 1,
+      "decided_by": "conductor_descriptor",
+      "refusal_reason": null,
+      "ok": true
+    },
+    "succession_reachable": {
+      "candidates": [
+        {
+          "provider_id": "claude_code",
+          "model_id": "fable-5",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "openai_codex_cli",
+          "model_id": "gpt-5.6-sol",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "grok_build",
+          "model_id": "grok-code",
+          "admitted": true,
+          "readiness_turns": 2,
+          "reason": null
+        },
+        {
+          "provider_id": "google_antigravity",
+          "model_id": "gemini-3-pro",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "ollama_local",
+          "model_id": "qwen3:8b",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        }
+      ],
+      "admitted_count": 5,
+      "ok": true
+    },
+    "fail_closed_without_naming_a_vendor": {
+      "refusals": [
+        {
+          "case": "no descriptor",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: no descriptor",
+          "names_a_vendor": false
+        },
+        {
+          "case": "no provider",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is incomplete: descriptor names no provider",
+          "names_a_vendor": false
+        },
+        {
+          "case": "no model",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is incomplete: descriptor names no model",
+          "names_a_vendor": false
+        },
+        {
+          "case": "unregistered",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: the descriptor is not registered",
+          "names_a_vendor": false
+        },
+        {
+          "case": "not conductor-capable",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: the descriptor is not conductor-capable",
+          "names_a_vendor": false
+        },
+        {
+          "case": "another role",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: descriptor is not for the conductor role",
+          "names_a_vendor": false
+        }
+      ],
+      "ok": true
+    },
+    "scoped_rule_does_not_leak": {
+      "window_readable": true,
+      "limit_line_painted": true,
+      "trust_line_painted": true,
+      "production_resolver_answered": null,
+      "grok_on_grok_line": "USAGE_LIMIT",
+      "undeclared_on_grok_line": null,
+      "undeclared_on_universal_line": "WORKSPACE_TRUST_REQUIRED",
+      "grok_on_universal_line": "WORKSPACE_TRUST_REQUIRED",
+      "ok": true
+    },
+    "submit_key_follows_the_declared_trait": {
+      "confirming_provider": "openai_codex_cli",
+      "undeclared_provider": "selfcheck_undeclared_cli",
+      "confirming_written": true,
+      "undeclared_written": true,
+      "confirming_submits": 2,
+      "undeclared_submits": 2,
+      "confirming_settled": true,
+      "undeclared_settled": true,
+      "settle_after_both_ms": 3000,
+      "declared_confirm_enter": true,
+      "undeclared_confirm_enter": false,
+      "ok": false
+    }
+  },
+  "check_owned_bindings": [
+    "leg E's providerFor (a self-check pane has no chrome, so the production resolver has nothing to answer from — what it DOES answer on these panes is recorded in leg E)",
+    "leg E's log sink",
+    "leg D's provider argument (the classifier takes a provider id; these panes have none)",
+    "the pane programs themselves — powershell.exe printing text this check chose, so no real provider screen is evidenced here (U362)"
+  ],
+  "live_exchanges": 0,
+  "error": null,
+  "sessions_killed_in_unit": [
+    "pane-2",
+    "pane-3",
+    "pane-4"
+  ],
+  "finished": "2026-08-11T08:45:34.548Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

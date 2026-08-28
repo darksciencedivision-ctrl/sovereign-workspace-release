@@ -1,0 +1,60 @@
+# SWS-REM-DIR-20260828 R2 — release-worktree .gitignore
+# Directive §2 construction recipe: excludes environments, models, logs,
+# databases, caches, evidence scratch, node_modules, venvs, build output.
+#
+# DECLARED EFFECT: files matching these classes that exist inside the frozen
+# SYSTEM ZIP are extracted to disk but NOT tracked by git. The SYSTEM ZIP
+# (SHA-256 75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138)
+# remains the byte authority; git commits are DERIVED identities only
+# (see bundles\PHASE0\WORKTREE-RECIPE.md for the exclusion census).
+
+# --- environments / virtualenvs ---
+.venv/
+venv/
+env/
+.eggs/
+
+# --- env files (C-1c class) ---
+.env
+.env.*
+
+# --- node ---
+node_modules/
+
+# --- python bytecode / caches ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+
+# --- Windows junk / caches ---
+Thumbs.db
+desktop.ini
+
+# --- databases (C-1a class) ---
+# Frozen evidence captures (evidence/cp01, evidence/cpm1, ...) that contain
+# .db files remain on disk as quarantined-historical evidence; they are simply
+# not git-tracked.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# --- logs (C-1b class; evidence-capture logs likewise untracked) ---
+*.log
+
+# --- models / weights (never tracked) ---
+*.gguf
+*.safetensors
+models/
+
+# --- build output ---
+build/
+dist/
+*.egg-info/
+*.whl
+*.tar.gz
+
+# --- evidence scratch (loop-generated transient evidence only) ---
+evidence/scratch/

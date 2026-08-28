@@ -1,0 +1,13 @@
+﻿# utc: 2026-08-22T16:23:22.8043324Z
+# producer: ox-alpha GATE4B
+
+## Get-Process python,electron,node | Where Path -like '*Production Workspace\modules*'
+(empty - no managed process survived)
+## Get-CimInstance python/electron/node with CommandLine under Production Workspace\modules
+(empty)
+## Get-NetTCPConnection -State Listen -LocalPort 5175,8700,5180
+(empty - all three ports free)
+## builder transients (watcher/shell drivers)
+stopped: PID 45020
+stopped: PID 39792
+stopped: PID 42232

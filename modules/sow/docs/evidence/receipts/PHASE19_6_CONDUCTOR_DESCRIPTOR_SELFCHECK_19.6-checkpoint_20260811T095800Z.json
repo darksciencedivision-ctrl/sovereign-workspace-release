@@ -1,0 +1,213 @@
+{
+  "check": "phase-19.6.conductor-descriptor",
+  "unit": "19.6-checkpoint",
+  "finding": "U331/U386(c)/U393 MINOR-1 — in the packaged runtime, conductor readiness admits the descriptor THIS shell resolved (whatever provider that is) and refuses only on descriptor properties; the classifier applies universal rules to every provider and a scoped rule to its own; and the submit-key behaviour is read from declared traits, measured in bytes on a real ConPTY. It evidences the DECISION PATHS, not any live provider: no model is started and no live exchange is spent.",
+  "source": {
+    "commit": "d3c4e6cb3bdcb919d3124b2b9813397615edf2d8",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "started": "2026-08-11T09:58:02.839Z",
+  "electron_main_pid": 33100,
+  "ok": true,
+  "supervision_ready": true,
+  "declared_providers": [
+    "claude_code",
+    "openai_codex_cli",
+    "grok_build",
+    "google_antigravity"
+  ],
+  "panes": [
+    {
+      "pane": "D",
+      "pane_id": "pane-2",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "E-confirming",
+      "pane_id": "pane-3",
+      "term_created": true,
+      "banner_seen": true
+    },
+    {
+      "pane": "E-undeclared",
+      "pane_id": "pane-4",
+      "term_created": true,
+      "banner_seen": true
+    }
+  ],
+  "legs": {
+    "host_descriptor_admitted": {
+      "descriptor_present": true,
+      "provider_id": "openai_codex_cli",
+      "model_id": "gpt-5.6-sol",
+      "selection_source": "live_operation_preference",
+      "readiness_turns": 1,
+      "decided_by": "conductor_descriptor",
+      "refusal_reason": null,
+      "ok": true
+    },
+    "readiness_admits_any_registered_descriptor": {
+      "candidates": [
+        {
+          "provider_id": "claude_code",
+          "model_id": "fable-5",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "openai_codex_cli",
+          "model_id": "gpt-5.6-sol",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "grok_build",
+          "model_id": "grok-code",
+          "admitted": true,
+          "readiness_turns": 2,
+          "reason": null
+        },
+        {
+          "provider_id": "google_antigravity",
+          "model_id": "gemini-3-pro",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        },
+        {
+          "provider_id": "ollama_local",
+          "model_id": "qwen3:8b",
+          "admitted": true,
+          "readiness_turns": 1,
+          "reason": null
+        }
+      ],
+      "admitted_count": 5,
+      "scope": "READINESS ADMISSION ONLY. This leg does not establish that a conductor can be LAUNCHED on these five backends: control_plane/conductor/registry.py mints only its registered pairs, and conductor/launch-source.js refuses a ticket whose provider has no verified containment profile (a fail-closed containment rule, invariant 29 — not a vendor pin). Phase 15D succession is bounded by those layers, not by this one.",
+      "ok": true
+    },
+    "fail_closed_without_naming_a_vendor": {
+      "refusals": [
+        {
+          "case": "no descriptor",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: no descriptor",
+          "names_a_vendor": false
+        },
+        {
+          "case": "no provider",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is incomplete: descriptor names no provider",
+          "names_a_vendor": false
+        },
+        {
+          "case": "no model",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is incomplete: descriptor names no model",
+          "names_a_vendor": false
+        },
+        {
+          "case": "unregistered",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: the descriptor is not registered",
+          "names_a_vendor": false
+        },
+        {
+          "case": "not conductor-capable",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: the descriptor is not conductor-capable",
+          "names_a_vendor": false
+        },
+        {
+          "case": "another role",
+          "ok": false,
+          "state": "FAILED",
+          "reason": "conductor selection is unresolved: descriptor is not for the conductor role",
+          "names_a_vendor": false
+        }
+      ],
+      "ok": true
+    },
+    "scoped_rule_does_not_leak": {
+      "window_readable": true,
+      "limit_line_painted": true,
+      "trust_line_painted": true,
+      "production_resolver_answered": null,
+      "grok_on_grok_line": "USAGE_LIMIT",
+      "undeclared_on_grok_line": null,
+      "undeclared_on_universal_line": "WORKSPACE_TRUST_REQUIRED",
+      "grok_on_universal_line": "WORKSPACE_TRUST_REQUIRED",
+      "ok": true
+    },
+    "submit_key_follows_the_declared_trait": {
+      "confirming_provider": "openai_codex_cli",
+      "undeclared_provider": "selfcheck_undeclared_cli",
+      "confirming_written": true,
+      "undeclared_written": true,
+      "confirming_bytes_handed_to_conpty": [
+        "Write-Output 'SOVEREIGN_U331_E1'",
+        "\r",
+        "\r"
+      ],
+      "undeclared_bytes_handed_to_conpty": [
+        "Write-Output 'SOVEREIGN_U331_E2'",
+        "\r"
+      ],
+      "confirming_submit_keys": 2,
+      "undeclared_submit_keys": 1,
+      "confirming_body_executed_in_pane": true,
+      "undeclared_body_executed_in_pane": true,
+      "declared_confirm_enter": true,
+      "undeclared_confirm_enter": false,
+      "observed_prompt_delta": {
+        "confirming": 2,
+        "undeclared": 1,
+        "note": "pane-side observation only, NOT a criterion: the same one submitted line has read 0, 1 and 2 across runs of this check, because a repaint redraws a prompt and a slow render hides one"
+      },
+      "ok": true
+    }
+  },
+  "check_owned_bindings": [
+    "leg E's providerFor (a self-check pane has no chrome, so the production resolver has nothing to answer from; what the production resolver answers is recorded in leg D, for leg D's pane, as production_resolver_answered)",
+    "leg E's pasteSettleMs (200 ms) and submitConfirmMs (200 ms), substituted for production's PROVIDER_PASTE_SETTLE_MS / CODEX_SUBMIT_CONFIRM_MS so the check does not sit out the real settle windows — U364's bound is timing-sensitive and this leg does not measure it",
+    "leg E's conductorTarget and workerPaneFor, both () => null: writePrompt does not consult them, so they are inert here, but they are check-owned inputs to a production factory",
+    "leg E's log sink",
+    "leg D's provider argument (the classifier takes a provider id; these panes have none)",
+    "the pane programs themselves — powershell.exe printing text this check chose, so no real provider screen is evidenced here (U362)"
+  ],
+  "live_exchanges_is_a_literal": "this check makes no provider call at all, so the zero below is asserted by construction rather than counted from a spend ledger",
+  "live_exchanges": 0,
+  "error": null,
+  "sessions_killed_in_unit": [
+    "pane-2",
+    "pane-3",
+    "pane-4"
+  ],
+  "finished": "2026-08-11T09:58:07.871Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

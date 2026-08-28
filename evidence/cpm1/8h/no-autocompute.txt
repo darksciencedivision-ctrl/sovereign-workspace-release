@@ -1,0 +1,10 @@
+# utc: 2026-08-26T20:54:05.392476Z
+# producer: ox-alpha CP-M1 ADD-07 wave6
+
+
+G47 no compute on open
+window: start -> open /console -> idle
+GET /health compute=false: {"ok": true, "status": "idle", "compute": false}
+No training/distillation/merge process spawned.
+No artifact written under modules/distillery outputs (none exist).
+serve.py defines no pipeline import.

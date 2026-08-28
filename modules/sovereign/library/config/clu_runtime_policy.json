@@ -1,0 +1,8 @@
+﻿{
+    "clu_status":  "DEPRECATED_AND_DISABLED",
+    "default_enabled":  false,
+    "operator_override_required":  true,
+    "allow_automatic_invocation":  false,
+    "reason":  "Phase 18.2 review found CLU mostly stubbed; disabled to prevent incomplete secondary autonomous system.",
+    "updated_utc":  "2026-05-14T00:33:17Z"
+}

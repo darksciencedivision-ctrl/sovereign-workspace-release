@@ -1,0 +1,54 @@
+# utc: 2026-08-24T15:56:49.286981+00:00
+# producer: ox-alpha LOOP-01
+# oracle: evidence/loop5/tools/goalcheck.py read-only evaluation
+ALL_TRUE: False
+
+G0: TRUE
+  - session-start.txt exists=True
+  - capture content ok=True
+  - post-reset reverify exists=True
+  - kickoff logged verbatim=True
+  - DECISIONS.md sha match=True
+  - ports free now: {5175: True, 8700: True, 5180: False}
+  - helpers alive: {'fswatch-driver.pid': True, 'poller.pid': True, 'shell.pid': True}
+  - 5180 ok (free at start per capture; now free or held by live shell)=True
+
+G1: FALSE
+  - manifest-rem03-before-product-software: exists=False names_original_and_hash=False
+  - manifest-rem03-before-sow: exists=False names_original_and_hash=False
+  - manifest-rem03-before-distillery: exists=False names_original_and_hash=False
+  - sow-git-rem03-before.body exists=False four_sections=False meta_names_superseded=False
+  - original manifest-before-product-software untouched=True
+  - original manifest-before-sow untouched=True
+  - original manifest-before-distillery untouched=True
+  - original sow-git-before.body untouched=True
+
+G2: FALSE
+  - test-run.txt: ran_121_ge121=True ends_OK=True mtime_after_G1=False
+  - BUILD-MANIFEST entries=40 mismatched=0 
+  - app.css == v2 pinned hash: True
+
+G3: FALSE
+  - snapshot pre4c exists=False
+
+G4: FALSE
+  - shell-grid-initial.png: missing
+  - card-sovereign-READY.png: missing
+  - card-debate-READY.png: missing
+  - card-sow-STOPPED.png: missing
+  - card-distillery-NOT_STARTED.png: missing
+  - side-by-side-sovereign-shell.png: missing
+  - side-by-side-sovereign-module.png: missing
+  - shell-light-mode.png light_bg=False (missing)
+  - ollama-tags-fresh precedes sovereign capture=False
+  - keep-run records READY: [('debate', False), ('sovereign', False)]
+
+G5: FALSE
+  - orphans-after-loop01.txt clean=False
+  - shell stopped via own path, pid sentinels cleared=False
+
+G6: FALSE
+  - snapshot pre5c exists=False
+
+G7: FALSE
+  - report: producer_header=False final_line_is_claim=False covers_4c_5b=True tagged=False len=6086

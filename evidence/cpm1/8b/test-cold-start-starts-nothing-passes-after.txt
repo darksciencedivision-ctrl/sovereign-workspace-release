@@ -1,0 +1,11 @@
+﻿# utc: 2026-08-25T18:38:16.2658067Z
+# producer: ox-alpha CP-M1 Band 2 / G13
+# run: py -3.12 -B -m unittest shell.tests.test_cold_start -v  (COLDSTART_TARGET unset = product)
+# expected: OK - the real shell starts nothing at boot.
+
+test_cold_start_starts_nothing (shell.tests.test_cold_start.TestColdStart.test_cold_start_starts_nothing) ... ok
+System.Management.Automation.RemoteException
+----------------------------------------------------------------------
+Ran 1 test in 0.620s
+System.Management.Automation.RemoteException
+OK

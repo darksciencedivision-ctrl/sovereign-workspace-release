@@ -1,0 +1,4 @@
+# utc: 2026-08-21T23:33:07.167578Z
+# producer: ox-alpha GATE5
+source: evidence/startup-tests/sow-20260821T052050.534Z.json
+sha256: 7a6f7a3a165a232dbb11c6273e78afadc224d0ed6ed5c4c2689696edb6226704

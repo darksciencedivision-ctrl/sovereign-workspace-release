@@ -1,0 +1,46 @@
+IMPLEMENTATION COMMIT
+55969b748946316fc25a63f5ebd69fd12f738012
+
+WINDOWS
+Python 3.14 integrated pytest: 40 passed, 101 subtests passed
+Python 3.11 integrated pytest: 40 passed, 101 subtests passed
+Compilation: PASS
+Markdown local-link validation: PASS
+JSON parsing: PASS
+Draft 2020-12 schema meta-validation: 3 PASS
+G0 manifest schema validation: 21 events PASS
+Package build: sdist PASS; wheel PASS
+Sovereign source provenance: 24 hashes checked; 0 mismatches
+External runtime instrumentation: 2 hashes checked; 0 mismatches
+
+LINUX
+Ubuntu 24.04 / Python 3.12 integrated pytest: 40 passed, 101 subtests passed
+Schema meta-validation and G0 manifest validation: PASS
+Changed-file LF sanity: 43 files checked; 0 CRLF files
+Independent audit baseline on Linux / Python 3.11: 27/27 PASS
+
+HYGIENE
+git diff --check: PASS
+Unexpected files: 0
+Oversized files: 0
+Model weight files: 0
+Repository-wide license files added: 0
+G2-G6 execution artifacts: 0
+High-confidence secret hits: 0
+Conflict markers: 0
+Working tree at implementation validation: clean
+
+INVARIANTS PROVED
+GR-2: timestamps are required, timezone-aware UTC, and margins precede evaluation start strictly.
+GR-3: file flush/fsync precedes closed-file replacement; read-back is verified; promotion and rollback write failures are classified and preserve recovery state.
+GR-4: two-sided 95% is explicit and its LCB is a 97.5% one-sided bound; power analysis uses the same tail policy.
+GR-5/6: label origin is mandatory, import labels cannot satisfy live G0-A/B, manifests are content-free and internally hashed, fixture alerts are distinguishable.
+GR-7: dirty-runtime checksum baselines require exact dirty lists and complete provenance; mismatches fail as TAMPER_OR_UNREVIEWED_CHANGE.
+GR-1: imported destinations match the map, all 24 source hashes match, D-9 remains UNKNOWN, and the two-sided treaty contracts pass.
+GR-10: all remediation-changed files are LF in the repository and on the validated working tree.
+
+LIMITATION
+HG-0 remains LIMITED_PENDING_LIVE_OPERATOR_MARKS. No live /success or /fail was fabricated from import-time labels.
+
+PROHIBITED WORK CONFIRMATION
+HG-3 not executed. G2-G6 not executed. No training, deployment, or promotion performed.

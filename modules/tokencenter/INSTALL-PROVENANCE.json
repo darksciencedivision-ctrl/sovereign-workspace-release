@@ -1,0 +1,13 @@
+{
+  "utc": "2026-08-26T15:43:52.258771Z",
+  "source": "D:\\Token Piggy Bank",
+  "excluded": [
+    "data/",
+    ".git/"
+  ],
+  "option": "A",
+  "copy_only_edits": [
+    "bind pinned to 127.0.0.1",
+    "POST /api/refresh Origin/Host/CSRF guard"
+  ]
+}

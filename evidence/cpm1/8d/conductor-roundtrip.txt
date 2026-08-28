@@ -1,0 +1,20 @@
+# utc: 2026-08-26T15:38:19.563180Z
+# producer: ox-alpha CP-M1 ADD-07 wave1
+
+G26 RESULT: NOT_RUN(CONDUCTOR_LAUNCH_PROCESS_DEATH)
+AUTHORIZED-BY-STANDING-DELEGATION (ADD-07 s2; D5-5 G26 stays closed)
+
+CONDUCTOR_MODEL_REGISTRY examined (modules/sow/control_plane/conductor/registry.py):
+- provider_id=openai_codex_cli model_id=gpt-5.6-sol locality=frontier
+- provider_id=claude_code model_id=fable-5 locality=frontier
+- provider_id=claude_code model_id=opus-4.8 locality=frontier
+No local conductor-capable model exists (A-6).
+
+Prior live attempts (adopted, not re-run): three launch attempts; POST /launch-conductor
+killed the Electron tree; zero spend; delivered=False.
+FACT[evidence/cpm1/8d/frozen/g26-crash-failure-record.txt]
+FACT[evidence/cpm1/8d/frozen/g26-roundtrip-run.txt]
+FACT[evidence/cpm1/LOOP-LEDGER.jsonl i=43]
+
+A directive typed into the G25 surface never received a Conductor response in-app.
+Follow-up / interrupt: NOT_RUN(CONDUCTOR_LAUNCH_PROCESS_DEATH).

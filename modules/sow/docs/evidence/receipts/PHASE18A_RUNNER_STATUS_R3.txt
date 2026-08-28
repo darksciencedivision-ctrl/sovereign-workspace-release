@@ -1,0 +1,158 @@
+Sovereign frontier provider runner - operator-visible receipts (Phase 18A, OP-12)
+Recorded 2026-07-31 on the operator Windows host by the build loop. No credential was read.
+Regenerated after the THIRD review round. It supersedes PHASE18A_RUNNER_STATUS.txt, which
+carries the false auth gloss that round found (spec-audit MAJOR-1): the parenthetical was
+printed unconditionally, so a False value was annotated "the CLI itself reported a
+signed-in session". The earlier receipt is kept unaltered (invariant 12) with a sibling
+CORRECTION note; this file is the current one.
+
+#### 1. -Action status  (exit 0)
+
+Sovereign frontier provider runner - provider=all action=status
+repo root: D:\multi model terminal app\sovereign-orchestration-workspace
+
+=== Grok Build  [grok_build]
+  command            : grok
+  command found      : True
+  executable         : C:\Users\Sslaw\AppData\Roaming\npm\grok.CMD
+  version            : grok 0.2.118 (1e1687c1cf)
+  state              : AVAILABLE
+  auth confirmed     : True  (the CLI itself reported a signed-in session - NOT launch readiness)
+  authentication     : AUTHENTICATED  CLI reports a logged-in session with grok.com
+  models             : (1) grok-4.5
+  default model      : grok-4.5
+  headless / interactive / structured : True / True / True
+  subscription       : grok_build_subscription (allowance 1); lease not_registered — the subscription governor learns 
+grok_build_subscription in Phase 18B
+  app registration   : NOT_REGISTERED - not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not 
+in the frozen node.schema.json adapter enum
+
+=== Gemini · Antigravity  [google_antigravity]
+  command            : agy
+  command found      : True
+  executable         : C:\Users\Sslaw\AppData\Local\agy\bin\agy.EXE
+  version            : 1.1.9
+  state              : AVAILABLE
+    ^ caveat          : AVAILABLE on an UNVERIFIED session: the CLI is installed and responding, but nothing here can 
+confirm the operator is signed in — only a live probe can
+  auth confirmed     : False  (NOTHING reported a signed-in session here - which is not a claim that the operator is 
+signed out)
+  authentication     : UNVERIFIED  no offline auth-state surface on this CLI — authentication is only confirmable by 
+the live probe (-Action probe)
+  models             : (11) gemini-3.6-flash-high, gemini-3.6-flash-medium, gemini-3.6-flash-low, 
+gemini-3.5-flash-high, gemini-3.5-flash-medium, gemini-3.5-flash-low, gemini-3.1-pro-high, gemini-3.1-pro-low, 
+claude-sonnet-4-6, claude-opus-4-6-thinking, gpt-oss-120b-medium
+  headless / interactive / structured : True / True / True
+  subscription       : google_antigravity_subscription (allowance 1); lease not_registered — the subscription governor 
+learns google_antigravity_subscription in Phase 18B
+  app registration   : NOT_REGISTERED - not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not 
+in the frozen node.schema.json adapter enum
+
+Provider capability table
+-------------------------
+
+Provider           Display              State     Auth          AuthConfirmed Models Registered    
+--------           -------              -----     ----          ------------- ------ ----------    
+grok_build         Grok Build           AVAILABLE AUTHENTICATED          True      1 NOT_REGISTERED
+google_antigravity Gemini · Antigravity AVAILABLE UNVERIFIED            False     11 NOT_REGISTERED
+
+
+
+
+No credential was read, printed, or stored by this run (operator directive section 13).
+
+#### 2. -Action probe (fail-closed refusal, nothing spent)  (exit 3)
+
+Sovereign frontier provider runner - provider=all action=probe
+repo root: D:\multi model terminal app\sovereign-orchestration-workspace
+
+=== probe: Grok Build
+  live gate  : False - grok_build is not in the authorized live scope of config/live_operation.json — DENIED (fail 
+closed). To open it at 18C, editing that file is NOT sufficient and NOT safe on its own: the authorized-provider set 
+is code-pinned and raises on an unknown id, which would deny EVERY live provider. It takes the operator's register row 
+plus the 18B scope extension in control_plane/profiles/live_authorization.py (U237)
+  executed   : False
+  accepted   : False
+  reason     : probe refused before spending anything: grok_build is not in the authorized live scope of 
+config/live_operation.json — DENIED (fail closed). To open it at 18C, editing that file is NOT sufficient and NOT safe 
+on its own: the authorized-provider set is code-pinned and raises on an unknown id, which would deny EVERY live 
+provider. It takes the operator's register row plus the 18B scope extension in 
+control_plane/profiles/live_authorization.py (U237)
+
+=== probe: Gemini · Antigravity
+  live gate  : False - google_antigravity is not in the authorized live scope of config/live_operation.json — DENIED 
+(fail closed). To open it at 18C, editing that file is NOT sufficient and NOT safe on its own: the authorized-provider 
+set is code-pinned and raises on an unknown id, which would deny EVERY live provider. It takes the operator's register 
+row plus the 18B scope extension in control_plane/profiles/live_authorization.py (U237)
+  executed   : False
+  accepted   : False
+  reason     : probe refused before spending anything: google_antigravity is not in the authorized live scope of 
+config/live_operation.json — DENIED (fail closed). To open it at 18C, editing that file is NOT sufficient and NOT safe 
+on its own: the authorized-provider set is code-pinned and raises on an unknown id, which would deny EVERY live 
+provider. It takes the operator's register row plus the 18B scope extension in 
+control_plane/profiles/live_authorization.py (U237)
+
+#### 3. -Action install (no -InstallMissing; both CLIs already present)  (exit 0)
+
+Sovereign frontier provider runner - provider=all action=install
+repo root: D:\multi model terminal app\sovereign-orchestration-workspace
+Grok Build: already installed at C:\Users\Sslaw\AppData\Roaming\npm\grok.CMD - nothing to do (repeat-safe).
+Gemini · Antigravity: already installed at C:\Users\Sslaw\AppData\Local\agy\bin\agy.EXE - nothing to do (repeat-safe).
+
+#### 4. -Action launch -NoLaunch (checks only, shell not started)  (exit 0)
+
+Sovereign frontier provider runner - provider=all action=launch
+repo root: D:\multi model terminal app\sovereign-orchestration-workspace
+
+=== Grok Build  [grok_build]
+  command            : grok
+  command found      : True
+  executable         : C:\Users\Sslaw\AppData\Roaming\npm\grok.CMD
+  version            : grok 0.2.118 (1e1687c1cf)
+  state              : AVAILABLE
+  auth confirmed     : True  (the CLI itself reported a signed-in session - NOT launch readiness)
+  authentication     : AUTHENTICATED  CLI reports a logged-in session with grok.com
+  models             : (1) grok-4.5
+  default model      : grok-4.5
+  headless / interactive / structured : True / True / True
+  subscription       : grok_build_subscription (allowance 1); lease not_registered — the subscription governor learns 
+grok_build_subscription in Phase 18B
+  app registration   : NOT_REGISTERED - not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not 
+in the frozen node.schema.json adapter enum
+
+=== Gemini · Antigravity  [google_antigravity]
+  command            : agy
+  command found      : True
+  executable         : C:\Users\Sslaw\AppData\Local\agy\bin\agy.EXE
+  version            : 1.1.9
+  state              : AVAILABLE
+    ^ caveat          : AVAILABLE on an UNVERIFIED session: the CLI is installed and responding, but nothing here can 
+confirm the operator is signed in — only a live probe can
+  auth confirmed     : False  (NOTHING reported a signed-in session here - which is not a claim that the operator is 
+signed out)
+  authentication     : UNVERIFIED  no offline auth-state surface on this CLI — authentication is only confirmable by 
+the live probe (-Action probe)
+  models             : (11) gemini-3.6-flash-high, gemini-3.6-flash-medium, gemini-3.6-flash-low, 
+gemini-3.5-flash-high, gemini-3.5-flash-medium, gemini-3.5-flash-low, gemini-3.1-pro-high, gemini-3.1-pro-low, 
+claude-sonnet-4-6, claude-opus-4-6-thinking, gpt-oss-120b-medium
+  headless / interactive / structured : True / True / True
+  subscription       : google_antigravity_subscription (allowance 1); lease not_registered — the subscription governor 
+learns google_antigravity_subscription in Phase 18B
+  app registration   : NOT_REGISTERED - not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not 
+in the frozen node.schema.json adapter enum
+
+Provider capability table
+-------------------------
+
+Provider           Display              State     Auth          AuthConfirmed Models Registered    
+--------           -------              -----     ----          ------------- ------ ----------    
+grok_build         Grok Build           AVAILABLE AUTHENTICATED          True      1 NOT_REGISTERED
+google_antigravity Gemini · Antigravity AVAILABLE UNVERIFIED            False     11 NOT_REGISTERED
+
+
+
+CAVEAT: Gemini · Antigravity - AVAILABLE on an UNVERIFIED session: the CLI is installed and responding, but nothing 
+here can confirm the operator is signed in — only a live probe can
+
+-NoLaunch: status complete, desktop shell not started.
+

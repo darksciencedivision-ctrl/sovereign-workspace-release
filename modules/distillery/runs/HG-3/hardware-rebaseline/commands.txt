@@ -1,0 +1,29 @@
+HARDWARE REALITY REBASELINE COMMANDS
+
+git status --short --branch
+git rev-parse HEAD
+git rev-parse origin/main
+git log --graph --decorate --oneline --all --date-order
+git log --first-parent --format='%H %s' origin/main..HEAD
+git cat-file -e and git merge-base --is-ancestor for remediation/evidence commits
+git bundle verify docs/integration/rc3/grounded-rc3-a332e688.bundle
+git bundle list-heads docs/integration/rc3/grounded-rc3-a332e688.bundle
+Get-FileHash docs/integration/rc3/grounded-rc3-a332e688.bundle -Algorithm SHA256
+git switch -c remediation/hardware-rebaseline-pre-hg3
+
+python -m unittest discover -s tests -v
+C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11.16-windows-x86_64-none\python.exe -m unittest discover -s tests -v
+wsl.exe -d Ubuntu-24.04 --cd /mnt/d/Sovereign-Grounded-Distillery -- python3 -m unittest discover -s tests -v
+python -m compileall -q curation distillery exclusion gate grounded ops source_admission train validators tests tools/sovereign
+C:\Users\Sslaw\AppData\Roaming\uv\python\cpython-3.11.16-windows-x86_64-none\python.exe -m compileall -q curation distillery exclusion gate grounded ops source_admission train validators tests tools/sovereign
+wsl.exe -d Ubuntu-24.04 --cd /mnt/d/Sovereign-Grounded-Distillery -- python3 -m compileall -q curation distillery exclusion gate grounded ops source_admission train validators tests tools/sovereign
+python -c <parse every repository JSON file>
+py -3.13 -c <Draft202012Validator schema and live G0 manifest validation>
+py -3.13 -m build --outdir D:\_codex_tmp\hardware-rebaseline-build-20260820
+git diff --check
+git merge-base --is-ancestor <preserved-commit> HEAD
+git diff and filesystem hygiene scans for secrets, private runtime, weights, model caches,
+oversized artifacts, repository-wide license changes, frozen v1.1 changes, and G2-G6 artifacts
+
+No history rewrite, squash, push, PR, model download/load, HG-3 compute,
+full training, G2-G6, deployment, or promotion was performed.

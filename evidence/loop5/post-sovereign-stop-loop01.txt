@@ -1,0 +1,4 @@
+# utc: 2026-08-24T16:21:24.672120+00:00
+# producer: ox-alpha LOOP-01
+# request: POST /api/stop id=sovereign -> HTTP 200
+{"status": "stopped", "id": "sovereign", "state": "STOPPED"}

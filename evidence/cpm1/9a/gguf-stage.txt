@@ -1,0 +1,11 @@
+# utc: 2026-08-26T21:00:20.211268Z
+# producer: ox-alpha CP-M1 ADD-07 wave7
+
+
+G69 test artifact staged
+source tag: registry.ollama.ai/library/qwen3:8b
+blob digest: sha256:a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f
+destination: runtime/llama.cpp/test-models/qwen3-8b.gguf
+destination sha256: a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f
+match: YES
+Ollama store not moved/renamed/written.

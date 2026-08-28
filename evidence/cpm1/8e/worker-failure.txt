@@ -1,0 +1,15 @@
+# utc: 2026-08-26T15:38:19.563180Z
+# producer: ox-alpha CP-M1 ADD-07 wave1
+
+G31 machinery half (independent of G26 Conductor clause)
+
+Deliberate failure identification path:
+- control_plane/orchestration/conductor_dispatch.py LIVE_WORKERS_OWED remains owed=True, issue=U58
+- mock-first dispatch (legs.workers=mock) is the load-bearing honesty constraint
+- renderer already contains the word "mock" (oracle labelled:True at goalcheck-61)
+- A mock rendered as live is FAKE_STATE; the feed carries live_workers_owed and must stay labelled
+
+Induced condition recorded: worker identified as failed via structured_failure / LIVE_WORKERS_OWED
+without a live Conductor round-trip.
+Conductor-identified live failure: NOT_RUN(DEPENDENCY_UNMET: G26) for that clause only.
+Machinery: TRUE as labelled-mock + this artifact.

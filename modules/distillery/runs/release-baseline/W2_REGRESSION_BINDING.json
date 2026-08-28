@@ -1,0 +1,64 @@
+{
+  "certified_measurement": {
+    "command": "python -m pytest -q -p no:cacheprovider",
+    "exit_code": 0,
+    "measured_at_commit": "ac380d1e71c4480cdcdd4ac53f6d2b37e45316cb",
+    "note": "measured on the ac380d1 tree with only the LOOP_STATE binding pending (allowed_pending path); sealed as fa93e6f",
+    "python": "3.14.6",
+    "result": "202 passed, 377 subtests passed"
+  },
+  "changes": {
+    "ops/loop_state.py": "validate_loop_state now enforces last_full_regression.measured_at_commit as null-or-40-hex, consistent with HEX40 treatment of identity fields",
+    "tests/test_terminal_evidence_seal.py": [
+      "shape test requires a present 40-hex measured_at_commit",
+      "new RegressionDriftRefusalTests: hermetic sandbox git repos exercise the real generator as a subprocess"
+    ],
+    "tools/build_completion_manifest.py": [
+      "test_matrix.measured_at_commit is read from the regression record (never from head)",
+      "generator exits 1 with an explicit drift message when measured_at_commit != generation head; no manifest is written",
+      "runs/completion-loop/LOOP_STATE.json added to allowed_pending so a bound ledger can be sealed together with its manifest in one evidence commit"
+    ]
+  },
+  "directive": "SD-RBR-v1.0",
+  "drift_refusal_demonstration": {
+    "outcome": "both PASS inside the certified suite; refusal case asserts non-zero exit AND no manifest written",
+    "tests": [
+      "tests/test_terminal_evidence_seal.py::RegressionDriftRefusalTests::test_generator_refuses_stale_measurement_locus",
+      "tests/test_terminal_evidence_seal.py::RegressionDriftRefusalTests::test_generator_accepts_matching_locus_and_binds_recorded_value"
+    ]
+  },
+  "full_suite_green": true,
+  "gate": "G-2",
+  "independent_reproduction": {
+    "bare_ac380d1_checkout": {
+      "interpretation": "expected pre-binding state; demonstrates the shape test now has teeth against an unbound record",
+      "result": "1 failed (unbound shape test), 201 passed, 377 subtests passed"
+    },
+    "commit": "fa93e6f",
+    "delta_is_ledger_payloads_only": true,
+    "delta_vs_measured_at_commit": [
+      "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json",
+      "runs/completion-loop/LOOP_STATE.json"
+    ],
+    "exit_code": 0,
+    "matches_manifest_result": true,
+    "method": "detached git worktree at the sealed evidence commit; fresh pytest invocation with isolated pycache",
+    "result": "202 passed, 377 subtests passed"
+  },
+  "manifest_binding": {
+    "binding_holds": true,
+    "evidence_generation_base": "ac380d1e71c4480cdcdd4ac53f6d2b37e45316cb",
+    "test_matrix": {
+      "command": "python -m pytest -q -p no:cacheprovider",
+      "exit_code": 0,
+      "measured_at_commit": "ac380d1e71c4480cdcdd4ac53f6d2b37e45316cb",
+      "python": "3.14.6",
+      "result": "202 passed, 377 subtests passed"
+    }
+  },
+  "recorded_at_utc": "2026-08-23T21:42:56Z",
+  "test_count": 202,
+  "test_count_monotonic_non_decreasing_from_200": true,
+  "verdict": "PASS",
+  "work_item": "W-2"
+}

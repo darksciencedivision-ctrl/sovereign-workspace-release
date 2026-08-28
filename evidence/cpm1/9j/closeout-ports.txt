@@ -1,0 +1,6 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G123 partial observation this session (builder started no processes)
+5175/8700/5180 free. 8765 EXTERNAL documented. 5184 operator-owned Distillery.
+5183 not listening. llama.cpp not launched.

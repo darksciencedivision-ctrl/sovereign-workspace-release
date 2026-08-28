@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.1",
+  "status": "RESEARCH_COMPLETE_CLASSIFICATION_PENDING",
+  "captured_at": "2026-08-20",
+  "sources_researched": 4,
+  "exact_local_manifest_digests_recovered": 3,
+  "exact_model_blob_hashes_recovered": 3,
+  "provider_identity_recovered_for_gemma4": true,
+  "frontier_gateway_inventory_recovered": false,
+  "classifications": {
+    "ELIGIBLE": 0,
+    "INTERNAL_ONLY": 0,
+    "REJECTED": 0,
+    "UNKNOWN": 4
+  },
+  "findings": [
+    "Qwen2.5-14B, Gemma4-26B, and the local Qwen3.8-27B artifact embed Apache-2.0 model-license text.",
+    "Model-weight licensing does not by itself establish permission to use historical outputs as training data.",
+    "The exact upstream relationship for the local qwen3.8:27b quantization remains unresolved.",
+    "No exact frontier gateway provider/model/revision inventory was recoverable from the reviewed repositories or runtime evidence.",
+    "No classification transition was made because operator authority and output-use review remain pending."
+  ],
+  "telemetry_blocked": false,
+  "curation_or_seed_admitted": false
+}

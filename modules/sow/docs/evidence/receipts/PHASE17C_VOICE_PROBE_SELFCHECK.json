@@ -1,0 +1,139 @@
+{
+  "schema": "phase17c_voice_probe_selfcheck@1.0",
+  "check": "phase-17c.probe",
+  "issue": "U74 (OP-11 finding F1) — the voice badge said 'mock engine' on a host with real Parakeet",
+  "started": "2026-07-26T20:52:07.688Z",
+  "ok": true,
+  "supervision_ready": true,
+  "conductor_pane_id": "pane-1",
+  "inflight": {
+    "read_ms": 0,
+    "ceiling_ms": 1500,
+    "probe_state": "probing",
+    "engine_label": "probing…",
+    "probing": true,
+    "probes_started": 1
+  },
+  "settled": {
+    "state": "available",
+    "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture",
+    "probe_elapsed_ms": 7251,
+    "wait_ms": 6224,
+    "probes": 1,
+    "engine": {
+      "name": "parakeet-wsl",
+      "mock": true,
+      "real_available": true,
+      "probing": false,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+        "elapsed_s": 7.093,
+        "timeout_s": 90
+      },
+      "real_engine": "parakeet-wsl",
+      "detection": {
+        "nvidia_gpu": true,
+        "wsl": true,
+        "nemo": true,
+        "nemo_state": "available",
+        "probe": {
+          "state": "available",
+          "available": true,
+          "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+          "elapsed_s": 7.093,
+          "timeout_s": 90
+        }
+      },
+      "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+    }
+  },
+  "forced": {
+    "probes_before": 1,
+    "probes_after": 2,
+    "state": "available",
+    "elapsed_ms": 7135
+  },
+  "badge": {
+    "while_probing": "🎙 probing…",
+    "after_settle": "🎙 parakeet-wsl ready"
+  },
+  "reference": {
+    "ok": true,
+    "budget_s": 300,
+    "real_available": true,
+    "nemo_state": "available",
+    "elapsed_s": 7.109,
+    "timeout_s_in_force": 300,
+    "mock": true,
+    "tts": false,
+    "reason": "real Parakeet/NeMo detected in WSL — using the real engine for live capture"
+  },
+  "rearm": {
+    "first_state": "available",
+    "first_probes": 1,
+    "stale_state": "available",
+    "stale_probing": false,
+    "stale_flag": true,
+    "armed_probes": 2,
+    "armed_reprobing": true
+  },
+  "host": {
+    "detection": {
+      "nvidia_gpu": true,
+      "wsl": true,
+      "nemo": true,
+      "nemo_state": "available",
+      "probe": {
+        "state": "available",
+        "available": true,
+        "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+        "elapsed_s": 7.093,
+        "timeout_s": 90
+      }
+    },
+    "nemo_state": "available",
+    "probe": {
+      "state": "available",
+      "available": true,
+      "reason": "NeMo ASR imports in the WSL venv ($HOME/nemo-venv/bin/python)",
+      "elapsed_s": 7.093,
+      "timeout_s": 90
+    }
+  },
+  "checks": {
+    "state_read_is_nonblocking": true,
+    "unanswered_probe_is_never_labelled_mock": true,
+    "probe_started_at_launch": true,
+    "chrome_shows_the_open_question": true,
+    "probe_answered": true,
+    "probe_within_budget": true,
+    "badge_flipped_without_operator_action": true,
+    "badge_agrees_with_the_host": true,
+    "badge_claims_no_transcript_before_a_capture": true,
+    "reprobe_on_demand_actually_reprobes": true,
+    "reprobe_agrees_with_the_first": true,
+    "reference_probe_sourced": true,
+    "shell_verdict_matches_the_reference": true,
+    "env_override_honoured_end_to_end": true,
+    "producer_never_claims_a_transcript": true,
+    "expired_answer_is_not_advertised_as_probing": true,
+    "stale_read_rearms_a_real_probe": true,
+    "real_available_equals_detection": true,
+    "probing_never_claims_an_engine": true,
+    "no_tts": true
+  },
+  "error": null,
+  "reference_scope": "independent of the probe BUDGET only (same probe question, same config, different SOW_NEMO_PROBE_TIMEOUT_S); it cannot falsify a wrong probe question, and no leg here establishes that a green probe implies a successful transcription — that is `.mic`.",
+  "scope_note": "This check measures the ENGINE-STATE half of 17C (U74): what the shell knows about speech recognition and what it shows the operator. Real microphone PCM capture into the live conductor session is the `.mic` sub-step; the spoken-mic leg itself is validated by the operator's first use (directive §16 track 17C). No audio was captured or transcribed here.",
+  "finished": "2026-07-26T20:52:42.644Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

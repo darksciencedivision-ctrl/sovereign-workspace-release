@@ -1,0 +1,24 @@
+{
+  "check": "phase-16a.pane-io",
+  "started": "2026-08-10T10:28:02.036Z",
+  "ok": true,
+  "supervision_ready": true,
+  "pane_id": "pane-2",
+  "term_created": true,
+  "banner_seen": true,
+  "banner_excerpt": "SOVEREIGN_SELFCHECK_BANNER",
+  "echo_dom_seen": false,
+  "echo_xterm_seen": true,
+  "echo_bridge_seen": true,
+  "input_path": "xterm.onData+bridge",
+  "error": null,
+  "active_element": "xterm-helper-textarea",
+  "finished": "2026-08-10T10:28:16.508Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

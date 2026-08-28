@@ -1,0 +1,2 @@
+﻿# utc: 2026-08-25T21:06:47.8588645Z
+# E-4 one-line account: index 15 was never written - two consecutive Add-Content invocations failed on a duplicated -Encoding parameter BEFORE any write occurred, so the counter advanced in the builder's notes while no entry existed; nothing was removed, nothing was skipped after the fact, and no line 15 is synthesised.

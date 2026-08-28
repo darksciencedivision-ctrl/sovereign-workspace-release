@@ -1,0 +1,40 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Archive management policy for SOVEREIGN. The archive is the physical storage layer; the library is the semantic governance layer.",
+  "archive_root": "archive",
+  "classification": {
+    "archive": "NON_LIVE_EVIDENCE_STORAGE",
+    "treated_as_live_runtime": false,
+    "raw_archive_retrieval_blocked": true,
+    "operator_whitelist_required_for_raw_retrieval": true
+  },
+  "subdirectory_policy": {
+    "backups": {
+      "classification": "NON_LIVE",
+      "auto_index": true,
+      "deletion_eligible": false
+    },
+    "generated_artifacts": {
+      "classification": "NON_AUTHORITATIVE_UNLESS_EVIDENCE_INDEXED",
+      "auto_index": true,
+      "deletion_eligible": false
+    },
+    "legacy": {
+      "classification": "NON_LIVE",
+      "auto_index": true,
+      "deletion_eligible": false
+    }
+  },
+  "phase_18_ledger": {
+    "path": "maintenance/archive_ledger_20260513T182701Z.json",
+    "movements": 37,
+    "imported_to_library": false,
+    "import_required": true
+  },
+  "global_rules": {
+    "deletion_enabled": false,
+    "no_auto_movement_from_archive": true,
+    "operator_approval_required_for_all_archive_mutations": true
+  }
+}

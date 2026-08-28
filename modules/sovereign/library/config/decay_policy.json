@@ -1,0 +1,35 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Decay scoring policy for the SOVEREIGN Master Library.",
+  "score_weights": {
+    "importance_score": 0.20,
+    "recency_score": 0.10,
+    "retrieval_score": 0.10,
+    "lineage_score": 0.10,
+    "canonical_score": 0.15,
+    "redundancy_score": 0.10,
+    "contradiction_risk": 0.10,
+    "staleness_score": 0.05,
+    "operator_value": 0.05,
+    "replay_value": 0.05
+  },
+  "thresholds": {
+    "keep_active_min_score": 0.75,
+    "compress_keep_range": [0.50, 0.74],
+    "cold_archive_range": [0.30, 0.49],
+    "operator_review_range": [0.20, 0.29],
+    "quarantine_candidate_max_score": 0.19
+  },
+  "hard_overrides": {
+    "replay_required_blocks_deletion": true,
+    "deletion_protected_blocks_deletion": true,
+    "blacklist_match_blocks_deletion": true,
+    "integration_theorem_replay_value": 1.0,
+    "evidence_index_importance_score": 1.0,
+    "evidence_index_deletion_protected": true
+  },
+  "stale_age_days": 90,
+  "redundancy_similarity_threshold": 0.95,
+  "phase_18_1_deletion_disabled": true
+}

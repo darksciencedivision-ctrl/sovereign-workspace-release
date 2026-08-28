@@ -1,0 +1,22 @@
+
+### HEAD
+e6fcb89984ba50f296a1f4debb6669bfef12f996
+### STATUS --porcelain=v1
+ M docs/loop/LOOP_STATE.json
+?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md
+### STATUS (human)
+On branch main
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   docs/loop/LOOP_STATE.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md
+	docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md
+
+no changes added to commit (use "git add" and/or "git commit -a")
+### CLASSIFICATION
+

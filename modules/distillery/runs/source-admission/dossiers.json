@@ -1,0 +1,127 @@
+{
+  "boundary_note": "Recommendations are system output only. No admission state may change without source_admission.d9.apply_operator_decision with a signed human operator decision.",
+  "dossiers": [
+    {
+      "artifact_mapping_confidence": "HIGH",
+      "authorizes_admission": false,
+      "dossier_hash": "4415aba47cf882844507e08960f119e943f003a7f9d5c8646e99a70ee090a218",
+      "evidence_class": "REFERENCE_RESEARCH",
+      "evidence_timestamps": [
+        "2026-08-23"
+      ],
+      "generated_at": "2026-08-23T07:54:52.835195Z",
+      "kind": "D9_RESEARCH_DOSSIER",
+      "lineage_id": "ollama:qwen2.5:14b-instruct:7cdf5a0187d5c58cc5d369b255592f7841d1c4696d45a8c8a9489440385b22f6",
+      "local_digest_sha256": "2049f5674b1e92b4464e5729975c9689fcfbf0b0e4443ccf10b5339f370f9a54",
+      "notes": "Official HF model card confirms License: apache-2.0 and base model Qwen/Qwen2.5-14B; local Ollama manifest digest recorded in candidate row.",
+      "official_license": "Apache-2.0 (verified on official model card 2026-08-23)",
+      "output_use_language": "No output-training-use restriction located in official card or LICENSE; per Distillery doctrine a model-weight license does not by itself establish output-training authority",
+      "probable_upstream": "Qwen/Qwen2.5-14B-Instruct",
+      "provider": "ollama",
+      "provider_terms_ref": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+      "recommendation": "RECOMMEND_ELIGIBLE",
+      "restrictions": "NONE_LOCATED_IN_RESEARCHED_PRIMARY_SOURCES",
+      "revision": "7cdf5a0187d5c58cc5d369b255592f7841d1c4696d45a8c8a9489440385b22f6",
+      "teacher_or_model_id": "qwen2.5:14b-instruct",
+      "unresolved_ambiguities": [
+        "provider-side terms exhaustiveness not established",
+        "operator output-use review still required before any classification transition"
+      ],
+      "verified_upstream_repo": "Qwen/Qwen2.5-14B-Instruct",
+      "verified_upstream_revision": null
+    },
+    {
+      "artifact_mapping_confidence": "HIGH",
+      "authorizes_admission": false,
+      "dossier_hash": "b52ea0703ee12f6d33f7fa6740daf962e06f12ab5e6e8c516481ad2aca36d99c",
+      "evidence_class": "REFERENCE_RESEARCH",
+      "evidence_timestamps": [
+        "2026-08-23"
+      ],
+      "generated_at": "2026-08-23T07:54:52.835269Z",
+      "kind": "D9_RESEARCH_DOSSIER",
+      "lineage_id": "ollama:gemma4:26b:5571076f3d70050487b26b341705799e0ab29b808164f90d20d4cf84f699d251",
+      "local_digest_sha256": "7121486771cbfe218851513210c40b35dbdee93ab1ef43fe36283c883980f0df",
+      "notes": "Official HF card and ai.google.dev Gemma 4 docs confirm Apache-2.0 licensing for the Gemma 4 family (2026 release); registry embedded Apache-2.0 claim is consistent.",
+      "official_license": "Apache-2.0 with supplemental Gemma 4 license document (ai.google.dev/gemma/docs/gemma_4_license) and Prohibited Use policy",
+      "output_use_language": "Gemma prohibited-use policy governs model use; no explicit prohibition on training on outputs located in researched pages; final determination reserved to operator review",
+      "probable_upstream": "google/gemma-4-26B-A4B-it",
+      "provider": "ollama",
+      "provider_terms_ref": "https://ai.google.dev/gemma/docs/gemma_4_license",
+      "recommendation": "RECOMMEND_ELIGIBLE",
+      "restrictions": "PROHIBITED_USE_POLICY_APPLIES_TO_MODEL_USE; OUTPUT_TRAINING_STATUS_UNRESOLVED_BY_RESEARCH",
+      "revision": "5571076f3d70050487b26b341705799e0ab29b808164f90d20d4cf84f699d251",
+      "teacher_or_model_id": "gemma4:26b",
+      "unresolved_ambiguities": [
+        "full-text operator review of Gemma prohibited-use policy pending",
+        "Ollama quantization producer chain not byte-verified against an upstream revision hash",
+        "embedded-license claim consistent with researched Apache-2.0 but blob-level license text not independently re-hashed in this dossier cycle"
+      ],
+      "verified_upstream_repo": "google/gemma-4-26B-A4B-it",
+      "verified_upstream_revision": null
+    },
+    {
+      "artifact_mapping_confidence": "LOW",
+      "authorizes_admission": false,
+      "dossier_hash": "15615c136d16f2e7867a97d304d45ac8f8098ac9f7d46596f3a126a2b1095f41",
+      "evidence_class": "REFERENCE_RESEARCH",
+      "evidence_timestamps": [],
+      "generated_at": "2026-08-23T07:54:52.835299Z",
+      "kind": "D9_RESEARCH_DOSSIER",
+      "lineage_id": "gateway-frontier:UNKNOWN:UNKNOWN",
+      "local_digest_sha256": "UNKNOWN",
+      "notes": "",
+      "official_license": "UNKNOWN",
+      "output_use_language": "NOT_ESTABLISHED_BY_MODEL_WEIGHT_LICENSE",
+      "probable_upstream": "No exact provider/model/revision was recoverable from the canonical repository or the inspected Sovereign runtime evidence.",
+      "provider": "gateway-frontier",
+      "provider_terms_ref": "NOT_ESTABLISHED",
+      "recommendation": "INSUFFICIENT_EVIDENCE",
+      "restrictions": "UNKNOWN",
+      "revision": "UNKNOWN",
+      "teacher_or_model_id": "UNKNOWN",
+      "unresolved_ambiguities": [
+        "no verified upstream overlay researched",
+        "no exact local artifact digest: research cannot be bound to this artifact"
+      ],
+      "verified_upstream_repo": null,
+      "verified_upstream_revision": null
+    },
+    {
+      "artifact_mapping_confidence": "LOW",
+      "authorizes_admission": false,
+      "dossier_hash": "3a884cea88c3580b4ebcff85d711fbbbb54fd21e4d91c0196bbbb6af7291e005",
+      "evidence_class": "REFERENCE_RESEARCH",
+      "evidence_timestamps": [],
+      "generated_at": "2026-08-23T07:54:52.835317Z",
+      "kind": "D9_RESEARCH_DOSSIER",
+      "lineage_id": "ollama:qwen3.8:27b:22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+      "local_digest_sha256": "f5f1dd8920d417aac2718b0bda3403da274301efdd6760b4f0f4b864ff2ad57d",
+      "notes": "",
+      "official_license": "Apache-2.0 (embedded local artifact metadata)",
+      "output_use_language": "NOT_ESTABLISHED_BY_MODEL_WEIGHT_LICENSE",
+      "probable_upstream": "Local Ollama manifest; exact upstream/quantization producer relationship remains unresolved.",
+      "provider": "ollama",
+      "provider_terms_ref": "NOT_ESTABLISHED",
+      "recommendation": "INSUFFICIENT_EVIDENCE",
+      "restrictions": "UNKNOWN",
+      "revision": "22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+      "teacher_or_model_id": "qwen3.8:27b",
+      "unresolved_ambiguities": [
+        "no verified upstream overlay researched"
+      ],
+      "verified_upstream_repo": null,
+      "verified_upstream_revision": null
+    }
+  ],
+  "generated_at": "2026-08-23T07:54:52.835189Z",
+  "kind": "D9_RESEARCH_DOSSIERS",
+  "schema_version": "1.0",
+  "status": "RECOMMENDATIONS_RECORDED_OPERATOR_DECISIONS_UNSIGNED",
+  "summary": {
+    "insufficient_evidence": 2,
+    "operator_decisions_signed": 0,
+    "recommend_eligible": 2,
+    "total": 4
+  }
+}

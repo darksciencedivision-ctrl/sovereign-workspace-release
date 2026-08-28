@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.1",
+  "status": "PASS_WITH_LIMITATIONS",
+  "phase": "RC3_CANONICAL_INTEGRATION_AND_G0_START",
+  "canonical_baseline": "f1904399ffc8cc357b2d413127b406fedf44b903",
+  "rc3_source_commit": "a332e68823ab426310c5d37f3c0bfed5c52cc1f0",
+  "rc3_source_tests": {
+    "passed": 23,
+    "failed": 0
+  },
+  "integrated_tests": {
+    "passed": 25,
+    "failed": 0
+  },
+  "existing_canonical_sovereign_tests": {
+    "found": 0,
+    "note": "The three-file canonical baseline contained no automated test suite or workflow."
+  },
+  "schema_validation": {
+    "draft_2020_12_schemas_checked": 2,
+    "passed": true
+  },
+  "docs_validation": {
+    "json_parse_and_local_link_tests": true,
+    "passed": true
+  },
+  "rc3_bundle": {
+    "complete_history": true,
+    "sha256": "1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1"
+  },
+  "live_g0": {
+    "status": "STARTED_PARTIAL",
+    "real_runtime_records": 2,
+    "success": 1,
+    "fail": 1,
+    "raw_content_copied": false
+  },
+  "source_admission": {
+    "status": "CLASSIFICATION_STARTED",
+    "all_observed_sources": "UNKNOWN",
+    "telemetry_blocked": false,
+    "curation_or_training_admitted": false
+  },
+  "training_work": {
+    "G2": "NOT_EXECUTED",
+    "G3": "NOT_EXECUTED",
+    "G4": "NOT_EXECUTED"
+  },
+  "limitations": [
+    "Live recovery, implicit signal, dashboard, alert, and alarm paths remain unverified.",
+    "Provider/model/revision equivalence and output-use authority require primary evidence and operator decisions.",
+    "Repository licensing requires an owner decision.",
+    "No implementation branch has been pushed, merged, promoted, or deployed."
+  ]
+}

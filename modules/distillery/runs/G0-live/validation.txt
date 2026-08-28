@@ -1,0 +1,69 @@
+HG-0 LIVE OPERATOR-MARK COMPLETION VALIDATION
+
+GIT ANCESTRY
+PASS — 55969b7 -> fdfe915 -> 7318f97 is one linear unsquashed chain.
+PASS — local main and remediation/post-audit-pre-hg3 were both 7318f97 before this directive.
+PASS — origin/main remained 44f6907; no push occurred.
+
+LIVE SUCCESS
+PASS — new post-directive target-harness session used the normal Sovereign QUICK route.
+PASS — runtime job completed with a nonempty response and the requested completion token.
+PASS — operator /success recorded after completion with label_origin=live_operator_mark.
+Session hash: 2e9391d28edaa87b7a8daf507cb197a4f3eeba6ddca90b494967b1088d17540d
+Turn hash: 3710295ab245276bd1e17cfee63b8a76a2820eb0de7be16a5e9f94e47ff54bc6
+Started: 2026-08-20T22:32:01.26386Z
+Ended: 2026-08-20T22:32:42.089004Z
+Label: 2026-08-20T22:34:35.382233Z
+
+LIVE FAILURE
+PASS — second post-directive target-harness session reached the normal Sovereign DEEP worker.
+PASS — harmless task was cleanly cancelled through the job API after running state was observed.
+PASS — terminal status=cancelled and cancel_requested=true.
+PASS — operator /fail recorded after the terminal failure with label_origin=live_operator_mark.
+Session hash: c7c4649f49215381350aea5566722810e3908b3b6859e597fd3030a85a54b320
+Turn hash: fdbfe0539ca6f3a1541fcdd78f7b8312f5e60e26ce790537c68af69e83347fc0
+Started: 2026-08-20T22:34:54.934511Z
+Ended: 2026-08-20T22:35:14.142334Z
+Label: 2026-08-20T22:35:38.579027Z
+
+MANIFEST
+PASS — schema sovereign.local/schema/g0_event_manifest.json v1.2.
+PASS — 31 content-free events; JSON and JSONL rows have exact parity.
+PASS — every event_id_hash and the internal manifest hash are reproducible.
+Internal manifest hash: f0d813ffe1c1f2f9d98ef9e0f5ca9d77c98a8f291739415503f4f78c915900c5
+JSONL file SHA-256: f878f63c2eda8a69e9691b9c169918188c6631873ceb7bcce1e648e4f4ee734c
+JSON file SHA-256: 913717df7bdc3056eb1d59e0d4f0252a905d1f5f9b43287f1a4bd5a25379af85
+
+G0 RE-EVALUATION
+G0-A: PASS
+G0-B: PASS
+G0-C: PASS
+G0-D: PASS
+Implicit positive signals: PASS
+Implicit negative signals: PASS
+Accrual dashboard: PASS
+Label-compliance dashboard: PASS
+Rejection metrics: PASS
+NO_TRACE alert path: PASS
+NO_LABEL alert path: PASS
+Checksum guard: PASS
+Fixture-alert distinction: PASS
+HG-0: PASS
+
+TEST AND SCHEMA MATRIX
+Windows / Python 3.14: 42 passed, 133 subtests passed
+Windows / Python 3.11: 42 passed, 133 subtests passed
+Windows JSON/schema/JSONL validation: PASS
+Windows Markdown validation: PASS
+Linux / Ubuntu 24.04 / Python 3.12: 42 passed, 133 subtests passed
+Linux schema/JSONL validation: PASS
+
+BOUNDARIES
+D-9: 4/4 UNKNOWN
+G2-G6 execution artifacts: 0
+HG-3 execution artifacts: 0
+Training: not executed
+Deployment: not executed
+Promotion: not executed
+Raw prompts/responses in Git: 0
+HG-3: READY FOR SEPARATE AUTHORIZATION; NOT EXECUTED

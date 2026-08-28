@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.3",
+  "status": "HG0_PASS",
+  "supersedes_status": "HG0_LIMITED_PENDING_LIVE_OPERATOR_MARKS",
+  "captured_at": "2026-08-20T22:38:26.129763Z",
+  "content_payload_present": false,
+  "evidence_origin": {
+    "G0-A": {
+      "status": "PASS",
+      "label_origin": "live_operator_mark",
+      "label_path": "/success",
+      "session_id_hash": "2e9391d28edaa87b7a8daf507cb197a4f3eeba6ddca90b494967b1088d17540d",
+      "label_timestamp": "2026-08-20T22:34:35.382233Z"
+    },
+    "G0-B": {
+      "status": "PASS",
+      "label_origin": "live_operator_mark",
+      "label_path": "/fail",
+      "session_id_hash": "c7c4649f49215381350aea5566722810e3908b3b6859e597fd3030a85a54b320",
+      "label_timestamp": "2026-08-20T22:35:38.579027Z"
+    },
+    "G0-C": {
+      "status": "PASS",
+      "session_id_hash": "dc7daa9917ac2f9abcf55a010653a00a9ceca0aa9f586c860025b31f283c76cc",
+      "basis": "Preserved same-session failure-to-recovery trajectory with content-free provenance."
+    },
+    "G0-D": {
+      "status": "PASS",
+      "session_id_hash": "7e2665b9fe54d9263891724382c0f7c9cde3a06e805d10519762156446ee4a18",
+      "basis": "UNKNOWN-source telemetry retained while training-shard and synthetic-seed admission failed closed."
+    }
+  },
+  "manifest_hash": "f0d813ffe1c1f2f9d98ef9e0f5ca9d77c98a8f291739415503f4f78c915900c5",
+  "event_count": 31,
+  "d9_state": "4/4 UNKNOWN",
+  "hg0": "PASS",
+  "hg3": "READY_FOR_SEPARATE_AUTHORIZATION_NOT_EXECUTED"
+}

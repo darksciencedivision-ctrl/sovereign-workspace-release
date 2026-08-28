@@ -1,0 +1,9 @@
+# utc: 2026-08-26T21:00:20.211268Z
+# producer: ox-alpha CP-M1 ADD-07 wave7
+
+
+Human → Conductor → {local LLM · API model · OpenCode} → result → Conductor → Human
+local LLM: NOT_RUN(SOW_ELECTRON_UNATTENDED)
+API model: NOT_RUN(NO_SPEND_AUTHORIZATION)
+OpenCode: NOT_RUN(OPENCODE_CLI_IS_BUN_NOT_HARNESS)
+Conductor: NOT_RUN(CONDUCTOR_LAUNCH_PROCESS_DEATH)

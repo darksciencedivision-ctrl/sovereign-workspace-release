@@ -1,0 +1,27 @@
+# utc: 2026-08-25T04:01:47Z
+# producer: ox-alpha THEME01
+# G1 pre-change baseline. All facts read from disk this session.
+app.css live sha256 (at baseline): 329a52a175da7ccb37909b5fbfa009dd2f444a9f4d2a1b748ee86c2080ecb8ab
+app.css snapshot copy: evidence/theme01/before/app.css.snapshot (hash equal to live)
+shell/BUILD-MANIFEST.txt: 40/40 entries match live files (verified 2026-08-25T03:53Z, py -3.12 recompute)
+suite-count-before: 121 (evidence/test-run.txt ends OK, Ran 121 tests)
+
+D1 verdict: CONFIRMED
+  FACT[shell/static/app.css:33-49] light block overrides --accent #8a744a (gold) while :root carries --accent #bb9af7 (violet); two different designs.
+  FACT[evidence/theme01/before/grid-light.png] light render is gold-on-white; FACT[evidence/theme01/before/grid-dark.png] dark render is violet-on-black.
+
+D2 verdict: CONFIRMED
+  FACT[shell/static/app.css:23] --accent: #bb9af7 = SOW conductor violet pinned by REM-03; not SOVEREIGN identity per operator decision this directive.
+
+D3 verdict: CONFIRMED
+  FACT[shell/src/server.py:38] doc map serves THEME-BASELINE.md (v1) for theme-baseline.
+  FACT[shell/tests/test_render.py:205] H-14 asserts the same stale v1 mapping.
+  FACT[docs/THEME-BASELINE-v2.md] v2 has been in force since REM-03.
+
+D4 verdict: CONFIRMED
+  FACT[shell/static/app.js:273] interpretPreflight object branch tests only ok/available/up/running/installed/pass; payload booleans are reachable/present/free -> unknown.
+  FACT[shell/static/app.js:293-322] normalizePreflight descends into payload.ports only; never payload.toolchain; backend key py-3.12 (probe.py:125) matches no PREFLIGHT_ITEMS candidate (py3.12/py312/python312/python/py).
+  FACT[shell/tests/test_shell.py:286-289] only asserts "ollama" in payload - shallow top-level check.
+  FACT[evidence/theme01/before/preflight-dom.txt] live shell renders summary text "0/7 available" with all dots unknown.
+
+evidence/theme01/before/: grid-dark.png, grid-light.png (non-blank decodes), preflight-dom.txt, app.js.snapshot, probe.py.snapshot, server.py.snapshot, app.css.snapshot

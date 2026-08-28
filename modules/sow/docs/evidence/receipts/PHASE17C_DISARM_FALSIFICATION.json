@@ -1,0 +1,67 @@
+{
+  "schema": "phase17c_disarm_falsification@1.0",
+  "mutation": "OPERATOR_DISARM_SOURCES minus electron_main_before_input_event (apps/desktop/voice/turn-authority.js) -- i.e. the operator's keystroke can no longer end an admitted voice turn, which is U166 exactly",
+  "restored_byte_identically": true,
+  "mutated_source_sha256_expected_after_restore": "E9BE9FA3D2E52DE11DB46E705B61CE1166346142D626B2D12F3453018FF2AD52",
+  "ok": false,
+  "failed_checks": [
+    "receipt_matches_committed_tracked_product_tree_with_disclosed_exclusions",
+    "operator_keystroke_disarmed_the_voice_turn",
+    "disarm_audit_records_no_keystroke_content",
+    "chrome_stops_claiming_a_restriction_that_ended",
+    "typed_prompt_is_admitted_once_the_operator_disarms",
+    "second_typed_prompt_answered_in_the_same_live_session"
+  ],
+  "error": "the live conductor never answered the SECOND, TYPED prompt within 180s \u2014 an admitted voice turn that never disarms is exactly the defect this leg exists to catch (U166)",
+  "source_commit": "82923eb6d35685a25eeaea2ba8461333549473aa",
+  "typed_prompt_while_armed": {
+    "decision": "block",
+    "exit_code": 0,
+    "reason": "a supervisor-owned voice turn is still pending or active"
+  },
+  "typed_prompt_after_disarm": {
+    "decision": "block",
+    "exit_code": 0,
+    "stdout": "{\"decision\":\"block\",\"reason\":\"a supervisor-owned voice turn is still pending or active\"}"
+  },
+  "operator_typed_disarm": {
+    "handled": false,
+    "consumed": false,
+    "disarmed": null,
+    "turn": {
+      "schema": "supervisor_voice_turn_state@1.0",
+      "restricted": true,
+      "phase": "active",
+      "turn_id": "148b1ba98ab12a1209c71c0c0be4e9da",
+      "session_id": "d5af1f53-b7c0-4ba6-b695-4d8953e12ddb",
+      "since": "2026-07-31T00:16:04.661Z",
+      "recovery": "type in the conductor pane \u2014 your next keystroke ends the voice turn; or press Ctrl+Shift+Escape to end it without typing"
+    }
+  },
+  "turn_badge_while_armed": {
+    "text": "\u26d4 voice turn active \u2014 tool use denied",
+    "cls": "cturn show active",
+    "title": "type in the conductor pane \u2014 your next keystroke ends the voice turn; or press Ctrl+Shift+Escape to end it without typing",
+    "hidden": false,
+    "isConductor": true
+  },
+  "turn_badge_after_disarm": {
+    "text": "\u26d4 voice turn active \u2014 tool use denied",
+    "cls": "cturn show active",
+    "title": "type in the conductor pane \u2014 your next keystroke ends the voice turn; or press Ctrl+Shift+Escape to end it without typing",
+    "hidden": false,
+    "isConductor": true
+  },
+  "turn_releases": [
+    {
+      "event": "voice_turn_disarmed",
+      "source": "electron_main_operator_chord"
+    },
+    {
+      "event": "voice_turn_reset",
+      "source": "node_pty_exit"
+    }
+  ],
+  "session_killed": true,
+  "in_use_after_release": 0
+}

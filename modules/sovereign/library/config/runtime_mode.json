@@ -1,0 +1,26 @@
+{
+  "phase": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "librarian_agent_mode": "DRY_RUN_ONLY",
+  "decay_judge_mode": "DRY_RUN_ONLY",
+  "archivist_agent_mode": "DRY_RUN_ONLY",
+  "scan_only": true,
+  "compression_enabled": false,
+  "cold_archive_enabled": false,
+  "quarantine_enabled": false,
+  "deletion_enabled": false,
+  "operator_approval_required_for": [
+    "compression",
+    "cold_archive",
+    "quarantine",
+    "deletion",
+    "canonical_overwrite",
+    "runtime_hook_activation"
+  ],
+  "fail_closed": true,
+  "inherit_phase18_guardrails": true,
+  "no_uri_authority_expansion": true,
+  "no_auto_promotion": true,
+  "no_direct_sandbox_writes": true,
+  "no_raw_archive_runtime_retrieval": true
+}

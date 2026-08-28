@@ -1,0 +1,8 @@
+# utc: 2026-08-26T21:02:31.846594Z
+# producer: ox-alpha CP-M1 ADD-07 wave9
+
+
+G84 parity matrix
+cell: health | list models | generate | stream | cancel | load | unload | capabilities | error mapping | timeout
+Ollama: PASS | PASS | PASS (existing) | UNSUPPORTED(no stream on this adapter) | UNSUPPORTED(reason) | UNSUPPORTED(reason) | UNSUPPORTED(reason) | PASS | PASS | PASS
+LlamaCpp: PASS (when router up) | PASS | PASS (when model loaded) | UNSUPPORTED(this session if router down) | UNSUPPORTED(reason) | UNSUPPORTED(no routing policy in backend) | UNSUPPORTED | PASS | PASS | FAIL if server down

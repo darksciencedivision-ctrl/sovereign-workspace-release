@@ -1,0 +1,21 @@
+﻿{
+  "ARCHIVE_VERSION": "3.1.2",
+  "MODELS": {
+    "PRIMARY_REASONER": "qwen3:14b",
+    "ADVERSARIAL_CHALLENGER": "ornith:9b",
+    "CRITIC": "qwen3:8b",
+    "SYNTHESIZER": "qwen3.8:27b",
+    "EMBEDDING_MODEL": "nomic-embed-text:latest"
+  },
+  "RUNTIME": {
+    "CONTEXT_WINDOW": 131072,
+    "MAX_OUTPUT_TOKENS": 32768,
+    "OLLAMA_BASE_URL": "http://127.0.0.1:11434",
+    "EMBEDDING_TIMEOUT_SECONDS": 30
+  },
+  "THRESHOLDS": {
+    "CLAIM_AGREE_COSINE": 0.65,
+    "CLAIM_VARIANCE_COSINE": 0.45,
+    "CHALLENGE_ANSWER_COSINE": 0.6
+  }
+}

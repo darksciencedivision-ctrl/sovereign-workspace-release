@@ -1,0 +1,42 @@
+HG-0 LIVE OPERATOR-MARK DIRECTIVE — PRE-RUNTIME GIT PROVENANCE
+Recorded: 2026-08-20 (America/Chicago)
+
+$ git status --short --branch
+## main...origin/main [ahead 3]
+
+$ git rev-parse HEAD
+7318f97aea107f1bb7030cb4cbed6d68980c72ae
+
+$ git rev-parse main
+7318f97aea107f1bb7030cb4cbed6d68980c72ae
+
+$ git rev-parse remediation/post-audit-pre-hg3
+7318f97aea107f1bb7030cb4cbed6d68980c72ae
+
+$ git rev-parse origin/main
+44f69077f0d674bd7bef5730c2fe41a685e64b03
+
+$ git log --graph --decorate --oneline --all -20
+* 7318f97 (HEAD -> main, remediation/post-audit-pre-hg3) Record local canonical main handoff
+* fdfe915 Record post-audit remediation validation
+* 55969b7 Remediate post-audit gate and evidence integrity
+* 44f6907 (origin/main, origin/HEAD) record PR #1 merge verification
+*   39aa889 Merge pull request #1 from ryguy-pixel/integration/grounded-rc3
+|\
+| *   864419d (origin/integration/grounded-rc3, integration/grounded-rc3) reconcile grounded v1.1 thesis with advanced main
+| |\
+| |/
+|/|
+* | 23523bd Correct README claims about the shipped thesis
+* | a34187c Ship Grounded Distillery thesis v1.1
+| * 7b3eb96 Record post-integration completion gate
+| * b0b7f38 Complete live G0 and pre-PR review
+| * c3594cf Integrate Grounded RC3 into joint treaty repository
+|/
+* f190439 Add Grounded Distillery thesis v1.1 and design spec (draft)
+
+ANCESTRY DETERMINATION
+55969b748946316fc25a63f5ebd69fd12f738012 is the post-audit remediation implementation.
+fdfe9151fd898ef13d4c8b797403b017f55704af is its direct child and records validation.
+7318f97aea107f1bb7030cb4cbed6d68980c72ae is the direct child of fdfe915 and records the local canonical-main handoff.
+The three commits form one linear, unsquashed chain. Both local main and remediation/post-audit-pre-hg3 point to 7318f97. origin/main remains at their common ancestor 44f6907; no remote write occurred.

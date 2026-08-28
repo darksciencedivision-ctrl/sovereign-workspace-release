@@ -1,0 +1,2364 @@
+{
+  "phase": "15E.picker (operator-run enumeration metric)",
+  "authorization": {
+    "authorized": true,
+    "providers": [
+      "claude_code",
+      "openai_codex_cli"
+    ],
+    "terminals_per_subscription": 2,
+    "register_row": "OP-6",
+    "source": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\config\\live_operation.json",
+    "reason": "live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+  },
+  "claude_probe": {
+    "present": true
+  },
+  "codex_probe": {
+    "present": true,
+    "authenticated": true
+  },
+  "ollama_enumerated": [
+    "nomic-embed-text:latest",
+    "dolphin3:8b",
+    "qwen3:14b",
+    "dolphin-llama3:8b",
+    "deepseek-r1:14b",
+    "bge-m3:latest",
+    "gpt-oss:20b",
+    "devstral-small-2:latest",
+    "qwen3-coder:30b",
+    "ornith:35b",
+    "qwen3.6:35b",
+    "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+    "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+    "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+    "gemma4:26b",
+    "qwen3:32b",
+    "deepseek-r1:32b",
+    "mistral-small3.2:latest",
+    "deepseek-coder-v2:latest",
+    "gemma4:12b",
+    "qwen2.5-coder:7b",
+    "qwen3:8b",
+    "qwen2.5:14b-instruct",
+    "qwen3.5:27b",
+    "nollama/mythomax-l2-13b:Q4_K_M",
+    "llava:34b",
+    "mxbai-embed-large:latest",
+    "nous-hermes2:34b",
+    "dolphin-mixtral:8x7b",
+    "phi4:14b",
+    "llama3.3:70b",
+    "dolphin-llama3:70b",
+    "qwen3:30b-a3b",
+    "qwen2.5-coder:32b",
+    "qwen2.5:72b",
+    "deepseek-r1:70b",
+    "deepseek-r1:8b",
+    "qwen2.5vl:7b",
+    "qwen2.5:32b-instruct",
+    "dolphin-llama3:latest",
+    "qwen2.5:7b-instruct",
+    "llama3.1:70b-instruct-q4_K_M",
+    "deepseek-r1:latest"
+  ],
+  "residency_snapshot": {
+    "total_vram_mb": 4528,
+    "used_vram_mb": 4528,
+    "free_vram_mb": 0,
+    "models": [
+      {
+        "model": "bge-m3:latest",
+        "footprint_mb": 1104,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-coder-v2:latest",
+        "footprint_mb": 8492,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-r1:14b",
+        "footprint_mb": 8571,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-r1:32b",
+        "footprint_mb": 18931,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-r1:70b",
+        "footprint_mb": 40550,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-r1:8b",
+        "footprint_mb": 4983,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "deepseek-r1:latest",
+        "footprint_mb": 4983,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "devstral-small-2:latest",
+        "footprint_mb": 14474,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "dolphin-llama3:70b",
+        "footprint_mb": 38118,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "dolphin-llama3:8b",
+        "footprint_mb": 4445,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "dolphin-llama3:latest",
+        "footprint_mb": 4445,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "dolphin-mixtral:8x7b",
+        "footprint_mb": 25218,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "dolphin3:8b",
+        "footprint_mb": 4692,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "gemma4:12b",
+        "footprint_mb": 7206,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "gemma4:26b",
+        "footprint_mb": 17154,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "gpt-oss:20b",
+        "footprint_mb": 13154,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+        "footprint_mb": 18768,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+        "footprint_mb": 18995,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "llama3.1:70b-instruct-q4_K_M",
+        "footprint_mb": 40550,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "llama3.3:70b",
+        "footprint_mb": 40550,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "llava:34b",
+        "footprint_mb": 19232,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "mistral-small3.2:latest",
+        "footprint_mb": 14474,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "mxbai-embed-large:latest",
+        "footprint_mb": 638,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "nollama/mythomax-l2-13b:Q4_K_M",
+        "footprint_mb": 7501,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "nomic-embed-text:latest",
+        "footprint_mb": 261,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "nous-hermes2:34b",
+        "footprint_mb": 18564,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "ornith:35b",
+        "footprint_mb": 20186,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "phi4:14b",
+        "footprint_mb": 8633,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5-coder:32b",
+        "footprint_mb": 18931,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5-coder:7b",
+        "footprint_mb": 4528,
+        "status": "resident",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5:14b-instruct",
+        "footprint_mb": 8571,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5:32b-instruct",
+        "footprint_mb": 18931,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5:72b",
+        "footprint_mb": 45219,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5:7b-instruct",
+        "footprint_mb": 4466,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen2.5vl:7b",
+        "footprint_mb": 5692,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3-coder:30b",
+        "footprint_mb": 17697,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3.5:27b",
+        "footprint_mb": 16613,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3.6:35b",
+        "footprint_mb": 22829,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3:14b",
+        "footprint_mb": 8846,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3:30b-a3b",
+        "footprint_mb": 17697,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3:32b",
+        "footprint_mb": 19265,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "qwen3:8b",
+        "footprint_mb": 4983,
+        "status": "not_loaded",
+        "generating": false
+      },
+      {
+        "model": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+        "footprint_mb": 54224,
+        "status": "not_loaded",
+        "generating": false
+      }
+    ]
+  },
+  "residency_provenance": [
+    {
+      "vram_budget_mb": 4528,
+      "budget_source": "sum of running-model size_vram (api/ps)",
+      "estimate": true
+    },
+    {
+      "model": "nomic-embed-text:latest",
+      "footprint_mb": 261,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "dolphin3:8b",
+      "footprint_mb": 4692,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3:14b",
+      "footprint_mb": 8846,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "dolphin-llama3:8b",
+      "footprint_mb": 4445,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-r1:14b",
+      "footprint_mb": 8571,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "bge-m3:latest",
+      "footprint_mb": 1104,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "gpt-oss:20b",
+      "footprint_mb": 13154,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "devstral-small-2:latest",
+      "footprint_mb": 14474,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3-coder:30b",
+      "footprint_mb": 17697,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "ornith:35b",
+      "footprint_mb": 20186,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3.6:35b",
+      "footprint_mb": 22829,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+      "footprint_mb": 54224,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+      "footprint_mb": 18768,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+      "footprint_mb": 18995,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "gemma4:26b",
+      "footprint_mb": 17154,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3:32b",
+      "footprint_mb": 19265,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-r1:32b",
+      "footprint_mb": 18931,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "mistral-small3.2:latest",
+      "footprint_mb": 14474,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-coder-v2:latest",
+      "footprint_mb": 8492,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "gemma4:12b",
+      "footprint_mb": 7206,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5-coder:7b",
+      "footprint_mb": 4528,
+      "footprint_source": "api/ps size_vram"
+    },
+    {
+      "model": "qwen3:8b",
+      "footprint_mb": 4983,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5:14b-instruct",
+      "footprint_mb": 8571,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3.5:27b",
+      "footprint_mb": 16613,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "nollama/mythomax-l2-13b:Q4_K_M",
+      "footprint_mb": 7501,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "llava:34b",
+      "footprint_mb": 19232,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "mxbai-embed-large:latest",
+      "footprint_mb": 638,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "nous-hermes2:34b",
+      "footprint_mb": 18564,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "dolphin-mixtral:8x7b",
+      "footprint_mb": 25218,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "phi4:14b",
+      "footprint_mb": 8633,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "llama3.3:70b",
+      "footprint_mb": 40550,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "dolphin-llama3:70b",
+      "footprint_mb": 38118,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen3:30b-a3b",
+      "footprint_mb": 17697,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5-coder:32b",
+      "footprint_mb": 18931,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5:72b",
+      "footprint_mb": 45219,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-r1:70b",
+      "footprint_mb": 40550,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-r1:8b",
+      "footprint_mb": 4983,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5vl:7b",
+      "footprint_mb": 5692,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5:32b-instruct",
+      "footprint_mb": 18931,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "dolphin-llama3:latest",
+      "footprint_mb": 4445,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "qwen2.5:7b-instruct",
+      "footprint_mb": 4466,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "llama3.1:70b-instruct-q4_K_M",
+      "footprint_mb": 40550,
+      "footprint_source": "api/tags size (disk estimate)"
+    },
+    {
+      "model": "deepseek-r1:latest",
+      "footprint_mb": 4983,
+      "footprint_source": "api/tags size (disk estimate)"
+    }
+  ],
+  "picker": {
+    "providers": [
+      {
+        "provider": "claude_code",
+        "display": "Anthropic (claude CLI)",
+        "options": [
+          {
+            "provider": "claude_code",
+            "adapter": "claude_code",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "Opus 4.8",
+            "model_slug": "opus-4.8",
+            "verified": false,
+            "is_fallback": false,
+            "roles": [
+              "conductor",
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "per-node model 'opus-4.8' (accepted-id unverified until live smoke)"
+          },
+          {
+            "provider": "claude_code",
+            "adapter": "claude_code",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "Fable 5",
+            "model_slug": "fable-5",
+            "verified": false,
+            "is_fallback": false,
+            "roles": [
+              "conductor",
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "per-node model 'fable-5' (accepted-id unverified until live smoke)"
+          },
+          {
+            "provider": "claude_code",
+            "adapter": "claude_code",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "CLI default",
+            "model_slug": null,
+            "verified": false,
+            "is_fallback": true,
+            "roles": [
+              "conductor",
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "no model selected \u2014 CLI default (recorded roster fallback, directive \u00a711 15B)"
+          }
+        ]
+      },
+      {
+        "provider": "openai_codex_cli",
+        "display": "OpenAI (codex CLI)",
+        "options": [
+          {
+            "provider": "openai_codex_cli",
+            "adapter": "openai_codex_cli",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "5.5",
+            "model_slug": "5.5",
+            "verified": false,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "per-node model '5.5' (accepted-id unverified until live smoke)"
+          },
+          {
+            "provider": "openai_codex_cli",
+            "adapter": "openai_codex_cli",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "5.5 Sol",
+            "model_slug": "5.5 Sol",
+            "verified": false,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "per-node model '5.5 Sol' (accepted-id unverified until live smoke)"
+          },
+          {
+            "provider": "openai_codex_cli",
+            "adapter": "openai_codex_cli",
+            "locality": "frontier",
+            "subscription_backed": true,
+            "label": "CLI default",
+            "model_slug": null,
+            "verified": false,
+            "is_fallback": true,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": null,
+            "available": true,
+            "unavailable_reason": null,
+            "note": "no model selected \u2014 CLI default (recorded roster fallback, directive \u00a711 15C)"
+          }
+        ]
+      },
+      {
+        "provider": "ollama_local",
+        "display": "Local (Ollama)",
+        "options": [
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "bge-m3:latest",
+            "model_slug": "bge-m3:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-coder-v2:latest",
+            "model_slug": "deepseek-coder-v2:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-r1:14b",
+            "model_slug": "deepseek-r1:14b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-r1:32b",
+            "model_slug": "deepseek-r1:32b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-r1:70b",
+            "model_slug": "deepseek-r1:70b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-r1:8b",
+            "model_slug": "deepseek-r1:8b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "deepseek-r1:latest",
+            "model_slug": "deepseek-r1:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "devstral-small-2:latest",
+            "model_slug": "devstral-small-2:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "dolphin-llama3:70b",
+            "model_slug": "dolphin-llama3:70b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "dolphin-llama3:8b",
+            "model_slug": "dolphin-llama3:8b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "dolphin-llama3:latest",
+            "model_slug": "dolphin-llama3:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "dolphin-mixtral:8x7b",
+            "model_slug": "dolphin-mixtral:8x7b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "dolphin3:8b",
+            "model_slug": "dolphin3:8b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "gemma4:12b",
+            "model_slug": "gemma4:12b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "gemma4:26b",
+            "model_slug": "gemma4:26b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "gpt-oss:20b",
+            "model_slug": "gpt-oss:20b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+            "model_slug": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+            "model_slug": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "llama3.1:70b-instruct-q4_K_M",
+            "model_slug": "llama3.1:70b-instruct-q4_K_M",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "llama3.3:70b",
+            "model_slug": "llama3.3:70b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "llava:34b",
+            "model_slug": "llava:34b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "mistral-small3.2:latest",
+            "model_slug": "mistral-small3.2:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "mxbai-embed-large:latest",
+            "model_slug": "mxbai-embed-large:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "nollama/mythomax-l2-13b:Q4_K_M",
+            "model_slug": "nollama/mythomax-l2-13b:Q4_K_M",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "nomic-embed-text:latest",
+            "model_slug": "nomic-embed-text:latest",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "nous-hermes2:34b",
+            "model_slug": "nous-hermes2:34b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "ornith:35b",
+            "model_slug": "ornith:35b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "phi4:14b",
+            "model_slug": "phi4:14b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5-coder:32b",
+            "model_slug": "qwen2.5-coder:32b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5-coder:7b",
+            "model_slug": "qwen2.5-coder:7b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "resident",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5:14b-instruct",
+            "model_slug": "qwen2.5:14b-instruct",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5:32b-instruct",
+            "model_slug": "qwen2.5:32b-instruct",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5:72b",
+            "model_slug": "qwen2.5:72b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5:7b-instruct",
+            "model_slug": "qwen2.5:7b-instruct",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen2.5vl:7b",
+            "model_slug": "qwen2.5vl:7b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3-coder:30b",
+            "model_slug": "qwen3-coder:30b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3.5:27b",
+            "model_slug": "qwen3.5:27b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3.6:35b",
+            "model_slug": "qwen3.6:35b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3:14b",
+            "model_slug": "qwen3:14b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3:30b-a3b",
+            "model_slug": "qwen3:30b-a3b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3:32b",
+            "model_slug": "qwen3:32b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "qwen3:8b",
+            "model_slug": "qwen3:8b",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          },
+          {
+            "provider": "ollama_local",
+            "adapter": "ollama_local",
+            "locality": "local",
+            "subscription_backed": false,
+            "label": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+            "model_slug": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+            "verified": true,
+            "is_fallback": false,
+            "roles": [
+              "reasoning",
+              "coding"
+            ],
+            "residency": "not_loaded",
+            "available": true,
+            "unavailable_reason": null,
+            "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+          }
+        ]
+      }
+    ],
+    "options": [
+      {
+        "provider": "claude_code",
+        "adapter": "claude_code",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "Opus 4.8",
+        "model_slug": "opus-4.8",
+        "verified": false,
+        "is_fallback": false,
+        "roles": [
+          "conductor",
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "per-node model 'opus-4.8' (accepted-id unverified until live smoke)"
+      },
+      {
+        "provider": "claude_code",
+        "adapter": "claude_code",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "Fable 5",
+        "model_slug": "fable-5",
+        "verified": false,
+        "is_fallback": false,
+        "roles": [
+          "conductor",
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "per-node model 'fable-5' (accepted-id unverified until live smoke)"
+      },
+      {
+        "provider": "claude_code",
+        "adapter": "claude_code",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "CLI default",
+        "model_slug": null,
+        "verified": false,
+        "is_fallback": true,
+        "roles": [
+          "conductor",
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "no model selected \u2014 CLI default (recorded roster fallback, directive \u00a711 15B)"
+      },
+      {
+        "provider": "openai_codex_cli",
+        "adapter": "openai_codex_cli",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "5.5",
+        "model_slug": "5.5",
+        "verified": false,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "per-node model '5.5' (accepted-id unverified until live smoke)"
+      },
+      {
+        "provider": "openai_codex_cli",
+        "adapter": "openai_codex_cli",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "5.5 Sol",
+        "model_slug": "5.5 Sol",
+        "verified": false,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "per-node model '5.5 Sol' (accepted-id unverified until live smoke)"
+      },
+      {
+        "provider": "openai_codex_cli",
+        "adapter": "openai_codex_cli",
+        "locality": "frontier",
+        "subscription_backed": true,
+        "label": "CLI default",
+        "model_slug": null,
+        "verified": false,
+        "is_fallback": true,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": null,
+        "available": true,
+        "unavailable_reason": null,
+        "note": "no model selected \u2014 CLI default (recorded roster fallback, directive \u00a711 15C)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "bge-m3:latest",
+        "model_slug": "bge-m3:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-coder-v2:latest",
+        "model_slug": "deepseek-coder-v2:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-r1:14b",
+        "model_slug": "deepseek-r1:14b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-r1:32b",
+        "model_slug": "deepseek-r1:32b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-r1:70b",
+        "model_slug": "deepseek-r1:70b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-r1:8b",
+        "model_slug": "deepseek-r1:8b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "deepseek-r1:latest",
+        "model_slug": "deepseek-r1:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "devstral-small-2:latest",
+        "model_slug": "devstral-small-2:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "dolphin-llama3:70b",
+        "model_slug": "dolphin-llama3:70b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "dolphin-llama3:8b",
+        "model_slug": "dolphin-llama3:8b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "dolphin-llama3:latest",
+        "model_slug": "dolphin-llama3:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "dolphin-mixtral:8x7b",
+        "model_slug": "dolphin-mixtral:8x7b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "dolphin3:8b",
+        "model_slug": "dolphin3:8b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "gemma4:12b",
+        "model_slug": "gemma4:12b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "gemma4:26b",
+        "model_slug": "gemma4:26b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "gpt-oss:20b",
+        "model_slug": "gpt-oss:20b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+        "model_slug": "hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+        "model_slug": "hf.co/unsloth/GLM-4-32B-0414-GGUF:UD-Q4_K_XL",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "llama3.1:70b-instruct-q4_K_M",
+        "model_slug": "llama3.1:70b-instruct-q4_K_M",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "llama3.3:70b",
+        "model_slug": "llama3.3:70b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "llava:34b",
+        "model_slug": "llava:34b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "mistral-small3.2:latest",
+        "model_slug": "mistral-small3.2:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "mxbai-embed-large:latest",
+        "model_slug": "mxbai-embed-large:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "nollama/mythomax-l2-13b:Q4_K_M",
+        "model_slug": "nollama/mythomax-l2-13b:Q4_K_M",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "nomic-embed-text:latest",
+        "model_slug": "nomic-embed-text:latest",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "nous-hermes2:34b",
+        "model_slug": "nous-hermes2:34b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "ornith:35b",
+        "model_slug": "ornith:35b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "phi4:14b",
+        "model_slug": "phi4:14b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5-coder:32b",
+        "model_slug": "qwen2.5-coder:32b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5-coder:7b",
+        "model_slug": "qwen2.5-coder:7b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "resident",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5:14b-instruct",
+        "model_slug": "qwen2.5:14b-instruct",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5:32b-instruct",
+        "model_slug": "qwen2.5:32b-instruct",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5:72b",
+        "model_slug": "qwen2.5:72b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5:7b-instruct",
+        "model_slug": "qwen2.5:7b-instruct",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen2.5vl:7b",
+        "model_slug": "qwen2.5vl:7b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3-coder:30b",
+        "model_slug": "qwen3-coder:30b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3.5:27b",
+        "model_slug": "qwen3.5:27b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3.6:35b",
+        "model_slug": "qwen3.6:35b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3:14b",
+        "model_slug": "qwen3:14b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3:30b-a3b",
+        "model_slug": "qwen3:30b-a3b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3:32b",
+        "model_slug": "qwen3:32b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "qwen3:8b",
+        "model_slug": "qwen3:8b",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      },
+      {
+        "provider": "ollama_local",
+        "adapter": "ollama_local",
+        "locality": "local",
+        "subscription_backed": false,
+        "label": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+        "model_slug": "volker-mauel/Kimi-Dev-72B-GGUF:tq2_0",
+        "verified": true,
+        "is_fallback": false,
+        "roles": [
+          "reasoning",
+          "coding"
+        ],
+        "residency": "not_loaded",
+        "available": true,
+        "unavailable_reason": null,
+        "note": "local model enumerated live from the Ollama daemon (\u00a72.4, no credential)"
+      }
+    ],
+    "authorization": {
+      "authorized": true,
+      "providers": [
+        "claude_code",
+        "openai_codex_cli"
+      ],
+      "terminals_per_subscription": 2,
+      "register_row": "OP-6",
+      "source": "D:\\multi model terminal app\\sovereign-orchestration-workspace\\config\\live_operation.json",
+      "reason": "live operation authorized for ['claude_code', 'openai_codex_cli'] (register OP-6, 2 terminals/subscription)"
+    },
+    "counts": {
+      "total": 49,
+      "available": 49,
+      "frontier": 6,
+      "local": 43
+    }
+  }
+}

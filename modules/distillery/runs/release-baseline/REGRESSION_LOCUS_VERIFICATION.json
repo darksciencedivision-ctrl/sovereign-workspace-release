@@ -1,0 +1,33 @@
+{
+  "finished_at_utc": "2026-08-23T23:45:59.156220Z",
+  "is_ancestor_or_self_of_head": true,
+  "kind": "REGRESSION_LOCUS_VERIFICATION",
+  "observed": {
+    "exit_code": 0,
+    "raw_last_line": "229 passed, 429 subtests passed in 8.07s",
+    "result": "229 passed, 429 subtests passed"
+  },
+  "overlay": [
+    {
+      "path": "runs/completion-loop/BUILD_COMPLETION_MANIFEST.json",
+      "source_blob_sha256": "cd9938e1fd8afabe6bbe52c6b66e2b6d130206781ffa8e430f6f8b46f9b048f5",
+      "status": "OVERLAID"
+    },
+    {
+      "path": "runs/completion-loop/LOOP_STATE.json",
+      "source_blob_sha256": "fdda4db2ff6197add49f18fc0cb80ea0c590e3ef88f22bb6b6338e4ccc4d68f7",
+      "status": "OVERLAID"
+    }
+  ],
+  "overlay_source_commit": "0ab875bfa07d856d1e5fa48185cc31a5dc3e1058",
+  "recorded": {
+    "command": "python -m pytest -q -p no:cacheprovider",
+    "exit_code": 0,
+    "measured_at_commit": "e80a5b1a2163ae1d91d6a6622f1c7c1b1b95a7f3",
+    "result": "229 passed, 429 subtests passed"
+  },
+  "started_at_utc": "2026-08-23T23:45:48.315071Z",
+  "tool": "tools/verify_regression_locus.py",
+  "verdict": "PASS",
+  "worktree_cleaned_up": true
+}

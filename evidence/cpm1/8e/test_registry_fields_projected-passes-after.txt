@@ -1,0 +1,11 @@
+# utc: 2026-08-26T15:40:41.599492Z
+# producer: ox-alpha CP-M1 ADD-07 wave3
+
+test_created_utc_and_backend_projected (shell.tests.test_registry_fields_projected.TestRegistryFieldsProjected.test_created_utc_and_backend_projected) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.029s
+
+OK
+
+OK

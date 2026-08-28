@@ -1,0 +1,94 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Authority policy defining what each subsystem may do with the Master Library.",
+  "subsystems": {
+    "URI": {
+      "read": true,
+      "write": false,
+      "write_exceptions": ["library/memory/operator_decisions/operator_decisions.jsonl"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Read-only access to library indexes and reports. May append operator decision records only."
+    },
+    "Broker": {
+      "read": true,
+      "write": false,
+      "write_exceptions": ["broker_v21/inbox/memory_context_packet.json"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Read-only access to library indexes for context building. Writes memory context packet to broker inbox."
+    },
+    "PRAXIS": {
+      "read": true,
+      "read_scope": ["library/memory/compressed/**", "library/reports/**", "library/index/ontology_graph.json", "library/memory/operator_decisions/**"],
+      "write": false,
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "May read approved compressed summaries, validated reports, ontology definitions, and operator decisions only. Must not ingest raw archive files."
+    },
+    "sandbox_agi": {
+      "read": true,
+      "read_scope": ["library/memory/active/**", "library/memory/compressed/**", "library/index/ontology_graph.json", "library/memory/operator_decisions/**"],
+      "write": false,
+      "write_exceptions": ["library/queues/sandbox_proposals.jsonl"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Read access to active and compressed memory, ontology, and operator decisions. May submit proposals only. No direct library writes."
+    },
+    "Audit": {
+      "read": true,
+      "read_scope": ["**"],
+      "write": false,
+      "write_exceptions": ["library/reports/**", "audits/reports/**"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Full read access for audit purposes. May write audit reports only."
+    },
+    "Snapshot": {
+      "read": true,
+      "read_scope": ["library/index/**", "library/config/**"],
+      "write": false,
+      "write_exceptions": ["scripts/snapshot_manifests/**"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "May read library indexes and configs for snapshot manifest generation."
+    },
+    "Librarian": {
+      "read": true,
+      "read_scope": ["**"],
+      "write": true,
+      "write_scope": ["library/index/artifact_registry.jsonl", "library/index/subsystem_registry.json", "library/receipts/scan_receipts.jsonl", "library/reports/**"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Index authority. May scan all paths, write artifact registry, subsystem registry, scan receipts, and reports."
+    },
+    "DecayJudge": {
+      "read": true,
+      "read_scope": ["library/index/**", "library/config/**"],
+      "write": true,
+      "write_scope": ["library/queues/**", "library/reports/decay_scoring/**", "library/receipts/**"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Scoring authority. May write queue files and decay reports. Cannot delete or move files."
+    },
+    "Archivist": {
+      "read": true,
+      "read_scope": ["library/queues/**", "library/index/**", "library/config/**"],
+      "write": true,
+      "write_scope": ["library/memory/compressed/**", "library/receipts/compression_receipts.jsonl", "library/reports/compression/**"],
+      "execute_shell": false,
+      "delete": false,
+      "promote": false,
+      "description": "Dry-run mutation authority only. May write compression summaries and receipts. Deletion permanently disabled in Phase 18.1."
+    }
+  }
+}

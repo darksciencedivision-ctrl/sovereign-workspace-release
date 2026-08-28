@@ -1,0 +1,22 @@
+# utc: 2026-08-27T05:04:31Z
+# producer: ox-alpha THEME01
+# proof: H-16 - WCAG contrast of the six C-2 token pairs, per theme; all six asserted >= 4.5:1 as TEXT in both themes; faint and accent-dim recorded, not asserted
+
+dark  --text        on --bg    =  12.51:1  TEXT  OK
+dark  --text        on --panel =  11.16:1  TEXT  OK
+dark  --text-muted  on --panel =   7.08:1  TEXT  OK
+dark  --ok          on --panel =   9.42:1  TEXT  OK
+dark  --warning     on --panel =   8.61:1  TEXT  OK
+dark  --danger      on --panel =   6.51:1  TEXT  OK
+light --text        on --bg    =  15.01:1  TEXT  OK
+light --text        on --panel =  16.37:1  TEXT  OK
+light --text-muted  on --panel =   6.27:1  TEXT  OK
+light --ok          on --panel =   5.25:1  TEXT  OK
+light --warning     on --panel =   5.59:1  TEXT  OK
+light --danger      on --panel =   5.06:1  TEXT  OK
+dark  --text-faint  on --panel =   1.73:1  RECORDED (below-bar carry, out of scope per THEME-BASELINE-v3 section 3.4)
+dark  --text        on --accent-dim =   6.09:1  RECORDED (below-bar carry, out of scope per THEME-BASELINE-v3 section 3.4)
+light --text-faint  on --panel =   3.10:1  RECORDED (below-bar carry, out of scope per THEME-BASELINE-v3 section 3.4)
+light --text        on --accent-dim =  10.50:1  RECORDED (below-bar carry, out of scope per THEME-BASELINE-v3 section 3.4)
+
+asserted_all_text_pairs >= 4.5:1 in both themes -> PASS

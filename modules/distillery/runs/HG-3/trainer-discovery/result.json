@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "directive": "HG-3 TRAINER DISCOVERY AND ACCESS RESOLUTION",
+  "repository_head_before": "91e01cc063e3f5e078747ea183971714bc2f0b97",
+  "origin_main_observed": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+  "completed_at": "2026-08-21T00:17:22.7258431Z",
+  "evidence_hashes": {
+    "registry/grounded/trainer.json": "bb36ea8d1ddcefd89bd7e32fa0ef374e66673d92325e179b475631155a69f300",
+    "runs/HG-3/trainer-discovery/evidence.json": "ea4a0d943bdb788a5ebb166700d36e6c0142243af707aa68c38b1aa360aa4213"
+  },
+  "discovery_result": "TARGET_NOT_FOUND",
+  "physical_trainer_target": null,
+  "access_method": null,
+  "live_probe": "NOT_PERFORMED_NO_TARGET",
+  "gfx906_established": false,
+  "vram_measured": false,
+  "rocm_hip_pytorch_measured": false,
+  "current_workstation_not_canonical_trainer": true,
+  "trainer_registry_state": "TARGET_NOT_FOUND",
+  "hg3_readiness": "NOT_READY",
+  "model_downloads": 0,
+  "model_loads": 0,
+  "gpu_drains": 0,
+  "hg3_compute_steps": 0,
+  "push_performed": false,
+  "repository_validation": "PASS",
+  "operator_decision_required": true,
+  "authorized_operator_options": [
+    "Restore or provide the original gfx906 trainer.",
+    "Designate another owned gfx906 machine.",
+    "Revise the canonical Grounded trainer target in a new evidence-backed decision.",
+    "Defer HG-3."
+  ],
+  "exact_next_action": "Operator must select one authorized trainer-resolution option; if an owned gfx906 target is provided, supply its credential-free access alias and run the read-only identity probe before any HG-3 compute."
+}

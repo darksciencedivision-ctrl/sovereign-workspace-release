@@ -1,0 +1,72 @@
+# utc: 2026-08-24T16:30:21.615914+00:00
+# producer: ox-alpha LOOP-01
+# oracle: evidence/loop5/tools/goalcheck.py read-only evaluation
+ALL_TRUE: False
+
+G0: TRUE
+  - session-start.txt exists=True
+  - capture content ok=True
+  - post-reset reverify exists=True
+  - kickoff logged verbatim=True
+  - DECISIONS.md sha match=True
+  - ports free now: {5175: True, 8700: True, 5180: True}
+  - watcher ran detached (fs-watch artifact)=True
+  - poller ran detached (states-timeline rows>1000)=True
+  - shell ran detached (stdout listening line)=True
+  - 5180 ok (free now, or was held by detached shell)=True
+
+G1: TRUE
+  - inspection gap seconds=127 (>=60: True)
+  - inspections byte-identical(non-header)=True
+  - manifest-rem03-before-product-software: exists=True names_original_and_hash=True
+  - manifest-rem03-before-sow: exists=True names_original_and_hash=True
+  - manifest-rem03-before-distillery: exists=True names_original_and_hash=True
+  - sow-git-rem03-before.body exists=True four_sections=True meta_names_superseded=True
+  - original manifest-before-product-software untouched=True
+  - original manifest-before-sow untouched=True
+  - original manifest-before-distillery untouched=True
+  - original sow-git-before.body untouched=True
+
+G2: TRUE
+  - test-run.txt: ran_121_ge121=True ends_OK=True mtime_after_G1=True
+  - BUILD-MANIFEST entries=40 mismatched=0 
+  - app.css == v2 pinned hash: True
+
+G3: TRUE
+  - snapshot pre4c exists=True
+  - prefix_byte_identical=True
+  - suffix_byte_identical=True
+  - other_entries_semantically_identical=True
+  - status==CANDIDATE: True
+  - entries=7 all_lowercase_64hex=True hashes_match_disk=True required_missing=[]
+
+G4: TRUE
+  - shell-grid-initial.png: 1600x1000 distinct>=8 median_lum=0.011
+  - card-sovereign-READY.png: state_record_match=True
+  - card-debate-READY.png: state_record_match=True
+  - card-sow-STOPPED.png: state_record_match=True
+  - card-distillery-NOT_STARTED.png: state_record_match=True
+  - side-by-side-sovereign-shell.png: 1600x1000 distinct>=8 median_lum=0.011
+  - side-by-side-sovereign-module.png: 1600x1000 distinct>=8 median_lum=0.006
+  - shell-light-mode.png light_bg=True (median_lum=0.913)
+  - b7-dom.txt ids=True disabled>=3=True six_actions=True
+  - ollama-tags-fresh precedes sovereign capture=True
+  - keep-run records READY: [('debate', True), ('sovereign', True)]
+  - timeline: sow never launched=True sovereign STOPPED after capture=True
+
+G5: TRUE
+  - fs-watch events_zero=True brackets_G1_to_G4=True
+  - orphans-after-loop01.txt clean=True
+  - shell stopped via own path, pid sentinels cleared=True
+
+G6: TRUE
+  - snapshot pre5c exists=True
+  - prefix_byte_identical=True
+  - suffix_byte_identical=True
+  - other_entries_semantically_identical=True
+  - status==CANDIDATE: True
+  - entries=35 all_lowercase_64hex=True hashes_match_disk=True required_missing=[]
+  - 4c still CANDIDATE=True
+
+G7: FALSE
+  - report: producer_header=False final_line_is_claim=False covers_4c_5b=True tagged=False len=6086

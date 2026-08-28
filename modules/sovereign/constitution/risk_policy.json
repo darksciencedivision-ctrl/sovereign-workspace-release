@@ -1,0 +1,23 @@
+﻿{
+  "schema_version": "1.0",
+  "thresholds": {
+    "minimum_convergence_for_review": 0.55,
+    "minimum_confidence_for_review": 0.5,
+    "maximum_unresolved_critical_findings": 0,
+    "promotion_requires_human_review": true
+  },
+  "risk_levels": [
+    {
+      "name": "low",
+      "description": "Documentation or display-only changes with reversible scope."
+    },
+    {
+      "name": "medium",
+      "description": "Operational behavior changes gated by sandbox benchmarks and audit review."
+    },
+    {
+      "name": "high",
+      "description": "Production-affecting changes that require explicit promotion packet review."
+    }
+  ]
+}

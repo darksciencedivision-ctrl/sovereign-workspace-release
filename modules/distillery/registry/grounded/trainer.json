@@ -1,0 +1,157 @@
+{
+  "schema_version": "2.0",
+  "registry_type": "GROUNDED_TRAINER_AND_EXECUTION_NODES",
+  "updated_at": "2026-08-21T00:30:00Z",
+  "decision_ref": "docs/decisions/D-HW-01-grounded-primary-trainer-reality-rebaseline.md",
+  "current_primary_requirement_id": "GND-TRAINER-PRIMARY",
+  "assigned_physical_trainer_id": null,
+  "software_stack_policy": {
+    "architecture_policy": "backend-portable where practical",
+    "historical_gfx906_planned_stack": {
+      "classification": "HISTORICAL_GFX906_PLANNED_STACK",
+      "torch": "2.7",
+      "rocm": "6.3",
+      "gpu_arch": "gfx906",
+      "environment_variables": {
+        "TORCH_BLAS_PREFER_HIPBLASLT": "0",
+        "HSA_OVERRIDE_GFX_VERSION": "9.0.6"
+      },
+      "canonical_for_future_hardware": false
+    },
+    "future_stack": {
+      "status": "UNASSIGNED_PENDING_PHYSICAL_HARDWARE",
+      "nvidia_rule": "select and pin a CUDA-qualified stack after hardware designation",
+      "amd_rule": "select and pin a ROCm-qualified stack after hardware designation",
+      "precision_contract": "canonical HG-3 remains FP16 LoRA unless changed by a separate evidence-backed decision"
+    },
+    "qlora": "EXPERIMENTAL_ALTERNATE_PATH_NOT_PROOF_OF_CANONICAL_FP16_LANE"
+  },
+  "records": [
+    {
+      "trainer_id": "GND-TRAINER-GFX906",
+      "role": "historical_planning_target",
+      "historical_expected": {
+        "gpu_arch": "gfx906",
+        "vram_class": "32 GiB",
+        "rocm_version": "6.3"
+      },
+      "measured": {
+        "physical_host": null,
+        "hostname_or_local_identifier": null,
+        "os": null,
+        "gpu_vendor": null,
+        "gpu_model": null,
+        "gpu_arch": null,
+        "vram_bytes": null,
+        "vram_used_bytes": null,
+        "vram_free_bytes": null,
+        "driver_version": null,
+        "rocm_version": null,
+        "hip_version": null,
+        "python_version": null,
+        "pytorch_version": null,
+        "torch_version_hip": null,
+        "visible_devices": null,
+        "available_disk_bytes": null,
+        "repository_path": null,
+        "model_cache_root": null
+      },
+      "discovery": {
+        "status": "TARGET_NOT_FOUND",
+        "performed_at": "2026-08-21T00:12:00Z",
+        "evidence_ref": "runs/HG-3/trainer-discovery/evidence.json"
+      },
+      "status": "TARGET_NOT_FOUND",
+      "disposition": "RETIRED_AS_UNVERIFIED_PLANNING_TARGET",
+      "retired_at": "2026-08-21T00:30:00Z",
+      "decision_authority": "SOVEREIGN / GROUNDED DISTILLERY HARDWARE REALITY REBASELINE PRE-HG-3 OPERATOR DIRECTIVE",
+      "reason": "Bounded authorized discovery found no physical machine or configured access route; historical expected properties were never measured.",
+      "state_history": [
+        {"state": "ACCESS_BLOCKED", "recorded_at": "2026-08-20T23:52:43.0028085Z"},
+        {"state": "TARGET_NOT_FOUND", "recorded_at": "2026-08-21T00:12:00Z"},
+        {"state": "RETIRED_AS_UNVERIFIED_PLANNING_TARGET", "recorded_at": "2026-08-21T00:30:00Z"}
+      ]
+    },
+    {
+      "trainer_id": "GND-DEV-EXEC-01",
+      "role": "development_execution_node",
+      "access_method": "local workstation",
+      "measured": {
+        "physical_host": "DESKTOP-03PTABH",
+        "os": "Microsoft Windows 11 Home build 26200",
+        "gpu_vendor": "NVIDIA",
+        "gpu_model": "NVIDIA GeForce RTX 5060 Ti",
+        "gpu_arch": "CUDA compute capability 12.0",
+        "vram_mib": 8151,
+        "driver_version": "610.74",
+        "evidence_ref": "runs/HG-3/trainer-discovery/evidence.json"
+      },
+      "status": "ACCESS_VERIFIED_LOCAL",
+      "canonical_primary_trainer": false,
+      "canonical_fp16_hg3_capable": false,
+      "capacity_boundary": {
+        "nominal_4b_fp16_static_weight_gib": 7.45,
+        "nominal_8b_fp16_static_weight_gib": 14.9,
+        "workstation_vram_gib": 7.96,
+        "exclusions": [
+          "activations",
+          "allocator overhead",
+          "LoRA adapters",
+          "gradients",
+          "optimizer state",
+          "temporary buffers",
+          "attention workspace",
+          "sequence-length growth"
+        ],
+        "conclusion": "Must not be represented as satisfying the canonical 4B/8B FP16 HG-3 contract without contrary measured evidence."
+      },
+      "permitted_non_gating_work": [
+        "tokenizer compatibility",
+        "configuration parsing",
+        "LoRA target-module resolution",
+        "synthetic pipeline tests",
+        "evaluator development",
+        "explicitly labeled quantization experiments",
+        "smaller probe-model kernel tests",
+        "inference-only tests within measured capacity"
+      ]
+    },
+    {
+      "trainer_id": "GND-TRAINER-PRIMARY",
+      "role": "primary_fp16_lora_trainer_requirement",
+      "status": "UNASSIGNED",
+      "vendor": null,
+      "gpu_model": null,
+      "gpu_arch": null,
+      "backend_stack": null,
+      "measured": {
+        "physical_host": null,
+        "vram_bytes": null,
+        "driver_version": null,
+        "backend_runtime": null,
+        "python_version": null,
+        "pytorch_version": null
+      },
+      "hardware_requirement_v1": {
+        "provisional_minimum_usable_vram_gib": 24,
+        "preferred_vram_gib": 32,
+        "preferred_comparator": ">=",
+        "minimum_scope": "qualification threshold for bounded 4B/8B FP16 LoRA architecture smokes; not a guarantee of every sequence length",
+        "preferred_rationale": [
+          "sequence headroom",
+          "batch flexibility",
+          "stable 8B FP16 operation",
+          "retraining cadence",
+          "reduced OOM pressure"
+        ]
+      },
+      "assignment_rule": "A real machine must be designated, measured, and backend-qualified before HG-3 compute authorization.",
+      "unblock_event": "designation of a physical machine satisfying the GND-TRAINER-PRIMARY capability contract"
+    }
+  ],
+  "hard_gate": {
+    "HG-3": "BLOCKED_HARDWARE_CAPACITY",
+    "blocker": "NO DESIGNATED MACHINE CURRENTLY SATISFIES THE GND-TRAINER-PRIMARY CAPABILITY CONTRACT"
+  },
+  "credential_material_present": false
+}

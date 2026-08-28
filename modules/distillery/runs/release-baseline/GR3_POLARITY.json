@@ -1,0 +1,15 @@
+{
+  "directive": "SD-RBR-v1.1",
+  "gate": "GR-3",
+  "recorded_at_utc": "2026-08-23T23:35:28Z",
+  "construction_path": "tools.export_enterprise.manifest_presence_flags (single source for in-archive MANIFEST.json and report gate_state)",
+  "assertions": [
+    "weights_present True when model_weight_files non-empty",
+    "weights_present False when empty",
+    "private_runtime_payloads_present True when payloads exist",
+    "private_runtime_payloads_present False when absent",
+    "+ simultaneous case"
+  ],
+  "tests": "tests/test_security_polarity.py::ManifestPresencePolarityTests (5 tests, all assert identity True/False against the real construction path)",
+  "verdict": "PASS"
+}

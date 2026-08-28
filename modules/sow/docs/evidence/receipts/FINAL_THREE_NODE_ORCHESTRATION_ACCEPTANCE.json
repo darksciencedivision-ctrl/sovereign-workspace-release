@@ -1,0 +1,116 @@
+{
+  "schema": "final_three_node_orchestration_acceptance@1.0",
+  "recorded_at_utc": "2026-08-03T13:59:09.3815283Z",
+  "result": "PARTIAL_ACCEPTANCE",
+  "starting_head": "a6dd83f70df2c6bf5ee4544ec80702c5adcb0a9b",
+  "repository_head_during_live_run": "a6dd83f70df2c6bf5ee4544ec80702c5adcb0a9b",
+  "tested_worktree": "uncommitted final-hardening changes over starting_head",
+  "blockers": [
+    {
+      "leg": "Gemini in-app readiness",
+      "state": "AUTH_REQUIRED",
+      "defect": "The supervised Antigravity interactive surface did not resolve provider authentication, although the separately governed headless provider probe passed. No login was performed inside acceptance."
+    },
+    {
+      "leg": "Grok in-app readiness and two-turn proof",
+      "state": "USAGE_LIMIT",
+      "defect": "The governed real Grok provider probe returned the provider's free Grok Build usage-limit terminal state; the in-app spawn call also exceeded the conductor tool-call bound while the supervised process remained present."
+    }
+  ],
+  "timeouts_ms": {
+    "process_startup": 120000,
+    "mcp_readiness": 120000,
+    "worker_task_soft": 480000,
+    "worker_task_hard": 600000,
+    "peer_message_response": 180000,
+    "debate_turn": 180000
+  },
+  "conductor": {
+    "provider": "openai_codex_cli",
+    "model": "gpt-5.6-sol",
+    "display_name": "ChatGPT 5.6 Sol",
+    "node_id": "conductor-pane-1",
+    "pane_id": "pane-1",
+    "session_id": "pane-1#33860.1",
+    "lease_id": "lease-3d6be13c3f99",
+    "process_pid": 31384,
+    "readiness": "READY",
+    "mcp_connection_evidence": "A live sovereign.get_worker_status call succeeded and the unpredictable typed readiness round-trip returned SUM=117.",
+    "worker_spawn_result": "Both worker spawns were invoked through sovereign.spawn_worker and the shared supervised in-app launcher."
+  },
+  "gemini": {
+    "provider": "google_antigravity",
+    "model": "gemini-3.6-flash-low",
+    "execution_mode": "accept-edits",
+    "node_id": "worker-pane-2",
+    "node_record_id": "049f4b21-8a70-507a-b9dd-0385375e2557",
+    "pane_id": "pane-2",
+    "session_id": "pane-2#33860.1",
+    "lease_id": "lease-0cf1035d79e1",
+    "process_pid": 33336,
+    "process_supervised": true,
+    "mcp_connection_evidence": "Node-scoped Sovereign MCP capability was configured and the application control channel reported the node; the provider readiness boundary did not pass.",
+    "readiness": "AUTH_REQUIRED",
+    "progress_published": false,
+    "peer_exchange": false,
+    "candidate_hash": null
+  },
+  "grok": {
+    "provider": "grok_build",
+    "model": "grok-4.5",
+    "node_id": "worker-pane-3",
+    "node_record_id": "7f8d78d1-63f8-50ce-8d64-143b6d4fde6d",
+    "pane_id": "pane-3",
+    "session_id": "pane-3#33860.2",
+    "lease_id": "lease-b22d6772d852",
+    "process_pid": 31036,
+    "process_supervised": true,
+    "startup_overlay_result": "Minimal/no-plan/no-memory/no-subagents/no-web-search launch profile applied; overlay/setup screens are now readiness blockers rather than READY.",
+    "mcp_connection_evidence": "The app logged the real node as spawned with MCP connected.",
+    "readiness": "USAGE_LIMIT",
+    "two_turn_response_proof": false,
+    "progress_published": false,
+    "candidate_hash": null
+  },
+  "collaboration": {
+    "task_id": null,
+    "peer_question_id": null,
+    "peer_answer_id": null,
+    "debate_id": null,
+    "gemini_candidate_hash": null,
+    "grok_candidate_hash": null,
+    "synthesis_record": null,
+    "reason_not_executed": "The strict no-assignment-until-READY gate correctly held both workers at 0 READY, so task, peer, debate, candidate, and synthesis legs were not started."
+  },
+  "mock_measurement": {
+    "live_provider_spawn_legs": 0,
+    "startup_mock_dispatch_legs_logged": 2,
+    "requirement_mock_legs_equals_zero": false
+  },
+  "external_windows": {
+    "requirement_equals_zero": false,
+    "observation": "Provider authentication browser surfaces appeared while Antigravity remained AUTH_REQUIRED."
+  },
+  "cleanup": {
+    "blocked_orchestration_run": "Electron/provider processes were closed, but the pre-fix async shutdown race required exact dead-holder reaping; this did not satisfy the acceptance cleanup leg.",
+    "post_fix_live_shutdown_retest": {
+      "conductor_session_id": "pane-1#35976.1",
+      "conductor_lease_id": "lease-c629abbfe077",
+      "window_close_requested": true,
+      "electron_process_alive_after_close": false,
+      "wrapper_process_alive_after_close": false,
+      "managed_provider_processes_after_close": 0,
+      "durable_lease_count_after_close": 0,
+      "manual_reap_required": false,
+      "log_evidence": "normal teardown complete: zero managed terminal sessions; gateway exited"
+    }
+  },
+  "validation": {
+    "desktop": "836 passed",
+    "terminal": "216 passed",
+    "focused_python": "363 passed",
+    "full_python": "timed out at the explicit 600-second ceiling without a result; not counted as passed",
+    "mutations": "52/52 caught across 3 harnesses; all touched files restored byte-identically",
+    "git_diff_check": "passed"
+  }
+}

@@ -1,0 +1,1201 @@
+{
+  "build_source_plan_sha256": "8C9B7240AC7962948844EA7892BD63BDCCC061E3A1BA2F968F8ED935E3300022",
+  "conductor_file_write_authority": "operator-only (docs/CONDUCTOR_FILES_WRITE_AUTHORITY.md)",
+  "contents": {
+    "canonical_documents": [
+      {
+        "bytes": 13335,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Claude_Code_Buildout_Directive_20260716.md",
+        "role": "execution-authorization",
+        "sha256": "CC414372014013CE485F359C4A0AAE667DDCBE09F260EE8A9C9254366DEDBC04"
+      },
+      {
+        "bytes": 23861,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Fable5_Directive_v2.4.md",
+        "role": "canonical-directive-extract",
+        "sha256": "9626E1DCAD48834214EAB151EC09BFE23C88F78CFD757B6023564767EA4C15BC"
+      },
+      {
+        "bytes": 7026,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Fable5_Sovereign_Orchestration_Build_Directive_v3.0_20260716.md",
+        "role": "cross-reference-chatgpt-directive",
+        "sha256": "75434320B86D564D5BE91DE41722DFB2FA2354D559B7272647F06409B59D89BF"
+      },
+      {
+        "bytes": 1185,
+        "encoding": "utf-8",
+        "path": "docs/canonical/MANIFEST_v3.0_20260716.json",
+        "role": "cross-reference-chatgpt-manifest",
+        "sha256": "9D30F1BAAF7869859F1604C88C8ED1A05491B849995A7D9CDB978D9FD27EC456"
+      },
+      {
+        "bytes": 20148,
+        "encoding": "utf-8",
+        "path": "docs/canonical/SOVEREIGN_PROGRAM_Canonical_Analysis_and_Context_Handoff_20260716.md",
+        "role": "program-context-handoff",
+        "sha256": "97240D4058197FC85B939C28757F504928B2EEF92A52F59890E9ACCF4010D040"
+      },
+      {
+        "bytes": 11433,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Canonical_Report_and_Analysis_20260716.md",
+        "role": "build-context-report",
+        "sha256": "93C10267C42A1B628B5E257AF1A11DC0E937EC3BE5848050E44B23AA50692093"
+      },
+      {
+        "bytes": 64726,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Workspace_Architecture_Plan_v1.0.1_UTF8_20260716.md",
+        "role": "canonical-build-source",
+        "sha256": "8C9B7240AC7962948844EA7892BD63BDCCC061E3A1BA2F968F8ED935E3300022"
+      },
+      {
+        "bytes": 70547,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Workspace_Architecture_Plan_v1.0_20260716.md",
+        "role": "provenance-only-do-not-build-from",
+        "sha256": "668089B57C3162DABDE62ED249778D26F554910666FF62A552FA968BE199E48F"
+      },
+      {
+        "bytes": 43294,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Workspace_Canonical_Build_Handoff_v3.0_20260716.md",
+        "role": "cross-reference-chatgpt-lineage",
+        "sha256": "0FEC130C582F0373690153E46A9D73DF65C38F561683B895550DF46EA4783856"
+      },
+      {
+        "bytes": 78226,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Workspace_Canonical_Handoff.md",
+        "role": "canonical-spec-v2.4",
+        "sha256": "6D3FD03BBEF46A8840667111479ABAC388B62E0A6F29264397C300A61341B2D6"
+      },
+      {
+        "bytes": 3327,
+        "encoding": "utf-8",
+        "path": "docs/canonical/Sovereign_Orchestration_Workspace_Plan_UTF8_Repair_Report_20260716.md",
+        "role": "provenance-repair-report",
+        "sha256": "9D763BEB2D4D4D5233D291ED88072600926DA22200DE7949540E7DD8DACD0B30"
+      }
+    ],
+    "conductor_files": [
+      {
+        "bytes": 960,
+        "encoding": "utf-8",
+        "path": "conductor/CONDUCTOR_DIRECTIVE.md",
+        "sha256": "A374031946820DC7C1042566B57CA9364607FE0F242767BECCCF5BE17C3A521A"
+      },
+      {
+        "bytes": 805,
+        "encoding": "utf-8",
+        "path": "conductor/CONTEXT_ROUTING_POLICY.md",
+        "sha256": "5C4296BF0FF73C2DD377E4060D7101C1390FA9D295708A00D3AA93A6D378DAD4"
+      },
+      {
+        "bytes": 1035,
+        "encoding": "utf-8",
+        "path": "conductor/CURRENT_PROJECT_STATE.md",
+        "sha256": "F75E3CD1CD943818A6E5FEBCAD20364E4AF64FD96C77E0177C8682E25AF21AF1"
+      },
+      {
+        "bytes": 979,
+        "encoding": "utf-8",
+        "path": "conductor/DEBATE_POLICY.md",
+        "sha256": "D1F9A34D3A02D2D5DF2F0BE953455E2178C16231E7C2814228FE9D09124C514B"
+      },
+      {
+        "bytes": 883,
+        "encoding": "utf-8",
+        "path": "conductor/GATE_POLICY.md",
+        "sha256": "7A4F74578DCB2ADDBD1CCCEA62DF078031DE1959B378AFAAF7B8E39BDBF675B4"
+      },
+      {
+        "bytes": 998,
+        "encoding": "utf-8",
+        "path": "conductor/IDENTITY.md",
+        "sha256": "27279C9EAD35655CE163C948367DFB3E8EFB32942F70D5AC67398B886183E4E4"
+      },
+      {
+        "bytes": 953,
+        "encoding": "utf-8",
+        "path": "conductor/MODEL_SELECTION_POLICY.md",
+        "sha256": "2834A9BF0E8366A9523C48B81BD845618E4C3C965AD009E7F357963C2C920AFD"
+      },
+      {
+        "bytes": 1006,
+        "encoding": "utf-8",
+        "path": "conductor/OPERATOR_RESERVED_AUTHORITY.md",
+        "sha256": "4D06C195BA38FE588CE43EA68B9542F3DA51CFFBDBCFE62C6633E4CBBEEE9179"
+      },
+      {
+        "bytes": 1307,
+        "encoding": "utf-8",
+        "path": "conductor/ORCHESTRATION_RULES.md",
+        "sha256": "95C6BA3F84BEFE13DBEA0C845D60F1DAFC07AD990A8E0C8700A49C73D5717A2E"
+      },
+      {
+        "bytes": 1478,
+        "encoding": "utf-8",
+        "path": "conductor/ROLE.md",
+        "sha256": "FE20930A8F9EF4674E50BD477C023DE171A1E66FCCFE71377CEA2D65408F77EA"
+      },
+      {
+        "bytes": 1027,
+        "encoding": "utf-8",
+        "path": "conductor/STOP_CONDITIONS.md",
+        "sha256": "248FB2769DDF5223A2B6851DBBBE6FCBACEB417B84AF9B3390A8F6AE90F22692"
+      },
+      {
+        "bytes": 886,
+        "encoding": "utf-8",
+        "path": "conductor/TASK_DECOMPOSITION_RULES.md",
+        "sha256": "9004091447A43B90F313359DF9FCB6DB959C16E809F4E8A6B0A0E44FE2EFD22E"
+      }
+    ],
+    "repo_governance_files": [
+      {
+        "bytes": 6300,
+        "encoding": "utf-8",
+        "path": "CLAUDE.md",
+        "sha256": "297968DB3BA7B645CF57D63C21284019AF114A4642CE948FD6AC4462E8C6424E"
+      },
+      {
+        "bytes": 9241,
+        "encoding": "utf-8",
+        "path": "docs/THREAT_MODEL.md",
+        "sha256": "7E4E8D933A9A7AEB49122770F15CBCDA3BC8362C7D7CDE17A8A6287E7F6158C1"
+      },
+      {
+        "bytes": 2130,
+        "encoding": "utf-8",
+        "path": "docs/CONDUCTOR_FILES_WRITE_AUTHORITY.md",
+        "sha256": "B4AB8131753C160A3B9C1634CA9D0B0C7E096D8B770498F97318454F39A4BD6A"
+      },
+      {
+        "bytes": 2065,
+        "encoding": "utf-8",
+        "path": ".claude/settings.json",
+        "sha256": "8F1957C948679C05DD3CF000FE4654547ED61CE213A3D35552550F20F8888240"
+      },
+      {
+        "bytes": 3635,
+        "encoding": "utf-8",
+        "path": ".claude/hooks/guard.py",
+        "sha256": "E2BDBDACCE2C1A6E73CFA916C97396ACE5670B1E945E666FDEEDCE844B31D3BD"
+      },
+      {
+        "bytes": 1579,
+        "encoding": "utf-8",
+        "path": ".claude/agents/gate-validator.md",
+        "sha256": "E219C5A8860A041C72D3DBB0B0DF9BB65CB1C2F4B1D9FC027ACC1B2C2A6A9BBD"
+      },
+      {
+        "bytes": 1511,
+        "encoding": "utf-8",
+        "path": ".claude/agents/spec-auditor.md",
+        "sha256": "46092BE1055DDF177ED8CDDC561B68E6A028B424D2F74B588C9CCFB0C03F2473"
+      }
+    ],
+    "schemas": [
+      {
+        "bytes": 1375,
+        "encoding": "utf-8",
+        "path": "schemas/artifact.schema.json",
+        "sha256": "6DC49CBFFE0F1AD6E7487E08BDB83ABFA288302D87925E827EEEDDCB10521CF1"
+      },
+      {
+        "bytes": 2612,
+        "encoding": "utf-8",
+        "path": "schemas/checkpoint.schema.json",
+        "sha256": "6C1D7EF2F25A7F255F3B6ACC6F0D5F7D83616AE885D2373AD369E6D4CD3A46C8"
+      },
+      {
+        "bytes": 3127,
+        "encoding": "utf-8",
+        "path": "schemas/debate.schema.json",
+        "sha256": "E158E25C4DDB6A05EAAF07DC72352D30A060D6944661B49E8736ACC50C4A9D09"
+      },
+      {
+        "bytes": 1478,
+        "encoding": "utf-8",
+        "path": "schemas/evidence.schema.json",
+        "sha256": "46BBB9C5BD9869389D7A936D780D56957C1E474475BC75A1F87881E2C25ED374"
+      },
+      {
+        "bytes": 1338,
+        "encoding": "utf-8",
+        "path": "schemas/gate.schema.json",
+        "sha256": "81173F2146952ADAF0833CE359902FFC22D7A814612B4FF54544ABF5B26CE435"
+      },
+      {
+        "bytes": 3501,
+        "encoding": "utf-8",
+        "path": "schemas/memory.schema.json",
+        "sha256": "ADB1FE48BA0C50B2DB0FB1B562FB4BE5C8801E26EDF46F0F3DB99DC2630C561F"
+      },
+      {
+        "bytes": 1659,
+        "encoding": "utf-8",
+        "path": "schemas/message.schema.json",
+        "sha256": "E777D4A5EBDC04CBBDA903B555B3589E0AB8072687D5CD63D0911E71753F2E1E"
+      },
+      {
+        "bytes": 4287,
+        "encoding": "utf-8",
+        "path": "schemas/node.schema.json",
+        "sha256": "AB8EDD5D6D2678DF03C4DE197A2EE06BFFE955A32C466801CDFC1BB7CB5CBC13"
+      },
+      {
+        "bytes": 2142,
+        "encoding": "utf-8",
+        "path": "schemas/permission.schema.json",
+        "sha256": "9D09DDD1D13814E8B4EBA52E40C50583E051075131D5EE87B29966BF8656CAFA"
+      },
+      {
+        "bytes": 1546,
+        "encoding": "utf-8",
+        "path": "schemas/project.schema.json",
+        "sha256": "0BBABE9F9E045D04B9BA4E4EC5A922820BC3D47A7A3D0F26C9DFC381DC3729C4"
+      },
+      {
+        "bytes": 1481,
+        "encoding": "utf-8",
+        "path": "schemas/task.schema.json",
+        "sha256": "A89CCB3ABC2E73C593918B37C8E091C2D394BE3710A0F31699C5BA2ACF82D5F6"
+      },
+      {
+        "bytes": 1316,
+        "encoding": "utf-8",
+        "path": "schemas/usage.schema.json",
+        "sha256": "D2A5FBB14235BDB654ACB83FA86AC872E0FAAC152606C914FF2491A5731F9FBF"
+      }
+    ]
+  },
+  "current_conductor": {
+    "model": "fable-5",
+    "note": "runtime selection under I-CN1; supersedes the plan's example value 'claude'",
+    "reason": "operator_selected",
+    "since": "2026-07-16"
+  },
+  "directive_version": "v2.4",
+  "freeze_integrity_sha256": "B1A16B223B8D1197593C7EF658C7C6D875C152EB68207E3F846DFBC479F8B667",
+  "generated_ts": "2026-08-23T21:26:05+00:00",
+  "generator": "tools/manifest/compute_manifest.py",
+  "manifest": "PHASE0_FREEZE_MANIFEST",
+  "manifest_version": "1.0",
+  "mutable_audit_files": {
+    "evidence_reports": [
+      {
+        "bytes": 9472,
+        "encoding": "utf-8",
+        "path": "docs/evidence/A14_TIER5_BOUNDARY_REPORT_20260822.md",
+        "sha256": "3F83DC2BBFF0F99D02CF52EC7EDFC60474B7D8E1C9B5F0EAA216BB00F6DEE424"
+      },
+      {
+        "bytes": 28569,
+        "encoding": "utf-8",
+        "path": "docs/evidence/COLD_AUDIT_UNTAGGED_POST_18E_20260806.md",
+        "sha256": "DF2D63651DFDFE1A25AF7093349F76C06C08896A16347EF0ED27ACBD8F548085"
+      },
+      {
+        "bytes": 4891,
+        "encoding": "utf-8",
+        "path": "docs/evidence/COMPLETION_AUDIT_20260718.md",
+        "sha256": "EA4194B7C24AC43699A4462A27A6A7C084BF7E5A475B0A06F99CEEEBD0D5C921"
+      },
+      {
+        "bytes": 5561,
+        "encoding": "utf-8",
+        "path": "docs/evidence/EPIPE_PROCESS_TEARDOWN_REPAIR_20260728.md",
+        "sha256": "24E6B26DF2EE50A971D41CF118E9A5580DEE1220F7A6A57B0D8957D8F394A333"
+      },
+      {
+        "bytes": 58861,
+        "encoding": "utf-8",
+        "path": "docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md",
+        "sha256": "72260296B736A114264A435B2BA518D9E1388A38D3017991C9A0D55CD6BFE392"
+      },
+      {
+        "bytes": 6100,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE0_EVIDENCE_REPORT.md",
+        "sha256": "27D2D759A3F065A7E613E12E926599111E433BC449FDE36560922F7862B37F9D"
+      },
+      {
+        "bytes": 5212,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE10_EVIDENCE_REPORT.md",
+        "sha256": "E53B87636BB458E68630D0FE2A08AF99970A6E3DDD5D04480BC7B15BE859B2AF"
+      },
+      {
+        "bytes": 5963,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE11_EVIDENCE_REPORT.md",
+        "sha256": "6797DD7BC0DF679C908D6A4ED2FF1DF0C8D371FE08274BE02FCA38863BB9F713"
+      },
+      {
+        "bytes": 6046,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE12_EVIDENCE_REPORT.md",
+        "sha256": "AB70BF6DEB13CBF7C31D650AE19CC1F5EEE621E6D6D7848BCD301C1E7E15A2EF"
+      },
+      {
+        "bytes": 4965,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE13_EVIDENCE_REPORT.md",
+        "sha256": "E7F74E0321096F961D1B185049C7DEAC708FDE8154B47C15E6248C22388BECED"
+      },
+      {
+        "bytes": 9164,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_EVIDENCE_REPORT.md",
+        "sha256": "C4BD993EAEB057965721860A1BEE90E4D78CB006F8D7F5D897AE2DEBEEEE7637"
+      },
+      {
+        "bytes": 14015,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_INSPECTOR_EVIDENCE_REPORT.md",
+        "sha256": "F063963048FDA684EF593BB47129734954C30B0015CDE8DEE65087534C82E264"
+      },
+      {
+        "bytes": 8709,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_IPC_EVIDENCE_REPORT.md",
+        "sha256": "A81F2CA232B3E89BF79FF6C7086C96D3A0D4185A97FB2E768886F993E30AF1C5"
+      },
+      {
+        "bytes": 11301,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_RECOVERY_EVIDENCE_REPORT.md",
+        "sha256": "99DBA51157DCB71688ABC97D2995E204C3D11902CFCB07DEC254271AF1CD4F22"
+      },
+      {
+        "bytes": 12145,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_SHELL_EVIDENCE_REPORT.md",
+        "sha256": "021D1A21F7112B3B4AA771C9DC868264AA940DB6236970CA8765803650A4FED1"
+      },
+      {
+        "bytes": 11527,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14A_TILING_EVIDENCE_REPORT.md",
+        "sha256": "1E7E6B79CAC60C3FC69648C9B5219DF4BE1F8DF889987A41563908507F888D23"
+      },
+      {
+        "bytes": 12617,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14B_ADAPTER_EVIDENCE_REPORT.md",
+        "sha256": "D78C8EECF41C9648B2A11A69149D6EC139D27105C13489C8D75D62C0CCD8DC22"
+      },
+      {
+        "bytes": 13281,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14B_EVIDENCE_REPORT.md",
+        "sha256": "5DED54E5E1C82279D55A032406E447C8CED2EBE3DEED7CD50A23ED8EA0000EE7"
+      },
+      {
+        "bytes": 10476,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14B_LIVEFLAG_EVIDENCE_REPORT.md",
+        "sha256": "B2A43DCDB55506828F6D32819D0477C43E85113C684AC23178E782464328294F"
+      },
+      {
+        "bytes": 8123,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14B_R8TOS_EVIDENCE_REPORT.md",
+        "sha256": "FD505339816D9C05565563C4755AD189E817B2211C8BF75B60D45AB4DF85FFD1"
+      },
+      {
+        "bytes": 14629,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14C_EVIDENCE_REPORT.md",
+        "sha256": "ABC0E338A1FB7A10B37DC5541C8F3E7131657DF717417CCE6FBBDF06226F1356"
+      },
+      {
+        "bytes": 12314,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14C_HARNESS_EVIDENCE_REPORT.md",
+        "sha256": "2921BCCFF3E49C9D9AA09CD324ECAFAF73B2339561A5147571CDFFF41ADF7A71"
+      },
+      {
+        "bytes": 14713,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14C_WORKTREE_EVIDENCE_REPORT.md",
+        "sha256": "C62C7DA71298A6F7762D21A32B582A0A2CADACA4312688C44DE9C9B8AD88EF5B"
+      },
+      {
+        "bytes": 8877,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14D_EVIDENCE_REPORT.md",
+        "sha256": "F86D8C2DAD283AEED21C44A96758C4041FF1ECB0453281C112142CA67FD1F3A8"
+      },
+      {
+        "bytes": 13799,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14E_EVIDENCE_REPORT.md",
+        "sha256": "CD5E1EAE5C14263DFEA2ABA91197EC32DAEDFDCA360B4D287219FE627AE066DC"
+      },
+      {
+        "bytes": 8833,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14E_ROSTER_EVIDENCE_REPORT.md",
+        "sha256": "FD608BF9369BBA68A47E7F339E9157D00ABFAB97FA5FC0E1E93A2F90DA39B69D"
+      },
+      {
+        "bytes": 11698,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE14E_RUN_EVIDENCE_REPORT.md",
+        "sha256": "0EA750D703FD2575019D47DA637E70CA52CE8AF2072329249A5126CC5613C8B6"
+      },
+      {
+        "bytes": 16709,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15A_EVIDENCE_REPORT.md",
+        "sha256": "688D543AC7EBE1C5B5858627D08545096AB43556A0946488833DF3ED59E6A5BB"
+      },
+      {
+        "bytes": 8408,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15A_GOVERNOR_EVIDENCE_REPORT.md",
+        "sha256": "AA18EC2711E715DC0A7C70790FDAFB620AB7F5CDA55F8CFB9817D221BCBCC23F"
+      },
+      {
+        "bytes": 8052,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15A_LIVEAUTH_EVIDENCE_REPORT.md",
+        "sha256": "63A3E34592D4B1DD8B42B39C56C8147BB4CD060128395E4672425435CC297039"
+      },
+      {
+        "bytes": 9951,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15A_R8_EVIDENCE_REPORT.md",
+        "sha256": "B1D144D6AEF57B9582B41FDA86722A5B4C3D4C7E66B23C5D3E9E31BE4775E817"
+      },
+      {
+        "bytes": 12985,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15A_STATUSBAR_EVIDENCE_REPORT.md",
+        "sha256": "8DA830DB4D468FD0846C052E61AEBFE5D59BEA37A4E1E5162245CDB7380EC2BB"
+      },
+      {
+        "bytes": 10355,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15B_CONDUCTOR_EVIDENCE_REPORT.md",
+        "sha256": "B1BC25FF21E01EA192BF324C9D5797A298D264752A7BDF6DAB733C4C27C8C46E"
+      },
+      {
+        "bytes": 14279,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15B_EVIDENCE_REPORT.md",
+        "sha256": "9BA234398456EEB8173CFFF79680B8E127013F619DA9402915012D799D6471B6"
+      },
+      {
+        "bytes": 9136,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15B_MODELSEL_EVIDENCE_REPORT.md",
+        "sha256": "AB7C0145DBEBAC9B9C0F4844E3936704722A256590B656B04BD694E979A95916"
+      },
+      {
+        "bytes": 15558,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15C_ADAPTER_EVIDENCE_REPORT.md",
+        "sha256": "1A08730E76DC164A3C55A2EE80FA368E2B9A5C493D9BDABE1C1A65A46879653C"
+      },
+      {
+        "bytes": 12555,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15C_DETECT_EVIDENCE_REPORT.md",
+        "sha256": "D7A6878CB0BB61D9BCF4A030E2E55703E8950A1333FF56E750EAE50F21174E0E"
+      },
+      {
+        "bytes": 10735,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15C_EVIDENCE_REPORT.md",
+        "sha256": "EBFEE4A8EEDC342D617C58414A7A54D040849381753C9FD586CED4B19C9C88C2"
+      },
+      {
+        "bytes": 22840,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_DEBATE_EVIDENCE_REPORT.md",
+        "sha256": "F687067486A176AE71CB0BC4729B9AA60E7837DA804DD5F4CA4AC340FD2A9CBA"
+      },
+      {
+        "bytes": 19539,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_DEBATE_LIVE_EVIDENCE_REPORT.md",
+        "sha256": "F1AA53DE3D1996B3252A5E1ED03D35814747341D1E324BA818B73557AD007C63"
+      },
+      {
+        "bytes": 16965,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_FLOW_EVIDENCE_REPORT.md",
+        "sha256": "D9F576A75A17743C946A9B4BBA8EBB15E59578C099D3D9D4961953A56AB8075A"
+      },
+      {
+        "bytes": 17104,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_FLOW_LIVE_EVIDENCE_REPORT.md",
+        "sha256": "F25CA05E9E3322BC9A75CDA408F4FF6C2E7EE792485F7B3D071CD9F9758BE6A0"
+      },
+      {
+        "bytes": 17221,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_GATE_EVIDENCE_REPORT.md",
+        "sha256": "7C6F74F74B671E7F5AF003AE527D7D93E51B0DB55918511DEF18FA906887ADF8"
+      },
+      {
+        "bytes": 17603,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_GATE_LIVE_EVIDENCE_REPORT.md",
+        "sha256": "D9A44A30B5A067AE5C2D7F6176AD202A0371E8988FCB50BDA836826DDD3547ED"
+      },
+      {
+        "bytes": 11509,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_SELECTION_EVIDENCE_REPORT.md",
+        "sha256": "3DA4F88B10D98AFB803BD0CD257BDF0DE7DC617806CD2030D93709BDDC137E64"
+      },
+      {
+        "bytes": 14621,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_SUCCESSION_EVIDENCE_REPORT.md",
+        "sha256": "B81AC9BE6C04142514D6B11994F7D99AF774D232C3CF5250AE7EBD9C166EF631"
+      },
+      {
+        "bytes": 24484,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15D_SUCCESSION_LIVE_EVIDENCE_REPORT.md",
+        "sha256": "1976126D35B160139617A31DE987AC73A4363FAA6E7AFFC717B9636CEF3796C3"
+      },
+      {
+        "bytes": 15685,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_CONDUCTOR_PANE_EVIDENCE_REPORT.md",
+        "sha256": "E0FA3C87110BE8C5DBB09579EC789FC2874593A61A3E6DE602F9E6B2B60FEFF5"
+      },
+      {
+        "bytes": 14162,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_EVIDENCE_REPORT.md",
+        "sha256": "8EC9154C06D56007D5B65E64F05CA2FC406BB9E025E3F59F6DB324962F8304FA"
+      },
+      {
+        "bytes": 18516,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_OBJECTIVE_EVIDENCE_REPORT.md",
+        "sha256": "18DC99AE75F190DB5F2B04EAA49DDC1E0D5443DF5D09CD932BB6C3A2EA304FAD"
+      },
+      {
+        "bytes": 16544,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_PICKER_EVIDENCE_REPORT.md",
+        "sha256": "D17F84E8E39D652AFB6382DF6E0C95754A44D2C3CF7A48EAA5765B7900CF76CB"
+      },
+      {
+        "bytes": 15997,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_RECOVERY_EVIDENCE_REPORT.md",
+        "sha256": "760B8906336FF7D2BAC70C94721547A43B488154AE558E4AA836230C27DF6773"
+      },
+      {
+        "bytes": 13904,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_SPAWN_EVIDENCE_REPORT.md",
+        "sha256": "F746A0C4EF1CEA97D3008353E7E42B12E6A7C64630153AF3BB002B65D10A27EF"
+      },
+      {
+        "bytes": 15221,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE15E_VOICE_EVIDENCE_REPORT.md",
+        "sha256": "F4A827235618440663600111BAF2C8E77E80AF17FCF81182AB001B00B74E845F"
+      },
+      {
+        "bytes": 9358,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16A_EVIDENCE_REPORT.md",
+        "sha256": "6189B5F1E8305EB7BA083CF9BE237D6A3D45931E6E7EE9CD176ED40A525B3973"
+      },
+      {
+        "bytes": 14447,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16B_EVIDENCE_REPORT.md",
+        "sha256": "B80FC4B954C0EC7149C14499A66569580AE124AACB6A9ED48115049CDD9E09E7"
+      },
+      {
+        "bytes": 32931,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16C_EVIDENCE_REPORT.md",
+        "sha256": "B5ED190ADE35E4163227B1DF0BE0E74128C34AA87F106D98C02DB5F96E789B58"
+      },
+      {
+        "bytes": 28909,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16D_EVIDENCE_REPORT.md",
+        "sha256": "1B6F8E9C1C39CA7BDE3BB3E0A7953C10E69D8907757AB8788C2343C4F844181B"
+      },
+      {
+        "bytes": 14163,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16E_ENGINE_EVIDENCE_REPORT.md",
+        "sha256": "C966872AA5120DD03D499876D36B14517A2748112282FE915FBF02C7C167BB58"
+      },
+      {
+        "bytes": 13036,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16E_REAL_EVIDENCE_REPORT.md",
+        "sha256": "43F282390DFC6052AC8C7AE0EBEF7D656524B8F0EB8F32E0525670B4DD079979"
+      },
+      {
+        "bytes": 10035,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16E_WIRE_EVIDENCE_REPORT.md",
+        "sha256": "5842278C06C6521D1A1EF4C1C860498C942A9CC3960318AEA87513FA167EDA29"
+      },
+      {
+        "bytes": 10498,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16F_ASSEMBLED_EVIDENCE_REPORT.md",
+        "sha256": "837DC1F99689F3C32AA0259E2FADD698A530C6B1D2965519166E4918B0ABED4E"
+      },
+      {
+        "bytes": 11493,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE16F_EVIDENCE_REPORT.md",
+        "sha256": "292DD828D45CB498C42098433C6197B804B39694661DD501AC5970BD29655718"
+      },
+      {
+        "bytes": 19314,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17A_EVIDENCE_REPORT.md",
+        "sha256": "F60BBAF4757625DE2189C518C1EB485F2252553ED770B293F58C910CE6936F4F"
+      },
+      {
+        "bytes": 14198,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17A_LEASE_EVIDENCE_REPORT.md",
+        "sha256": "B15F35BEA10CBDC064D9B465F5E7EECA7CA0E71B3E0770530970122E29A616D4"
+      },
+      {
+        "bytes": 18950,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17A_PTY_EVIDENCE_REPORT.md",
+        "sha256": "7A40F78902F950BE82B5AEC11989626977BEEC1B9BDAC77E6EB7B56C401FAC2B"
+      },
+      {
+        "bytes": 16811,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17A_ROUNDTRIP_EVIDENCE_REPORT.md",
+        "sha256": "A979BC1F8DF335DCE142E4E7EC0BBDC7D0AA83DDEE0F356090EB725A967B19CB"
+      },
+      {
+        "bytes": 36761,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17B_EVIDENCE_REPORT.md",
+        "sha256": "1392ED7F5C00012D8362BD3DF951069376942181AF1C8C0B9B8E72782442DEB2"
+      },
+      {
+        "bytes": 10039,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17B_LEGS_EVIDENCE_REPORT.md",
+        "sha256": "847FDE02DBAC929FD5DEEBE47FE98C36897AEDED3A0DD234AB952E6AB97F23F7"
+      },
+      {
+        "bytes": 37166,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17B_SPAWN_EVIDENCE_REPORT.md",
+        "sha256": "7B4D3B408FE0197149122C52687AEFCBED2BAC3BA3187E6F0DEA21C4C5E5F02C"
+      },
+      {
+        "bytes": 45444,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17B_TICKET_EVIDENCE_REPORT.md",
+        "sha256": "E49B1DB020BF8A10DFDFCF70D402DA45ECE0F493FBA4F0B1129510729139D17E"
+      },
+      {
+        "bytes": 21552,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_EVIDENCE_REPORT.md",
+        "sha256": "092F24DB36F1468C9774D8D6885A6EDC52E9BD3C6CEEE4056AA366E51DDED597"
+      },
+      {
+        "bytes": 9867,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_EVIDENCE_REPORT.md",
+        "sha256": "8FB9EAF99F8B1AEFEA17CC732F20E0EA1DB33D806B30AB5F6FF2FD479084EA72"
+      },
+      {
+        "bytes": 6086,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_ITER88_EVIDENCE_REPORT.md",
+        "sha256": "74F16E73B4F82816516D0EEC567AFF43300FA744879D8E70E2F302BD149D9168"
+      },
+      {
+        "bytes": 6270,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_ITER89_EVIDENCE_REPORT.md",
+        "sha256": "CAFA816D9BB5B9898E0AA608ADD5F5FBE42A3725BA94CDAF5D8B2CB9E0AF6D1D"
+      },
+      {
+        "bytes": 8655,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_ITER90_EVIDENCE_REPORT.md",
+        "sha256": "26D130EE23E52ADF0A6BA70C88522E112E7AB631B712368FDA04616A7B1A9DF3"
+      },
+      {
+        "bytes": 7120,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_ITER91_EVIDENCE_REPORT.md",
+        "sha256": "ACA7BB32C546A34D47969FD98C53CDB3C49D0B58E4332A359D5489EF97CED6C5"
+      },
+      {
+        "bytes": 14541,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE2_ITER92_EVIDENCE_REPORT.md",
+        "sha256": "7A898ACC41FF511B5DB04C710FB02B8C8F7AB5C2374205202EA8EA419FBE5DC4"
+      },
+      {
+        "bytes": 6982,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_CLOSE_REVALIDATE_CHECKPOINT.md",
+        "sha256": "CC233A3BA9AA9ACDD8129FF636E9F09471E0AED496B578D472F5B5F23458BE4F"
+      },
+      {
+        "bytes": 67398,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_EVIDENCE_REPORT.md",
+        "sha256": "77F030FE92751EC9D52E000E506BCAE5F633341A67E07832229831804C7FEDD5"
+      },
+      {
+        "bytes": 18484,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_MIC_EVIDENCE_REPORT.md",
+        "sha256": "CC777AF82609F91209C7ECE5BC3AC8B37CDFF18F26AF6EA03FD40EA57AD00F3F"
+      },
+      {
+        "bytes": 16356,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17C_PROBE_EVIDENCE_REPORT.md",
+        "sha256": "C87CB4F1CF8FBA51A821DB3928FDAFE39C99E09F677C3BC7E056782539E8552B"
+      },
+      {
+        "bytes": 13977,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17D_CLOSE_EVIDENCE_REPORT.md",
+        "sha256": "9064E3AC1168F0EC214EFDBB7E5120369D35AF18F73331E553431FA023851B16"
+      },
+      {
+        "bytes": 10142,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17D_EVENTS_EVIDENCE_REPORT.md",
+        "sha256": "CAFBA01AE798AB501CF73C91BDE486E55BFB2863A363AFA0443C06D9D9FA0F93"
+      },
+      {
+        "bytes": 14582,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17E_CLOSE_REVIEWS_CHECKPOINT.md",
+        "sha256": "0A632789FADD4A27B25808516C255AC8D5972FF5ACD6E88E50644C2D6F975B67"
+      },
+      {
+        "bytes": 22977,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17E_EVIDENCE_REPORT.md",
+        "sha256": "3DE3DBD2CDF76D0AD7AEDB4DD8D4306AA9936181942B0FAC4B34DEF48EFE7327"
+      },
+      {
+        "bytes": 11529,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE17E_REVIEW_FIXES_CHECKPOINT.md",
+        "sha256": "23DED5A8BC872E596D03590C6F24507500A36E56925F9C8F8E6A993AC9494DA4"
+      },
+      {
+        "bytes": 16735,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18A_EVIDENCE_REPORT.md",
+        "sha256": "8CC8A2C59ABF2119B644FC53E30EA928DC8EFA95544D78D11A27BD5CF15842F8"
+      },
+      {
+        "bytes": 21829,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18A_REVIEW_ROUNDS.md",
+        "sha256": "42A1B8ECF981E01CAF2BCF59AE38A9141634F7CA22079F5B12F17E18B2B95B71"
+      },
+      {
+        "bytes": 9689,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18B_ADAPTER_CHECKPOINT.md",
+        "sha256": "42A4E17A3F39BBF6E953B291FFC0A77F15449ECA281C3AABF28D98C108B4CFF1"
+      },
+      {
+        "bytes": 19246,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18B_EVIDENCE_REPORT.md",
+        "sha256": "7AFFEBF50434D5665EBD8A3242F45E13E65310D49374E4ADE75004CB7C3C6E46"
+      },
+      {
+        "bytes": 20002,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18B_PICKER_CHECKPOINT.md",
+        "sha256": "245C24F3355777AB6EC2B1B2BEA94EF37418EA272F8F39231B77F640270F1776"
+      },
+      {
+        "bytes": 11255,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18B_SCOPE_CHECKPOINT.md",
+        "sha256": "32D6E9166D9B8838ABB0C0AD732461151DD0B9E1EF13879C4B64E499405219AB"
+      },
+      {
+        "bytes": 18821,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18C_EVIDENCE_REPORT.md",
+        "sha256": "C36543E38DB7C07A082C68ED029F332A064DDAEE8860B86E597A508BB273C5D8"
+      },
+      {
+        "bytes": 16922,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18C_PROBE_PATH_CHECKPOINT.md",
+        "sha256": "6BC6E4F7B9304791A523B2B5278265DAD2E7516C740A8E8D3BF669F997BC149E"
+      },
+      {
+        "bytes": 13941,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18D_AMENDMENT_CHECKPOINT.md",
+        "sha256": "E341E2D88435C4960FDC3931D2588CA7EB8A3E04E8634ED0E8188681D6D2D208"
+      },
+      {
+        "bytes": 16925,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18D_EVIDENCE_REPORT.md",
+        "sha256": "6BF40931594FB08E4661F9A5771161DEFE5441F7BD37B45E5EF2915630F4A9D0"
+      },
+      {
+        "bytes": 12330,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_ELECTRON_WIRING_CHECKPOINT.md",
+        "sha256": "D80A62D8413F9E967D0501C32C2D839B35C5188B16781BA4C81820BE00C06646"
+      },
+      {
+        "bytes": 48470,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_EVIDENCE_REPORT.md",
+        "sha256": "C93A61FF9380AE9E4A2CA2F5C98D6C80DFC346655CBC16945E67EA52442BB21E"
+      },
+      {
+        "bytes": 26291,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_HARDENING_CHECKPOINT.md",
+        "sha256": "CB47DCC717F32066222079ED4DB341DF54801B48E65DE2090216CA69E38847EC"
+      },
+      {
+        "bytes": 3460,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_LIVE_ELECTRON_CHECKPOINT.CORRECTION.md",
+        "sha256": "4883B880FB4A3CA0925C60C86C4093D2763FD071A7F790C25C56B17EDBDA6282"
+      },
+      {
+        "bytes": 13332,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_LIVE_ELECTRON_CHECKPOINT.md",
+        "sha256": "D1EED5106EB279B531DFCE503F2EAE84BE2C266CC3062794E835F37D260F8815"
+      },
+      {
+        "bytes": 21024,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE18E_LIVE_SHAPE_CHECKPOINT.md",
+        "sha256": "643E090AFBFB87D2388CE4F093FC35B9808D858CDCB067ABE896DEAA2ECCADE8"
+      },
+      {
+        "bytes": 12145,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md",
+        "sha256": "D5B11A5DA8E31EB97F2C475A1C0ACF90BF67DC1A390B56686C764FBB4DCB1AA7"
+      },
+      {
+        "bytes": 8616,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT1_OP13_REVERT_CHECKPOINT.CORRECTION.md",
+        "sha256": "3072BD6F0411681540F0595D6EA0D05BC71FDAFD68B76D00C549B794A054BAE2"
+      },
+      {
+        "bytes": 11900,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT1_OP13_REVERT_CHECKPOINT.md",
+        "sha256": "596415D65C13E41015E9C563F65646256C6FFC333621B5BD48D8BB3FA14C0A92"
+      },
+      {
+        "bytes": 12058,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT2_U326_POLICY_DELEGATION.CORRECTION.md",
+        "sha256": "2472EBE5C13A04A7CB97ABE78FCD8BB28FBCDC33ED253057D8F0EADDFA209C5F"
+      },
+      {
+        "bytes": 39305,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT2_U326_POLICY_DELEGATION_CHECKPOINT.md",
+        "sha256": "E5E71650F784F56B697793C31134D681D1BF53C70401DCD2A444714F00895E9F"
+      },
+      {
+        "bytes": 42931,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT3_U328_SYSTEM_PANE_WRITE_GATE.md",
+        "sha256": "1B2D9695D8EAA7BF287EEA406E56ADE7CF395119D277D60B0F163EEE933272F6"
+      },
+      {
+        "bytes": 12470,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_FOLLOWON_ROUND2_ROUND3_CLOSE.md",
+        "sha256": "5E358565930CF5ED9C46E79E1AE15F4E2CEA51D6A5396E4321525059D1D1E6A3"
+      },
+      {
+        "bytes": 12254,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_FOLLOWON_U373_RESIDUAL_U363_VERDICT_CHECKPOINT.md",
+        "sha256": "8F2150205360A1057E614D3A2B7A354E87F47D04B4C7289533B6CA231D809DBF"
+      },
+      {
+        "bytes": 13102,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_U329_READINESS_SIGNAL_ORDER_CHECKPOINT.ROUND2.md",
+        "sha256": "58A502094CEE96916EF932306A858E057F82FCA9C6223A5FA0B29DBC58D34F17"
+      },
+      {
+        "bytes": 13922,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_U329_READINESS_SIGNAL_ORDER_CHECKPOINT.ROUND3.md",
+        "sha256": "5FD19C0B6565480AA6B889B45EC64E97D46CB8BFD3D5F68DE8B49D03255DA196"
+      },
+      {
+        "bytes": 19118,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_U329_READINESS_SIGNAL_ORDER_CHECKPOINT.ROUND4.md",
+        "sha256": "5BE2943A84D271E1FE435F3E02713CF69C4666E5438EFE73ACFFE15C1A5BFA3C"
+      },
+      {
+        "bytes": 11601,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_U329_READINESS_SIGNAL_ORDER_CHECKPOINT.md",
+        "sha256": "A15174BCE4EF11B7B4A510F52537CA59B37A7CF5E4FA3446A97D1F0C688734A2"
+      },
+      {
+        "bytes": 11753,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT4_U329_READINESS_SIGNAL_ORDER_CLOSED.ROUND5.md",
+        "sha256": "158182CB4B08EB6ABDC08E279B9E6A5599118D605C93FABBD1F6295DBD31B912"
+      },
+      {
+        "bytes": 21059,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT5_U330_U332_ONE_WRITE_PATH.md",
+        "sha256": "0B6B8BA50C0498A7E42B79B08F88FA9166B9E5042AEEEE7369AB32BB39EB667E"
+      },
+      {
+        "bytes": 26152,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT6_U331_U333_DESCRIPTOR_NOT_NAME.md",
+        "sha256": "BCA0DC2DDC3A326EF733CF114C5067E7C6C91B99B31BF9A090289F47E1CB567D"
+      },
+      {
+        "bytes": 31973,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT7_U334_U335_U336_RUNTIME_HONESTY.md",
+        "sha256": "18C89D52E480F14B851599E1AD666E15645D71DD9F830C40E5BBD279209A0971"
+      },
+      {
+        "bytes": 9009,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT8_U337_EVIDENCE_PROVENANCE.md",
+        "sha256": "602695236C4D5AAA549449BCAA9AA6D719CE68C8CB70A2BB87C2767FDFBD87B6"
+      },
+      {
+        "bytes": 9128,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE19_UNIT9_U338_EXECUTABLE_ORCHESTRATION_COVERAGE.md",
+        "sha256": "A642F9911776F97670D338755D8AC104A29BE0E81F7FADE05F98FE7BE2DD9E6B"
+      },
+      {
+        "bytes": 10365,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE1_EVIDENCE_REPORT.md",
+        "sha256": "35C8DCD3F6DCA08B27FA6EF814675E649D6BCABACFDA380EFF79475F2E5C8943"
+      },
+      {
+        "bytes": 4042,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE1_SPIKE_REPORT_20260717T022713Z.md",
+        "sha256": "2DFFC755EF18AA30539115CBD41AA28B00BF059C4C574D9BF996800BE32D8977"
+      },
+      {
+        "bytes": 7381,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE2_EVIDENCE_REPORT.md",
+        "sha256": "996F0DDB00AD9B499BA8A07A7F960559BD4CC1BE79C2987BAF5B33B20201645A"
+      },
+      {
+        "bytes": 7265,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE3A_EVIDENCE_REPORT.md",
+        "sha256": "16321EBBCBD564790C97E50F3FB3549F20D7FEF026A95D627D8B0E4E78E975B7"
+      },
+      {
+        "bytes": 6533,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE3_EVIDENCE_REPORT.md",
+        "sha256": "A288724FD0DD7C5877022A03EF57EB921BE334D4F1DED5DCBE6FD3AD60E57216"
+      },
+      {
+        "bytes": 5748,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE4_EVIDENCE_REPORT.md",
+        "sha256": "0293E00156A13092D7D2576EAF2AFFDFE0E22CD897DEB3ECC5CD57C4D2395CB3"
+      },
+      {
+        "bytes": 6462,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE5_EVIDENCE_REPORT.md",
+        "sha256": "3B71163990299E0C1D4E3779AEF9F88AC12C353C0209C736F51B132C07790D99"
+      },
+      {
+        "bytes": 6646,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE6_EVIDENCE_REPORT.md",
+        "sha256": "FDD3958978232318C666BA16D4C263D2F2FE2A763B6D3AC138D408A495BBE379"
+      },
+      {
+        "bytes": 5749,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE7_EVIDENCE_REPORT.md",
+        "sha256": "A8E0579E1320B2017D50D173E17968F29B5FB26840BF6DA6119DA49D924E42AD"
+      },
+      {
+        "bytes": 5822,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE8_EVIDENCE_REPORT.md",
+        "sha256": "2B153561CB506609C2688AD112B0EA92BF36F1A819F719D6E7B9E80B26481259"
+      },
+      {
+        "bytes": 4512,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PHASE9_EVIDENCE_REPORT.md",
+        "sha256": "B0E61A4FE4A7ECFCC3CE4CF242BA75C42A55425A336D9E1D7667330DA94333B7"
+      },
+      {
+        "bytes": 4643,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PRODUCT_COMPLETION_AUDIT_20260719.md",
+        "sha256": "C651203FA327D51DDA0A8AACD83935F25CBEE7E61879FBF3D3F836FDF3A2C22F"
+      },
+      {
+        "bytes": 4135,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PRODUCT_LIVE_AUDIT_20260724.md",
+        "sha256": "B5260CC3D785D183B068310146EE5F2B4F9A76DE6ABE76B51C585870A91E25BF"
+      },
+      {
+        "bytes": 6227,
+        "encoding": "utf-8",
+        "path": "docs/evidence/PRODUCT_USABLE_AUDIT_20260725.md",
+        "sha256": "E5341EB21D382A88977D63A5FE50E29D79B668BD33362E5C519A539486258782"
+      },
+      {
+        "bytes": 4566,
+        "encoding": "utf-8",
+        "path": "docs/evidence/R8_OP6_CONCURRENCY_BASIS_NOTE.md",
+        "sha256": "25AB0730CD06B74693996A752CA54F847DE822E3DC4AA4DEA8AAEAC2C0AC9362"
+      },
+      {
+        "bytes": 11722,
+        "encoding": "utf-8",
+        "path": "docs/evidence/R8_TOS_VERIFICATION_CLAUDE_CODE.md",
+        "sha256": "C9A2A0DAC462ADBA9B1D01B097CEA5FA06AE0D1C78C262EEF7EA1D22057F9F05"
+      },
+      {
+        "bytes": 14267,
+        "encoding": "utf-8",
+        "path": "docs/evidence/R8_TOS_VERIFICATION_OPENAI_CODEX.md",
+        "sha256": "4BB377D4FC73296437FCA22E34AF0D75934DBB2493D94DE4DB7B046FDE0F6E4D"
+      },
+      {
+        "bytes": 13724,
+        "encoding": "utf-8",
+        "path": "docs/evidence/SOW_REMEDIATION_FINDINGS_20260816.md",
+        "sha256": "8EC1F59BD3AAB3C3249A74081621A05EC3A1DB856AB698748092C7E8CCEB3C8A"
+      },
+      {
+        "bytes": 3693,
+        "encoding": "utf-8",
+        "path": "docs/evidence/W18B_CONTAINMENT_DESIGN_NOTE_20260816.md",
+        "sha256": "6CD3567E8D1E823FF909CABD489824268DDD85610AA8968570FA7CFC194641F4"
+      }
+    ],
+    "note": "Append-only audit surfaces (registers, evidence). Hashes recorded as of generation for visibility; NOT covered by freeze_integrity_sha256 and NOT checked for drift - they legitimately change at every gate. Canonical/schema/conductor/governance drift remains a hard failure.",
+    "registers": [
+      {
+        "bytes": 229411,
+        "encoding": "utf-8",
+        "path": "docs/registers/DECISION_REGISTER.md",
+        "sha256": "27B479592AAD6032A3F2AC7E1A03DA83FF77B28B4A46E6D94CAAD185167F878B"
+      },
+      {
+        "bytes": 957674,
+        "encoding": "utf-8",
+        "path": "docs/registers/UNRESOLVED_ISSUE_REGISTER.md",
+        "sha256": "6F4797FB676D5059F75CD1BF0658A8A5D50D0C191C2B41C2DBDCA1C92D0456E5"
+      }
+    ],
+    "status_docs": [
+      {
+        "bytes": 3142,
+        "encoding": "utf-8",
+        "path": "README.md",
+        "sha256": "7C52D1FF4FA43D60DC40469ABB25B29B3EDF4EA230447C5433ACFFD64EF8CAB8"
+      }
+    ]
+  },
+  "operator_signature": {
+    "instruction": "Operator: to sign, set status=SIGNED, signed_by, signed_ts (ISO-8601), and commit. The freeze_integrity_sha256 above covers every listed hash; any file change after signing invalidates it and requires a new manifest + register entry.",
+    "signed_by": null,
+    "signed_ts": null,
+    "status": "PENDING"
+  },
+  "pending_operator_decisions": [
+    "I-D1/I-D2 + D-COWORK-02 ratification (at this freeze)",
+    "D-UI-01 (after Phase 1 spike)",
+    "D-LANG-01 (provisional: Python 3.12)",
+    "D-PERSIST-01 (provisional: SQLite WAL + CAS store)",
+    "D-MCP-03 (at Phase 3A concurrent-writer test)",
+    "D-IPC-01 (low stakes; may delegate)"
+  ],
+  "project": "sovereign-orchestration-workspace",
+  "provenance_plan_sha256": "668089B57C3162DABDE62ED249778D26F554910666FF62A552FA968BE199E48F",
+  "schema_amendments": {
+    "amendment_integrity_sha256": "2EAEED8EF8931A0DB8AA3BD301EA6395F9D0B109B09643EB55DB9449CE658BF9",
+    "note": "Schema files added AFTER the Phase-0 freeze under an explicit operator ruling. NOT covered by freeze_integrity_sha256 (adding one must not invalidate the operator's signature - U222) and NOT part of the frozen @1.0 set, which is unchanged. Drift here is a HARD failure under --check, exactly as in the frozen set: NEW, CHANGED and REMOVED are all reported.",
+    "schema_amendments": [
+      {
+        "authorized_by": "OP-12.1 (operator, 2026-08-01) - AUTONOMOUS_BUILD_DIRECTIVE.md section 17.1; U227 resolved by successor schema; node@1.0 never edited",
+        "bytes": 6217,
+        "encoding": "utf-8",
+        "path": "schemas/node.schema@1.1.json",
+        "schema_id": "https://sovereign.local/schemas/node@1.1",
+        "sha256": "CDB4B02D56240FE25AE6607BE0C5D28D9C4C910999E24669F62417B6BB24780A"
+      }
+    ]
+  },
+  "schema_ids": [
+    "https://sovereign.local/schemas/artifact@1.0",
+    "https://sovereign.local/schemas/checkpoint@1.0",
+    "https://sovereign.local/schemas/debate@1.0",
+    "https://sovereign.local/schemas/evidence@1.0",
+    "https://sovereign.local/schemas/gate@1.0",
+    "https://sovereign.local/schemas/memory@1.0",
+    "https://sovereign.local/schemas/message@1.0",
+    "https://sovereign.local/schemas/node@1.0",
+    "https://sovereign.local/schemas/permission@1.0",
+    "https://sovereign.local/schemas/project@1.0",
+    "https://sovereign.local/schemas/task@1.0",
+    "https://sovereign.local/schemas/usage@1.0"
+  ],
+  "schema_versions_fixed_at": "@1.0"
+}

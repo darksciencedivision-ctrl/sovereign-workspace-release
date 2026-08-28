@@ -1,0 +1,32 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Policy governing canonical documents in the SOVEREIGN Master Library.",
+  "canonical_document_paths": [
+    "runtime_profile.json",
+    "CORE_RUNTIME_INDEX.md",
+    "OPERATOR_START_HERE.md",
+    "README_OPERATIONAL.md",
+    "library/config/runtime_mode.json",
+    "library/config/authority_policy.json",
+    "library/config/deletion_blacklist.json",
+    "library/config/taxonomy.json",
+    "library/index/runtime_contract.json",
+    "library/index/architecture_graph.json",
+    "library/index/ontology_graph.json"
+  ],
+  "overwrite_policy": {
+    "backup_required": true,
+    "backup_pattern": "<original_filename>.bak_<UTC>",
+    "receipt_required": true,
+    "operator_approval_required": true,
+    "dry_run_first_required": true
+  },
+  "protection_rules": {
+    "never_delete": true,
+    "never_quarantine": true,
+    "never_supersede_without_operator_approval": true,
+    "taxonomy_enforcement_applies": true,
+    "research_exemption": false
+  }
+}

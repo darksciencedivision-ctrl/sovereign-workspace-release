@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debate Table</title>
+<style>
+:root {
+  --bg: #080b11;
+  --panel: #111722;
+  --edge: #263044;
+  --text: #e7ecf5;
+  --dim: #8792a6;
+  --gold: #e6bd63;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body {
+  color: var(--text);
+  background:
+    radial-gradient(circle at 50% 110%, #182238 0, transparent 48%),
+    linear-gradient(180deg, #0d111a 0%, var(--bg) 72%);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+#stage { height: 100%; display: flex; flex-direction: column; min-width: 0; }
+#banner {
+  flex: 0 0 auto;
+  min-height: 126px;
+  padding: 24px 5vw 20px;
+  display: grid;
+  align-content: center;
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  background: linear-gradient(180deg, rgba(20,26,38,.96), rgba(8,11,17,.82));
+}
+.eyebrow {
+  color: var(--gold);
+  font-size: clamp(10px, .7vw, 13px);
+  letter-spacing: .32em;
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+#topic {
+  max-width: 1500px;
+  margin: auto;
+  font-size: clamp(22px, 2.15vw, 40px);
+  font-weight: 640;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  transition: opacity .22s ease, transform .22s ease;
+}
+#topic.changing { opacity: 0; transform: translateY(-5px); }
+#table {
+  flex: 1;
+  min-height: 0;
+  padding: 18px;
+  display: grid;
+  gap: 18px;
+}
+#table.layout-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#table.layout-3, #table.layout-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+#table.layout-3 .seat:last-child { grid-column: 1 / -1; }
+.seat {
+  --seat-color: #7dd3fc;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--seat-color) 5%, transparent), transparent 33%),
+    rgba(17,23,34,.95);
+  box-shadow: 0 16px 44px rgba(0,0,0,.24);
+  transition: border-color .28s ease, box-shadow .28s ease, transform .28s ease;
+}
+.seat.speaking {
+  border-color: color-mix(in srgb, var(--seat-color) 78%, white);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--seat-color) 22%, transparent),
+              0 18px 52px rgba(0,0,0,.34),
+              0 0 34px color-mix(in srgb, var(--seat-color) 16%, transparent);
+  transform: translateY(-1px);
+}
+.seat-head {
+  flex: 0 0 auto;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.avatar {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #071018;
+  background: var(--seat-color);
+  font-size: 17px;
+  font-weight: 800;
+}
+.identity { min-width: 0; }
+.seat-name {
+  color: var(--seat-color);
+  font-size: clamp(15px, 1vw, 19px);
+  font-weight: 740;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seat-model {
+  max-width: 32vw;
+  margin-top: 2px;
+  color: var(--dim);
+  font-size: clamp(9px, .6vw, 11px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activity { margin-left: auto; min-width: 0; text-align: right; }
+.thinking {
+  height: 18px;
+  margin-top: 4px;
+  color: var(--seat-color);
+  font-size: clamp(10px, .7vw, 13px);
+  white-space: nowrap;
+}
+.thinking:empty { visibility: hidden; }
+.thinking:not(:empty)::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--seat-color);
+  box-shadow: 0 0 10px var(--seat-color);
+  animation: breathe 1.35s ease-in-out infinite;
+}
+@keyframes breathe { 50% { opacity: .35; transform: scale(.72); } }
+.seat-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: clamp(17px, 1.3vw, 25px);
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  font-size: clamp(15px, 1.14vw, 22px);
+  line-height: 1.58;
+}
+.seat-body::-webkit-scrollbar { display: none; }
+.utter {
+  max-width: 100%;
+  margin: 0 0 17px;
+  color: #9ba5b7;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: pre-wrap;
+}
+.utter.current { color: var(--text); }
+.seat.skipped .seat-head::after {
+  content: "turn skipped";
+  position: absolute;
+  right: 18px;
+  bottom: 8px;
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+#drawer {
+  position: fixed;
+  z-index: 10;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  max-height: min(48vh, 510px);
+  overflow-y: auto;
+  display: none;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+  gap: 18px;
+  padding: 18px;
+  color: var(--text);
+  border: 1px solid #354057;
+  border-radius: 16px;
+  background: rgba(10,14,22,.98);
+  box-shadow: 0 28px 80px rgba(0,0,0,.72);
+}
+#drawer.open { display: grid; }
+.drawer-title {
+  margin: 0 0 10px;
+  color: var(--gold);
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.controls { display: grid; gap: 10px; }
+#model-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.model-control { min-width: 0; display: grid; gap: 4px; }
+label { color: var(--dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+input, select, button, textarea {
+  min-width: 0;
+  min-height: 37px;
+  color: var(--text);
+  border: 1px solid #303a4e;
+  border-radius: 8px;
+  background: #151c28;
+  font: inherit;
+}
+input, select, textarea { width: 100%; padding: 7px 10px; }
+textarea { resize: vertical; }
+button { padding: 7px 13px; cursor: pointer; }
+button:hover { background: #202a3a; }
+button:disabled, select:disabled { cursor: not-allowed; opacity: .48; }
+.control-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.field-block { display: grid; gap: 6px; }
+.counter { color: var(--dim); font-size: 10px; text-transform: none; letter-spacing: 0; }
+.counter.over { color: #f0837a; }
+.diag-log { display: grid; gap: 6px; max-height: 160px; overflow-y: auto; }
+.diag-entry {
+  padding: 7px 9px;
+  border: 1px solid #273147;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.drawer-meta {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  font-size: 12px;
+  color: #bdc6d5;
+}
+#operator-status, #move-diagnostic {
+  padding: 10px 11px;
+  border: 1px solid #273147;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+#insights { display: none; }
+#insights.enabled { display: grid; gap: 8px; }
+.warning {
+  color: #f0c979;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.insight {
+  padding: 9px 10px;
+  border: 1px solid #273147;
+  border-radius: 8px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.insight strong { color: var(--text); }
+@media (max-aspect-ratio: 4/3) {
+  #banner { min-height: 100px; }
+  #table.layout-2 { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 850px) {
+  #drawer.open { grid-template-columns: 1fr; }
+  #model-controls { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; scroll-behavior: auto !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<main id="stage">
+  <header id="banner">
+    <div class="eyebrow">Debate Table · Live</div>
+    <div id="topic">Connecting…</div>
+  </header>
+  <section id="table" aria-live="polite"></section>
+</main>
+
+<aside id="drawer" aria-label="Operator controls">
+  <section class="controls">
+    <h2 class="drawer-title">Operator controls · C to close</h2>
+    <div id="model-controls"></div>
+    <div class="control-row">
+      <input id="in-topic" aria-label="New topic" placeholder="New topic (resets table)" maxlength="300">
+      <button type="button" data-action="topic">Set topic</button>
+    </div>
+    <div class="field-block">
+      <label for="in-title">Public title <span id="title-counter" class="counter">0 / 300</span></label>
+      <textarea id="in-title" rows="2" placeholder="Short stage title (public)" maxlength="300"></textarea>
+      <label for="in-brief">Debate brief <span id="brief-counter" class="counter">0 / 20000</span></label>
+      <textarea id="in-brief" rows="4" placeholder="Longer private context for the models (drawer only)" maxlength="20000"></textarea>
+      <div id="brief-error" class="warning" style="display:none;"></div>
+      <button type="button" data-action="brief">Set title + brief (resets table)</button>
+    </div>
+    <div id="thesis-controls" class="field-block"></div>
+    <div class="control-row">
+      <input id="in-interject" aria-label="Interjection" placeholder="Note for the next turn" maxlength="4000">
+      <button type="button" data-action="interject">Interject</button>
+    </div>
+    <button id="btn-pause" type="button">Pause</button>
+  </section>
+  <section class="drawer-meta">
+    <h2 class="drawer-title">Diagnostics</h2>
+    <div id="operator-status">Connecting to local app…</div>
+    <div id="move-diagnostic">No turn selected yet.</div>
+    <div id="diag-log" class="diag-log"></div>
+    <div id="insights">
+      <div class="warning">Heuristic extraction — may be incomplete or incorrect.</div>
+      <div id="insight-list"></div>
+    </div>
+  </section>
+</aside>
+
+<script>
+"use strict";
+const table = document.getElementById("table");
+const topicEl = document.getElementById("topic");
+const drawer = document.getElementById("drawer");
+const operatorStatus = document.getElementById("operator-status");
+const moveDiagnostic = document.getElementById("move-diagnostic");
+const insights = document.getElementById("insights");
+const insightList = document.getElementById("insight-list");
+const seats = new Map();
+let paused = false;
+let modelChoices = [];
+let reconnectTimer = null;
+let titleMaxChars = 300;
+let briefMaxChars = 20000;
+let inputLimits = { thesis: 8000, interjection: 4000 };
+
+function node(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function initials(name) {
+  return Array.from(name.trim())[0]?.toUpperCase() || "•";
+}
+
+function clearTimers(seat) {
+  for (const timer of seat.timers) clearTimeout(timer);
+  seat.timers = [];
+}
+
+function stopSeat(seat, skipped = false) {
+  clearTimers(seat);
+  seat.el.classList.remove("speaking");
+  seat.el.classList.toggle("skipped", skipped);
+  seat.thinking.textContent = "";
+}
+
+function startThinking(seat) {
+  clearTimers(seat);
+  seat.el.classList.remove("skipped");
+  seat.el.classList.add("speaking");
+  seat.thinking.textContent = "Thinking…";
+  seat.timers.push(setTimeout(() => {
+    if (seat.thinking.textContent) seat.thinking.textContent = "Loading model…";
+  }, 10000));
+  seat.timers.push(setTimeout(() => {
+    if (seat.thinking.textContent) seat.thinking.textContent = "Still thinking…";
+  }, 25000));
+}
+
+function clearThinkingOnPublicToken(seat) {
+  if (!seat.thinking.textContent) return;
+  clearTimers(seat);
+  seat.thinking.textContent = "";
+}
+
+function smoothBottom(body) {
+  requestAnimationFrame(() => body.scrollTo({top: body.scrollHeight, behavior: "smooth"}));
+}
+
+function setLayout(count) {
+  table.className = `layout-${Math.max(2, Math.min(count, 4))}`;
+}
+
+function buildSeats(list) {
+  for (const existing of seats.values()) clearTimers(existing);
+  seats.clear();
+  table.replaceChildren();
+  setLayout(list.length);
+  for (const item of list) {
+    const card = node("article", "seat");
+    card.style.setProperty("--seat-color", item.color);
+    const head = node("header", "seat-head");
+    const avatar = node("div", "avatar", initials(item.name));
+    const identity = node("div", "identity");
+    const name = node("div", "seat-name", item.name);
+    const model = node("div", "seat-model", item.model);
+    identity.append(name, model);
+    const activity = node("div", "activity");
+    const thinking = node("div", "thinking", "");
+    activity.append(thinking);
+    head.append(avatar, identity, activity);
+    const body = node("div", "seat-body");
+    card.append(head, body);
+    table.appendChild(card);
+    seats.set(item.name, {
+      el: card, body, thinking, model,
+      selectedModel: item.model, currentEl: null, timers: []
+    });
+  }
+}
+
+function addUtterance(name, text, current) {
+  const seat = seats.get(name);
+  if (!seat) return null;
+  const utterance = node("p", `utter${current ? " current" : ""}`, text);
+  seat.body.appendChild(utterance);
+  while (seat.body.children.length > 8) seat.body.firstElementChild.remove();
+  smoothBottom(seat.body);
+  return utterance;
+}
+
+function updateCounters() {
+  const title = document.getElementById("in-title");
+  const brief = document.getElementById("in-brief");
+  const titleCounter = document.getElementById("title-counter");
+  const briefCounter = document.getElementById("brief-counter");
+  titleCounter.textContent = `${title.value.length} / ${titleMaxChars}`;
+  titleCounter.classList.toggle("over", title.value.length > titleMaxChars);
+  briefCounter.textContent = `${brief.value.length} / ${briefMaxChars}`;
+  briefCounter.classList.toggle("over", brief.value.length > briefMaxChars);
+}
+
+function buildThesisControls(list, theses) {
+  const container = document.getElementById("thesis-controls");
+  container.replaceChildren();
+  for (const item of list) {
+    const wrapper = node("div", "field-block");
+    const label = node("label", "", `${item.name} thesis`);
+    const textarea = node("textarea");
+    textarea.rows = 2;
+    textarea.maxLength = inputLimits.thesis || 8000;
+    textarea.value = theses[item.name] || "";
+    const button = node("button", "", `Set ${item.name} thesis`);
+    button.type = "button";
+    button.addEventListener("click", () => setSeatThesis(item.name, textarea.value));
+    wrapper.append(label, textarea, button);
+    container.appendChild(wrapper);
+  }
+}
+
+async function setSeatThesis(seatName, thesis) {
+  const trimmed = thesis.trim();
+  if (!trimmed) return;
+  try {
+    const response = await fetch("/api/seat_thesis", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({seat: seatName, thesis: trimmed})
+    });
+    if (!response.ok) throw new Error();
+  } catch {
+    operatorStatus.textContent = "Thesis update failed.";
+  }
+}
+
+async function submitBrief() {
+  const title = document.getElementById("in-title").value.trim();
+  const brief = document.getElementById("in-brief").value.trim();
+  const errorEl = document.getElementById("brief-error");
+  errorEl.style.display = "none";
+  if (!title || !brief) return;
+  if (title.length > titleMaxChars || brief.length > briefMaxChars) {
+    errorEl.textContent = "Title or brief exceeds its character limit. Nothing was sent or truncated.";
+    errorEl.style.display = "block";
+    return;
+  }
+  try {
+    const response = await fetch("/api/brief", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({public_title: title, debate_brief: brief})
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      errorEl.textContent = body.error || "Request rejected.";
+      errorEl.style.display = "block";
+      return;
+    }
+  } catch {
+    operatorStatus.textContent = "Operator request failed.";
+  }
+}
+
+function buildModelControls(list) {
+  const controls = document.getElementById("model-controls");
+  controls.replaceChildren();
+  for (const item of list) {
+    const wrapper = node("div", "model-control");
+    const label = node("label", "", `${item.name} model`);
+    const select = node("select");
+    select.id = `model-${item.name.replace(/[^a-z0-9_-]/gi, "-")}`;
+    label.htmlFor = select.id;
+    select.dataset.seat = item.name;
+    const choices = modelChoices.length ? modelChoices : ["Ollama not reachable"];
+    for (const model of choices) {
+      const option = node("option", "", model);
+      option.value = model;
+      option.selected = model === item.model;
+      select.appendChild(option);
+    }
+    select.disabled = !modelChoices.length;
+    select.addEventListener("change", () => setSeatModel(item.name, select.value, select));
+    wrapper.append(label, select);
+    controls.appendChild(wrapper);
+  }
+}
+
+function updateSeats(list) {
+  for (const item of list) {
+    const seat = seats.get(item.name);
+    if (!seat) continue;
+    seat.selectedModel = item.model;
+    seat.model.textContent = item.model;
+    const select = document.querySelector(`select[data-seat="${CSS.escape(item.name)}"]`);
+    if (select) select.value = item.model;
+  }
+}
+
+function changeTopic(text) {
+  topicEl.classList.add("changing");
+  for (const seat of seats.values()) {
+    stopSeat(seat);
+    seat.body.replaceChildren();
+    seat.currentEl = null;
+  }
+  insightList.replaceChildren();
+  setTimeout(() => {
+    topicEl.textContent = text;
+    topicEl.classList.remove("changing");
+  }, 180);
+}
+
+const diagLog = document.getElementById("diag-log");
+
+function logDiagnostic(text) {
+  const entry = node("div", "diag-entry", text);
+  diagLog.prepend(entry);
+  while (diagLog.children.length > 12) diagLog.lastElementChild.remove();
+}
+
+function renderInsight(event) {
+  if (!insights.classList.contains("enabled")) return;
+  const card = node("div", "insight");
+  const title = node("strong", "", `${event.seat} · turn ${event.turn}`);
+  const stance = node("div", "", `Stance: ${event.stance || "—"}`);
+  const addressed = node("div", "", `Addressed: ${event.addressed_seat || "—"}`);
+  const claims = Array.isArray(event.claims) ? event.claims.join(" · ") : "—";
+  const claimLine = node("div", "", `Possible claims: ${claims || "—"}`);
+  const question = node("div", "", `Possible question: ${event.question || "—"}`);
+  card.append(title, stance, addressed, claimLine, question);
+  insightList.prepend(card);
+  while (insightList.children.length > 8) insightList.lastElementChild.remove();
+}
+
+function handle(event) {
+  switch (event.type) {
+    case "snapshot":
+      modelChoices = event.models || [];
+      buildSeats(event.seats || []);
+      buildModelControls(event.seats || []);
+      topicEl.textContent = event.public_title || event.topic || "Warming up…";
+      for (const turn of event.transcript || []) addUtterance(turn.name, turn.text, false);
+      paused = Boolean(event.paused);
+      document.getElementById("btn-pause").textContent = paused ? "Resume" : "Pause";
+      operatorStatus.textContent = modelChoices.length ? (event.status || "Live.") : "Ollama unreachable. Model controls disabled.";
+      insights.classList.toggle("enabled", Boolean(event.insight_enabled));
+      if (event.diagnostics?.move) {
+        moveDiagnostic.textContent = `Turn ${event.diagnostics.turn}: ${event.diagnostics.move} · ${event.diagnostics.move_reason}`;
+      }
+      if (event.public_title_max_chars) titleMaxChars = event.public_title_max_chars;
+      if (event.debate_brief_max_chars) briefMaxChars = event.debate_brief_max_chars;
+        if (event.input_limits) {
+          inputLimits = event.input_limits;
+          const interjectEl = document.getElementById("in-interject");
+          if (interjectEl && inputLimits.interjection) interjectEl.maxLength = inputLimits.interjection;
+          const titleEl = document.getElementById("in-title");
+          if (titleEl && inputLimits.public_title) titleEl.maxLength = inputLimits.public_title;
+          const briefEl = document.getElementById("in-brief");
+          if (briefEl && inputLimits.debate_brief) briefEl.maxLength = inputLimits.debate_brief;
+        }
+      document.getElementById("in-title").value = event.public_title || "";
+      document.getElementById("in-brief").value = event.debate_brief || "";
+      updateCounters();
+      buildThesisControls(event.seats || [], event.seat_theses || {});
+      break;
+    case "seats":
+      updateSeats(event.seats || []);
+      break;
+    case "topic":
+      changeTopic(event.text);
+      break;
+    case "brief":
+      document.getElementById("in-brief").value = event.text || "";
+      updateCounters();
+      break;
+    case "speaking": {
+      const seat = seats.get(event.seat);
+      if (seat) clearThinkingOnPublicToken(seat);
+      break;
+    }
+    case "diagnostic":
+      if (event.kind === "CONTROL_TEXT_LEAK_BLOCKED") {
+        logDiagnostic(`Turn ${event.turn} · ${event.seat}: leak blocked (${event.label})`);
+      }
+      break;
+    case "position_revision":
+      logDiagnostic(`${event.seat}: thesis revised (${event.reason}) — "${event.revised_thesis}"`);
+      break;
+    case "turn_metrics": {
+      for (const attempt of event.attempts || []) {
+        if (attempt.completion_state && attempt.completion_state !== "TURN_COMPLETE") {
+          logDiagnostic(`Turn ${event.turn} · ${event.seat}: ${attempt.completion_state}${attempt.continuation_applied ? " (continued)" : ""}`);
+        }
+      }
+      break;
+    }
+    case "turn_start": {
+      for (const candidate of seats.values()) if (candidate.el.classList.contains("speaking")) stopSeat(candidate);
+      const seat = seats.get(event.seat);
+      if (!seat) break;
+      startThinking(seat);
+      for (const old of seat.body.querySelectorAll(".utter.current")) old.classList.remove("current");
+      seat.currentEl = addUtterance(event.seat, "", true);
+      moveDiagnostic.textContent = `Turn ${event.turn}: ${event.move} · ${event.move_reason}`;
+      break;
+    }
+    case "token": {
+      const seat = seats.get(event.seat);
+      if (!seat || !seat.currentEl) break;
+      clearThinkingOnPublicToken(seat);
+      seat.currentEl.appendChild(document.createTextNode(event.text));
+      smoothBottom(seat.body);
+      break;
+    }
+    case "turn_skipped": {
+      const seat = seats.get(event.seat);
+      if (seat) stopSeat(seat, true);
+      operatorStatus.textContent = `${event.seat}: turn skipped (${event.reason}).`;
+      break;
+    }
+    case "turn_end": {
+      const seat = seats.get(event.seat);
+      if (!seat) break;
+      if (seat.currentEl) {
+        if (event.text) seat.currentEl.textContent = event.text;
+        else seat.currentEl.remove();
+        seat.currentEl = null;
+      }
+      stopSeat(seat, !event.text);
+      break;
+    }
+    case "status":
+      operatorStatus.textContent = event.text;
+      if (/^paused/i.test(event.text)) {
+        for (const seat of seats.values()) stopSeat(seat);
+      }
+      break;
+    case "insight":
+      renderInsight(event);
+      break;
+    case "insight_reset":
+      insightList.replaceChildren();
+      break;
+  }
+}
+
+function connect() {
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${location.host}/ws`);
+  ws.onmessage = message => {
+    try { handle(JSON.parse(message.data)); }
+    catch { operatorStatus.textContent = "A local display event could not be rendered."; }
+  };
+  ws.onopen = () => {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  };
+  ws.onclose = () => {
+    operatorStatus.textContent = "Disconnected. Reconnecting…";
+    if (!reconnectTimer) reconnectTimer = setTimeout(connect, 1500);
+  };
+}
+
+async function postText(endpoint, inputId) {
+  const input = document.getElementById(inputId);
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    const response = await fetch(`/api/${endpoint}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text})
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    input.value = "";
+  } catch {
+    operatorStatus.textContent = "Operator request failed.";
+  }
+}
+
+async function togglePause() {
+  const next = !paused;
+  try {
+    const response = await fetch(`/api/${next ? "pause" : "resume"}`, {method: "POST"});
+    if (!response.ok) throw new Error();
+    paused = next;
+    document.getElementById("btn-pause").textContent = paused ? "Resume" : "Pause";
+  } catch {
+    operatorStatus.textContent = "Pause control failed.";
+  }
+}
+
+async function setSeatModel(seatName, model, select) {
+  const previous = seats.get(seatName)?.selectedModel;
+  select.disabled = true;
+  try {
+    const response = await fetch("/api/seat_model", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({seat: seatName, model})
+    });
+    if (!response.ok) throw new Error();
+  } catch {
+    select.value = previous;
+    operatorStatus.textContent = "Model change failed.";
+  } finally {
+    select.disabled = false;
+  }
+}
+
+document.querySelector('[data-action="topic"]').addEventListener("click", () => postText("topic", "in-topic"));
+document.querySelector('[data-action="interject"]').addEventListener("click", () => postText("interject", "in-interject"));
+document.querySelector('[data-action="brief"]').addEventListener("click", submitBrief);
+document.getElementById("in-title").addEventListener("input", updateCounters);
+document.getElementById("in-brief").addEventListener("input", updateCounters);
+document.getElementById("btn-pause").addEventListener("click", togglePause);
+document.addEventListener("keydown", event => {
+  const tag = document.activeElement?.tagName;
+  const editing = ["INPUT", "SELECT", "TEXTAREA"].includes(tag) || document.activeElement?.isContentEditable;
+  if (event.key.toLowerCase() === "c" && !editing) {
+    drawer.classList.toggle("open");
+    event.preventDefault();
+  }
+});
+connect();
+</script>
+</body>
+</html>

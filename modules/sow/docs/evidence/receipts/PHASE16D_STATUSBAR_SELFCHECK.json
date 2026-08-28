@@ -1,0 +1,58 @@
+{
+  "schema": "phase16d_statusbar_selfcheck@1.0",
+  "ok": true,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "checks": {
+    "model_sourced_from_emitter": true,
+    "feed_authorized": true,
+    "readable": true,
+    "both_live_providers_present": true,
+    "real_n_over_allowance_labels": true,
+    "no_error": true,
+    "rendered_shows_count": true,
+    "rendered_no_unavailable_warn": true
+  },
+  "model": {
+    "readable": true,
+    "cap": 2,
+    "providers": [
+      "claude_code",
+      "openai_codex_cli"
+    ],
+    "rows": [
+      {
+        "subscriptionRef": "sub-claude_code",
+        "provider": "claude_code",
+        "inUse": 0,
+        "allowance": 2,
+        "label": "0/2",
+        "state": "idle"
+      },
+      {
+        "subscriptionRef": "sub-openai_codex_cli",
+        "provider": "openai_codex_cli",
+        "inUse": 0,
+        "allowance": 2,
+        "label": "0/2",
+        "state": "idle"
+      }
+    ],
+    "summary": {
+      "readable": true,
+      "totalInUse": 0,
+      "subscriptionCount": 2,
+      "atCapacityCount": 0,
+      "unknownCount": 0
+    },
+    "source": "emitter",
+    "feedAuthorized": true
+  },
+  "rendered_excerpt": "<span class=\"sb-label\">subscriptions</span><span class=\"sb-chip idle\" title=\"sub-claude_code\"><span class=\"sb-prov\">claude</span><span class=\"sb-count\">0/2</span></span><span class=\"sb-chip idle\" title=\"sub-openai_codex_cli\"><span class=\"sb-prov\">codex</span><span class=\"sb-count\">0/2</span></span>",
+  "count": {
+    "claude_code": "0/2",
+    "openai_codex_cli": "0/2"
+  },
+  "live_session_tracking_owed": "16F (in_use tracks 0 held-by-shell now; dynamic per-session count owed)"
+}

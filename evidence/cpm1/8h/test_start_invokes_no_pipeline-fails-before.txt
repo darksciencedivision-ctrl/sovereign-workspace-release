@@ -1,0 +1,4 @@
+# utc: 2026-08-26T20:54:05.392476Z
+# producer: ox-alpha CP-M1 ADD-07 wave6
+
+FAIL: modules/distillery/serve.py did not exist; no start path to assert.

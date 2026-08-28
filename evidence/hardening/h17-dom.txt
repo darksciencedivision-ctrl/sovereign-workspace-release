@@ -1,0 +1,19 @@
+# utc: 2026-08-26T01:20:26Z
+# producer: ox-alpha THEME01
+# proof: H-17 - rendered DOM of / (headless Edge) shows the four cards, their action rows, and the disabled Distillery controls
+
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-13fq2cky --virtual-time-budget=8000 --dump-dom http://127.0.0.1:58518/
+card order      : ['sovereign', 'sow', 'debate', 'distillery']
+sovereign  buttons: 6 (logs, open, restart, start, stop, test)
+sow        buttons: 6 (logs, open, restart, start, stop, test)
+debate     buttons: 6 (logs, open, restart, start, stop, test)
+distillery buttons: 6 (logs, open, restart, start, stop, test)
+distillery Start/Stop/Open/Test disabled: True True True True
+distillery Logs enabled: True
+
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-13fq2cky --virtual-time-budget=8000 "--screenshot=D:\Product Software\Production Workspace\evidence\gate5\screenshots\shell-grid-rendered.png" http://127.0.0.1:58518/
+rendered png sha256: a4aebaaf0a14c9f86532cdd2411a2bd41c7275b329a8f48434d3d327db533ab5
+blank render sha256: f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271
+
+edge binary: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
+RESULT: four cards in order, six-action rows per contract section 7.3(2), Distillery controls disabled, PNG differs from the blank render.

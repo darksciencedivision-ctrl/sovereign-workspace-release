@@ -1,0 +1,75 @@
+{
+  "soak": "phase2@1.0",
+  "generated": "2026-07-17T05:24:59.367795+00:00",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "config": {
+    "nodes": 8,
+    "duration_s": 60.0,
+    "hb_ms": 250,
+    "kill_every_s": 8.0,
+    "exercise_every_s": 5.0,
+    "hang_lane_s": 45.0,
+    "seed": 20260716
+  },
+  "stats": {
+    "exercised_transitions": 41,
+    "induced_kills": 7
+  },
+  "restarts_total": 7,
+  "timeline": [],
+  "criteria": [
+    {
+      "criterion": "no orphan processes after terminate_all (OS pid check)",
+      "value": {
+        "terminate_all_leftovers": [],
+        "os_alive": []
+      },
+      "pass": true
+    },
+    {
+      "criterion": "event log ordered (contiguous seq + hash chain)",
+      "value": {
+        "rows": 115,
+        "problems": []
+      },
+      "pass": true
+    },
+    {
+      "criterion": "event log complete (every spawn has terminal exit)",
+      "value": {
+        "ok": true,
+        "spawns": 15,
+        "exits": 15,
+        "missing_exit": []
+      },
+      "pass": true
+    },
+    {
+      "criterion": "all transitions replay legally; all incarnations end TERMINATED",
+      "value": {
+        "transitions": 71,
+        "incarnations": 15,
+        "problems": [],
+        "non_terminal": []
+      },
+      "pass": true
+    },
+    {
+      "criterion": "fault pressure real (induced kills, restarts, disconnect-reclaims all > 0)",
+      "value": {
+        "induced_kills": 7,
+        "restarts": 7,
+        "disconnect_transitions": 0
+      },
+      "pass": false
+    },
+    {
+      "criterion": "duration >= requested (60s)",
+      "value": 61.1,
+      "pass": true
+    }
+  ],
+  "event_log": "PHASE2_SOAK_20260717T052358Z_events.jsonl",
+  "verdict": "FAIL"
+}

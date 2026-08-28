@@ -1,0 +1,12 @@
+# utc: 2026-08-24T16:26:31.3404447Z
+# producer: ox-alpha LOOP-01
+# proof: LOOP-01 G5 closeout - no module processes, three ports free
+# method: Get-Process python (all paths enumerated); Get-NetTCPConnection Listen on 5175/8700/5180
+# python.exe total on host: 19; matching module/protected paths: 0
+MODULE_PROCESSES: NONE
+PORT 5175: FREE
+PORT 8700: FREE
+PORT 5180: FREE
+
+# non-module host pythons (hermes-agent / uv cpython 3.11 / codex runtime, started 2026-08-20..23, outside all protected trees): 19
+# shell stopped via CTRL_BREAK -> supervisor.close() (shell_driver.py), exit recorded in shell-driver.out.log; pid sentinels removed by their drivers

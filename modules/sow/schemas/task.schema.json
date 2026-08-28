@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/task@1.0",
+  "title": "Task graph node",
+  "description": "Architecture Plan v1.0.1 section 9.3. Failed artifacts cannot advance: dependents stay BLOCKED until a PASS verdict exists; the conductor has no override path (only the operator, logged).",
+  "type": "object",
+  "required": ["task_id", "capability_req", "state"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": { "type": "string", "pattern": "^t-[A-Za-z0-9_-]+$" },
+    "parent": { "type": ["string", "null"], "pattern": "^t-[A-Za-z0-9_-]+$" },
+    "deps": { "type": "array", "items": { "type": "string", "pattern": "^t-[A-Za-z0-9_-]+$" } },
+    "capability_req": { "$ref": "https://sovereign.local/schemas/node@1.0#/definitions/capability_descriptor" },
+    "assigned_node": { "type": ["string", "null"] },
+    "state": { "enum": ["PENDING", "READY", "ASSIGNED", "IN_PROGRESS", "AWAITING_GATE", "GATED_PASS", "GATED_FAIL", "BLOCKED", "DONE"] },
+    "artifacts": { "type": "array", "items": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } },
+    "gate_id": { "type": ["string", "null"], "pattern": "^g-[A-Za-z0-9_-]+$" },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokens": { "type": "integer", "minimum": 0 },
+        "wallclock_s": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "schema": { "const": "task@1.0" }
+  }
+}

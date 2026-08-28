@@ -1,0 +1,38 @@
+# Sovereign canon import map
+
+Source inventory was performed read-only against `D:\\Sovereign Distillery`, which is not a Git repository. Provenance is therefore anchored to SHA-256 file hashes, not a source commit. Imported text is normalized to LF under the repository's `.gitattributes`; both original and destination hashes are retained below.
+
+| SOURCE | CANONICAL DESTINATION | SOURCE SHA-256 | DESTINATION SHA-256 | STATUS | NOTE |
+|---|---|---|---|---|---|
+| `README.md` | — | `68d411746b642325412f34ac077342728fbd06214eb5ff7927c1919bc4e3b63d` | — | **REFERENCE_ONLY** | Source navigation points to the former standalone layout. |
+| `SOVEREIGN-DISTILLERY-DESIGN-PLAN.md` | `docs/sovereign/DESIGN.md` | `16cdc5291d3e47108cd7cea9ad0b8f0df65da86a32c886574c76fdee2b359237` | `16cdc5291d3e47108cd7cea9ad0b8f0df65da86a32c886574c76fdee2b359237` | **CANONICAL_IMPORT** | Evidence-grounded design and engineering baseline. |
+| `SOVEREIGN-DISTILLERY-REPORT.md` | `docs/sovereign/VALIDATION.md` | `efe44105c2acba33215ea3fec2d628dbc5c30f460f10a22bc29820cb50b3f6a6` | `efe44105c2acba33215ea3fec2d628dbc5c30f460f10a22bc29820cb50b3f6a6` | **CANONICAL_IMPORT** | Consolidated validation/specification report. |
+| `SOVEREIGN-WORKSPACE-STATUS-REPORT.md` | `docs/sovereign/STATUS.md` | `1d8086efb13753cfcf419230223375b3ab5bb6cab964cf2819b35e3ffc6aaf9a` | `1d8086efb13753cfcf419230223375b3ab5bb6cab964cf2819b35e3ffc6aaf9a` | **CANONICAL_IMPORT** | Latest two-programme workspace audit/status. |
+| `thesis-v1.1-fixes.zip` | — | `53e9aa002b5aeea78eb9c3bd1c1a3b46a0c83df86a3efa9352ca2d11b8cf66cd` | — | **REJECT** | Duplicate delivery container; contained characterization tools already imported as source. |
+| `docs/00-VALIDATION-REVIEW.md` | — | `6832b79a8c8f0db6ea7128f40ed6a7ed3cbd972375b10b0149e532753a16d226` | — | **REFERENCE_ONLY** | Draft, explicitly non-authoritative; superseded by consolidated validation report. |
+| `docs/01-CANONICAL-SPEC.md` | `docs/sovereign/SPEC.md` | `c15341815f929d47d29090e39d933fc40559475603a24f2375d69bfd0f3fc2e3` | `c15341815f929d47d29090e39d933fc40559475603a24f2375d69bfd0f3fc2e3` | **CANONICAL_IMPORT** | Provisional Sovereign canonical specification. |
+| `docs/02-OPEN-QUESTIONS.md` | `docs/sovereign/OPEN_QUESTIONS.md` | `77811bff758d1893eab8aacf8b0061d744df008808b779b709472f68ac096ac8` | `77811bff758d1893eab8aacf8b0061d744df008808b779b709472f68ac096ac8` | **CANONICAL_IMPORT** | Open-question register; later dispositions remain visible in DESIGN/STATUS. |
+| `docs/03-INTEGRATION-REVIEW.md` | `docs/sovereign/INTEGRATION_REVIEW.md` | `705def4cc46d96f3bdd84fbe2d4e360211de12f01c76fffb4898cde0d0ca902a` | `705def4cc46d96f3bdd84fbe2d4e360211de12f01c76fffb4898cde0d0ca902a` | **CANONICAL_IMPORT** | Accepted integration-review corrections. |
+| `docs/04-THESIS-REVIEW-v1.1.md` | `docs/sovereign/reviews/THESIS_REVIEW-v1.1.md` | `d27e4890f6bcf1a2ff4d6f28021a62dc848fd20e2ce30716536b26ef55fe0fe9` | `d27e4890f6bcf1a2ff4d6f28021a62dc848fd20e2ce30716536b26ef55fe0fe9` | **REFERENCE_ONLY** | Imported review evidence; not itself operator authority. |
+| `docs/05-GROUNDED-RC3-AUDIT.md` | `docs/sovereign/reviews/GROUNDED_RC3_AUDIT.md` | `1974e993482fd333172dd0a8bc3402ef3dc64389e0ca8c172ec6f7d0d84d387d` | `1974e993482fd333172dd0a8bc3402ef3dc64389e0ca8c172ec6f7d0d84d387d` | **REFERENCE_ONLY** | Audit basis for this remediation. |
+| `docs/DECISIONS-v1.md` | `docs/sovereign/DECISIONS-v1.md` | `516ac110e93992814f5df202e50aa5d74b22f05f2960d20af2de4c726253f029` | `516ac110e93992814f5df202e50aa5d74b22f05f2960d20af2de4c726253f029` | **CANONICAL_IMPORT** | Accepted operator decision ledger. |
+| `docs/decisions/ADR-0001-immutable-lineage.md` | `docs/sovereign/decisions/ADR-0001-immutable-lineage.md` | `9bd59179b01edb447d6887438437e579a458bd97b1f8a4342ad519e296d278e5` | `9bd59179b01edb447d6887438437e579a458bd97b1f8a4342ad519e296d278e5` | **CANONICAL_IMPORT** | Load-bearing ADR. |
+| `docs/decisions/ADR-0002-distillation-mechanism.md` | `docs/sovereign/decisions/ADR-0002-distillation-mechanism.md` | `6509595d1bd23330707c00d7d156b0e81b55cd616049ccbae2fc7a36ef2be97d` | `6509595d1bd23330707c00d7d156b0e81b55cd616049ccbae2fc7a36ef2be97d` | **CANONICAL_IMPORT** | Load-bearing ADR. |
+| `docs/decisions/ADR-0003-architecture-growth-deferred.md` | `docs/sovereign/decisions/ADR-0003-architecture-growth-deferred.md` | `0f1746b61ceec94c4efeef8b3965401a84f883186309dc8d6aa63d235fbdbd8c` | `0f1746b61ceec94c4efeef8b3965401a84f883186309dc8d6aa63d235fbdbd8c` | **CANONICAL_IMPORT** | Load-bearing ADR. |
+| `docs/decisions/ADR-0004-evaluation-precedes-training.md` | `docs/sovereign/decisions/ADR-0004-evaluation-precedes-training.md` | `9c9138591674073d175a6690b19c5587f870ba88478387c3c3af7287d4823816` | `9c9138591674073d175a6690b19c5587f870ba88478387c3c3af7287d4823816` | **CANONICAL_IMPORT** | Load-bearing ADR. |
+| `docs/evidence/EVIDENCE-LOG.md` | `docs/sovereign/EVIDENCE.md` | `02849cfdd662367714a1c117a8bf322091dbf11775db19148a7da1eef4ce99ae` | `02849cfdd662367714a1c117a8bf322091dbf11775db19148a7da1eef4ce99ae` | **CANONICAL_IMPORT** | Evidence register. |
+| `registry/teachers.json` | `registry/sovereign/teachers.json` | `b122ba976032c47ad4a0c2f0a3b1b8a5400b88e9bd0a9903160627e447980b30` | `6a8654aa413e02b9c0fcab9526e3f992fb192913e10f3955ddc1c12fcf854bd5` | **CANONICAL_IMPORT** | Sanitized: machine-local paths hashed; embedded license excerpts omitted; admission remains UNKNOWN. |
+| `registry/teachers.md` | — | `03b289dc306d25918eda0fd34cb18bcf3f3a19ec885616185cd8fdb909aa2789` | — | **DUPLICATE** | Human rendering of teacher registry; machine-readable sanitized registry is canonical. |
+| `runs/hardware_profile.json` | `runs/sovereign/hardware_profile.json` | `d936577f102f37b148f49125928386327ec796fc239bfeb8c4f920649aee3eb8` | `61a540af9b8315dd237730c2775ffda58832319f4417dff5c9c9c44d6870cbff` | **CANONICAL_IMPORT** | Measured hardware profile; retained as evidence, not as gfx906 proof. |
+| `tools/README.md` | `tools/sovereign/README.md` | `c2a7438de3525e1818051088785d66ad78da89e802e39c7d940669335a8cc311` | `c2a7438de3525e1818051088785d66ad78da89e802e39c7d940669335a8cc311` | **REFERENCE_ONLY** | Tool usage documentation. |
+| `tools/d1_characterize.py` | `tools/sovereign/d1_characterize.py` | `bf05571302f9d44464161e27bfc22f8ac971704812de89d7e923b625d0fab3ee` | `bf05571302f9d44464161e27bfc22f8ac971704812de89d7e923b625d0fab3ee` | **CANONICAL_IMPORT** | Machine characterization tool. |
+| `tools/d2_registry.py` | `tools/sovereign/d2_registry.py` | `5050364dea9b3ebf7fd6ad2d5d56b791ec3e85154e03cfad7184b32cc9f42a99` | `5050364dea9b3ebf7fd6ad2d5d56b791ec3e85154e03cfad7184b32cc9f42a99` | **CANONICAL_IMPORT** | Teacher registry tool; known limitations remain documented in DESIGN. |
+| `tools/d3_throughput.py` | `tools/sovereign/d3_throughput.py` | `86d8c6a79b9781a18a8ed2018df93c2da55a95b0b3b46adb514383d331bbe979` | `86d8c6a79b9781a18a8ed2018df93c2da55a95b0b3b46adb514383d331bbe979` | **CANONICAL_IMPORT** | Throughput characterization tool. |
+
+## Import boundary
+
+No model weights, caches, private runtime records, secrets, transient outputs, or redundant snapshots were imported. The teacher registry's machine-local artifact paths are represented only by SHA-256 hashes. License classes remain `UNKNOWN`; this import does not make a D-9 or teacher-admission decision.
+
+## Derived canonical indexes
+
+`docs/sovereign/INVARIANTS.md` and `docs/sovereign/KNOWLEDGE_LINEAGE.md` consolidate accepted doctrine from the hashed imported sources. They are joint-repository indexes, not claims that the non-Git source tree contained standalone files with those names.

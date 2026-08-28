@@ -1,0 +1,33 @@
+{
+  "check": "phase-16b.picker",
+  "started": "2026-07-25T00:25:01.898Z",
+  "ok": true,
+  "supervision_ready": true,
+  "target_pane_id": "pane-2",
+  "picker_opened": true,
+  "picker_ok": true,
+  "option_count": 49,
+  "group_count": 3,
+  "available_count": 49,
+  "authorization_readable": true,
+  "authorization_authorized": true,
+  "greyed_all_have_reason": true,
+  "rendered_option_els": 49,
+  "selection_run": true,
+  "selection_recorded": true,
+  "selected_label": "Opus 4.8",
+  "selected_role": "reasoning",
+  "badge_shown": true,
+  "badge_text": "Opus 4.8 (unverified) · reasoning · ?/2 · selected",
+  "refusal_proved": true,
+  "refusal_reason": "the conductor role is spawned by the dedicated conductor-first path (16C), not the worker picker — deferred, not unavailable",
+  "error": null,
+  "finished": "2026-07-25T00:25:03.411Z",
+  "env": {
+    "electron": "31.7.7",
+    "node": "20.18.0",
+    "chrome": "126.0.6478.234",
+    "platform": "win32",
+    "arch": "x64"
+  }
+}

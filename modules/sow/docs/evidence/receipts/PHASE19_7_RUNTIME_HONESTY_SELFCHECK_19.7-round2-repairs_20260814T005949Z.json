@@ -1,0 +1,179 @@
+{
+  "schema": "phase19_7_runtime_honesty_selfcheck@1.0",
+  "check": "runtime-honesty",
+  "unit": "19.7-round2-repairs",
+  "ok": true,
+  "started": "2026-08-14T00:59:51.506Z",
+  "finished": "2026-08-14T00:59:52.280Z",
+  "pid": 29064,
+  "electron": "31.7.7",
+  "node": "20.18.0",
+  "platform": "win32-x64",
+  "source": {
+    "commit": "323e54144b9bb68e95857203e011a3e34c057a62",
+    "tracked_product_tree_clean": true,
+    "disclosed_untracked_product_exclusions": [],
+    "unexpected_untracked_product_files": [],
+    "product_paths": [
+      "apps/desktop",
+      "terminal",
+      "tools/live",
+      "node_runtime",
+      "adapters",
+      "voice_bridge",
+      "control_plane"
+    ]
+  },
+  "live_exchanges": 0,
+  "check_owned_bindings": [
+    "legs A–C and F run production classes on servers this CHECK starts (stopping the shell's own live gateway would tear down the runtime under measurement)",
+    "leg C's worker launch record is the check's — no worker session was launched",
+    "leg E's failing python binary is the check's, deliberately: a real emitter failure cannot be summoned",
+    "leg E's READABLE halves are fabricated by the check (E2's '7 tasks · 3 artifacts' legacy model, E3's '4 tasks · 5 messages' operational feed) — they exist to prove the degradation is per-half; leg D is where a genuinely readable/unreadable pair is read from this host"
+  ],
+  "not_measured_here": [
+    "that teardown() is where the gateway stop now lives (U334's other half) — the receipt is written before teardown runs; covered by a source pin in test/runtime-honesty-wiring.test.js",
+    "that controlAssignTask honours the gate's verdict unguarded — main.js cannot be required (U338), so it is a source pin in test/assignment-gate.test.js, not a measurement",
+    "that readiness still PROVOKES a stale worker rather than pinning it — driven headlessly in test/worker-readiness.test.js against the production module; no pane is spawned here",
+    "the 503 'shutting down' answer — no leg here provokes a request mid-shutdown; it is driven over a real socket in test/sovereign-control-server.test.js",
+    "`inspector_unreadable_half_carries_no_counts` measures nothing when leg D's host answers a READABLE operational feed (it short-circuits true) — read D_inspector_bridge to see which case this run actually had; leg E is where the unreadable shape is measured"
+  ],
+  "checks": {
+    "stop_resolves_with_a_connection_open": true,
+    "stop_reports_what_it_did": true,
+    "stop_revoked_every_credential": true,
+    "production_staleness_window_is_the_call_ceiling": true,
+    "production_stop_budget_is_bounded": true,
+    "never_called_is_configured_not_connected": true,
+    "a_real_request_makes_it_connected": true,
+    "silence_past_the_window_is_stale": true,
+    "stale_carries_the_age_of_its_evidence": true,
+    "a_ready_pane_over_a_stale_node_is_refused": true,
+    "a_fresh_node_is_assignable": true,
+    "staleness_does_not_pin_the_worker": true,
+    "inspector_ok_is_the_and_of_both_reads": true,
+    "inspector_unreadable_half_carries_no_counts": true,
+    "forced_unreadable_feed_has_null_counts": true,
+    "forced_unreadable_feed_keeps_live_nodes": true,
+    "rendered_says_unreadable": true,
+    "rendered_prints_no_fabricated_zero_counts": true,
+    "rendered_degrades_per_half_not_globally": true
+  },
+  "legs": {
+    "A_stop_bounded": {
+      "held_open_socket": true,
+      "budget_ms": 800,
+      "waited_ms": 411,
+      "outcome": {
+        "closed": true,
+        "was_listening": true,
+        "forced": true,
+        "timed_out": false,
+        "timeout_ms": 800,
+        "waited_ms": 411
+      },
+      "resolved_within_ceiling": true,
+      "node_before_stop": {
+        "state": "configured",
+        "last_seen": null,
+        "last_seen_age_ms": null,
+        "fresh": false,
+        "stale_after_ms": 180000
+      },
+      "node_after_stop": {
+        "state": "disconnected",
+        "last_seen": null,
+        "last_seen_age_ms": null,
+        "fresh": false,
+        "stale_after_ms": 180000
+      },
+      "identity_after_stop": null,
+      "port_released": true
+    },
+    "F_production_defaults": {
+      "stale_after_ms": 180000,
+      "stop_timeout_ms": 5000,
+      "justification": "the staleness window is AppControlClient's own 180 s per-call ceiling (mcp_server/sovereign_tools.py:40), so a node inside its longest possible single call is fresh"
+    },
+    "B_stale_window": {
+      "request_status": 200,
+      "before_any_call": {
+        "state": "configured",
+        "last_seen": null,
+        "last_seen_age_ms": null,
+        "fresh": false,
+        "stale_after_ms": 5000
+      },
+      "after_call": {
+        "state": "connected",
+        "last_seen": "2026-08-14T00:59:52.028Z",
+        "last_seen_age_ms": 0,
+        "fresh": true,
+        "stale_after_ms": 5000
+      },
+      "after_window_elapsed": {
+        "state": "stale",
+        "last_seen": "2026-08-14T00:59:52.028Z",
+        "last_seen_age_ms": 5001,
+        "fresh": false,
+        "stale_after_ms": 5000
+      },
+      "after_next_call": {
+        "state": "connected",
+        "last_seen": "2026-08-14T00:59:57.029Z",
+        "last_seen_age_ms": 0,
+        "fresh": true,
+        "stale_after_ms": 5000
+      },
+      "window_ms": 5000
+    },
+    "C_assignment_gate": {
+      "worker_record": {
+        "nodeId": "selfcheck-w-1",
+        "state": "running",
+        "operationalState": "READY"
+      },
+      "fresh_refusal": null,
+      "stale_refusal": {
+        "node_id": "selfcheck-w-1",
+        "mcp_state": "stale",
+        "last_seen": "2026-08-14T00:59:52.028Z",
+        "last_seen_age_ms": 5001,
+        "stale_after_ms": 5000,
+        "code": "mcp_unverified",
+        "retryable": true,
+        "reason": "worker selfcheck-w-1 is READY but its Sovereign MCP session is UNVERIFIED — its last call arrived 5001 ms ago, past the 5000 ms staleness window. It may be healthy and idle, or busy on store-only MCP reads. Provoke it with send_message to that node, or wait for its next call — this refusal clears on the node's next gateway call and nothing about the worker was changed."
+      },
+      "refusal_after_recovery": null
+    },
+    "D_inspector_bridge": {
+      "ok": false,
+      "error": "Error: read_status(CANDIDATE) failed: echo surface: unsupported op 'read_status'",
+      "legacy_error": "Error: read_status(CANDIDATE) failed: echo surface: unsupported op 'read_status'",
+      "operational_available": true,
+      "legacy_available": false,
+      "operational_summary": {
+        "aborted_debate_count": 0,
+        "debate_count": 0,
+        "message_count": 21,
+        "open_debate_count": 0,
+        "task_count": 4
+      },
+      "nodes": 0
+    },
+    "E_forced_unreadable": {
+      "available": false,
+      "error": "Error: operational-state emitter failed: spawn sovereign-no-such-python-19-7 ENOENT",
+      "summary": null,
+      "tasks": null,
+      "messages": null,
+      "debates": null,
+      "live_nodes_preserved": 1,
+      "rendered_nothing_readable": "<div class=\"insp-err\">inspector unavailable — live orchestration: forced unreadable (19.7 self-check); control-plane channel forced unreadable</div>",
+      "rendered_live_half_unreadable": "\n    <div class=\"insp-err\">partially unreadable — live orchestration: forced unreadable (19.7 self-check)</div>\n    <div class=\"ins-section\">LIVE ORCHESTRATION</div>\n    <div class=\"ins-sum\">1 nodes · <span class=\"warn-t\">shared governed state UNREADABLE — Error: operational-state emitter failed: spawn sovereign-no-such-python-19-7 ENOENT</span></div>\n    <div class=\"ins-node\"><span class=\"k\"></span> ?/?\n    <span class=\"st st-CANDIDATE\">stale</span>\n    <div class=\"dim\">selfcheck-w-1 ·  · pid  · MCP stale</div></div>\n    <div class=\"dim\">assignments, messages and debates could not be read — this is not a count of zero</div>\n    <div class=\"ins-section\">ARTIFACT / GATE EVIDENCE</div>\n    <div class=\"ins-sum\">7 tasks · 3 artifacts · 2 gates\n      · 0 unattributed · 0 anomalies\n      </div>\n    <div class=\"ins-task\"><div class=\"ins-title\">t-selfcheck</div>\n    <div class=\"ins-ctx\"><span cl",
+      "rendered_legacy_half_unreadable": "\n    <div class=\"insp-err\">partially unreadable — control-plane channel forced unreadable (19.7 self-check)</div>\n    <div class=\"ins-section\">LIVE ORCHESTRATION</div>\n    <div class=\"ins-sum\">0 nodes · 4 tasks · 5 messages · 1 debates</div>\n    <div class=\"dim\">no live governed nodes</div>\n    <div class=\"dim\">no operational assignments</div>\n    <div class=\"ins-section\">ARTIFACT / GATE EVIDENCE</div>\n    <div class=\"ins-sum\"><span class=\"warn-t\">artifact/gate evidence UNREADABLE — Error: control-plane channel not established (19.7 self-check)</span></div>\n    <div class=\"dim\">the control-plane channel could not be read — this is not a count of zero</div>\n    \n    "
+    }
+  },
+  "failed_checks": [],
+  "missing_checks": []
+}

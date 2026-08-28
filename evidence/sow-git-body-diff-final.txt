@@ -1,0 +1,35 @@
+﻿# utc: 2026-08-22T00:00:36.6218045Z
+# producer: ox-alpha GATE5
+
+# comparison: evidence/sow-git-after.body (R2-5 capture) vs evidence/sow-git-final.body (this session)
+# normalization per R2-5 amendment: strip BOM, CRLF->LF, restrict to the four named sections;
+# PROTECTED_GIT_STATE_CHANGED only if HEAD, status entries, or diff payload hashes differ.
+
+### HEAD
+after : 6d23a81082836778ffd46c70151821b467dc7432
+final : 6d23a81082836778ffd46c70151821b467dc7432
+EQUAL
+
+### STATUS --porcelain=v1 -z
+entries: 3 (after) / 3 (final); normalized payload sha256 b8e4589ef2e4-prefixed sections EQUAL byte-for-byte
+EQUAL
+
+### DIFF --binary
+payload sha256 (raw stdout bytes):
+after : e7076bc1492f08d0a6ede2da58f7df254b98c3379c2de5556a3aa2c67ac5a299
+final : e7076bc1492f08d0a6ede2da58f7df254b98c3379c2de5556a3aa2c67ac5a299
+EQUAL
+
+### DIFF --cached --binary
+both empty (sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)
+EQUAL
+
+## verdicts
+normalized-section comparison : all four sections EQUAL
+fc.exe /b whole-file          : 'FC: no differences encountered', exit 0 (byte-identical)
+PROTECTED_GIT_STATE_CHANGED   : NOT raised - git state unchanged since the R2-5 capture
+
+# note: an intermediate capture this session produced a 3927-byte body differing from
+# after.body by one trailing LF after the empty cached section (assembly-rule mismatch,
+# not git state). It was regenerated with the matching rule and superseded in place before
+# any citation; both captures' raw payloads hashed identically at every step.

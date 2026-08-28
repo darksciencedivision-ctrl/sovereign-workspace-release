@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "kind": "F19_OPEN_QUESTION_RECONCILIATION",
+  "reconciled_at": "2026-08-23T08:20:00Z",
+  "identifier_policy": "Canonical IDs per docs/sovereign/DECISIONS-v1.md section 3 crosswalk; docs/sovereign/OPEN_QUESTIONS.md rows referenced by their own local IDs where they differ (SR-3 collision documented, not silently merged).",
+  "determinations": [
+    {
+      "id": "OQ-001",
+      "question": "What is SOV-SEED (bootstrap seed path)",
+      "determination": "STILL_OPEN",
+      "authority": "STATUS.md D.3: bootstrap+native resolved IN PRINCIPLE; exact seed unacquired; DR-2 operator ruling outstanding",
+      "note": "Option framing (i)/(ii)/(iii) preserved verbatim in OPEN_QUESTIONS.md; in-principle narrowing recorded without deletion."
+    },
+    {
+      "id": "OQ-002",
+      "question": "Teacher library composition",
+      "determination": "RESOLVED_BY_DECISION",
+      "authority": "Measured Tier-0 evidence: registry/sovereign/teachers.json (43 entries, source_registry_sha256 bound); STATUS.md D.3 marks CLOSED",
+      "note": "Resolved by executed measurement rather than ruling; recorded under this label as the closest allowed determination with the evidence class stated honestly."
+    },
+    {
+      "id": "OQ-003",
+      "question": "v1 acceptance criterion",
+      "determination": "RESOLVED_BY_DECISION",
+      "authority": "docs/sovereign/DECISIONS-v1.md section 2 (Route A pipeline proof / Route B transfer proof), status CLOSED"
+    },
+    {
+      "id": "OQ-004",
+      "question": "Promotion margins M/T/D",
+      "determination": "DEFERRED_EMPIRICAL",
+      "authority": "STATUS.md D.3 and OQ-005 reviewer note: must be set from measured run-to-run variance on an evaluation suite that does not yet exist",
+      "note": "Genuinely remains unresolved; no fixture result may set it."
+    },
+    {
+      "id": "OQ-005",
+      "question": "Corpus mixing ratios / single-teacher vs cumulative replay",
+      "determination": "STILL_OPEN",
+      "authority": "No accepted decision located; operator method call"
+    },
+    {
+      "id": "OQ-006",
+      "question": "Long-term compute envelope",
+      "determination": "STILL_OPEN",
+      "authority": "NARROWED by accepted D-HW-01 hardware rebaseline (docs/decisions/D-HW-01-grounded-primary-trainer-reality-rebaseline.md): gfx906 target RETIRED_AS_UNVERIFIED_PLANNING_TARGET, GND-TRAINER-PRIMARY UNASSIGNED >=24GiB usable VRAM; envelope beyond that remains an operator decision",
+      "note": "The historical RTX-5060-Ti-permanent-ceiling framing is superseded by D-HW-01 for CURRENT training hardware; long-term envelope question itself stays open."
+    },
+    {
+      "id": "OQ-007",
+      "question": "Distribution intent",
+      "determination": "STILL_OPEN",
+      "authority": "Operator-only decision; gates license-audit severity for both programmes"
+    },
+    {
+      "id": "OQ-008",
+      "question": "Native architecture timing",
+      "determination": "DEFERRED_EMPIRICAL",
+      "authority": "docs/sovereign/decisions/ADR-0003-architecture-growth-deferred.md (accepted)"
+    },
+    {
+      "id": "OQ-009",
+      "question": "Sibling repository interface contracts",
+      "determination": "STILL_OPEN",
+      "authority": "STATUS.md B.1/OQ-009 and blocker B-10: sibling repositories never inspected; every integration claim remains ASSUMPTION"
+    },
+    {
+      "id": "LOCAL-OQ-008-register",
+      "question": "Smallest-to-largest ordering rationale (curriculum vs risk ordering)",
+      "determination": "SUPERSEDED",
+      "authority": "STATUS.md D.3 row OQ-010: RESOLVED -> HYP-1 (recorded as explicit testable hypothesis rather than settled design rationale)",
+      "note": "Register-local ID differs from canonical numbering (SR-3); resolution linked to HYP-1."
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "STILL_OPEN": 5,
+    "RESOLVED_BY_DECISION": 2,
+    "DEFERRED_EMPIRICAL": 2,
+    "SUPERSEDED": 1
+  },
+  "integrity_note": "Every item marked STILL_OPEN genuinely remains unresolved. No historical register text was deleted; reconciliation appends determinations with authority links."
+}

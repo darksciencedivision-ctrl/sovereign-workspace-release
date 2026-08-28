@@ -1,0 +1,167 @@
+﻿test_payload_is_not_altered_by_redaction (test_frontend.TestFrontendLogRoundTrip.test_payload_is_not_altered_by_redaction)
+Control: the round trip proves escaping, not accidental removal of the payload. ... ok
+test_script_tag_returned_as_json_string (test_frontend.TestFrontendLogRoundTrip.test_script_tag_returned_as_json_string) ... ok
+test_dynamic_text_uses_textcontent (test_frontend.TestFrontendStatic.test_dynamic_text_uses_textcontent)
+º7.3 item 4: log and status text is set as text nodes, not parsed as markup. ... ok
+test_no_dangerous_dom_sinks (test_frontend.TestFrontendStatic.test_no_dangerous_dom_sinks) ... ok
+test_no_inline_script_or_handlers (test_frontend.TestFrontendStatic.test_no_inline_script_or_handlers)
+CSP is script-src 'self'; inline script or an on* attribute would break it. ... ok
+test_compiled_sow_records_quota_guard (test_hardening.TestH10QuotaGuardLayer2.test_compiled_sow_records_quota_guard) ... ok
+test_guard_passes_with_correct_value (test_hardening.TestH10QuotaGuardLayer2.test_guard_passes_with_correct_value) ... ok
+test_layer1_static_guard_rejects_adapter_without_flag (test_hardening.TestH10QuotaGuardLayer2.test_layer1_static_guard_rejects_adapter_without_flag)
+H-10 layer 1: a sow adapter lacking the flag is a CONFIG_ERROR at compile. ... D:\Product Software\Production Workspace\shell\tests\test_hardening.py:160: ResourceWarning: unclosed file <_io.TextIOWrapper name='D:\\Product Software\\Production Workspace\\shell\\modules\\sow.json' mode='r' encoding='utf-8'>
+  raw = json.load(open(os.path.join(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_mutated_env_aborts_before_createprocess (test_hardening.TestH10QuotaGuardLayer2.test_mutated_env_aborts_before_createprocess)
+Mutate env_set AFTER compile; the spawn path must abort before CreateProcessW. ... ok
+test_shell_exit_leaves_external_fixture_alive (test_hardening.TestH9ShellExitOwnership.test_shell_exit_leaves_external_fixture_alive) ... ok
+test_fifth_concurrent_managed_process_refused (test_hardening.TestRateLimitAndCap.test_fifth_concurrent_managed_process_refused) ... ok
+test_second_start_within_2s_returns_429 (test_hardening.TestRateLimitAndCap.test_second_start_within_2s_returns_429) ... ok
+test_runtime_writes_escaping_root_rejected (test_paths.TestAdapterContainmentEnforcement.test_runtime_writes_escaping_root_rejected) ... ok
+test_runtime_writes_inside_root_ok (test_paths.TestAdapterContainmentEnforcement.test_runtime_writes_inside_root_ok) ... ok
+test_canonical_is_casefolded_and_absolute (test_paths.TestCanonicalContainment.test_canonical_is_casefolded_and_absolute) ... ok
+test_canonical_strips_extended_prefix (test_paths.TestCanonicalContainment.test_canonical_strips_extended_prefix) ... ok
+test_case_variant_is_inside (test_paths.TestCanonicalContainment.test_case_variant_is_inside)
+A differently-cased spelling of an inside path is still inside. ... ok
+test_device_path_rejected (test_paths.TestCanonicalContainment.test_device_path_rejected) ... ok
+test_different_drive_is_not_contained (test_paths.TestCanonicalContainment.test_different_drive_is_not_contained)
+commonpath raises across drives; that must read as 'not contained', not as a crash. ... ok
+test_dotdot_escape_rejected (test_paths.TestCanonicalContainment.test_dotdot_escape_rejected)
+'..' that climbs out of the root is not contained. ... ok
+test_junction_escape_rejected (test_paths.TestCanonicalContainment.test_junction_escape_rejected)
+A junction inside the root pointing outside it resolves outside and is rejected. ... ok
+test_nonexistent_path_inside_root_is_contained (test_paths.TestCanonicalContainment.test_nonexistent_path_inside_root_is_contained)
+A path that does not exist yet falls back to realpath and is still resolved. ... ok
+test_root_contains_itself (test_paths.TestCanonicalContainment.test_root_contains_itself) ... ok
+test_sibling_with_shared_prefix_rejected (test_paths.TestCanonicalContainment.test_sibling_with_shared_prefix_rejected)
+D:\root-evil is not inside D:\root, though the string prefix matches. ... ok
+test_unc_rejected (test_paths.TestCanonicalContainment.test_unc_rejected) ... ok
+test_long_line_is_bounded (test_redaction_surfaces.TestRedactionFourSurfaces.test_long_line_is_bounded)
+The 10 KB line must be truncated to the 4 KB per-line cap (º7.3 item 4). ... ok
+test_sentinel_absent_from_all_four_surfaces (test_redaction_surfaces.TestRedactionFourSurfaces.test_sentinel_absent_from_all_four_surfaces) ... ok
+test_distillery_payload_contract (test_render.TestRenderProofs.test_distillery_payload_contract) ... ok
+test_first_party_urls_resolve (test_render.TestRenderProofs.test_first_party_urls_resolve) ... ok
+test_header_links_resolve (test_render.TestRenderProofs.test_header_links_resolve) ... ok
+test_light_theme_contrast (test_render.TestRenderProofs.test_light_theme_contrast) ... ok
+test_rendered_dom (test_render.TestRenderProofs.test_rendered_dom) ... ok
+test_adapter_ids_match_pattern (test_shell.TestAdapterSchema.test_adapter_ids_match_pattern)
+All adapter IDs match ^[a-z][a-z0-9_-]{0,31}$. ... ok
+test_all_adapters_load (test_shell.TestAdapterSchema.test_all_adapters_load)
+All 4 adapters load without error. ... ok
+test_argv0_is_exe (test_shell.TestAdapterSchema.test_argv0_is_exe)
+All compiled adapters have argv[0] ending in .exe. ... ok
+test_grace_bounds (test_shell.TestAdapterSchema.test_grace_bounds)
+Stop grace_s within bounds. ... ok
+test_invalid_adapter_id (test_shell.TestAdapterSchema.test_invalid_adapter_id)
+Invalid adapter id raises error. ... ok
+test_no_forbidden_launchers (test_shell.TestAdapterSchema.test_no_forbidden_launchers)
+No .cmd, .bat, .ps1, cmd.exe, or powershell.exe in argv[0]. ... ok
+test_no_placeholder_literals (test_shell.TestAdapterSchema.test_no_placeholder_literals)
+No <PHASE-1-VERIFIED> literal remains in any adapter. ... ok
+test_runnable_have_launch (test_shell.TestAdapterSchema.test_runnable_have_launch)
+All runnable adapters have launch, readiness, identity, open, stop. ... ok
+test_sow_quota_guard (test_shell.TestAdapterSchema.test_sow_quota_guard)
+SOW adapter has SOW_CONDUCTOR_AUTOLAUNCH=0. ... ok
+test_timeout_bounds (test_shell.TestAdapterSchema.test_timeout_bounds)
+Readiness timeout_s and poll_ms within bounds. ... ok
+test_unknown_variable_raises (test_shell.TestAdapterSchema.test_unknown_variable_raises)
+Unknown ${...} variable raises error. ... ok
+test_generate_and_validate (test_shell.TestCsrf.test_generate_and_validate) ... ok
+test_regenerate (test_shell.TestCsrf.test_regenerate) ... ok
+test_has_handoff (test_shell.TestDistilleryParser.test_has_handoff) ... ok
+test_has_questions (test_shell.TestDistilleryParser.test_has_questions) ... ok
+test_has_snapshot (test_shell.TestDistilleryParser.test_has_snapshot) ... ok
+test_returns_not_started (test_shell.TestDistilleryParser.test_returns_not_started) ... ok
+test_verbatim_line (test_shell.TestDistilleryParser.test_verbatim_line) ... ok
+test_ansi_stripped (test_shell.TestLogRing.test_ansi_stripped) ... ok
+test_bounded_lines (test_shell.TestLogRing.test_bounded_lines) ... ok
+test_clear (test_shell.TestLogRing.test_clear) ... ok
+test_nul_stripped (test_shell.TestLogRing.test_nul_stripped) ... ok
+test_write_and_read (test_shell.TestLogRing.test_write_and_read) ... ok
+test_api_key_assignment (test_shell.TestRedaction.test_api_key_assignment) ... ok
+test_api_key_hyphen (test_shell.TestRedaction.test_api_key_hyphen) ... ok
+test_bearer_token (test_shell.TestRedaction.test_bearer_token) ... ok
+test_case_insensitive (test_shell.TestRedaction.test_case_insensitive) ... ok
+test_password_assignment (test_shell.TestRedaction.test_password_assignment) ... ok
+test_secret_assignment (test_shell.TestRedaction.test_secret_assignment) ... ok
+test_sentinel_absent (test_shell.TestRedaction.test_sentinel_absent)
+A unique sentinel secret is absent from redacted output. ... ok
+test_token_assignment (test_shell.TestRedaction.test_token_assignment) ... ok
+test_url_query_param (test_shell.TestRedaction.test_url_query_param) ... ok
+test_csrf_nonce_served_in_html (test_shell.TestServerEndpoints.test_csrf_nonce_served_in_html) ... ok
+test_get_distillery (test_shell.TestServerEndpoints.test_get_distillery) ... ok
+test_get_preflight (test_shell.TestServerEndpoints.test_get_preflight) ... ok
+test_get_shell_info (test_shell.TestServerEndpoints.test_get_shell_info) ... ok
+test_get_state (test_shell.TestServerEndpoints.test_get_state) ... ok
+test_h2_body_under_limit_is_read (test_shell.TestServerEndpoints.test_h2_body_under_limit_is_read)
+A body under the cap passes H-2 and is judged on its merits, not its size. ... ok
+test_h2_localhost_origin_rejected (test_shell.TestServerEndpoints.test_h2_localhost_origin_rejected)
+N-4: localhost is NOT an accepted alternate spelling of 127.0.0.1. ... ok
+test_h2_missing_content_type_rejected (test_shell.TestServerEndpoints.test_h2_missing_content_type_rejected) ... ok
+test_h2_missing_csrf_rejected (test_shell.TestServerEndpoints.test_h2_missing_csrf_rejected) ... ok
+test_h2_missing_origin_rejected (test_shell.TestServerEndpoints.test_h2_missing_origin_rejected) ... ok
+test_h2_non_get_verbs_validated (test_shell.TestServerEndpoints.test_h2_non_get_verbs_validated) ... ok
+test_h2_oversized_body_rejected (test_shell.TestServerEndpoints.test_h2_oversized_body_rejected)
+Content-Length above 16 KB is refused before the body is read. ... ok
+test_h2_wrong_content_type_rejected (test_shell.TestServerEndpoints.test_h2_wrong_content_type_rejected) ... ok
+test_h2_wrong_csrf_rejected (test_shell.TestServerEndpoints.test_h2_wrong_csrf_rejected) ... ok
+test_h2_wrong_host_rejected (test_shell.TestServerEndpoints.test_h2_wrong_host_rejected) ... ok
+test_h2_wrong_origin_rejected (test_shell.TestServerEndpoints.test_h2_wrong_origin_rejected) ... ok
+test_no_cors_headers_anywhere (test_shell.TestServerEndpoints.test_no_cors_headers_anywhere)
+N-4: the shell is same-origin; no Access-Control-* header may be emitted. ... ok
+test_preflight_panel_ids_resolved (test_shell.TestServerEndpoints.test_preflight_panel_ids_resolved)
+THEME-01 G7 (D4): every panel id resolves end-to-end through /api/preflight. ... ok
+test_security_headers_on_api (test_shell.TestServerEndpoints.test_security_headers_on_api) ... ok
+test_security_headers_on_index (test_shell.TestServerEndpoints.test_security_headers_on_index) ... ok
+test_shell_started_on_ephemeral_port (test_shell.TestServerEndpoints.test_shell_started_on_ephemeral_port) ... ok
+test_start_distillery_refused (test_shell.TestServerEndpoints.test_start_distillery_refused) ... ok
+test_start_unknown_module_refused (test_shell.TestServerEndpoints.test_start_unknown_module_refused) ... ok
+test_unknown_path_404 (test_shell.TestServerEndpoints.test_unknown_path_404) ... ok
+test_external_detected_start_refused_open_enabled (test_states.TestExternalTransitions.test_external_detected_start_refused_open_enabled) ... ok
+test_external_stays_external_on_reprobe (test_states.TestExternalTransitions.test_external_stays_external_on_reprobe) ... ok
+test_external_to_stopped (test_states.TestExternalTransitions.test_external_to_stopped) ... ok
+test_h9_shell_exit_leaves_external_alive (test_states.TestExternalTransitions.test_h9_shell_exit_leaves_external_alive)
+H-9: stopping the shell's view of an EXTERNAL module never touches the process. ... ok
+test_port_occupied_unrecognized (test_states.TestExternalTransitions.test_port_occupied_unrecognized) ... ok
+test_port_occupied_unrecognized_to_stopped (test_states.TestExternalTransitions.test_port_occupied_unrecognized_to_stopped) ... ok
+test_ready_to_degraded_to_ready (test_states.TestManagedTransitions.test_ready_to_degraded_to_ready) ... ok
+test_ready_to_failed_exit (test_states.TestManagedTransitions.test_ready_to_failed_exit) ... ok
+test_ready_to_stopped (test_states.TestManagedTransitions.test_ready_to_stopped) ... ok
+test_starting_to_failed_exit (test_states.TestManagedTransitions.test_starting_to_failed_exit)
+Process exits before readiness. ... ok
+test_starting_to_failed_identity (test_states.TestManagedTransitions.test_starting_to_failed_identity)
+Readiness passes, identity fails, process is then terminated. ... ok
+test_starting_to_failed_timeout (test_states.TestManagedTransitions.test_starting_to_failed_timeout)
+Readiness deadline expires while the process is still alive. ... ok
+test_starting_to_ready (test_states.TestManagedTransitions.test_starting_to_ready) ... ok
+test_starting_to_stopped_via_cancel (test_states.TestManagedTransitions.test_starting_to_stopped_via_cancel)
+STARTING -> STOPPED when the operator cancels. ... ok
+test_config_error_adapter (test_states.TestNotStartedAndConfigError.test_config_error_adapter) ... ok
+test_distillery_is_not_started (test_states.TestNotStartedAndConfigError.test_distillery_is_not_started) ... ok
+test_runner_state_is_failed_job_assign (test_supervisor.TestJobAssignFailure.test_runner_state_is_failed_job_assign) ... ok
+test_spawn_raises_job_assign (test_supervisor.TestJobAssignFailure.test_spawn_raises_job_assign) ... ok
+test_grandchild_breakaway_fails (test_supervisor.TestJobObjectContainment.test_grandchild_breakaway_fails)
+CREATE_BREAKAWAY_FROM_JOB must not let the grandchild escape the Job. ... ok
+test_shell_crash_kills_tree (test_supervisor.TestJobObjectContainment.test_shell_crash_kills_tree)
+os._exit in the shell process must still take the whole tree down. ... ok
+test_stop_kills_child_and_grandchild (test_supervisor.TestJobObjectContainment.test_stop_kills_child_and_grandchild) ... ok
+test_generate_build_manifest (test_zz_evidence.TestBuildManifest.test_generate_build_manifest) ... ok
+test_equal_or_longer_window_replaces (test_zz_evidence.TestFsWatchOverwriteGuard.test_equal_or_longer_window_replaces) ... ok
+test_long_window_writes (test_zz_evidence.TestFsWatchOverwriteGuard.test_long_window_writes) ... ok
+test_missing_file_is_written (test_zz_evidence.TestFsWatchOverwriteGuard.test_missing_file_is_written) ... ok
+test_short_window_is_refused (test_zz_evidence.TestFsWatchOverwriteGuard.test_short_window_is_refused) ... ok
+test_slightly_shorter_window_still_replaces (test_zz_evidence.TestFsWatchOverwriteGuard.test_slightly_shorter_window_still_replaces)
+A normal re-run that happens to be a little faster must not be locked out. ... ok
+test_four_part_proof (test_zz_evidence.TestH11DependencyProof.test_four_part_proof) ... ok
+test_h1_listens_on_loopback_only (test_zz_evidence.TestH1AndH3Captures.test_h1_listens_on_loopback_only) ... ok
+test_h3_header_capture (test_zz_evidence.TestH1AndH3Captures.test_h3_header_capture) ... ok
+test_h4_capture (test_zz_evidence.TestH4Capture.test_h4_capture) ... ok
+test_h6_capture (test_zz_evidence.TestH6AndH8Captures.test_h6_capture) ... ok
+test_h8_capture (test_zz_evidence.TestH6AndH8Captures.test_h8_capture) ... ok
+test_no_writes_to_protected_roots (test_zz_evidence.TestZZFilesystemWatch.test_no_writes_to_protected_roots) ... ok
+System.Management.Automation.RemoteException
+----------------------------------------------------------------------
+Ran 122 tests in 83.578s
+System.Management.Automation.RemoteException
+OK

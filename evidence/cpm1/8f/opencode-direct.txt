@@ -1,0 +1,12 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+G34 RESULT: NOT_RUN(SERVICE_LAUNCH_IS_OPERATOR_OWNED)
+
+Re-derived this session. Prior NOT_RUN(OPENCODE_CLI_IS_BUN_NOT_HARNESS) SUPERSEDED:
+absolute exe --version printed 1.18.23 (OpenCode), not Bun 1.3.14.
+
+Live integrated OpenCode session from the Sovereign surface requires launching
+SOW/Electron or an opencode TUI — both long-lived. This session is forbidden
+from spawning long-lived processes (operator instruction 2026-08-27). No agentic
+file operation performed. Scratch dir not created. No fabrication.

@@ -1,0 +1,54 @@
+# utc: 2026-08-21T04:44:50.435329Z
+# producer: claude-code REM-01
+# tool: shell/tools/install_sow.py (ADR-005)
+[2026-08-21T04:44:37.488973Z] install_sow.py starting (ADR-005, REM-01 R2-2)
+[2026-08-21T04:44:37.488973Z] workspace = D:\Product Software\Production Workspace
+[2026-08-21T04:44:37.488973Z] STEP 1: verify SOW desktop directory
+[2026-08-21T04:44:37.490440Z]   cwd = D:\Product Software\Production Workspace\modules\sow\apps\desktop
+[2026-08-21T04:44:37.493436Z]   package-lock.json present, sha256=573eba33d505d949ffa37e71609fbfb5df5f46ea6999ee482adb7d4cf6ffdbbf
+[2026-08-21T04:44:37.493436Z] STEP 2: resolve node.exe and npm-cli.js
+[2026-08-21T04:44:37.525426Z]   node.exe   = D:\Program Files\nodejs\node.exe
+[2026-08-21T04:44:37.525426Z]   node       = v24.16.0
+[2026-08-21T04:44:37.525426Z]   npm-cli.js = D:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+[2026-08-21T04:44:38.579944Z]   npm        = 11.13.0
+[2026-08-21T04:44:38.579944Z] STEP 3: npm ci --ignore-scripts (ADR-005 decision 1)
+[2026-08-21T04:44:38.579944Z]   argv = ['D:\\Program Files\\nodejs\\node.exe', 'D:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js', 'ci', '--ignore-scripts']
+[2026-08-21T04:44:48.512911Z]   npm> 
+[2026-08-21T04:44:48.512911Z]   npm> added 75 packages, and audited 76 packages in 10s
+[2026-08-21T04:44:48.512911Z]   npm> 
+[2026-08-21T04:44:48.512911Z]   npm> 17 packages are looking for funding
+[2026-08-21T04:44:48.512911Z]   npm>   run `npm fund` for details
+[2026-08-21T04:44:48.512911Z]   npm> 
+[2026-08-21T04:44:48.512911Z]   npm> 2 high severity vulnerabilities
+[2026-08-21T04:44:48.512911Z]   npm> 
+[2026-08-21T04:44:48.512911Z]   npm> To address all issues (including breaking changes), run:
+[2026-08-21T04:44:48.512911Z]   npm>   npm audit fix --force
+[2026-08-21T04:44:48.512911Z]   npm> 
+[2026-08-21T04:44:48.512911Z]   npm> Run `npm audit` for details.
+[2026-08-21T04:44:48.512911Z]   npm! npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+[2026-08-21T04:44:48.512911Z]   exit code = 0
+[2026-08-21T04:44:48.512911Z] STEP 4/5: locate and verify the Electron zip
+[2026-08-21T04:44:48.512911Z]   electron version = 31.7.7 (from node_modules/electron/package.json)
+[2026-08-21T04:44:48.512911Z]   zip name         = electron-v31.7.7-win32-x64.zip
+[2026-08-21T04:44:48.513912Z]   expected hash source = node_modules/electron/checksums.json
+[2026-08-21T04:44:48.513912Z]   expected sha256  = e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f (checksums.json)
+[2026-08-21T04:44:48.515908Z]   cache root       = C:\Users\Sslaw\AppData\Local\electron\Cache
+[2026-08-21T04:44:48.515908Z]   cached copies    = 1
+[2026-08-21T04:44:48.615376Z]     C:\Users\Sslaw\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\electron-v31.7.7-win32-x64.zip sha256=e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f
+[2026-08-21T04:44:48.616883Z]     -> matches expected hash, using this copy
+[2026-08-21T04:44:48.616883Z]   SHA-256 VERIFIED against checksums.json
+[2026-08-21T04:44:48.616883Z]   zip path         = C:\Users\Sslaw\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\electron-v31.7.7-win32-x64.zip
+[2026-08-21T04:44:48.616883Z]   zip sha256       = e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f
+[2026-08-21T04:44:48.616883Z]   zip size         = 110740332 bytes
+[2026-08-21T04:44:48.616883Z] STEP 6/7: extract to dist/ and write path.txt + dist/version
+[2026-08-21T04:44:49.998754Z]   extracted 73 entries
+[2026-08-21T04:44:49.998754Z]   electron.exe size   = 180849664 bytes
+[2026-08-21T04:44:50.224123Z]   electron.exe sha256 = 1fa93c3471c11dc8128998c662c705104e4528b98901b61c8a25216acda424c5
+[2026-08-21T04:44:50.225124Z]   wrote path.txt = electron.exe
+[2026-08-21T04:44:50.225124Z]   wrote dist/version = v31.7.7
+[2026-08-21T04:44:50.225124Z] STEP 8: verify node-pty prebuild
+[2026-08-21T04:44:50.258520Z]   conpty.node 312320 bytes sha256=ee8f4e6f4dad71939eecfda11de249400e34bfefe4c8b48af13f3b5476f4035b
+[2026-08-21T04:44:50.298574Z]   conpty_console_list.node 134656 bytes sha256=879dd94cfc79f1e263a00077597ae9448a5394b7d193381aaa50d992a1f91090
+[2026-08-21T04:44:50.342437Z]   pty.node 303104 bytes sha256=ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff
+[2026-08-21T04:44:50.434324Z]   require('node-pty') OK
+[2026-08-21T04:44:50.435329Z] RESULT: SOW provisioning complete, all steps verified

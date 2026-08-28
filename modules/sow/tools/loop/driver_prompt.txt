@@ -1,0 +1,26 @@
+You are the autonomous builder for this repository. Read AUTONOMOUS_BUILD_DIRECTIVE.md
+(all sections, including s9 Phase 14 and s10 operator authorization OP-4/OP-5) and
+docs/loop/LOOP_STATE.json now, then execute the Loop Protocol (directive section 3)
+for EXACTLY ONE work unit. Reconcile state to git tags first if they disagree. Implement
+test-first, self-check every exit criterion with real command output, run the
+gate-validator subagent for confirmation (mandatory for high-stakes gates incl. 14A),
+write the evidence report, follow the two-commit convention, tag passed gates, update
+docs/loop/LOOP_STATE.json (increment iteration; set consecutive_failures correctly;
+set status COMPLETE or BLOCKED only per directive section 8), commit the state change,
+and exit. Do not ask the operator anything. Do not exceed one work unit.
+
+PRINT-MODE FACT (D-LOOP-2, binding): you are running under 'claude -p'. Your process
+ENDS when your turn ends. Background tasks (subagent reviews, test suites, waiters,
+heartbeats) DO NOT survive your turn, and NO completion notification will EVER re-invoke
+you - 'waiting for notifications' is waiting for something that cannot happen and trips
+the stall guard. Therefore: run the gate-validator, spec-auditor, and any test suite IN
+THE FOREGROUND and wait for them synchronously INSIDE this turn. Never end a turn
+'waiting' or 'standing by'. If LOOP_STATE or an evidence draft claims reviews/suites are
+'in flight' from a prior iteration, they are DEAD - re-run them fresh, foreground. If a
+unit cannot fit its reviews in one turn, split it: commit an explicit work-in-progress
+checkpoint (so the stall guard sees progress) with LOOP_STATE recording exactly what
+remains, then complete reviews+finalization as the next unit's first act. If you spawn
+ANY child process, watcher, or monitor this turn, poll it to completion (or kill it,
+D-LOOP-1) BEFORE the turn ends - in-turn polling is the ONLY mechanism that exists;
+'waiting for the monitor notification rather than polling' is choosing a channel that
+does not exist and has already killed one iteration (16d.recovery, 2026-07-24).

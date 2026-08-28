@@ -1,0 +1,9 @@
+{
+  "$comment": "Standard stdio MCP adapter over Sovereign's existing control plane and durable store. The Electron supervisor injects one opaque node-scoped loopback capability into each governed process; startup fails closed outside that runtime.",
+  "mcpServers": {
+    "sovereign": {
+      "command": "py",
+      "args": ["-3.12", "-m", "mcp_server.sovereign_tools"]
+    }
+  }
+}

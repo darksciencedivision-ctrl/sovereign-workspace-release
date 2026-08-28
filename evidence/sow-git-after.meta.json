@@ -1,0 +1,15 @@
+{
+  "utc": "2026-08-21T05:25:57.5390355Z",
+  "producer": "claude-code REM-01",
+  "capture": "R2-5",
+  "source": "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+  "git_optional_locks": "0",
+  "dirty_tracked": true,
+  "dirty_untracked": true,
+  "head": "6d23a81082836778ffd46c70151821b467dc7432",
+  "status_entries": 3,
+  "body_path": "evidence/sow-git-after.body",
+  "body_bytes": 3926,
+  "git_stderr_nonempty": true,
+  "note": "The body carries raw git stdout bytes only. git stderr (CRLF warnings) is deliberately excluded from the body so the comparison is over git content, not console noise; whether stderr was non-empty is recorded here instead."
+}

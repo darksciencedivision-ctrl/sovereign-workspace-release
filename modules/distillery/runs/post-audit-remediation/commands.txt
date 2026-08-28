@@ -1,0 +1,18 @@
+git switch -c remediation/post-audit-pre-hg3
+python -m pytest -q
+python -m compileall -q curation distillery exclusion gate grounded ops source_admission train validators tests tools/sovereign
+python -m unittest tests.test_contract_files -v
+<Windows Python 3.11> -m pytest -q
+<Windows Python 3.12> -m build --outdir <temporary-output-directory>
+<Windows Python 3.12> validate Draft 2020-12 schemas and G0 manifest
+Get-FileHash over all 24 Sovereign source artifacts in the import map
+Get-FileHash over both external runtime instrumentation components
+wsl.exe -d Ubuntu-24.04 -- <Linux Python 3.12> -m pytest -q
+wsl.exe -d Ubuntu-24.04 -- <Linux Python 3.12> validate schemas and G0 manifest
+wsl.exe -d Ubuntu-24.04 -- verify changed files contain no CRLF
+git diff --check 44f69077f0d674bd7bef5730c2fe41a685e64b03 HEAD
+git hygiene scans for secrets, weights, oversized files, licenses, G2-G6 artifacts, and conflict markers
+git switch main
+git merge --ff-only remediation/post-audit-pre-hg3
+
+Angle-bracket entries identify ephemeral interpreter or output paths and intentionally avoid recording machine-local temporary paths as repository authority.

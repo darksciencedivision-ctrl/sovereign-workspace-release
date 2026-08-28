@@ -1,0 +1,58 @@
+﻿# utc: 2026-08-26T05:27:55.9897384Z
+# producer: ox-alpha CP-M1 Band 4 / G26 crash-hypothesis test (H1/H2)
+
+## H1 - does the conductor launch path create a job object that could include the Electron host?
+
+REFUTED for the product code path.
+
+- Zero job-object APIs exist anywhere under modules\sow: a tree-wide search for
+  JobObject|JOB_OBJECT|CreateJobObject|job_object|KILL_ON_JOB_CLOSE|assignProcessToJob across
+  *.js finds ONLY comments and test fixtures. Every production record says containment by job
+  object is OWED, not implemented:
+  FACT[apps/desktop/test/conductor-launch-source.test.js:96] and
+  FACT[apps/desktop/test/worker-launch-source.test.js:92] -
+    containment: { authorized: true, supervisor_bound: false, os_job_object: false, owed_to: "U25" }
+  FACT[apps/desktop/picker/worker-spawn.js:42] - the ticket discloses
+    `os_job_object U25 ... stays owed`.
+  FACT[apps/desktop/supervisor.js:30] - kernel-level kill-on-close containment remains the Node
+    Runtime's, exercised in Phase 3/10 (i.e., elsewhere, not here).
+  The REAL minted claude_code ticket carries the same containment block
+  FACT[evidence/cpm1/8d/g26-diag-ticket-scratch.nobom.json] (containment.os_job_object false,
+  still_owed includes os_job_object_or_acl (U25)).
+- Therefore the launch handler cannot terminate a job IT created - it creates none, and closing a
+  handle requires a handle.
+
+Residual caveat, named honestly: an EXTERNAL job wrapped AROUND the whole tree by whatever
+launched it could kill everything on some internal exit. That belongs to the launch METHOD, not
+to this codebase; the operator's restart used OS-owned redirection plus ELECTRON_ENABLE_LOGGING=1
+and no job machinery was mentioned. Nothing in the four dead processes' own code creates one.
+
+## H2 - first-ever claude_code branch: conductorVoiceAuthority.start() + conductorPolicyBytes.pin()
+
+REFUTED as a crash vector, with the full read:
+
+- conductorVoiceAuthority.start() - FACT[apps/desktop/voice/turn-authority.js:633-682]:
+  net.createServer on 127.0.0.1 port 0 (:636, :671), socket handlers reply fail-closed JSON
+  (:647-663), server.unref() (:665), throws ONLY on bind failure (:674-677). It spawns NO process,
+  creates NO job, registers NO kill-on-close handle. Any throw propagates to the driver's
+  try/catch (main.js:1527-1553) and becomes an HTTP 400 - not a process death.
+- conductorPolicyBytes.pin() - FACT[apps/desktop/voice/policy-bytes.js:29,40,54-72]: fs.readFileSync
+  plus sha256 over the pinned hook file; refuses on hash mismatch by THROWING (same caught path).
+  No spawn, no job, no exit call.
+- Neither file contains process.exit or process.abort (searched).
+
+Both have now executed at least once on this host: the scratch-ledger diagnostic run minted a
+full authorized claude_code ticket through emit_conductor_launch.py (the Python half), and the
+REPAIRED validator admitted it (isWellFormedTicket true,
+FACT[evidence/cpm1/8d/g26-diag-ticket-validation.txt]) - but note honestly: the JS TRUE-branch in
+main.js:953-967 runs inside Electron main and has still never completed inside the app, because
+both prior in-app attempts died before/at the spawn. What IS newly exercised in-app vs the codex
+era: exactly these two calls plus the ConPTY spawn of claude.EXE.
+
+## Verdict
+
+H1 REFUTED (no job objects exist in the launch path to misfire). H2 REFUTED (both calls are
+bind/read/hash only; failures surface as catchable errors). The simultaneous-tree-death signature
+therefore remains UNEXPLAINED by either hypothesis - consistent with the instruction's fallback:
+proceed with the single authorized attempt under OS-owned capture, and let the treelog testify.
+

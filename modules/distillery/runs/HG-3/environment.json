@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "observed_at": "2026-08-20T22:55:04.3317852Z",
+  "repository": {
+    "path": "D:\\Sovereign-Grounded-Distillery",
+    "branch": "main",
+    "git_head": "57eefd8c83cf7114325098ce73ae6e9aa1b5375f",
+    "origin_main": "44f69077f0d674bd7bef5730c2fe41a685e64b03",
+    "ahead_of_origin_main": 5,
+    "working_tree_before_evidence": "CLEAN"
+  },
+  "required_trainer": {
+    "access_state": "UNAVAILABLE_FROM_CANONICAL_CONFIGURATION",
+    "host_or_endpoint": null,
+    "os": null,
+    "gpu_exact_identity": null,
+    "pci_device_identity": null,
+    "vram_total_mib": null,
+    "vram_free_mib": null,
+    "rocm_version": null,
+    "hip_version": null,
+    "kernel_or_driver_version": null,
+    "python_version": null,
+    "pytorch_version": null,
+    "transformers_version": null,
+    "peft_version": null,
+    "trl_version": null,
+    "accelerate_version": null,
+    "tokenizer_version_or_source": null,
+    "environment_variables": null,
+    "reason": "No trainer hostname, SSH configuration, local container, or production GPU probe is present in the canonical repository or available host configuration."
+  },
+  "documented_expected_lane": {
+    "gpu": "gfx906-class 32 GB, Vega 20 / MI50 family",
+    "torch": "2.7.0",
+    "rocm": "6.3",
+    "precision": "fp16",
+    "method": "PEFT LoRA; TRL where applicable",
+    "environment_variables": {
+      "TORCH_BLAS_PREFER_HIPBLASLT": "0",
+      "HSA_OVERRIDE_GFX_VERSION": "9.0.6"
+    },
+    "source": "docs/SPEC-v1.1-draft.md:95-99"
+  },
+  "observed_workstation_not_authorized_as_substitute": {
+    "os": "Microsoft Windows 11 Home 10.0.26200 build 26200, 64-bit",
+    "gpu_exact_identity": "NVIDIA GeForce RTX 5060 Ti",
+    "pci_bus_id": "00000000:01:00.0",
+    "vram_total_mib": 8151,
+    "vram_free_mib": 6302,
+    "driver_version": "610.74",
+    "rocm_version": null,
+    "hip_version": null,
+    "python_default": "3.14.6",
+    "pytorch_version": null,
+    "transformers_version": null,
+    "peft_version": null,
+    "trl_version": null,
+    "accelerate_version": null,
+    "tokenizers_version": null,
+    "ssh_config": "ABSENT",
+    "wsl_distributions": [
+      "Ubuntu-24.04 (stopped)",
+      "salad-enterprise-linux (stopped)",
+      "docker-desktop (stopped)"
+    ],
+    "substitution_prohibited": true
+  },
+  "canonical_source_hashes": {
+    "docs/SPEC-v1.1-draft.md": "cdce0c549d8a657d83035cef18efe7cfd6e1085a79ca4ce81b45de4d779465f8",
+    "docs/THESIS-v1.2.md": "4ce464a5a108e1b9c44497795b72cfb9f2e3d01b8da92884d55f5f53421a7d77",
+    "docs/sovereign/STATUS.md": "1d8086efb13753cfcf419230223375b3ab5bb6cab964cf2819b35e3ffc6aaf9a"
+  },
+  "environment_deviation_required": false,
+  "environment_deviation_tested": false,
+  "note": "The trainer environment could not be observed. Local workstation facts are recorded only to prove that it is not the pinned trainer."
+}

@@ -1,0 +1,81 @@
+{
+    "$schema":  "https://json-schema.org/draft/2020-12/schema",
+    "$id":  "https://sovereign.local/schema/gate_status_record.json",
+    "title":  "Gate status record with explicit supersession semantics",
+    "type":  "object",
+    "additionalProperties":  false,
+    "required":  [
+                     "schema_version",
+                     "record_id",
+                     "gate",
+                     "status",
+                     "recorded_at",
+                     "decision_authority",
+                     "supersedes"
+                 ],
+    "properties":  {
+                       "schema_version":  {
+                                              "const":  "1.0"
+                                          },
+                       "record_id":  {
+                                         "type":  "string",
+                                         "minLength":  1
+                                     },
+                       "gate":  {
+                                    "type":  "string",
+                                    "minLength":  1
+                                },
+                       "status":  {
+                                      "type":  "string",
+                                      "minLength":  1
+                                  },
+                       "reason":  {
+                                      "type":  "string",
+                                      "minLength":  1
+                                  },
+                       "recorded_at":  {
+                                           "type":  "string",
+                                           "format":  "date-time"
+                                       },
+                       "decision_authority":  {
+                                                  "type":  "string",
+                                                  "minLength":  1
+                                              },
+                       "evidence_refs":  {
+                                             "type":  "array",
+                                             "items":  {
+                                                           "type":  "string",
+                                                           "minLength":  1
+                                                       }
+                                         },
+                       "supersedes":  {
+                                          "type":  "array",
+                                          "items":  {
+                                                        "type":  "object",
+                                                        "additionalProperties":  false,
+                                                        "required":  [
+                                                                         "record_id",
+                                                                         "record_sha256"
+                                                                     ],
+                                                        "properties":  {
+                                                                           "record_id":  {
+                                                                                             "type":  "string",
+                                                                                             "minLength":  1
+                                                                                         },
+                                                                           "path":  {
+                                                                                        "type":  "string",
+                                                                                        "minLength":  1
+                                                                                    },
+                                                                           "claim":  {
+                                                                                         "type":  "string",
+                                                                                         "minLength":  1
+                                                                                     },
+                                                                           "record_sha256":  {
+                                                                                                 "type":  "string",
+                                                                                                 "pattern":  "^[0-9a-f]{64}$"
+                                                                                             }
+                                                                       }
+                                                    }
+                                      }
+                   }
+}

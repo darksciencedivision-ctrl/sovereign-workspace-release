@@ -1,0 +1,115 @@
+{
+  "objective": "Draft a short offline conductor roster note",
+  "cli_present": true,
+  "requested_model": "<cli-default>",
+  "kill_after_waves": 1,
+  "repo_live_config_exists": true,
+  "ran": true,
+  "published": true,
+  "skipped_with_record": false,
+  "governance_refusal": false,
+  "reason": "conductor succeeded mid-run onto a differently-LABELLED backend (claude_code:conductor:fable-5 -> mock-successor); zero loss CONFIRMED; succession gate PASS",
+  "legs": {
+    "conductor_predecessor": "live",
+    "conductor_successor": "skipped",
+    "workers": "mock"
+  },
+  "report_verdict": "PASS",
+  "report_entry": "m-341bf79878bd3f01",
+  "acceptance_packet": "m-285a4740efbaf189",
+  "predecessor": {
+    "role": "predecessor",
+    "node_id": "conductor-fable5",
+    "adapter": "conductor_fable5",
+    "model_name": "claude_code:conductor:fable-5",
+    "leg": "live",
+    "selection": {
+      "selection": {
+        "model": "fable-5",
+        "adapter": "claude_code",
+        "reason": "operator_selected",
+        "since": "2026-07-19T00:00:00+00:00",
+        "directive_version": "v2.4",
+        "subscription_ref": null
+      },
+      "executing": {
+        "model": "claude-opus-4-8[1m]",
+        "requested": "fable-5",
+        "resolved_slug": "fable-5",
+        "verified": true,
+        "is_fallback": false,
+        "note": "executing checkpoint 'claude-opus-4-8[1m]' reported by the live backend and verified for this binding by claude_code.verify_reported_checkpoint@1 (requested 'fable-5')",
+        "reported_unverified": null,
+        "verified_by": "claude_code.verify_reported_checkpoint@1"
+      },
+      "label_mismatch": true
+    },
+    "verification": {
+      "model": "claude-opus-4-8[1m]",
+      "verified": true
+    },
+    "calls_spent": 1
+  },
+  "successor": {
+    "role": "successor",
+    "node_id": "conductor-successor",
+    "adapter": "conductor_fable5",
+    "model_name": "mock-successor",
+    "leg": "skipped",
+    "selection": {
+      "selection": {
+        "model": "mock-successor",
+        "adapter": "mock_reasoning",
+        "reason": "succession",
+        "since": "2026-07-20T00:00:00+00:00",
+        "directive_version": null,
+        "subscription_ref": null
+      },
+      "executing": {
+        "model": null,
+        "requested": "mock-successor",
+        "resolved_slug": null,
+        "verified": false,
+        "is_fallback": false,
+        "note": "mock backend 'mock-successor' \u2014 no vendor CLI is bound",
+        "reported_unverified": null,
+        "verified_by": null
+      },
+      "label_mismatch": false
+    },
+    "verification": null,
+    "calls_spent": 0
+  },
+  "run_spend_leg": "live",
+  "restored_selection": {
+    "model": "fable-5",
+    "adapter": "claude_code",
+    "reason": "operator_selected",
+    "since": "2026-07-24T04:58:12.797819+00:00",
+    "directive_version": "v2.4",
+    "subscription_ref": null
+  },
+  "restored_selection_note": "the operator's SELECTION RECORD was restored; no conductor was re-bound to it. The conductor that executed the remainder of this run is the successor recorded above.",
+  "handoff_order": [
+    "release",
+    "acquire"
+  ],
+  "handoff_note": "release-before-acquire observed on the subscription governor (I-X3)",
+  "staleness_ok": true,
+  "zero_loss": {
+    "ok": true,
+    "checks": {
+      "pre_kill_accepted_count": 15,
+      "accepted_preserved": true,
+      "missing_entries": [],
+      "no_content_drift": true,
+      "drifted_entries": [],
+      "tasks_preserved": true,
+      "missing_tasks": [],
+      "done_tasks_preserved": true,
+      "regressed_tasks": [],
+      "post_succession_accepted_count": 16,
+      "work_advanced": true
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "canonical_baseline": "f1904399ffc8cc357b2d413127b406fedf44b903",
+  "canonical_remote": "https://github.com/ryguy-pixel/Sovereign-Distillery.git",
+  "rc3_source_commit": "a332e68823ab426310c5d37f3c0bfed5c52cc1f0",
+  "rc3_source_tree": "162e8aa2f8fe842b599e4f9503fb01e63b278468",
+  "rc3_source_repository": "D:/grounded-v1.1-surgical-build-final",
+  "bundle": "grounded-rc3-a332e688.bundle",
+  "bundle_sha256": "1a2eaad8818821f37e5f55d56fd388292007c60bc021a0a9d39cd7db80ed2ae1",
+  "integration_mapping": "../RC3_INTEGRATION_MAP.md",
+  "note": "The source repository remains untouched. The bundle preserves its complete commit history and run evidence."
+}

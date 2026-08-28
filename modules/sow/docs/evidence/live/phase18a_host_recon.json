@@ -1,0 +1,311 @@
+{
+  "schema": "sovereign.frontier_provider_recon.capture/1.0",
+  "phase": "18A",
+  "authorization": "OP-12 (operator, 2026-07-31)",
+  "recorded": "2026-07-31",
+  "host_platform": "win32",
+  "status": {
+    "schema": "sovereign.frontier_provider_recon/1.0",
+    "phase": "18A",
+    "authorization": "OP-12 (operator, 2026-07-31)",
+    "selector": "all",
+    "repo_root": "D:\\multi model terminal app\\sovereign-orchestration-workspace",
+    "providers": [
+      {
+        "provider": "grok_build",
+        "display": "Grok Build",
+        "command": "grok",
+        "command_found": true,
+        "executable": "C:\\Users\\Sslaw\\AppData\\Roaming\\npm\\grok.CMD",
+        "version": "grok 0.2.118 (1e1687c1cf)",
+        "version_tuple": [
+          0,
+          2,
+          118
+        ],
+        "state": "AVAILABLE",
+        "state_caveat": "",
+        "auth_confirmed": true,
+        "auth_state": "AUTHENTICATED",
+        "auth_detail": "CLI reports a logged-in session with grok.com",
+        "models": [
+          "grok-4.5"
+        ],
+        "default_model": "grok-4.5",
+        "model_note": "ok",
+        "headless_supported": true,
+        "interactive_supported": true,
+        "structured_output_supported": true,
+        "subscription_resource": "grok_build_subscription",
+        "terminal_allowance": 1,
+        "lease_state": "not_registered — the subscription governor learns grok_build_subscription in Phase 18B",
+        "registration_state": "NOT_REGISTERED",
+        "registration_detail": "not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not in the frozen node.schema.json adapter enum",
+        "install_command": "npm install -g @xai-official/grok",
+        "diagnostics": [
+          {
+            "call": "--version",
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "grok 0.2.118 (1e1687c1cf)"
+          },
+          {
+            "call": "models",
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "You are logged in with grok.com.\n\nDefault model: grok-4.5\n\nAvailable models:\n  * grok-4.5 (default)"
+          }
+        ],
+        "notes": "`grok models` doubles as the auth-reporting surface on this build; no `--no-auto-update` flag exists here (operator directive example superseded by the installed surface)."
+      },
+      {
+        "provider": "google_antigravity",
+        "display": "Gemini · Antigravity",
+        "command": "agy",
+        "command_found": true,
+        "executable": "C:\\Users\\Sslaw\\AppData\\Local\\agy\\bin\\agy.EXE",
+        "version": "1.1.9",
+        "version_tuple": [
+          1,
+          1,
+          9
+        ],
+        "state": "AVAILABLE",
+        "state_caveat": "AVAILABLE on an UNVERIFIED session: the CLI is installed and responding, but nothing here can confirm the operator is signed in — only a live probe can",
+        "auth_confirmed": false,
+        "auth_state": "UNVERIFIED",
+        "auth_detail": "no offline auth-state surface on this CLI — authentication is only confirmable by the live probe (-Action probe)",
+        "models": [
+          "gemini-3.6-flash-high",
+          "gemini-3.6-flash-medium",
+          "gemini-3.6-flash-low",
+          "gemini-3.5-flash-high",
+          "gemini-3.5-flash-medium",
+          "gemini-3.5-flash-low",
+          "gemini-3.1-pro-high",
+          "gemini-3.1-pro-low",
+          "claude-sonnet-4-6",
+          "claude-opus-4-6-thinking",
+          "gpt-oss-120b-medium"
+        ],
+        "default_model": null,
+        "model_note": "ok",
+        "headless_supported": true,
+        "interactive_supported": true,
+        "structured_output_supported": true,
+        "subscription_resource": "google_antigravity_subscription",
+        "terminal_allowance": 1,
+        "lease_state": "not_registered — the subscription governor learns google_antigravity_subscription in Phase 18B",
+        "registration_state": "NOT_REGISTERED",
+        "registration_detail": "not in live_authorization._AUTHORIZED_PROVIDERS (live legs fail closed); not in the frozen node.schema.json adapter enum",
+        "install_command": "irm https://antigravity.google/cli/install.ps1 | iex",
+        "diagnostics": [
+          {
+            "call": "--version",
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "1.1.9"
+          },
+          {
+            "call": "models",
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "gemini-3.6-flash-high\ngemini-3.6-flash-medium\ngemini-3.6-flash-low\ngemini-3.5-flash-high\ngemini-3.5-flash-medium\ngemini-3.5-flash-low\ngemini-3.1-pro-high\ngemini-3.1-pro-low\nclaude-sonnet-4-6\nclaude-op…[truncated]"
+          }
+        ],
+        "notes": "No offline auth-state surface: authentication is only confirmable by the live probe. No `--cwd`; workspace binding is the child's working directory (+ `--add-dir`)."
+      }
+    ],
+    "flag_deltas": [
+      {
+        "provider": "grok_build",
+        "directive": "§7.1/§10 `--no-auto-update`",
+        "installed": "flag absent from `grok --help` on this build",
+        "resolution": "omitted from every built argv; recorded, never silently substituted"
+      },
+      {
+        "provider": "grok_build",
+        "directive": "§10 `--output-format streaming-json` for live panes",
+        "installed": "present: plain | json | streaming-json | streaming-messages-json",
+        "resolution": "available to 18B; 18A probes with `json` (single-shot acceptance)"
+      },
+      {
+        "provider": "grok_build",
+        "directive": "§5.1 `grok login`",
+        "installed": "present (hidden from the Commands list; `--oauth` / `--device-auth` modes)",
+        "resolution": "runner runs it interactively; no credential is read"
+      },
+      {
+        "provider": "google_antigravity",
+        "directive": "§10 `--output-format stream-json`",
+        "installed": "present: text | json | stream-json (spelling confirmed)",
+        "resolution": "18A probes with `json`; 18B may use `stream-json` for live panes"
+      },
+      {
+        "provider": "grok_build",
+        "directive": "§7.2-equivalent restrictive sandbox flag",
+        "installed": "`--sandbox <PROFILE>` exists (env form GROK_SANDBOX) but its help enumerates NO profile values",
+        "resolution": "NOT used — passing an invented profile name would be fabrication; the probe pins `--permission-mode plan` instead and the gap is recorded. 18B decides on evidence, and `GROK_SANDBOX` is deliberately preserved through the env scrub so an operator who sets it keeps it"
+      },
+      {
+        "provider": "google_antigravity",
+        "directive": "§7.2 optional read-only sandbox flag",
+        "installed": "`--sandbox` exists but its help states only 'terminal restrictions'",
+        "resolution": "NOT used by the probe — an unverified containment claim is worse than none; 18B decides on evidence"
+      },
+      {
+        "provider": "google_antigravity",
+        "directive": "workspace flag equivalent to `--cwd`",
+        "installed": "no `--cwd`; `--add-dir` adds workspace directories",
+        "resolution": "workspace bound by the child's working directory; recorded for 18B"
+      }
+    ],
+    "credential_policy": {
+      "reads_credentials": false,
+      "scrubbed_env_keys": [
+        "XAI_API_KEY",
+        "XAI_API_BASE_URL",
+        "GROK_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "GOOGLE_CLOUD_PROJECT",
+        "GOOGLE_GENAI_API_KEY",
+        "ANTIGRAVITY_API_KEY"
+      ],
+      "note": "the CLIs authenticate through their own host-native stores; this build never reads, stores, prints, or transmits a token (operator directive §13)"
+    }
+  },
+  "command_surface": [
+    {
+      "provider": "grok_build",
+      "display": "Grok Build",
+      "command": "grok",
+      "executable": "C:\\Users\\Sslaw\\AppData\\Roaming\\npm\\grok.CMD",
+      "surface": [
+        {
+          "call": "grok --version",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "grok 0.2.118 (1e1687c1cf)"
+          },
+          "stdout": "grok 0.2.118 (1e1687c1cf)",
+          "stderr": ""
+        },
+        {
+          "call": "grok --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "Grok Build TUI\n\nUsage: grok [OPTIONS] [PROMPT] [COMMAND]\n\nArguments:\n  [PROMPT]\n          Initial prompt for the interactive session, e.g. `grok \"fix the bug\"` or `grok --worktree=feat \"create this fe…[truncated]"
+          },
+          "stdout": "Grok Build TUI\n\nUsage: grok [OPTIONS] [PROMPT] [COMMAND]\n\nArguments:\n  [PROMPT]\n          Initial prompt for the interactive session, e.g. `grok \"fix the bug\"` or `grok --worktree=feat \"create this feature\"`\n\nOptions:\n      --agent <NAME>\n          Agent name or definition file path\n\n      --agents <JSON>\n          Inline subagent definitions as JSON\n\n      --allow <RULE>\n          Permission allow rule (compat alias: --allowedTools)\n\n      --always-approve\n          Auto-approve all tool executions\n\n  -c, --continue\n          Continue the most recent session for the current working directory\n\n      --cwd <CWD>\n          Working directory\n\n      --debug\n          Enable debug logging\n\n      --debug-file <FILE>\n          Write debug logs to FILE\n\n      --deny <RULE>\n          Permission deny rule (compat alias: --disallowedTools)\n\n      --disable-web-search\n          Disable web search and web fetch tools\n\n      --disallowed-tools <TOOLS>\n          Built-in tools to remove (comma-separated)\n\n      --experimental-memory\n          Enable cross-session memory\n\n      --fork-session\n          When resuming (`--resume` / `--continue`), create a new session ID instead of reusing the original (optionally set via `--session-id`)\n\n      --fullscreen\n          Open in the standard fullscreen TUI for this session, overriding a config `[ui] screen_mode = \"minimal\"` preference. Session-scoped only — does not write config. Fullscreen-vs-inline still follows the alt-screen policy (--no-alt-screen, [terminal] alt_screen, terminal auto-detection)\n\n  -h, --help\n          Print help (see a summary with '-h')\n\n      --include-partial-messages\n          Emit incremental `stream_event` lines (text/thinking deltas) alongside whole messages. Only affects `--output-format streaming-messages-json`\n\n      --json-schema <SCHEMA>\n          JSON Schema for structured output. When set, the model is constrained to produce JSON matching this schema. Implies --output-format json. Example: --json-schema '{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}'\n\n      --leader-socket <PATH>\n          Use a custom leader socket path instead of the default `~/.grok/leader.sock`\n\n  -m, --model <MODEL>\n          Model ID to use\n\n      --max-turns <N>\n          Maximum number of agent turns\n\n      --minimal\n          Experimental: scrollback-native rendering. Finalized blocks are printed into the terminal's native scrollback (use the terminal's own scroll / selection); a small pinned region holds the prompt + running turn. Session-scoped only — does not write config. To default plain `grok` to minimal, set `[ui] screen_mode = \"minimal\"` in ~/.grok/config.toml\n\n      --no-alt-screen\n          Run inline instead of using the terminal alternate screen\n\n      --no-memory\n          Disable cross-session memory for this session\n\n      --no-plan\n          Disable plan mode\n\n      --no-subagents\n          Disable subagent spawning\n\n      --oauth\n          Use OAuth when the welcome screen starts authentication\n\n      --output-format <OUTPUT_FORMAT>\n          Output format for headless mode\n\n          Possible values:\n          - plain\n          - json\n          - streaming-json:          NDJSON of the agent native ACP session updates\n          - streaming-messages-json: NDJSON in the Anthropic Messages API wire format\n          \n          [default: plain]\n\n  -p, --single <PROMPT>\n          Single-turn prompt. Prints the response to stdout and exits\n\n      --permission-mode <MODE>\n          Permission mode\n          \n          [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]\n\n      --prompt-file <PATH>\n          Single-turn prompt from a file\n\n      --prompt-json <JSON>\n          Single-turn prompt as JSON content blocks\n\n  -r, --resume [<SESSION_ID_OR_TITLE>]\n          Resume a session by ID or title, or the most recent if omitted. Non-ID values match session titles for the current directory (ignoring letter case; a sole renamed match wins among duplicates, otherwise ambiguity errors; UUID-shaped values always mean IDs)\n\n      --reasoning-effort <EFFORT>\n          Reasoning effort for reasoning models\n          \n          [aliases: --effort]\n\n      --restore-code\n          Check out the original session's commit when resuming\n\n      --rules <RULES>\n          Extra rules to append to the system prompt\n\n  -s, --session-id <SESSION_ID>\n          Use a specific session UUID for a **new** conversation (must be a valid UUID and must not already exist under the target session directory). With `--resume`/`--continue`, only valid together with `--fork-session` (names the forked session). Does not resume existing sessions — use `--resume` / `--continue` instead\n\n      --sandbox <PROFILE>\n          Sandbox profile for filesystem and network access\n          \n          [env: GROK_SANDBOX=]\n\n      --system-prompt-override <PROMPT>\n          Override the agent's system prompt (compat alias: --system-prompt)\n\n      --tools <TOOLS>\n          Built-in tools to allow (comma-separated)\n\n  -v, --version\n          Print version\n\n      --verbatim\n          Send the prompt exactly as given\n\n  -w, --worktree [<WORKTREE>]\n          Start the session in a new git worktree, optionally named\n\n      --worktree-ref <WORKTREE_REF>\n          Branch, tag, or commit to base the worktree on (with `--worktree`). Defaults to the current HEAD of the source checkout when omitted\n          \n          [aliases: --ref]\n\nCommands:\n  agent        Run Grok without the interactive UI\n  completions  Generate shell completion scripts (bash, zsh, fish, powershell, ...)\n  dashboard    Open the Agent Dashboard view at startup\n  doctor       Check terminal, clipboard, color, and input support without starting Grok\n  export       Export a session transcript as Markdown\n  help         Print this message or the help of the given subcommand(s)\n  inspect      Show the configuration Grok discovers for this directory\n  leader       Manage running leader processes\n  login        Sign in to Grok\n  logout       Sign out and clear cached credentials\n  mcp          Manage MCP server configurations\n  memory       Manage cross-session memory\n  models       List available models and exit\n  plugin       Manage plugins and marketplace sources\n  sessions     List, search, or restore sessions\n  setup        Fetch and install managed configuration\n  trace        Export or upload session trace data\n  update       Check for updates or install a specific version\n  version      Print version information [aliases: v]\n  worktree     Manage git worktrees\n  wrap         Run any command with local clipboard support (OSC 52 → system clipboard)",
+          "stderr": ""
+        },
+        {
+          "call": "grok models",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "You are logged in with grok.com.\n\nDefault model: grok-4.5\n\nAvailable models:\n  * grok-4.5 (default)"
+          },
+          "stdout": "You are logged in with grok.com.\n\nDefault model: grok-4.5\n\nAvailable models:\n  * grok-4.5 (default)",
+          "stderr": ""
+        },
+        {
+          "call": "grok agent --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "Run Grok without the interactive UI\n\nUsage: grok agent [OPTIONS] [COMMAND]\n\nCommands:\n  stdio     Run the agent over stdio\n  headless  Run the agent headlessly over the Grok WebSocket relay\n  serve   …[truncated]"
+          },
+          "stdout": "Run Grok without the interactive UI\n\nUsage: grok agent [OPTIONS] [COMMAND]\n\nCommands:\n  stdio     Run the agent over stdio\n  headless  Run the agent headlessly over the Grok WebSocket relay\n  serve     Run the agent as a WebSocket server\n  leader    Run as the shared leader process for other clients\n  help      Print this message or the help of the given subcommand(s)\n\nOptions:\n      --reauth\n          Run authentication before starting the agent [aliases: ----reauthenticate]\n  -m, --model <MODEL>\n          Model ID to use\n      --reasoning-effort <EFFORT>\n          Reasoning effort for reasoning models [aliases: --effort]\n      --always-approve\n          Auto-approve all tool executions\n      --agent-profile <PATH>\n          Path to an agent profile file\n      --plugin-dir <DIR>\n          Load a plugin from this directory for this process only (repeatable). Highest-priority plugin scope; always trusted — hooks and MCP servers activate without a prompt. Used by the Agent SDKs to inject per-connection plugins\n      --leader\n          Connect to a shared leader process instead of starting a new agent. Allows multiple clients to share one backend. Defaults to [cli] use_leader in config.toml\n      --no-leader\n          Start a new agent even when config enables leader mode\n      --grok-ws-origin <GROK_WS_ORIGIN>\n          \n      --grok-ws-url <GROK_WS_URL>\n          \n      --cli-chat-proxy-base-url <CLI_CHAT_PROXY_BASE_URL>\n          Override the CLI chat proxy base URL\n      --xai-api-base-url <XAI_API_BASE_URL>\n          Override the public xAI API base URL\n      --debug\n          Enable debug logging\n      --debug-file <FILE>\n          Write debug logs to FILE\n  -h, --help\n          Print help\n      --leader-socket <PATH>\n          Use a custom leader socket path instead of the default `~/.grok/leader.sock`",
+          "stderr": ""
+        },
+        {
+          "call": "grok login --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "Sign in to Grok\n\nUsage: grok login [OPTIONS]\n\nOptions:\n      --oauth                 Use Grok OAuth via auth.x.ai\n      --device-auth           Use device-code authentication for headless/remote envir…[truncated]"
+          },
+          "stdout": "Sign in to Grok\n\nUsage: grok login [OPTIONS]\n\nOptions:\n      --oauth                 Use Grok OAuth via auth.x.ai\n      --device-auth           Use device-code authentication for headless/remote environments [aliases: --device-code]\n      --debug                 Enable debug logging\n      --debug-file <FILE>     Write debug logs to FILE\n  -h, --help                  Print help\n      --leader-socket <PATH>  Use a custom leader socket path instead of the default `~/.grok/leader.sock`",
+          "stderr": ""
+        },
+        {
+          "call": "grok models --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "List available models and exit\n\nUsage: grok models [OPTIONS]\n\nOptions:\n      --debug                 Enable debug logging\n      --debug-file <FILE>     Write debug logs to FILE\n  -h, --help           …[truncated]"
+          },
+          "stdout": "List available models and exit\n\nUsage: grok models [OPTIONS]\n\nOptions:\n      --debug                 Enable debug logging\n      --debug-file <FILE>     Write debug logs to FILE\n  -h, --help                  Print help\n      --leader-socket <PATH>  Use a custom leader socket path instead of the default `~/.grok/leader.sock`",
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "provider": "google_antigravity",
+      "display": "Gemini · Antigravity",
+      "command": "agy",
+      "executable": "C:\\Users\\Sslaw\\AppData\\Local\\agy\\bin\\agy.EXE",
+      "surface": [
+        {
+          "call": "agy --version",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "1.1.9"
+          },
+          "stdout": "1.1.9",
+          "stderr": ""
+        },
+        {
+          "call": "agy --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": ""
+          },
+          "stdout": "",
+          "stderr": "Usage of agy.EXE:\n  --add-dir                       Add a directory to the workspace (repeatable) (default [])\n  --agent                         Agent for the current CLI session\n  -c                              Short alias for --continue\n  --continue                      Continue the most recent conversation\n  --conversation                  Resume a previous conversation by ID\n  --dangerously-skip-permissions  Auto-approve all tool permission requests without prompting\n  --disable-slash-commands        Disable slash command and skill expansion in print mode\n  --effort                        Reasoning effort for the current CLI session (low|medium|high)\n  -i                              Short alias for --prompt-interactive\n  --json-schema                   Optional JSON schema string or path to a schema file to enforce structured output (for stream-json, only applicable to the final result)\n  --log-file                      Override CLI log file path\n  --mode                          Set the agent execution mode for this session (accept-edits, plan)\n  --model                         Model for the current CLI session\n  --new-project                   Create a new project for this session\n  --output-format                 Output format for print mode (text, json, stream-json) (default text)\n  -p                              Short alias for --print\n  --print                         Run a single prompt non-interactively and print the response\n  --print-timeout                 Timeout for print mode wait (default 5m0s)\n  --project                       Project ID for the current CLI session\n  --prompt                        Alias for --print\n  --prompt-interactive            Run an initial prompt interactively and continue the session\n  --sandbox                       Run in a sandbox with terminal restrictions enabled\n\nAvailable subcommands:\n  agent           List available agents\n  agents          List available agents\n  changelog       Show changelog and release notes\n  help            Show help for subcommands\n  install         Configure environment paths and shell settings\n  models          List available models\n  plugin          Manage plugins (install, uninstall, list, enable, disable)\n  plugins         Alias for plugin\n  update          Update CLI"
+        },
+        {
+          "call": "agy models",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": "gemini-3.6-flash-high\ngemini-3.6-flash-medium\ngemini-3.6-flash-low\ngemini-3.5-flash-high\ngemini-3.5-flash-medium\ngemini-3.5-flash-low\ngemini-3.1-pro-high\ngemini-3.1-pro-low\nclaude-sonnet-4-6\nclaude-op…[truncated]"
+          },
+          "stdout": "gemini-3.6-flash-high\ngemini-3.6-flash-medium\ngemini-3.6-flash-low\ngemini-3.5-flash-high\ngemini-3.5-flash-medium\ngemini-3.5-flash-low\ngemini-3.1-pro-high\ngemini-3.1-pro-low\nclaude-sonnet-4-6\nclaude-opus-4-6-thinking\ngpt-oss-120b-medium",
+          "stderr": ""
+        },
+        {
+          "call": "agy models --help",
+          "outcome": {
+            "outcome": "SUCCESS",
+            "exit_code": 0,
+            "basis": "exit-code-zero",
+            "detail": ""
+          },
+          "stdout": "",
+          "stderr": "Usage: agy.EXE models [flags]\n\nList available models\n\nFlags:\n  -h      Show help\n  --help  Show help"
+        }
+      ]
+    }
+  ]
+}

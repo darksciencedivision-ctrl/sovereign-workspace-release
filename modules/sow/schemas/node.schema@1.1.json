@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sovereign.local/schemas/node@1.1",
+  "$comment": "SUCCESSOR SCHEMA, ADDITIVE. Authorized by operator ruling OP-12.1 (AUTONOMOUS_BUILD_DIRECTIVE.md section 17.1, 2026-08-01), which resolves U227 by successor schema rather than by editing the Phase-0 freeze. node@1.0 is UNCHANGED and remains frozen; this file exists beside it. Deltas from node@1.0 are exactly five and are pinned by tests/unit/test_node_schema_amendment.py: $id, this $comment, description, properties.adapter.enum, properties.schema.const. Everything else - including #/definitions - is a verbatim copy, and node@1.0#/definitions remains the CANONICAL location that task@1.0, debate@1.0 and project@1.0 reference; nothing was re-pointed here. Draft-07 cannot express 'node@1.0 but with a wider enum' (a $ref/allOf can only narrow, and node@1.0's additionalProperties:false plus schema const would reject a node@1.1 record), so the document is standalone and the delta test is what keeps the copy honest.",
+  "title": "Sovereign node identity & registration",
+  "description": "Architecture Plan v1.0.1 section 9.1, amended additively by OP-12.1. Registration is refused if: adapter ineligible under active profile (TB-6); subscription already has an active terminal (I-X3); no permission profile; or the process was not spawned by the Node Runtime supervisor (I-C1, no naked sessions). The adapter enum adds the two OP-12 frontier providers (grok_build, google_antigravity) and admits the pre-existing local-adapter id drift ollama_local (U254). Widening the vocabulary widens nothing else, but be exact about WHERE each refusal lives, because this sentence describes the composed system and not one function: NodeRegistry.register itself enforces I-C1, this enum, and duplicate detection; profile eligibility (TB-6) is the ProfileLoader's, the terminal cap (I-X3) is the SubscriptionGovernor's and the durable lease ledger's, the permission profile is the broker's, and a subscription-backed frontier adapter passes the live-operation switch and the operator's terms determination on the spawn path before any of this. A caller that registers a node WITHOUT walking that path gets none of those gates from the registry - which is why registration is not, and must never become, the only gate.",
+  "type": "object",
+  "required": ["node_id", "class", "adapter", "locality", "capabilities", "workspace", "permission_profile_id", "auth", "state", "offline_profile_eligible"],
+  "additionalProperties": false,
+  "properties": {
+    "node_id": { "type": "string", "format": "uuid" },
+    "class": { "enum": ["conductor", "worker_reasoning", "worker_coding_specialist", "voice_input_service"] },
+    "adapter": { "enum": ["claude_code", "openai_codex_cli", "opencode_local", "gemini_cli", "aider", "ollama_direct", "nvidia_parakeet", "mock", "grok_build", "google_antigravity", "ollama_local"] },
+    "harness": { "type": ["string", "null"] },
+    "model_ref": { "type": ["string", "null"], "description": "Capability-resolved; recorded post-selection. Never used for scheduling (I-SC1)." },
+    "locality": { "enum": ["local", "frontier"] },
+    "subscription_ref": { "type": ["string", "null"] },
+    "capabilities": { "type": "array", "items": { "$ref": "#/definitions/capability_descriptor" } },
+    "workspace": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["git_worktree", "dir", "none"] },
+        "path": { "type": "string" }
+      }
+    },
+    "permission_profile_id": { "type": "string" },
+    "auth": {
+      "type": "object",
+      "required": ["mcp_credential_id"],
+      "additionalProperties": false,
+      "properties": { "mcp_credential_id": { "type": "string", "description": "Reference only. Credentials never transit MCP; they stay in host-native stores (Plan section 18.4)." } }
+    },
+    "state": { "enum": ["SPAWNING", "READY", "ASSIGNED", "BUSY", "PAUSED", "DISCONNECTED", "TERMINATED"] },
+    "offline_profile_eligible": { "type": "boolean" },
+    "spawned_by_supervisor": { "type": "boolean", "description": "Must be true to register (I-C1)." },
+    "schema": { "const": "node@1.1" }
+  },
+  "definitions": {
+    "capability_descriptor": {
+      "$comment": "Plan section 9.7. Canonical definition; task@1.0 references it via https://sovereign.local/schemas/node@1.0#/definitions/capability_descriptor.",
+      "type": "object",
+      "required": ["capability", "requirements"],
+      "additionalProperties": false,
+      "properties": {
+        "capability": { "enum": ["coding", "reasoning", "review", "synthesis", "research", "voice_stt"] },
+        "requirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool_use": { "type": "boolean" },
+            "min_context": { "type": "integer", "minimum": 0 },
+            "structured_output": { "type": "boolean" },
+            "locality": { "enum": ["any", "local_only", "frontier_ok"] },
+            "harness_class": { "enum": ["coding_tui", "chat_cli", "api", null] }
+          }
+        },
+        "cost_class": { "enum": ["local", "subscription"] },
+        "priority": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "deployment_profile": {
+      "$comment": "Canonical handoff v2.4 section 2.2 + Plan section 9.10. Loader is fail-closed: any requires_network or offline-ineligible member under offline_airgapped aborts startup before any node spawns (TB-6, T11).",
+      "type": "object",
+      "required": ["id", "network"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "enum": ["offline_airgapped", "hybrid", "cloud"] },
+        "network": { "enum": ["none", "egress_controlled", "open"] },
+        "eligible_adapters": { "type": "array", "items": { "type": "string" } },
+        "excluded_adapters": { "type": "array", "items": { "type": "string" } },
+        "voice_service": { "type": ["string", "null"] },
+        "conductor_constraint": { "type": "string" },
+        "sovereign_contract_version": { "type": "string", "description": "Identical across profiles (I-D1)." }
+      }
+    }
+  }
+}

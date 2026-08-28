@@ -1,0 +1,29 @@
+{
+  "schema": "sovereign.frontier_provider_recon.probe/1.0",
+  "phase": "18A",
+  "authorization": "OP-12 (operator, 2026-07-31)",
+  "probes": [
+    {
+      "provider": "grok_build",
+      "display": "Grok Build",
+      "executed": false,
+      "accepted": false,
+      "gate": {
+        "allowed": false,
+        "reason": "grok_build is not in the authorized live scope of config/live_operation.json — DENIED (fail closed). The code-pinned scope ALREADY covers it under register row OP-12 (shipped at 18B `.scope`, closing U237), so the ONE remaining step is the operator's own: add 'grok_build' to the `scope.providers` list in config/live_operation.json and cite that row in `register_row`. That file is never committed, and this build cannot write it — the switch is the operator's (invariant 1)"
+      },
+      "reason": "probe refused before spending anything: grok_build is not in the authorized live scope of config/live_operation.json — DENIED (fail closed). The code-pinned scope ALREADY covers it under register row OP-12 (shipped at 18B `.scope`, closing U237), so the ONE remaining step is the operator's own: add 'grok_build' to the `scope.providers` list in config/live_operation.json and cite that row in `register_row`. That file is never committed, and this build cannot write it — the switch is the operator's (invariant 1)"
+    },
+    {
+      "provider": "google_antigravity",
+      "display": "Gemini · Antigravity",
+      "executed": false,
+      "accepted": false,
+      "gate": {
+        "allowed": false,
+        "reason": "google_antigravity is not in the authorized live scope of config/live_operation.json — DENIED (fail closed). The code-pinned scope ALREADY covers it under register row OP-12 (shipped at 18B `.scope`, closing U237), so the ONE remaining step is the operator's own: add 'google_antigravity' to the `scope.providers` list in config/live_operation.json and cite that row in `register_row`. That file is never committed, and this build cannot write it — the switch is the operator's (invariant 1)"
+      },
+      "reason": "probe refused before spending anything: google_antigravity is not in the authorized live scope of config/live_operation.json — DENIED (fail closed). The code-pinned scope ALREADY covers it under register row OP-12 (shipped at 18B `.scope`, closing U237), so the ONE remaining step is the operator's own: add 'google_antigravity' to the `scope.providers` list in config/live_operation.json and cite that row in `register_row`. That file is never committed, and this build cannot write it — the switch is the operator's (invariant 1)"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+test_duplicate_conflicting_hash_detected (shell.tests.test_ingestion_rejects.TestIngestionRejects.test_duplicate_conflicting_hash_detected) ... ok
+test_missing_artifact_hash (shell.tests.test_ingestion_rejects.TestIngestionRejects.test_missing_artifact_hash) ... ok
+test_unknown_model_id_empty (shell.tests.test_ingestion_rejects.TestIngestionRejects.test_unknown_model_id_empty) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK
+
+OK

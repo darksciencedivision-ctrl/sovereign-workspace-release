@@ -1,0 +1,44 @@
+{
+  "directive": "SD-RBR-v1.1",
+  "gate": "GR-0",
+  "recorded_at_utc": "2026-08-23T23:13:58Z",
+  "checks": [
+    {
+      "check": "git rev-parse HEAD",
+      "required": "a05e17a3e9d81647078ebf5ef423eaae71bd7643",
+      "observed": "a05e17a3e9d81647078ebf5ef423eaae71bd7643",
+      "passed": true
+    },
+    {
+      "check": "git rev-parse --abbrev-ref HEAD",
+      "required": "remediation/release-baseline-v1",
+      "observed": "remediation/release-baseline-v1",
+      "passed": true
+    },
+    {
+      "check": "git status --porcelain",
+      "required": "empty",
+      "observed": "empty",
+      "passed": true
+    },
+    {
+      "check": "python -m pytest -q -p no:cacheprovider",
+      "required": "209 passed, 413 subtests passed, exit 0",
+      "observed": "209 passed, 413 subtests passed in 4.70s, exit 0",
+      "passed": true
+    },
+    {
+      "check": "git rev-parse main",
+      "required": "45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7",
+      "observed": "45cc79f424fe8b4862fe774d3b9dc351aa4d0eb7",
+      "passed": true
+    },
+    {
+      "check": "git tag -l",
+      "required": "empty",
+      "observed": "empty",
+      "passed": true
+    }
+  ],
+  "verdict": "PASS"
+}

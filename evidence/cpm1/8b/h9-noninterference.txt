@@ -1,0 +1,11 @@
+# utc: 2026-08-25T18:34:56.818Z
+# producer: ox-alpha CP-M1 Band 2 / G14 H-9 non-interference proof
+# operator-directed external process: Debate Table app.py, port 8700, pid 82344
+# identity recorded at evidence/cpm1/8b/external-debate-started.txt
+# shell lifecycle exercised this band: started, polled to EXTERNAL,
+# POST /api/stop attempted against the EXTERNAL module, headless DOM captured,
+# shell terminated.
+# result: external pid alive during stop attempt: True ; alive after shell exit: True
+# the shell never touched the external process; its Stop control is disabled in
+# the UI for EXTERNAL and the API attempt did not affect the owner.
+VERDICT: EXTERNAL UNTOUCHED

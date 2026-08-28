@@ -1,0 +1,29 @@
+{
+  "package": "Sovereign_Orchestration_Workspace_Build_Handoff_v3.0_20260716.zip",
+  "version": "v3.0",
+  "date": "2026-07-16",
+  "files": [
+    {
+      "name": "Sovereign_Orchestration_Workspace_Canonical_Build_Handoff_v3.0_20260716.md",
+      "bytes": 43294,
+      "lines": 1612,
+      "sha256": "0fec130c582f0373690153e46a9d73df65c38f561683b895550df46ea4783856",
+      "encoding": "UTF-8",
+      "newline": "LF"
+    },
+    {
+      "name": "Fable5_Sovereign_Orchestration_Build_Directive_v3.0_20260716.md",
+      "bytes": 7026,
+      "lines": 203,
+      "sha256": "75434320b86d564d5be91de41722dfb2fa2354d559b7272647f06409b59d89bf",
+      "encoding": "UTF-8",
+      "newline": "LF"
+    }
+  ],
+  "source_provenance": {
+    "v2.3_archive_sha256": "d8b996888905a9b8b5363a1e22de4789bc69d24838fb18eeb3bf60fd963d41d6",
+    "architecture_plan_v1_reported_and_independently_verified_sha256": "668089B57C3162DABDE62ED249778D26F554910666FF62A552FA968BE199E48F",
+    "architecture_plan_v1_reported_and_independently_verified_bytes": 70547,
+    "architecture_plan_v1_known_defect": "Approximately 68 lines of double-encoded UTF-8 mojibake; preserve original and create a clean successor."
+  }
+}

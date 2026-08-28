@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "candidate": "4b",
+  "attempt": 1,
+  "attempt_kind": "IDENTITY_AND_ACCESS_PREFLIGHT_ONLY",
+  "material_training_attempt": false,
+  "identity_check": "FAIL",
+  "trainer_access_check": "FAIL",
+  "card_lock": "NOT_ACQUIRED",
+  "gpu_process_enumeration_on_trainer": "NOT_POSSIBLE_NO_ENDPOINT",
+  "serving_drain": "NOT_PERFORMED",
+  "model_load": "NOT_PERFORMED",
+  "state": "CANDIDATE_IDENTITY_BLOCKED",
+  "stop_rule_applied": "Section 2 requires STOP before loading when exact revision cannot be pinned."
+}

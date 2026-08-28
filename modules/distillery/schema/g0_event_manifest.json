@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereign.local/schema/g0_event_manifest.json",
+  "title": "Content-free G0 hashed event manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "content_payload_present", "events", "manifest_hash"],
+  "properties": {
+    "schema_version": {"const": "1.2"},
+    "content_payload_present": {"const": false},
+    "manifest_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id_hash", "session_id_hash", "turn_id_hash", "timestamp", "harness", "route",
+          "teacher_provider_identifier", "source_admission_class", "outcome", "signal_type",
+          "label_origin", "validator_result", "recovery_parent_hash", "content_payload_present", "fixture"
+        ],
+        "properties": {
+          "event_id_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "session_id_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "turn_id_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "timestamp": {"type": "string", "format": "date-time"},
+          "harness": {"type": "string", "minLength": 1},
+          "route": {"type": ["string", "null"]},
+          "teacher_provider_identifier": {"type": "string", "minLength": 1},
+          "source_admission_class": {"enum": ["ELIGIBLE", "INTERNAL_ONLY", "REJECTED", "UNKNOWN"]},
+          "outcome": {"type": ["string", "null"]},
+          "signal_type": {"type": "string", "minLength": 1},
+          "label_origin": {"enum": ["live_operator_mark", "import_time_classification", "implicit_runtime_signal", "synthetic_fixture", null]},
+          "validator_result": {"type": "string", "minLength": 1},
+          "recovery_parent_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "content_payload_present": {"const": false},
+          "fixture": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

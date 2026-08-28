@@ -1,0 +1,22 @@
+# utc: 2026-08-25T19:13:16.250Z
+# producer: ox-alpha CP-M1 Band 2 / G15 after-edit (receipt_file readiness)
+# adapter: sow.json readiness.kind=receipt_file -> SHELL-LIVE-READY.json (distinct from
+# PHASE16A_SELFCHECK.json); probe newer_than=spawn time; stale receipts ignored.
+# start requested: 2026-08-25T19:12:49.995Z -> (200, {'Server': 'BaseHTTP/0.6 Python/3.12.10', 'Date': 'Tue, 25 Aug 2026 19:12:49 GMT', 'Content-Ty
+# state/receipt timeline:
+  2026-08-25T19:12:50.004Z  state=STARTING  receipt_on_disk=False
+  2026-08-25T19:12:57.455Z  state=STARTING  receipt_on_disk=True
+  2026-08-25T19:12:58.221Z  state=READY     receipt_on_disk=True
+# not-ready observations during boot (STARTING with no fresh receipt): 1
+# first READY at: 2026-08-25T19:12:58.221Z ; receipt mtime after boot > spawn: True
+# stop response: (200, {'Server': 'BaseHTTP/0.6 Python/3.12.10', 'Date': 'Tue, 25 Aug 2026 19:13:13 GMT', 'Content-Type': 'application/js ; STOPPED observed at: 2026-08-25T19:13:14.013Z
+# workspace electron.exe processes before stop: 4 ; after stop: 0
+# VERDICT: readiness now requires a fresh real boot signal.
+# note: every STARTING row with receipt_on_disk=False above is the probe failing while
+# the Electron app booted; those failing observations carry timestamps strictly before the
+# succeeding READY observation, as G15 requires.
+# CORRECTION (C-6, operator instruction utc 2026-08-25T20:09:28.9974571Z): this artifact
+# records exactly ONE not-ready observation during boot (the single STARTING row with
+# receipt_on_disk=False at '19:12:50.004'). Earlier wording elsewhere saying
+# 'repeated' polls was wrong; one failing observation satisfies G15's 'at least once' and
+# its timestamp strictly precedes the READY transition. This file is otherwise unchanged.

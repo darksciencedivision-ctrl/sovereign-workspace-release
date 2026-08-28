@@ -1,0 +1,30 @@
+# utc: 2026-08-25T04:18:12Z
+# producer: ox-alpha THEME01 goalcheck i=9
+GOAL G0: TRUE
+   ledger sha live=518ac84ce6a2 pin=518ac84ce6a2
+GOAL G1: TRUE
+   pre-change baseline pinned under evidence/theme01/before/
+GOAL G2: TRUE
+   v2 superseded-by hash=35311af37518
+GOAL G3: TRUE
+   :root vs §3.1 mismatches=none
+GOAL G4: TRUE
+   light block extra rules=[] tokens-missing=none
+PINNED-RATIOS: 22 checked, 0 disagree
+GOAL G5: TRUE
+   h16 rows TEXT OK=12 FAIL=0
+GOAL G6: TRUE
+   /doc/theme-baseline maps to v3 and H-14 artifact regenerated
+GOAL G7: TRUE
+   end-to-end preflight contract; live capture 5/7 available available
+GOAL G8: TRUE
+   suite Ran 122 vs before 121; manifest_ok=True fresh=True
+GOAL G9: FALSE
+   grid-dark.png median-lum=0.007 accent=True; grid-light.png median-lum=0.980 accent=True
+GOAL G10: FALSE
+   ledger 7a/7b CANDIDATE appended; prefix byte-identical
+GOAL G11: FALSE
+   report+claim present; 5175=free 5180=free 8700=in use (8700 informational: operator-side)
+ALL_GOALS_TRUE: no
+FIRST_FAILING: G9:
+STOP_MARKERS: none

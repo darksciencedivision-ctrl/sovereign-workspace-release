@@ -1,0 +1,13 @@
+﻿# utc: 2026-08-25T20:22:26.5469153Z
+# producer: ox-alpha CP-M1 Band 3 / G20
+# run AFTER: implicit shell default removed at ptyFactory; pane:create-empty path exists;
+# renderer '+ Terminal' routes to it.
+
+test_create_empty_path_exists_with_empty_record_fields (shell.tests.test_new_session_spawns_no_process.TestNewSessionSpawnsNoProcess.test_create_empty_path_exists_with_empty_record_fields) ... ok
+test_no_implicit_shell_default_at_pty_boundary (shell.tests.test_new_session_spawns_no_process.TestNewSessionSpawnsNoProcess.test_no_implicit_shell_default_at_pty_boundary) ... ok
+test_renderer_plus_terminal_routes_to_empty (shell.tests.test_new_session_spawns_no_process.TestNewSessionSpawnsNoProcess.test_renderer_plus_terminal_routes_to_empty) ... ok
+System.Management.Automation.RemoteException
+----------------------------------------------------------------------
+Ran 3 tests in 0.013s
+System.Management.Automation.RemoteException
+OK

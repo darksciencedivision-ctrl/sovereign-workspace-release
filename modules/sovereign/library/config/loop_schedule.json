@@ -1,0 +1,20 @@
+{
+  "schema_version": "18.1",
+  "generated_utc": "2026-05-13T22:39:40Z",
+  "description": "Schedule configuration for the SOVEREIGN Master Library autonomous loop. All operations are dry-run only in Phase 18.1.",
+  "scan_interval_minutes": 30,
+  "decay_interval_minutes": 120,
+  "compression_interval_minutes": 240,
+  "archive_review_interval_hours": 24,
+  "quarantine_review_interval_days": 7,
+  "queue_pause_threshold": 100,
+  "delete_disabled": true,
+  "dry_run_required": true,
+  "phase_18_1_constraints": {
+    "no_compression_execution": true,
+    "no_archive_movement": true,
+    "no_quarantine_movement": true,
+    "no_deletion": true,
+    "scan_and_report_only": true
+  }
+}

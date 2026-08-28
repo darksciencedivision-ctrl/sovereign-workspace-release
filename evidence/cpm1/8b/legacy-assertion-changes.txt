@@ -1,0 +1,30 @@
+﻿# utc: 2026-08-25T20:09:28.9974571Z # producer: ox-alpha CP-M1 Band 2 / C-7 auditable test-change record # cited by: GATE-LEDGER.json gate 8b note # ADDENDUM-02 s7 basis: a test change is a design change requiring justification. # Justification: CP-M1 G17 mandates the ten-class failure vocabulary; the six assertions # below pinned the LEGACY reason tokens that G17 replaces. Mapping is total and unit-pinned # by states.classify_failure / FAILURE_CLASSES (see evidence/hardening/h18-failure-classes.txt). # Six replacements across three files, verbatim: 
+--- 1 of 6 --- shell/tests/test_states.py :: test_starting_to_failed_exit
+BEFORE: self.assertEqual(display, "FAILED(EXIT)")
+AFTER:  self.assertEqual(display,
+                                 "FAILED(PROCESS_START_FAILED: exited before ready)")
+
+--- 2 of 6 --- shell/tests/test_states.py :: test_starting_to_failed_timeout
+BEFORE: self.assertEqual(display, "FAILED(TIMEOUT)")
+AFTER:  self.assertEqual(display,
+                                 "FAILED(HEALTH_CHECK_FAILED: readiness probe not satisfied)")
+
+--- 3 of 6 --- shell/tests/test_states.py :: test_starting_to_failed_identity
+BEFORE: self.assertEqual(display, "FAILED(IDENTITY)")
+AFTER:  self.assertIn("FAILED(IDENTITY_MISMATCH", display)
+
+--- 4 of 6 --- shell/tests/test_supervisor.py :: test_runner_state_is_failed_job_assign
+BEFORE: self.assertEqual(display, "FAILED(JOB_ASSIGN)", err)
+AFTER:  self.assertIn("PROCESS_START_FAILED", display, err)
+        self.assertIn("JOB_ASSIGN", err or display, "assignment detail lost")
+
+--- 5 of 6 --- shell/tests/test_hardening.py :: test_mutated_env_aborts_before_createprocess
+BEFORE: self.assertEqual(display, "FAILED(QUOTA_GUARD)", err)
+AFTER:  self.assertIn("CONFIGURATION_FAILED", display, err)
+        self.assertIn("SOW_CONDUCTOR_AUTOLAUNCH", err)
+
+--- 6 of 6 --- shell/tests/test_hardening.py :: same test, second assertion added
+BEFORE: (none - assertion count was two: display + err equality pair)
+AFTER:  self.assertIn("SOW_CONDUCTOR_AUTOLAUNCH", err)
+        (replaces an intermediate wrong anchor assertIn("quota guard", err) which never
+         existed in the product; recorded for completeness of the edit sequence)

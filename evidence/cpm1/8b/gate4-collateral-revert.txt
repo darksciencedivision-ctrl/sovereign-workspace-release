@@ -1,0 +1,10 @@
+﻿# utc: 2026-08-25T20:16:49.0367607Z
+# producer: ox-alpha CP-M1 / C-5..C-7 follow-through
+# During the C-5/C-6/C-7 evidence-hash resync inside gate 8b, an unscoped regex first
+# matched gate 4's HISTORICAL shell/BUILD-MANIFEST.txt entry (sha 659ff9b635a22ddb9065c56ac5fbb277dcce25d3110354acb5e9134fed9f6d)
+# and overwrote it with the current live hash. Caught immediately via oracle g19; reverted
+# byte-exactly in the same session; the live-hash update was then applied SCOPED to the 8b
+# block only. Final lineage this session:
+#   2ed5a7b9.. -> 51ef41a8.. (C-6/C-7 note+hash) -> 399ce04a.. -> 8a9a12ab.. (collateral) -> 24dbf319.. (revert+scoped) -> 9562d173.. (loop-ledger resync).
+# Reviewer-evaluated entries are byte-intact again (oracle G19 TRUE post-repair confirms all
+# listed evidence hashes match disk).

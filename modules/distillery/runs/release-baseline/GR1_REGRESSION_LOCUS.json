@@ -1,0 +1,25 @@
+{
+  "directive": "SD-RBR-v1.1",
+  "gate": "GR-1",
+  "recorded_at_utc": "2026-08-23T23:35:28Z",
+  "rule": "ancestor-or-self + declared-evidence-only delta; reproduce-or-refuse verification",
+  "sealed_locus": "e4e24be4ea45d7293b2bc54b8540db29ebadf866",
+  "recorded_result": "229 passed, 425 subtests passed",
+  "recorded_exit_code": 0,
+  "verification": {
+    "verdict": "PASS",
+    "observed": "229 passed, 425 subtests passed",
+    "observed_exit_code": 0,
+    "raw_last_line": "229 passed, 425 subtests passed in 8.50s"
+  },
+  "negative_tests": {
+    "kept_stale_locus_refusal": "tests/test_terminal_evidence_seal.py::RegressionDriftRefusalTests::test_generator_refuses_stale_measurement_locus PASS",
+    "new_wrong_result_string_refusal": "tests/test_terminal_evidence_seal.py::RegressionLocusVerifierGateTests::test_wrong_result_string_on_real_ancestor_is_refused PASS",
+    "positive_twin": "test_matching_result_string_on_real_ancestor_settles_to_pass PASS"
+  },
+  "cold_reproduce_command": [
+    "python tools/verify_regression_locus.py",
+    "(equivalent manual form: git worktree add --detach <tmp> e4e24be4ea45d7293b2bc54b8540db29ebadf866; copy HEAD runs/completion-loop/{LOOP_STATE,BUILD_COMPLETION_MANIFEST}.json into <tmp> same paths; cd <tmp>; python -m pytest -q -p no:cacheprovider -> expect exactly: 229 passed, 425 subtests passed)"
+  ],
+  "verdict": "PASS"
+}

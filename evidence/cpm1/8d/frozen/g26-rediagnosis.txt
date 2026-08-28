@@ -1,0 +1,136 @@
+﻿# utc: 2026-08-26T02:11:14.041Z
+# producer: ox-alpha CP-M1 Band 4 / G26 re-diagnosis
+# E-7c frozen copies created for gates 8a/8b/8c in same turn.
+# G3 freshness window settled: PER-SESSION (not per-calendar-day).
+
+## Q1 - Why does supervisorEnforcedBoundary demand voice_turn_boundary@1.0?
+
+FACT[modules/sow/apps/desktop/voice/conductor-write.js:57-62]:
+
+    function supervisorEnforcedBoundary(boundary) {
+      return Boolean(boundary && boundary.schema === "voice_turn_boundary@1.0"
+        && boundary.supervisor_owned === true && boundary.non_executing_voice_turns === true
+        && boundary.enforced_by_supervisor_process === true
+        && boundary.broker_schema === "supervisor_voice_turn_authority@1.0");
+    }
+
+This predicate was designed for the VOICE-TURN authority system (Phase 17C). Its threat model
+(conductor-write.js:3-14) is: a spoken utterance is transcribed and written into the conductor
+TUI input; without a supervisor-enforced boundary the CLI could process it as a full agent turn
+with tool access. The four guards ensure every turn is ARMED by a live supervisor process,
+CONFIRMED by a vendor hook dispatching back to that supervisor, and DENIED if either is missing.
+
+For typed operator text: threats 2 (residue) and 3 (pane not accepting text) apply equally.
+Threat 1 (CLI self-authorizing tools) applies DIFFERENTLY because the operator IS the authorizing
+party for typed text. The code makes no distinction between spoken and typed input.
+
+## Q2 - Does the codex else-branch prevent satisfying the guard? CONFIRMED.
+
+FACT[main.js:932-933]:
+    const isClaudeHookBoundary = ticket.authority_boundary
+      && ticket.authority_boundary.schema === "voice_turn_boundary@1.0";
+
+FACT[main.js:953-955] TRUE branch:
+    if (isClaudeHookBoundary) {
+      await conductorVoiceAuthority.start();
+      runtimeBoundary = conductorVoiceAuthority.runtimeBoundary(...);
+
+FACT[main.js:968-970] FALSE branch:
+      } else {
+        conductorPolicyBytes.clear();
+      }
+
+FACT[main.js:1021]: authorityBoundary: runtimeBoundary
+
+For a codex flag-boundary ticket, runtimeBoundary remains the raw conductor_permission_boundary@1.0
+object, which fails supervisorEnforcedBoundary at conductor-write.js:58.
+
+FACT[emit_conductor_launch.py:186-188]:
+    # Do not fabricate Claude hooks for a provider that does not implement that hook protocol.
+
+VERDICT: CONFIRMED - no codex conductor session can ever satisfy supervisorEnforcedBoundary.
+
+## Q3 - Governed write paths to a conductor PTY
+
+| Path | File:line | Guard | Voice-boundary? |
+|---|---|---|---|
+| deliverChat() body write | voice/conductor-write.js:168 | 4-guard incl. voice boundary | YES |
+| deliverChat() submit | voice/conductor-write.js:217 | same | YES |
+| paneWriter.writePrompt() | control/pane-writer.js:323,357,368 | screen-readability + provider-state | NO |
+| manager.write() direct | main.js:1486,1721,2375 | job-object containment only | NO |
+
+A governed typed-text path EXISTS architecturally (pane-writer) but is NOT wired for conductor
+use: U328 reserves pane-writer for system writes and voice-writer reserves itself for speech.
+Typed operator directives fall between the two gates.
+
+## Q4 - Is the voice-turn hook chain provider-specific? YES.
+
+FACT[emit_conductor_launch.py:183-185]: permission profile + --settings injection ONLY for
+CLAUDE_CODE_ADAPTER.
+
+FACT[emit_conductor_launch.py:186-188]: explicit comment declining to fabricate Claude hooks
+for other providers.
+
+FACT[modules/sow/adapters/frontier/codex.py:398-401]: _FORBIDDEN_CODEX_ARGS contains
+"--dangerously-bypass-hook-trust" (line 399, inside the tuple that begins line 398) - the
+adapter STRUCTURALLY REFUSES to emit the codex hook-trust bypass; a build containing it fails
+closed (_assert_no_forbidden).
+
+FACT[modules/sow/adapters/frontier/codex.py:346-353]: "codex exec reads ... ~/.codex/config.toml
+(host-global). Containment is pinned by CLI flags that take precedence over config ...
+Residual host-config.toml keys the flags do not override (e.g. declared MCP servers/hooks)
+are a recorded live-run item (U32)."  (the quoted clause is verbatim at lines 351-352.)
+
+CORRECTED CONCLUSION (supersedes the negative claim this file previously made): codex.py
+contains exactly TWO hook references - line 399 and line 352 (verified by Select-String over
+all 761 lines this session). Neither is a per-launch hook surface: codex hooks arrive from
+HOST-GLOBAL config.toml, not from any per-launch --settings injection, which is precisely WHY
+no supervisor process can pin them per session. That host-global origin is the real
+architectural reason R-04 is not provable on openai_codex_cli today.
+
+R-04 may not be provable on openai_codex_cli without new feature work (building a codex-side
+hook surface or a wrapper layer). This is an architectural finding the operator needs.
+
+## Revised option set
+
+OPTION A - Defer R-04 proof to Band 10 stepD (RECOMMENDED)
+  Record G26 as NOT_RUN(CONDUCTOR_DELIVERY_REQUIRES_CLAUDE_HOOK_PROTOCOL). Gate 8d submitted
+  with limitation stated. Zero product change. Prove R-04 in Band 10 where the operator drives
+  interactively (possibly selecting claude_code adapter for acceptance run).
+
+OPTION B - Route typed text through pane-writer (new scope)
+  Add writeOperatorText() to pane-writer bypassing provider-screen gate. Rewire G25 handler.
+  ~25 lines. Risk: creates second write path without voice guards.
+
+OPTION C - Authorize claude_code spend for G25/G26 leg
+  Full picker flow produces voice_turn_boundary@1.0 ticket. Guard passes. Round-trip provable.
+  Requires spend authorization beyond current envelope.
+
+RECOMMENDATION: Option A. An honest R-04-not-provable-on-codex-without-new-work finding is a
+better outcome than routing around a security control.
+
+---
+CORRECTION RECORD (appended same session as the edit above)
+utc: 2026-08-26T02:40:12Z (repair below fixes a failed string interpolation; event time preserved from the live capture)
+producer: ox-alpha CP-M1 Band 4 / G26 preflight
+authorization: operator live instruction (verbatim in evidence/OPERATOR-INSTRUCTIONS.log,
+entry 2026-08-26T02:39Z; on-disk copy docs/CP-M1-G26-PREFLIGHT-PASTE.md,
+sha256 5ed96e08a6a89b0d74b355e6c237b442d34ee56483ea93c7ae1042c1182f1e89).
+what changed: the Q4 block "FACT[modules/sow/adapters/frontier/codex.py]: zero references to
+hooks, PreToolUse, UserPromptSubmit, or settings_json injection." was replaced with positive
+evidence at codex.py:398-401 and codex.py:346-353 plus the corrected conclusion. The prior
+negative claim was WRONG (unverified negative); the operator's correction was verified against
+disk this session before applying: exactly two hook references exist, at lines 352 and 399.
+hash chain (all full lowercase sha256):
+  prior (pre-correction artifact)      737529612b127e926a99538b625a557588a5787c23e26b741adbf15e512ed858
+  content-corrected, pre-record        93d1cabdb0e48c733b69f84dcfc516a613ad77cdf43e1201e7afd9063310cfdb
+  THIS FILE as finalized               48d2a650bb5e45d39b136c5c8114876151d5a9a18cbe2bd54b628bd60529ca44
+reason: T-2 - a verified positive citation is stronger evidence than an unverified negative
+claim, and the two cited lines carry the actual architectural reason.
+
+RECORD REPAIR (same session, immediately after first write): the utc line above originally
+rendered as a failed PowerShell interpolation (literal '.ToUniversalTime().ToString("o")' text
+after a local-format datetime); it is replaced by the correct UTC on the line above this
+paragraph, and the hash list was relabelled to name each state explicitly. No substantive
+content of the correction changed.
+NOTE ON SELF-HASH: f33288db470d21e85116d665ce0cd6371709dc9ee6b35352306632b88dc060d8 was the hash of this file at RECORD-REPAIR completion, BEFORE the sentence you are reading was appended; a file cannot contain its own hash. The current file's sha256 is recorded EXTERNALLY in evidence/cpm1/8d/g26-preflight.txt and in evidence/cpm1/LOOP-LEDGER.jsonl entry i=34.

@@ -1,0 +1,30 @@
+# PHASE 2 INSTALL LOG — SWS-UI-001 v1.2
+# Gate 2: Install Authorization
+# started: 2026-08-21T02:00:00-05:00
+
+## DECISIONS.md SHA-256 (captured BEFORE any mutating command)
+bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a
+
+## Dependency-closure status
+- SOVEREIGN: INCOMPLETE (requirements.txt: 5 direct packages only)
+  → Operator pre-authorized workspace-owned resolved lock in DECISIONS.md
+- Debate Table: COMPLETE (requirements.lock.txt present)
+- SOW: COMPLETE (package-lock.json expected)
+
+## Manifest baseline (before install)
+- manifest-before-product-software.txt: A3335E702D7A97232B8799E695D27E0D7889FF12B9099AE3E798E40BF6FBF21D
+- manifest-before-sow.txt: 4B0C2B9610C14A6FF6954B2E6780B4F392E407AA30613FB4A18D53BE58A84545
+- manifest-before-distillery.txt: CDBE99323A98A19752623E6399ED0570A61483F3487DFC41D48EEF0FE5F4428F
+
+## RE-AUTHORIZATION (REM-01)
+# utc: 2026-08-21T04:38:41.7032229Z
+# producer: claude-code REM-01
+DECISIONS.md sha256 (operator-signed): NONE - NO OPERATOR-SIGNED VERSION EXISTS
+DECISIONS.md sha256 (as found on disk): bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a
+Prior line "bb911905..." above is VOID -- builder-authored, never an authorization.
+The hash on disk is byte-identical to that VOID value. REM-01 directive section 1 requires
+an operator-signed DECISIONS.md whose hash DIFFERS from it, carrying the VOID sentence and
+five checked and signed sections. None of those four conditions hold as of the utc above.
+This builder is barred by section 0.1(1) from creating or editing DECISIONS.md, so the
+re-authorization payload this heading calls for cannot be produced. Recorded as absent
+rather than invented. See docs/STOP-REPORT-REM-01.md and docs/REM-01-STAGE-R1-REPORT.md.

@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "gate": "HG-3",
+  "status": "BLOCKED_PRELOAD",
+  "pass_claimed": false,
+  "reason": "Both canonical student descriptions stop at family and nominal size; neither supplies the exact repository, model name, immutable revision, local trainable artifact, architecture configuration, context length, or license needed by the HG-3 directive. The actual gfx906 trainer is also not reachable from any canonical endpoint or host configuration.",
+  "candidate_results": {
+    "4b": "CANDIDATE_IDENTITY_BLOCKED",
+    "8b": "CANDIDATE_IDENTITY_BLOCKED"
+  },
+  "comparative_measured_table": [
+    {
+      "candidate": "4b",
+      "identity_pinned": false,
+      "S0": "NOT_ATTEMPTED",
+      "S1": "NOT_ATTEMPTED",
+      "S2": "NOT_ATTEMPTED",
+      "S3": "NOT_ATTEMPTED",
+      "max_tested_pass": null,
+      "first_tested_fail": null,
+      "peak_vram_mib": null,
+      "disposition": "CANDIDATE_IDENTITY_BLOCKED"
+    },
+    {
+      "candidate": "8b",
+      "identity_pinned": false,
+      "S0": "NOT_ATTEMPTED",
+      "S1": "NOT_ATTEMPTED",
+      "S2": "NOT_ATTEMPTED",
+      "S3": "NOT_ATTEMPTED",
+      "max_tested_pass": null,
+      "first_tested_fail": null,
+      "peak_vram_mib": null,
+      "disposition": "CANDIDATE_IDENTITY_BLOCKED"
+    }
+  ],
+  "attempts": {
+    "4b": 1,
+    "8b": 1,
+    "material_training_attempts_4b": 0,
+    "material_training_attempts_8b": 0,
+    "failed_training_attempts": 0
+  },
+  "card_restoration": "NOT_APPLICABLE_NO_CARD_ACCESS_OR_STATE_CHANGE",
+  "repository_validation": {
+    "status": "PASS",
+    "windows_python_3_14_tests": "42_PASS",
+    "windows_python_3_11_tests": "42_PASS",
+    "linux_ubuntu_24_04_python_3_12_tests": "42_PASS",
+    "python_compilation_windows_3_14": "PASS",
+    "python_compilation_windows_3_11": "PASS",
+    "python_compilation_linux_3_12": "PASS",
+    "json_and_jsonl_parse": "PASS",
+    "json_schema_validation": "PASS_3_SCHEMAS_31_G0_ROWS_AND_MANIFEST_PARITY",
+    "markdown_links": "PASS",
+    "package_build": "PASS_SDIST_AND_WHEEL",
+    "git_diff_check": "PASS",
+    "secret_scan": "PASS",
+    "model_weight_and_artifact_scan": "PASS",
+    "oversized_artifact_scan": "PASS",
+    "conflict_marker_scan": "PASS",
+    "repository_wide_license_files_added": 0,
+    "G2_through_G6_execution_artifacts": 0
+  },
+  "hard_gates": {
+    "HG-0": "PASS",
+    "HG-1": "ENFORCEMENT_PASS_SOURCE_DECISIONS_PENDING",
+    "HG-2": "PASS_SYNTHETIC",
+    "HG-3": "BLOCKED_PRELOAD",
+    "HG-4": "NOT_EXECUTED",
+    "HG-5_through_HG-8": "NOT_REACHED",
+    "G2_through_G6": "NOT_STARTED"
+  },
+  "D9": {
+    "state": "FAIL_CLOSED",
+    "unknown_candidates": 4,
+    "total_candidates": 4,
+    "changed": false
+  },
+  "exact_next_action": "Canonically pin both student identities (upstream repository, exact model name and immutable revision, trainable artifact identity, weight format, parameter count, architecture, context length, license, and source evidence) and provide the authenticated gfx906 trainer endpoint/probe; then rerun HG-3 attempt-001 from the pinned environment."
+}

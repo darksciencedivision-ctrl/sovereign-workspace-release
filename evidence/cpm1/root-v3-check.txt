@@ -1,0 +1,31 @@
+﻿# utc: 2026-08-25T17:41:52.9717477Z
+# producer: ox-alpha CP-M1 Band 0 / G5
+# source: shell/static/app.css :root block + @media(prefers-color-scheme: light) block (brace-balanced extraction)
+# reference: docs/THEME-BASELINE-v3.md s3.1 dark + s3.2 light tables (hex values)
+# note: --radius/--font/--mono carried from v2 per v3 table; not hex-checked here.
+verdict: MATCH - app.css token values equal THEME-BASELINE-v3 exactly
+dark  --danger expected #f7768e got #f7768e OK
+dark  --text-muted expected #9aa7bd got #9aa7bd OK
+dark  --border expected #232b3a got #232b3a OK
+dark  --panel expected #151b28 got #151b28 OK
+dark  --text-faint expected #3a4353 got #3a4353 OK
+dark  --ok expected #9ece6a got #9ece6a OK
+dark  --accent-dim expected #2a4a5c got #2a4a5c OK
+dark  --warning expected #e0af68 got #e0af68 OK
+dark  --bg expected #0b0e14 got #0b0e14 OK
+dark  --input expected #1b2333 got #1b2333 OK
+dark  --accent expected #7fc8e8 got #7fc8e8 OK
+dark  --text expected #c7d1de got #c7d1de OK
+dark  --sidebar expected #0d121c got #0d121c OK
+light --warning expected #8a6008 got #8a6008 OK
+light --accent expected #1f6f94 got #1f6f94 OK
+light --border expected #d3d8e0 got #d3d8e0 OK
+light --text-faint expected #8a93a1 got #8a93a1 OK
+light --panel expected #ffffff got #ffffff OK
+light --sidebar expected #eceef1 got #eceef1 OK
+light --accent-dim expected #a8d6ea got #a8d6ea OK
+light --danger expected #c8394f got #c8394f OK
+light --ok expected #2f7a49 got #2f7a49 OK
+light --text-muted expected #58616e got #58616e OK
+light --text expected #1b2027 got #1b2027 OK
+light --bg expected #f4f5f7 got #f4f5f7 OK

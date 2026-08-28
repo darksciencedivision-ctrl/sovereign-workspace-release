@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "observed_at": "2026-08-20T23:52:43.0028085Z",
+  "method": "Read-only Hugging Face repository/API metadata and exact-revision small-file hashing; no model weights downloaded.",
+  "models": [
+    {
+      "student_id": "GND-STUDENT-4B",
+      "repository": "Qwen/Qwen3-4B-Base",
+      "revision_requested": "906bfd4b4dc7f14ee4320094d8b41684abff8539",
+      "revision_observed": "906bfd4b4dc7f14ee4320094d8b41684abff8539",
+      "remote_head_observed": "906bfd4b4dc7f14ee4320094d8b41684abff8539",
+      "revision_match": true,
+      "private": false,
+      "gated": false,
+      "library": "transformers",
+      "artifact_tag": "safetensors",
+      "license_metadata_tag": "license:apache-2.0",
+      "license_file_present": true,
+      "architecture": "Qwen3ForCausalLM",
+      "max_position_embeddings": 32768,
+      "torch_dtype": "bfloat16",
+      "weight_bytes_from_index": 8045591552,
+      "weight_shards": [
+        {"file": "model-00001-of-00003.safetensors", "bytes": 3957900840, "remote_lfs_sha256": "4c807e2503d68ae373d508689d00a41f4b33f33c2536da97ab81a20caddc1241"},
+        {"file": "model-00002-of-00003.safetensors", "bytes": 3987450520, "remote_lfs_sha256": "f4707585548b2fc75a6b1d732e8465c62040a8699903c32850781beeb9b27826"},
+        {"file": "model-00003-of-00003.safetensors", "bytes": 99630640, "remote_lfs_sha256": "c7b1aa8fb672de2e00423c99876926022e50b18d4f0d140670788510a27f9965"}
+      ],
+      "small_file_sha256": {
+        "config.json": "304b2545a258d35620f1d4bf46940c0471d9baa00715ff8e77f84c2fca5057c1",
+        "README.md": "9fd20ab531a1dc75ae18fcde658dd69d04173fdb93311091c38a7098e3d4b4a1",
+        "LICENSE": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+        "model.safetensors.index.json": "d6c42883a895dfef5b0080ed2116a1bcd764f558406b98923d675978a1abf29c",
+        "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "tokenizer_config.json": "3c04ed3ca964ea2f6b2b5faf0dc4d31aec1cb1e8b4bcf63f402d295046b422b5"
+      }
+    },
+    {
+      "student_id": "GND-STUDENT-8B",
+      "repository": "Qwen/Qwen3-8B-Base",
+      "revision_requested": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+      "revision_observed": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+      "remote_head_observed": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+      "revision_match": true,
+      "private": false,
+      "gated": false,
+      "library": "transformers",
+      "artifact_tag": "safetensors",
+      "license_metadata_tag": "license:apache-2.0",
+      "license_file_present": false,
+      "license_evidence_note": "Apache-2.0 is asserted by exact-revision upstream model metadata; no LICENSE file exists in this pinned repository revision.",
+      "architecture": "Qwen3ForCausalLM",
+      "max_position_embeddings": 32768,
+      "torch_dtype": "bfloat16",
+      "weight_bytes_from_index": 16383567872,
+      "weight_shards": [
+        {"file": "model-00001-of-00005.safetensors", "bytes": 3996250744, "remote_lfs_sha256": "9983f1b9ef2f60e7c3730d9bc11ada914e6ec630639b5b020a89bd158cd0446b"},
+        {"file": "model-00002-of-00005.safetensors", "bytes": 3993160032, "remote_lfs_sha256": "9aa12339835bf7a093d3d0b0a0d2d77f8538301cfc7f8e7ec7a585858ebf7a1f"},
+        {"file": "model-00003-of-00005.safetensors", "bytes": 3959604768, "remote_lfs_sha256": "c7dd5a191c8da555def0714550375b3c0117751add408fcdda0c2a79ac0186bc"},
+        {"file": "model-00004-of-00005.safetensors", "bytes": 3187841392, "remote_lfs_sha256": "ad8b708792105133e03fe19e2d56c89c709f677f01285f8b3ede8947d59fd9fe"},
+        {"file": "model-00005-of-00005.safetensors", "bytes": 1244659840, "remote_lfs_sha256": "fbf24915d47ea030bb68ab0b9488f4515a907185baa6dc26837c9c3f2326a550"}
+      ],
+      "small_file_sha256": {
+        "config.json": "3bd01d7ad7a2e203ecbbe84e24087a51c6d2a108ee4bcc42d0016bf49564983a",
+        "README.md": "0eb9f991baa4f92c9ef708d1e9c7a01ae5b19d05516d38f8833549aa8b06a07e",
+        "LICENSE": null,
+        "model.safetensors.index.json": "cd39d5e44c5aadfd1954b598883aea1c4a98822a2f7723d214ef2278b7fec2e4",
+        "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "tokenizer_config.json": "3c04ed3ca964ea2f6b2b5faf0dc4d31aec1cb1e8b4bcf63f402d295046b422b5"
+      }
+    }
+  ]
+}

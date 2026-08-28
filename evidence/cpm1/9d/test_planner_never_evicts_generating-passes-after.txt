@@ -1,0 +1,11 @@
+# utc: 2026-08-27T00:54:53.602Z
+# producer: ox-alpha CP-M1 ADD-08 wave
+
+test_no_process_control_in_planner (shell.tests.test_planner_never_evicts_generating.TestPlannerNeverEvictsGenerating.test_no_process_control_in_planner) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+OK
+
+OK
