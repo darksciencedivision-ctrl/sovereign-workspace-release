@@ -73,7 +73,7 @@ result and exits. It is a proof hook, not a feature, and adds no HTTP endpoint.
 | Module | Port | Type |
 |---|---|---|
 | SOVEREIGN 3.1.2 | 5175 | Flask web app |
-| Debate Table v1.2 P1 | 8700 | FastAPI web app |
+| Debate Table v1.2.1-hardening | 8700 | FastAPI web app |
 | Multi-Model Terminal (SOW) | — | Electron desktop app |
 | Sovereign Distillery | — | File-driven status only |
 
