@@ -1,9 +1,10 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-03-20T00:00:00Z",
+  "updated_at": "2026-08-28T03:24:00Z",
+  "reconciliation_note": "B2-6 (M-5/M-6, SWS-REM-DIR-20260828 R2): king_synthesizer.model reconciled to SYSTEM_MANIFEST.json MODELS.SYNTHESIZER. synth_king.py uses the hierarchy value first (king_cfg.get('model', args.model_synth)) with the manifest SYNTHESIZER only as fallback, so the previous value silently overrode the package-level synthesis assignment. All other hierarchy roles have no SYSTEM_MANIFEST counterpart and are unchanged.",
   "king_synthesizer": {
     "role": "KING_SYNTHESIZER",
-    "model": "qwen3:14b",
+    "model": "qwen3.8:27b",
     "channel": "canonical",
     "priority": 1
   },
