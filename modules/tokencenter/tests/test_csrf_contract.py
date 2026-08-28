@@ -50,7 +50,10 @@ class ServerFixture:
     # --- request helpers -------------------------------------------------
 
     def post_refresh(self, headers=None):
-        req = urllib.request.Request(self.base + "/api/refresh", data=b"",
+        # data=None = bodiless POST, exactly what the UI's fetch() sends.
+        # (data=b"" would make urllib invent a form Content-Type, which the
+        # B2-3 mutation guard correctly refuses.)
+        req = urllib.request.Request(self.base + "/api/refresh", data=None,
                                      method="POST", headers=headers or {})
         return self._run(req)
 

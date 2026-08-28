@@ -28,6 +28,13 @@ DB_PATH = DATA_ROOT / "piggybank.sqlite"
 REFRESH_SECONDS = 300
 LOOKBACK_DAYS = 45
 
+# M-1 full (B2-3): strict content policy for every Token Center response.
+# static/index.html carries external /app.js and /styles.css only (no inline
+# script/style/handlers), so a strict 'self' policy is safe.
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
+       "connect-src 'self'; img-src 'self' data:; "
+       "frame-ancestors 'none'; object-src 'none'; base-uri 'none'")
+
 
 @dataclass(frozen=True)
 class UsageEvent:
@@ -757,9 +764,10 @@ class State:
 
 
 def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRequestHandler]:
-    # H-3/M-1 Option A: one REAL CSRF token per server process, generated at
-    # start, served only to the same-origin UI, and compared (constant-time)
-    # on every mutating request.
+    # H-3/M-1 Option A (B1-2) + M-1 full hardening (B2-3): one REAL CSRF token
+    # per server process, generated at start, served only to the same-origin
+    # UI, compared constant-time on mutating requests; EXACT-origin matching;
+    # a bodyless mutation guard; standard security headers on every response.
     token = csrf_token if csrf_token is not None else secrets.token_urlsafe(32)
 
     class Handler(BaseHTTPRequestHandler):
@@ -768,10 +776,20 @@ def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRe
         def log_message(self, fmt: str, *args: Any) -> None:
             return
 
+        def send_response(self, code, message=None):
+            super().send_response(code, message)
+            self.send_header("Content-Security-Policy", CSP)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+
         def _loopback_host(self) -> bool:
             host = self.headers.get("Host")
             return host in ("127.0.0.1:8765",
                             "127.0.0.1:%d" % (self.server.server_address[1],))
+
+        def _expected_origin(self) -> str:
+            return "http://127.0.0.1:%d" % (self.server.server_address[1],)
 
         def _json(self, payload: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
             encoded = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -841,11 +859,34 @@ def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRe
             if not self._loopback_host():
                 self.send_error(HTTPStatus.FORBIDDEN, "Host not loopback")
                 return
-            if origin is None or not origin.startswith("http://127.0.0.1"):
-                self.send_error(HTTPStatus.FORBIDDEN, "Origin required (loopback)")
+            if origin != self._expected_origin():
+                self.send_error(HTTPStatus.FORBIDDEN,
+                                "Origin must exactly match the serving origin")
                 return
             if not nonce or not hmac.compare_digest(nonce, token):
                 self.send_error(HTTPStatus.FORBIDDEN, "X-CSRF-Nonce invalid")
+                return
+            if self.headers.get("Transfer-Encoding"):
+                self.send_error(HTTPStatus.FORBIDDEN,
+                                "Chunked bodies not accepted")
+                return
+            content_length = self.headers.get("Content-Length")
+            if content_length is not None:
+                try:
+                    length = int(content_length)
+                except ValueError:
+                    self.send_error(HTTPStatus.FORBIDDEN,
+                                    "Malformed Content-Length")
+                    return
+                if length != 0:
+                    self.send_error(HTTPStatus.FORBIDDEN,
+                                    "Body not accepted on this endpoint")
+                    return
+            content_type = (self.headers.get("Content-Type") or "").lower()
+            if content_type.startswith(("application/x-www-form-urlencoded",
+                                        "multipart/")):
+                self.send_error(HTTPStatus.FORBIDDEN,
+                                "Form encodings not accepted")
                 return
             if urlparse(self.path).path != "/api/refresh":
                 self.send_error(HTTPStatus.NOT_FOUND)
