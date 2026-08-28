@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "directive": "SWS-REM-DIR-20260828 R2 / B1-1 (C-1 closure)",
+  "policy": "value-based: each entry must match an exact relative path AND the exact SHA-256 of the file content. Glob/wildcard characters in paths are rejected with a configuration error. Nothing is allow-listed by pattern.",
+  "entries": [
+    {
+      "path": "modules/distillery/tests/test_corpus_admission.py",
+      "sha256": "80ef530c9265b13a83bac141f707bacb736efa862bd723dd5386945c2dbefbff",
+      "reason": "declared test fixture: contains the synthetic credential sk-synthetic000000000000000000 (SYNTHETIC_API_KEY) used by Distillery's secret-detector and corpus-admission tests"
+    },
+    {
+      "path": "modules/distillery/tests/test_end_to_end_dry_run.py",
+      "sha256": "56f7018b354a121490b8aa692293d66408311a78c8229225048dbb5b404684ca",
+      "reason": "declared test fixture: contains the synthetic credential sk-synthetic000000000000000000 inside a recovery-procedure test payload"
+    },
+    {
+      "path": "modules/distillery/tests/test_secret_detector_net.py",
+      "sha256": "273d5d78673c171328ad27c09d5867d49c1968c29b6a4be4027840b355da60c7",
+      "reason": "declared test fixture: ALLOWED_FIXTURE_VALUE = sk-synthetic000000000000000000 for the secret-detector net test"
+    },
+    {
+      "path": "modules/distillery/tools/export_enterprise.py",
+      "sha256": "aa10112825cc4604d1b90d4da1a174d149caeb6338e3f0371b74583a98ac4f24",
+      "reason": "declared fixture: DECLARED_FIXTURE_SECRETS = {sk-synthetic000000000000000000} — the exporter's own allow-list of synthetic test values"
+    },
+    {
+      "path": "tools/release/test_package_boundary_gate.py",
+      "sha256": "2d2a838be44c6654a0ad693bce1251d240feb43cbe2944948152350bba8ab3dc",
+      "reason": "declared test fixture: the gate's own regression tests embed an AKIA example key and a PRIVATE KEY block by design; any edit to this file requires a re-declared hash"
+    }
+  ]
+}
