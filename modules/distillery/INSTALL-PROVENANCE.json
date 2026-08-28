@@ -1,0 +1,46 @@
+{
+  "module": "distillery",
+  "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
+  "generated_utc": "2026-08-28T02:33:25Z",
+  "producer": "builder qwen3.8-max via tools/release/generate_module_provenance.py",
+  "candidate": {
+    "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
+    "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
+    "worktree": "D:/producttion software 2/release-worktree",
+    "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
+    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3"
+  },
+  "source_kind": "candidate_tree_module",
+  "source_sha256": "93a0c692340dce46c7ec5f170253b86304896593ba6e984392d0dfc8a8342f6f",
+  "source_sha256_basis": "module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 212 files under modules/distillery/ at generation time, excluding INSTALL-PROVENANCE.json itself",
+  "content_file_count": 212,
+  "version": "1.1.0rc3",
+  "lockfiles": [],
+  "artifacts": [
+    {
+      "path": "modules/distillery/dist/sovereign_grounded_distillery-1.1.0rc3-py3-none-any.whl",
+      "sha256": "15fad107f41aafc6ae0daa405f3bd4d4044365eb854a8e3d1f2f8b04d91536eb"
+    },
+    {
+      "path": "modules/distillery/dist/sovereign_grounded_distillery-1.1.0rc3.tar.gz",
+      "sha256": "c9b556ce14544f5f7253fe6659a51f24761ea0883d9c5b03cd37f0031cb6b573"
+    }
+  ],
+  "lineage_history": {
+    "carried_from": "modules/distillery/INSTALL-PROVENANCE.json.previous (and INSTALL-MANIFEST.txt.previous, both preserved untouched)",
+    "source": "D:\\Product Software\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e\\SOURCE_TREE",
+    "method": "robocopy /E",
+    "commit": "6cd9886 [U] (directive §3)",
+    "note": "Protected D:\\Sovereign Distillery\\ was never a copy source. Version 1.1.0rc3 is coupled in pyproject.toml and docs/VERSION_MATRIX.json (W-4 coupling; OD-2 governs release)."
+  },
+  "superseded_records": [
+    "modules/distillery/INSTALL-PROVENANCE.json.previous"
+  ],
+  "operator_authorized": null,
+  "integrity_verified": true,
+  "verification_basis": "content digest, lockfile and artifact hashes computed mechanically from candidate bytes at generation time; lineage_history carried from the preserved legacy record and marked [U] where unverified",
+  "open_items": [
+    "OD-2: SD-RBR-v1.0 W-4/W-5 release token issued at T-1; execution in its authorized batch",
+    "OD-7/OD-8: Distillery governance dispositions; ships status-only this release (OD-8 default)"
+  ]
+}

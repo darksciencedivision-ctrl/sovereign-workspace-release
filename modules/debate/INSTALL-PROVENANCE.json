@@ -1,0 +1,44 @@
+{
+  "module": "debate",
+  "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
+  "generated_utc": "2026-08-28T02:33:25Z",
+  "producer": "builder qwen3.8-max via tools/release/generate_module_provenance.py",
+  "candidate": {
+    "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
+    "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
+    "worktree": "D:/producttion software 2/release-worktree",
+    "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
+    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3"
+  },
+  "source_kind": "candidate_tree_module",
+  "source_sha256": "dface6ca252514b1253e059d602a36b4350c1447a45a223210c396007f49c0a5",
+  "source_sha256_basis": "module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 53 files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself",
+  "content_file_count": 53,
+  "version": "v1.2.1-hardening",
+  "lockfiles": [
+    {
+      "path": "modules/debate/requirements.lock.txt",
+      "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2"
+    }
+  ],
+  "artifacts": [],
+  "lineage_history": {
+    "carried_from": "modules/debate/INSTALL-PROVENANCE.previous.json",
+    "installed_source_archive": "D:/Product Software/Debate_Table_v1.2_Phase1_Production_20260811_201116 - Copy.zip",
+    "installed_source_sha256": "29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93",
+    "note": "The installed v1.2 Phase1 archive was superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json: source_commit 43695bd, upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… cited by directive §3 remains [U] here.",
+    "module_manifest": {
+      "path": "modules/debate/MANIFEST-SHA256.json",
+      "note": "module's own content manifest; hash measured at generation"
+    }
+  },
+  "superseded_records": [
+    "modules/debate/INSTALL-PROVENANCE.previous.json"
+  ],
+  "operator_authorized": null,
+  "integrity_verified": true,
+  "verification_basis": "content digest, lockfile and artifact hashes computed mechanically from candidate bytes at generation time; lineage_history carried from the preserved legacy record and marked [U] where unverified",
+  "open_items": [
+    "OD-9: Debate Phase-7/Phase-8 deferrals and extended soak stay out of this release (named limitations)"
+  ]
+}

@@ -57,12 +57,17 @@ class RegistryError(Exception):
 
 
 def check(root: str, modules: dict) -> dict:
-    # hash -> owning module(s), for cross-module detection
+    # hash -> owning module(s), for cross-module detection.
+    # Ownership covers the registered source hash AND any historical hashes
+    # a module is known to own (e.g. distillery owns 620e8459…, the digest
+    # found mis-attributed inside sovereign's defective record).
     hash_owners: dict[str, list] = {}
     for name, entry in modules.items():
-        h = entry.get("source_sha256")
-        if h:
-            hash_owners.setdefault(h, []).append(name)
+        owned = [entry.get("source_sha256")]
+        owned.extend(entry.get("historical_source_hashes", []) or [])
+        for h in owned:
+            if h:
+                hash_owners.setdefault(h, []).append(name)
 
     results = {}
     for name, entry in modules.items():

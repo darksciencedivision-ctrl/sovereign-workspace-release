@@ -1,0 +1,45 @@
+{
+  "module": "sow",
+  "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
+  "generated_utc": "2026-08-28T02:33:25Z",
+  "producer": "builder qwen3.8-max via tools/release/generate_module_provenance.py",
+  "candidate": {
+    "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
+    "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
+    "worktree": "D:/producttion software 2/release-worktree",
+    "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
+    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3"
+  },
+  "source_kind": "candidate_tree_module",
+  "source_sha256": "57923d8f29091587f39b70551bcdad42e186b4afc92f055931608453c2fb4abf",
+  "source_sha256_basis": "module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 960 files under modules/sow/ at generation time, excluding INSTALL-PROVENANCE.json itself",
+  "content_file_count": 960,
+  "version": "0.1.0",
+  "lockfiles": [
+    {
+      "path": "modules/sow/apps/desktop/package-lock.json",
+      "sha256": "573eba33d505d949ffa37e71609fbfb5df5f46ea6999ee482adb7d4cf6ffdbbf"
+    }
+  ],
+  "artifacts": [],
+  "lineage_history": {
+    "carried_from": "modules/sow/INSTALL-PROVENANCE.previous.json",
+    "source_kind": "git_worktree_copy",
+    "git_head": "6d23a81082836778ffd46c70151821b467dc7432",
+    "upstream_ref": "e6fcb89 [U] (directive §3; records cite upstream e6fcb89, unverified)",
+    "working_tree_state": "dirty_tracked=true, dirty_untracked=true (four dirty entries per legacy record) [U]",
+    "electron_zip_sha256": "e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f",
+    "electron_version": "31.7.7 (EOL; H-2 upgrade is its own Batch-3 unit)",
+    "note": "Canonical SOW lineage is UNRESOLVED pending the OD-20 ruling (H-5): RESET-only files control_plane/canonical_registry.py and adapters/local/llamacpp.py are absent from this SYSTEM tree. This record describes the candidate bytes as they stand; it does not adjudicate lineage."
+  },
+  "superseded_records": [
+    "modules/sow/INSTALL-PROVENANCE.previous.json"
+  ],
+  "operator_authorized": null,
+  "integrity_verified": true,
+  "verification_basis": "content digest, lockfile and artifact hashes computed mechanically from candidate bytes at generation time; lineage_history carried from the preserved legacy record and marked [U] where unverified",
+  "open_items": [
+    "OD-20: H-5 canonical lineage ruling required before any SOW lineage claim becomes accepted",
+    "H-1 admission-before-spawn and H-2 Electron upgrade are separate authorized units"
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "manifest_kind": "RELEASE-MANIFEST",
+  "directive": "SWS-REM-DIR-20260828 R2 / B2-2 (C-3 closure)",
+  "generated_utc": "2026-08-28T02:36:00Z",
+  "producer": "builder qwen3.8-max (deepseek harness)",
+  "policy": "Validation logic reads ONLY the explicit paths and hashes enumerated in this manifest. Filename globbing is forbidden (R2 §4 Batch 2, C-3 design). Every hash below was measured by the builder seat from candidate bytes on 2026-08-28.",
+  "candidate": {
+    "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
+    "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
+    "baseline_sidecar": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip.sha256 (P0-1, beside the archive)",
+    "worktree": "D:/producttion software 2/release-worktree",
+    "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
+    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3",
+    "construction_recipe": "bundles/PHASE0/WORKTREE-RECIPE.md"
+  },
+  "modules": {
+    "debate": {
+      "current_provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
+      "provenance_record_sha256": "74391d8c19bbebeb634f1ccfda09515177d432fa66e56fe00e059df04f486ac7",
+      "superseded_provenance_paths": [
+        "modules/debate/INSTALL-PROVENANCE.previous.json"
+      ],
+      "source_identity": {
+        "kind": "candidate_tree_module",
+        "content_digest_sha256": "dface6ca252514b1253e059d602a36b4350c1447a45a223210c396007f49c0a5",
+        "content_file_count": 53,
+        "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… [U]"
+      },
+      "version": "v1.2.1-hardening",
+      "locks": [
+        {
+          "path": "modules/debate/requirements.lock.txt",
+          "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2"
+        }
+      ],
+      "module_manifests": [
+        {
+          "path": "modules/debate/MANIFEST-SHA256.json",
+          "sha256": "d43d965891e63e1b047eb2b8c795db8c9b36456b4e193c75d7fa3a075fa889b5"
+        }
+      ],
+      "artifacts": []
+    },
+    "distillery": {
+      "current_provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
+      "provenance_record_sha256": "e9e555d9a1c6f6d94023eb3ba2e6d50160589055ad00035c3a14d6cd7be64c07",
+      "superseded_provenance_paths": [
+        "modules/distillery/INSTALL-PROVENANCE.json.previous",
+        "modules/distillery/INSTALL-MANIFEST.txt.previous"
+      ],
+      "source_identity": {
+        "kind": "candidate_tree_module",
+        "content_digest_sha256": "93a0c692340dce46c7ec5f170253b86304896593ba6e984392d0dfc8a8342f6f",
+        "content_file_count": 212,
+        "historical_source_hashes": [
+          "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96"
+        ],
+        "lineage": "robocopy /E from D:\\Product Software\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e\\SOURCE_TREE; commit 6cd9886 [U]"
+      },
+      "version": "1.1.0rc3",
+      "locks": [],
+      "artifacts": [
+        {
+          "path": "modules/distillery/dist/sovereign_grounded_distillery-1.1.0rc3-py3-none-any.whl",
+          "sha256": "15fad107f41aafc6ae0daa405f3bd4d4044365eb854a8e3d1f2f8b04d91536eb"
+        },
+        {
+          "path": "modules/distillery/dist/sovereign_grounded_distillery-1.1.0rc3.tar.gz",
+          "sha256": "c9b556ce14544f5f7253fe6659a51f24761ea0883d9c5b03cd37f0031cb6b573"
+        }
+      ]
+    },
+    "sovereign": {
+      "current_provenance_path": "modules/sovereign/INSTALL-PROVENANCE.json",
+      "provenance_record_sha256": "3c0c98e4ed286774258802c14789f89c2752fe03b782346f70e3304065c93da6",
+      "superseded_provenance_paths": [
+        "modules/sovereign/INSTALL-PROVENANCE.previous.json"
+      ],
+      "source_identity": {
+        "kind": "archive",
+        "source_sha256": "150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51",
+        "source": "D:/Product Software/SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip",
+        "note": "re-hashed by builder seat 2026-08-28 from the archive on operator disk (B2-1)"
+      },
+      "version": "SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520",
+      "locks": [
+        {
+          "path": "modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt",
+          "sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f"
+        }
+      ],
+      "module_manifests": [
+        {
+          "path": "modules/sovereign/PACKAGE_MANIFEST.txt",
+          "sha256": "d2fa7633e8f98cbf1143fb60a724eb3cfede224c6df318313edb3230de8305da"
+        }
+      ],
+      "artifacts": []
+    },
+    "sow": {
+      "current_provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
+      "provenance_record_sha256": "1183f3cd5aa402d0cef24203300801f6bd5ad25e1fdfc5a4455c10fec09f0aee",
+      "superseded_provenance_paths": [
+        "modules/sow/INSTALL-PROVENANCE.previous.json"
+      ],
+      "source_identity": {
+        "kind": "candidate_tree_module",
+        "content_digest_sha256": "57923d8f29091587f39b70551bcdad42e186b4afc92f055931608453c2fb4abf",
+        "content_file_count": 960,
+        "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)"
+      },
+      "version": "0.1.0 (sovereign-desktop)",
+      "locks": [
+        {
+          "path": "modules/sow/apps/desktop/package-lock.json",
+          "sha256": "573eba33d505d949ffa37e71609fbfb5df5f46ea6999ee482adb7d4cf6ffdbbf"
+        }
+      ],
+      "artifacts": []
+    },
+    "tokencenter": {
+      "current_provenance_path": "modules/tokencenter/INSTALL-PROVENANCE.json",
+      "provenance_record_sha256": "506ea28cb0ca39c2243824a164ee79921aa106f49988e26ae2e93d980116da1d",
+      "superseded_provenance_paths": [],
+      "source_identity": {
+        "kind": "copy-based",
+        "source": "D:\\Token Piggy Bank",
+        "note": "option-A copy per the existing record (utc 2026-08-26T15:43:52Z); no source archive digest exists for copy-based provenance; record left byte-identical by B2-2"
+      },
+      "version": "record-dated 2026-08-26",
+      "locks": [],
+      "artifacts": []
+    }
+  },
+  "release_tools": {
+    "package_boundary_gate": "tools/release/package_boundary_gate.py",
+    "package_boundary_gate_allowlist": "tools/release/fixture_allowlist.json",
+    "provenance_cross_hash_check": "tools/release/provenance_cross_hash_check.py",
+    "module_source_registry": "tools/release/module_source_registry.json",
+    "release_manifest_check": "tools/release/release_manifest_check.py",
+    "generate_module_provenance": "tools/release/generate_module_provenance.py"
+  }
+}
