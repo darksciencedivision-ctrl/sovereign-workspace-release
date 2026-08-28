@@ -3,11 +3,22 @@ SWS Probes — readiness, identity, pre-flight.
 """
 import json
 import os
+from pathlib import Path
+import shutil
 import socket
 import subprocess
 import time
 import urllib.request
 import urllib.error
+
+try:
+    from modules.sow.adapters.cmd_shim import assert_cmd_shim_argv_safe
+except ImportError:  # direct execution: repository root not on sys.path
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location(
+        "cmd_shim", Path(__file__).resolve().parents[2] / "modules/sow/adapters/cmd_shim.py")
+    _mod = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_mod)
+    assert_cmd_shim_argv_safe = _mod.assert_cmd_shim_argv_safe
 
 
 def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tuple[bool, float, str]:
@@ -126,6 +137,14 @@ def preflight_toolchain() -> dict:
                         ("node", ["node", "--version"]),
                         ("npm", ["npm", "--version"])]:
         try:
+            if name == "npm":
+                resolved = shutil.which("npm")
+                if not resolved:
+                    raise FileNotFoundError("npm not found on PATH")
+                args = [resolved, "--version"]
+                if resolved.lower().endswith((".cmd", ".bat")):
+                    assert_cmd_shim_argv_safe(args)
+                    args = ["cmd.exe", "/d", "/c", *args]
             r = subprocess.run(args, capture_output=True, text=True, timeout=10)
             results[name] = {"present": True, "version": r.stdout.strip()}
         except Exception as e:
