@@ -1,4 +1,4 @@
-﻿"""Runtime integrity enforcement for protected SOVEREIGN paths and state files."""
+"""Runtime integrity enforcement for protected SOVEREIGN paths and state files."""
 
 from __future__ import annotations
 

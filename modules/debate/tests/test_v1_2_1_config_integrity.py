@@ -1,4 +1,4 @@
-﻿"""v1.2.1 hardening regression tests: configuration integrity (P0-02, P0-03).
+"""v1.2.1 hardening regression tests: configuration integrity (P0-02, P0-03).
 
 Contract:
 - Malformed JSON config must be rejected, never replaced by defaults, and the
