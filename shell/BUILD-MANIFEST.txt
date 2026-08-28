@@ -1,9 +1,10 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-28T16:36:01Z
+# utc: 2026-08-28T16:49:12Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 64
+# entries: 65
+1ca7821b80863858f0beaad752ad7603d4b90e9f5258744109f77a4b6e8baab9  config/install.json
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json
 661d36050de163ffd6a0558d32aa0977110c4e25c8bc6e29d78fe5a5a10e5c05  modules/distillery.json
 29fca23318c46abe7d7bc0c14547d38d871ce51ca9941658f8f292b7a6ac32e6  modules/llamacpp.json
