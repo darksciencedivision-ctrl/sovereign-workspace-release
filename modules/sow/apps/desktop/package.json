@@ -2,7 +2,7 @@
   "name": "sovereign-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Sovereign Orchestration Workspace \u2014 product desktop shell (Electron + xterm.js + node-pty). Phase 14A. Every terminal is a supervised Sovereign node; no naked sessions.",
+  "description": "Sovereign Orchestration Workspace — product desktop shell (Electron + xterm.js + node-pty). Phase 14A. Every terminal is a supervised Sovereign node; no naked sessions.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -20,6 +20,10 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "^43.4.1"
+  },
+  "allowScripts": {
+    "electron@43.4.1": true,
+    "node-pty@1.1.0": true
   }
 }
