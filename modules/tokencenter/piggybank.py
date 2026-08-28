@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import threading
 import time
@@ -754,12 +756,22 @@ class State:
         return result
 
 
-def make_handler(state: State) -> type[BaseHTTPRequestHandler]:
+def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRequestHandler]:
+    # H-3/M-1 Option A: one REAL CSRF token per server process, generated at
+    # start, served only to the same-origin UI, and compared (constant-time)
+    # on every mutating request.
+    token = csrf_token if csrf_token is not None else secrets.token_urlsafe(32)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "SovereignTokenCenter/1.0"
 
         def log_message(self, fmt: str, *args: Any) -> None:
             return
+
+        def _loopback_host(self) -> bool:
+            host = self.headers.get("Host")
+            return host in ("127.0.0.1:8765",
+                            "127.0.0.1:%d" % (self.server.server_address[1],))
 
         def _json(self, payload: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
             encoded = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -797,6 +809,12 @@ def make_handler(state: State) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/healthz":
                 self._json({"ok": state.error is None, "collector_error": state.error})
                 return
+            if parsed.path == "/api/csrf-token":
+                if not self._loopback_host():
+                    self.send_error(HTTPStatus.FORBIDDEN, "Host not loopback")
+                    return
+                self._json({"token": token})
+                return
             if parsed.path in ("/", "/index.html"):
                 self._static("index.html", "text/html; charset=utf-8")
                 return
@@ -818,17 +836,16 @@ def make_handler(state: State) -> type[BaseHTTPRequestHandler]:
             self.send_error(HTTPStatus.NOT_FOUND)
 
         def do_POST(self) -> None:  # noqa: N802
-            host = self.headers.get("Host")
             origin = self.headers.get("Origin")
             nonce = self.headers.get("X-CSRF-Nonce", "")
-            if host not in ("127.0.0.1:8765", "127.0.0.1:%d" % (self.server.server_address[1])):
+            if not self._loopback_host():
                 self.send_error(HTTPStatus.FORBIDDEN, "Host not loopback")
                 return
             if origin is None or not origin.startswith("http://127.0.0.1"):
                 self.send_error(HTTPStatus.FORBIDDEN, "Origin required (loopback)")
                 return
-            if not nonce:
-                self.send_error(HTTPStatus.FORBIDDEN, "X-CSRF-Nonce required")
+            if not nonce or not hmac.compare_digest(nonce, token):
+                self.send_error(HTTPStatus.FORBIDDEN, "X-CSRF-Nonce invalid")
                 return
             if urlparse(self.path).path != "/api/refresh":
                 self.send_error(HTTPStatus.NOT_FOUND)
@@ -867,7 +884,8 @@ def main() -> int:
     stop = threading.Event()
     worker = threading.Thread(target=refresh_loop, args=(state, stop), daemon=True)
     worker.start()
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state))
+    csrf_token = secrets.token_urlsafe(32)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, csrf_token))
     print(f"Sovereign Token Center: http://{args.host}:{args.port}")
     try:
         server.serve_forever()

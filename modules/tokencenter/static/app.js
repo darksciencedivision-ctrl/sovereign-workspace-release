@@ -261,7 +261,15 @@ async function refreshLedgers() {
   button.classList.add("working");
   $(".refresh-copy").textContent = "Reading…";
   try {
-    const response = await fetch("/api/refresh", { method: "POST" });
+    // H-3/M-1 Option A: fetch the server's per-process CSRF token over the
+    // same origin, then present it on the mutating request.
+    const tokenResponse = await fetch("/api/csrf-token");
+    if (!tokenResponse.ok) throw new Error("Refresh failed");
+    const { token } = await tokenResponse.json();
+    const response = await fetch("/api/refresh", {
+      method: "POST",
+      headers: { "X-CSRF-Nonce": token },
+    });
     if (!response.ok) throw new Error("Refresh failed");
     await load();
   } catch {
