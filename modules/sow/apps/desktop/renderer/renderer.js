@@ -557,7 +557,7 @@ S.onRecovery((info) => {
   if (!relaunchIds.length && !layout) { interruptedNotice = null; return; }
   const parts = [];
   if (layout) {
-    parts.push(`✓ conductor-first layout restored — CONDUCTOR pane 1 pinned, ${layout.summary.workers} worker pane(s), `
+    parts.push(`✓ conductor-first layout restored — CONDUCTOR pane 1 pinned, ${esc(layout.summary.workers)} worker pane(s), `
       + `admission ${layout.admissionOpen ? "OPEN" : "SHUT (awaiting a verified channel)"}`);
   }
   if (relaunchIds.length) {
@@ -659,7 +659,7 @@ function renderInspector(res) {
     <span class="dim">${esc((a.hash || "").slice(0, 16))}</span> <span class="dim">${esc(a.author || "")}</span></div>`;
   const taskCard = (t) => `<div class="ins-task"><div class="ins-title">${esc(t.taskId)}</div>
     <div class="ins-ctx">${t.contextRouted
-      ? `routed: ${esc(t.contextRouted.role || "?")} · ${t.contextRouted.count} entries`
+      ? `routed: ${esc(t.contextRouted.role || "?")} · ${esc(t.contextRouted.count)} entries`
       : `<span class="dim">context routed: not readable (ephemeral)</span>`}</div>
     ${t.gateChain.map(gateRow).join("") || '<div class="dim">no gate events</div>'}
     ${t.artifacts.map(artRow).join("") || '<div class="dim">no artifacts</div>'}</div>`;
@@ -669,7 +669,7 @@ function renderInspector(res) {
     ${degraded}
     <div class="ins-section">LIVE ORCHESTRATION</div>
     <div class="ins-sum">${opNodes.length} nodes · ${opAvailable
-      ? `${op.summary.task_count} tasks · ${op.summary.message_count} messages · ${op.summary.debate_count} debates`
+      ? `${esc(op.summary.task_count)} tasks · ${esc(op.summary.message_count)} messages · ${esc(op.summary.debate_count)} debates`
       : `<span class="warn-t">shared governed state UNREADABLE — ${esc(op.error) || "fail-closed"}</span>`}</div>
     ${opNodes.map(nodeRow).join("") || '<div class="dim">no live governed nodes</div>'}
     ${opAvailable
@@ -677,8 +677,8 @@ function renderInspector(res) {
       : '<div class="dim">assignments, messages and debates could not be read — this is not a count of zero</div>'}
     <div class="ins-section">ARTIFACT / GATE EVIDENCE</div>
     <div class="ins-sum">${legacyAvailable
-      ? `${summary.taskCount} tasks · ${summary.artifactCount} artifacts · ${summary.gateCount} gates
-      · ${summary.unattributedCount} unattributed · ${summary.anomalyCount} anomalies
+      ? `${esc(summary.taskCount)} tasks · ${esc(summary.artifactCount)} artifacts · ${esc(summary.gateCount)} gates
+      · ${esc(summary.unattributedCount)} unattributed · ${esc(summary.anomalyCount)} anomalies
       ${routingReadable ? "" : '· <span class="warn-t">routing not readable</span>'}`
       : `<span class="warn-t">artifact/gate evidence UNREADABLE — ${esc(res.legacyError) || "fail-closed"}</span>`}</div>
     ${legacyAvailable
@@ -905,7 +905,7 @@ function renderPicker(model) {
     return PickerChrome.providerGroupHtml(g, opts, esc);
   }).join("");
   body.innerHTML = `<div class="pk-head-row"><span class="dim">${target}</span>`
-    + `<span class="dim">${counts.available || 0}/${counts.total || 0} available</span></div>`
+    + `<span class="dim">${esc(counts.available || 0)}/${esc(counts.total || 0)} available</span></div>`
     + authLine + (groups || '<div class="dim">no options enumerated</div>')
     + `<div id="pk-result"></div>`;
   wirePickerButtons(flat);

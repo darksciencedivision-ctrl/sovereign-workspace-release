@@ -1,0 +1,130 @@
+{
+  "audit": "innerHTML interpolation ledger — SWS-REM-DIR-20260828 R2 B2-4 (M-3)",
+  "scope_file": "modules/sow/apps/desktop/renderer/renderer.js",
+  "policy": "Scope = every `.innerHTML =` RHS in the audited file (walked through callbacks) PLUS the templates enumerated by construction_fragments (content assigned to sinks later, and the row builders sinks concatenate). Every interpolation flagged MUST-JUSTIFY by tools/release/innerhtml_sink_audit.py needs a justifications entry naming its class (STATIC or ESCAPED-BY-CONSTRUCTION) and the byte-level reason it cannot inject markup. esc-wrapped, numeric, and .length interpolations never need entries. Explicit enumeration — no globs.",
+  "construction_fragments": [
+    "conductor-first layout restored",
+    "need supervised relaunch",
+    "ins-node",
+    "ins-msg",
+    "ins-debate",
+    "ins-task",
+    "ins-gate",
+    "ins-art",
+    "appr-item",
+    "sb-chip",
+    "pk-opt",
+    "pk-res",
+    "pk-auth"
+  ],
+  "justifications": {
+    "n.ready ? \"ACCEPTED\" : \"CANDIDATE\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:641 — ternary with string-literal branches only (class-name switch)."
+    },
+    "n.ready ? \"READY\" : esc(n.mcp_state || n.node_state)": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "renderer.js:641 — branches are the literal \"READY\" or esc(n.mcp_state || n.node_state)."
+    },
+    "d.state === \"OPEN\" ? \"CANDIDATE\" : \"ACCEPTED\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:645 — ternary with string-literal branches only (class-name switch)."
+    },
+    "messages.map(msgRow).join(\"\")": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "msgRow builder renderer.js:643-644 wraps every interpolation in esc() (message_kind, sender_node_id, recipient join, body, message_id)."
+    },
+    "debates.map(debateRow).join(\"\")": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "debateRow builder renderer.js:645-648 wraps every dynamic field in esc(); the only un-esc'd value is (d.turns || []).length, a language-guaranteed integer."
+    },
+    "g.derived ? ' <span class=\"badge\">derived</span>' : \"\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:656 — ternary branches are a static markup literal and the empty string."
+    },
+    "t.gateChain.map(gateRow).join(\"\") || '<div class=\"dim\">no gate events</div>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "gateRow builder renderer.js:656-657 esc()s verdict/author/entryStatus; the || fallback is a static literal (renderer.js:664)."
+    },
+    "t.artifacts.map(artRow).join(\"\") || '<div class=\"dim\">no artifacts</div>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "artRow builder renderer.js:658-659 esc()s kind/status/hash-slice/author; the || fallback is a static literal (renderer.js:665)."
+    },
+    "routingReadable ? \"\" : '· <span class=\"warn-t\">routing not readable</span>'": {
+      "class": "STATIC",
+      "reason": "renderer.js:682 — ternary branches are the empty string and a static markup literal."
+    },
+    "unatt.gates.map(gateRow).join(\"\")": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "gateRow builder renderer.js:656-657 esc()s every dynamic field (renderer.js:689 call site)."
+    },
+    "unatt.artifacts.map(artRow).join(\"\")": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "artRow builder renderer.js:658-659 esc()s every dynamic field (renderer.js:689 call site)."
+    },
+    "degraded": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "degraded built at renderer.js:628 — either \"\" or a template whose only dynamic value is esc(res.error) with a static fallback."
+    },
+    "opNodes.map(nodeRow).join(\"\") || '<div class=\"dim\">no live governed nodes</div>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "nodeRow builder renderer.js:640-642 esc()s role/provider_id/model_id/state/node_id/pane_id/pid/mcp_state; the || fallback is a static literal (renderer.js:674)."
+    },
+    "opAvailable ? (opTasks.map(operationalTask).join(\"\") || '<div class=\"dim\">no operational assignments</div>') : '<div class=\"dim\">assignments, messages and debates could not be read — this is not a count of zero</div>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "operationalTask builder renderer.js:649-654 esc()s task_id/status/objective/owners and delegates to msgRow/debateRow (both esc-only); both ternary fallbacks are static literals (renderer.js:675-677)."
+    },
+    "legacyAvailable ? (model.tasks.map(taskCard).join(\"\") || '<div class=\"dim\">no tasks in shared memory</div>') : '<div class=\"dim\">the control-plane channel could not be read — this is not a count of zero</div>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "taskCard builder renderer.js:660-665 esc()s taskId/role and (since B2-4) contextRouted.count, and delegates to gateRow/artRow (esc-only); both ternary fallbacks are static literals (renderer.js:684-686)."
+    },
+    "r.approvable ? \"Reject\" : \"Dismiss\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:736 — ternary with string-literal branches only (button caption)."
+    },
+    "chips || '<span class=\"dim\">…</span>'": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "chips built at renderer.js:819-823 — every interpolation esc()d (state, subscriptionRef/provider, provider label, count label); the || fallback is a static literal (renderer.js:826)."
+    },
+    "warn": {
+      "class": "STATIC",
+      "reason": "warn built at renderer.js:824-825 — either a static markup literal or \"\"."
+    },
+    "greyed ? \" greyed\" : \"\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:875 — ternary with string-literal branches only (class fragment)."
+    },
+    "oidx": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "oidx is the array index from flat.map((o, i) => ...) captured in the idxOf Map (renderer.js:895, 900-901) — always a non-negative integer; rendered into a data- attribute at renderer.js:875."
+    },
+    "slug": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "slug built at renderer.js:874 — esc(o.model_slug), or the static literal <span class=\"pk-slug\">CLI default</span>, or \"\"."
+    },
+    "residencyChip(o)": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "residencyChip builder renderer.js:862-865 — esc(o.residency) in both attribute and text position, else \"\"."
+    },
+    "roleSel": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "roleSel built at renderer.js:869-870 — esc(r) for every option value and label; data-oidx carries the same integer index as #20; \"\" when greyed/conductorTarget."
+    },
+    "action": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "action built at renderer.js:871-873 — esc(o.unavailable_reason) in the title attribute; button captions are static literals; data-oidx is the integer index."
+    },
+    "auth.authorized ? \"ok\" : \"denied\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:896 — ternary with string-literal branches only (class-name switch)."
+    },
+    "auth.authorized ? \"live authorized\" : \"live DENIED (fail-closed)\"": {
+      "class": "STATIC",
+      "reason": "renderer.js:896 — ternary with string-literal branches only (status text)."
+    },
+    "target": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "target built at renderer.js:897 — either the static literal \"target: new pane\" or esc(pickerTarget)."
+    }
+  }
+}
