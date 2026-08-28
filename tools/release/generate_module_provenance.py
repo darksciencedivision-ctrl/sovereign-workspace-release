@@ -5,10 +5,11 @@ SWS-REM-DIR-20260828 R2, B2-2 (C-3 closure, part 1). For each named module the
 record is derived mechanically from the bytes present in the release worktree
 (extracted from SYSTEM baseline 75e4be07…ac27138), never from prose or memory:
 
-* ``source_sha256`` is the module CONTENT DIGEST — SHA-256 over the sorted
-  ``<sha256>  <relpath>`` lines of every file under ``modules/<m>/`` at
-  generation time, excluding the module's own INSTALL-PROVENANCE.json
-  (self-reference). The basis string records the method verbatim.
+* ``source_sha256`` is the archive-stable module CONTENT DIGEST — SHA-256 over
+  the sorted ``<sha256>  <relpath>`` lines of every git-tracked file under
+  ``modules/<m>/`` at generation time, excluding the module's own INSTALL-
+  PROVENANCE.json (self-reference). Ignored host state is absent by the same
+  construction as ``git archive``. The basis string records the method verbatim.
 * lockfiles and build artifacts are re-hashed on the spot.
 * lineage facts from the preserved legacy records are carried into
   ``lineage_history`` marked as history, with [U] where unverified.
@@ -101,16 +102,24 @@ def sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
-def content_digest(module_dir: str) -> tuple:
+def content_digest(root: str, module_name: str) -> tuple:
+    module_rel = f"modules/{module_name}"
+    listed = subprocess.run(
+        ["git", "ls-files", "--", module_rel], cwd=root,
+        capture_output=True, text=True, timeout=30)
+    if listed.returncode != 0:
+        raise RuntimeError(
+            f"git ls-files failed for {module_rel}: {listed.stderr.strip()}")
     entries = []
-    for root, dirs, files in os.walk(module_dir):
-        dirs.sort()
-        for fn in sorted(files):
-            full = os.path.join(root, fn)
-            rel = os.path.relpath(full, module_dir).replace(os.sep, "/")
-            if rel == RECORD_NAME:
-                continue
-            entries.append((rel, sha256_file(full)))
+    prefix = module_rel + "/"
+    for repo_rel in listed.stdout.splitlines():
+        if not repo_rel.startswith(prefix):
+            continue
+        rel = repo_rel[len(prefix):]
+        if rel == RECORD_NAME:
+            continue
+        full = os.path.join(root, repo_rel.replace("/", os.sep))
+        entries.append((rel, sha256_file(full)))
     entries.sort(key=lambda item: item[0])
     blob = "".join(f"{digest}  {rel}\n" for rel, digest in entries)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest(), len(entries)
@@ -144,13 +153,12 @@ def generate(root: str) -> dict:
     head = head_commit(root)
     records = {}
     for name, cfg in MODULES.items():
-        module_dir = os.path.join(root, "modules", name)
-        digest, count = content_digest(module_dir)
+        digest, count = content_digest(root, name)
         record = {
             "module": name,
             "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
             "generated_utc": now,
-            "producer": "builder qwen3.8-max via tools/release/generate_module_provenance.py",
+            "producer": "builder codex via tools/release/generate_module_provenance.py",
             "candidate": {
                 "baseline_archive": BASELINE_ZIP,
                 "baseline_sha256": BASELINE_SHA256,
@@ -161,9 +169,10 @@ def generate(root: str) -> dict:
             "source_kind": "candidate_tree_module",
             "source_sha256": digest,
             "source_sha256_basis": (
-                "module content digest: SHA-256 over sorted '<sha256>  <relpath>' "
-                f"lines of all {count} files under modules/{name}/ at generation "
-                f"time, excluding {RECORD_NAME} itself"),
+                "archive-stable module content digest: SHA-256 over sorted "
+                "'<sha256>  <relpath>' lines of all "
+                f"{count} git-tracked files under modules/{name}/ at generation "
+                f"time, excluding {RECORD_NAME} itself; ignored host state is excluded"),
             "content_file_count": count,
             "version": read_version(root, cfg["version_source"]),
             "lockfiles": [

@@ -1,28 +1,28 @@
 {
   "manifest_kind": "RELEASE-MANIFEST",
   "directive": "SWS-REM-DIR-20260828 R2 / B2-2 (C-3 closure)",
-  "generated_utc": "2026-08-28T02:36:00Z",
-  "producer": "builder qwen3.8-max (deepseek harness)",
-  "policy": "Validation logic reads ONLY the explicit paths and hashes enumerated in this manifest. Filename globbing is forbidden (R2 §4 Batch 2, C-3 design). Every hash below was measured by the builder seat from candidate bytes on 2026-08-28.",
+  "generated_utc": "2026-08-28T17:06:13Z",
+  "producer": "builder codex",
+  "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. batch_files enumerates every Batch 4-E touched product file except RELEASE-MANIFEST.json itself (self-reference) and the three provenance records already enumerated by provenance_record_sha256.",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "baseline_sidecar": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip.sha256 (P0-1, beside the archive)",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3",
+    "worktree_commit_at_generation": "c287dab23444bbdfb36ef4c4d20b331175c62349",
     "construction_recipe": "bundles/PHASE0/WORKTREE-RECIPE.md"
   },
   "modules": {
     "debate": {
       "current_provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "74391d8c19bbebeb634f1ccfda09515177d432fa66e56fe00e059df04f486ac7",
+      "provenance_record_sha256": "622c0c0678943ebe32ca311502650b466eba8e3bfd9540ffe85b033516e4474d",
       "superseded_provenance_paths": [
         "modules/debate/INSTALL-PROVENANCE.previous.json"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "dface6ca252514b1253e059d602a36b4350c1447a45a223210c396007f49c0a5",
+        "content_digest_sha256": "1087827b4f26b8911c237d8ac6e845b0f67f69ce215808fc58150fe5f7931c3c",
         "content_file_count": 53,
         "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… [U]"
       },
@@ -36,22 +36,22 @@
       "module_manifests": [
         {
           "path": "modules/debate/MANIFEST-SHA256.json",
-          "sha256": "d43d965891e63e1b047eb2b8c795db8c9b36456b4e193c75d7fa3a075fa889b5"
+          "sha256": "fa321c26d667679bcbba90ae0d951536d2bbec859956369d2bea9a70621dde39"
         }
       ],
       "artifacts": []
     },
     "distillery": {
       "current_provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "e9e555d9a1c6f6d94023eb3ba2e6d50160589055ad00035c3a14d6cd7be64c07",
+      "provenance_record_sha256": "8875de5d72fc5e03aab95043c42adf1bd76da2f9459b972c65dd46bbc80ca213",
       "superseded_provenance_paths": [
         "modules/distillery/INSTALL-PROVENANCE.json.previous",
         "modules/distillery/INSTALL-MANIFEST.txt.previous"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "93a0c692340dce46c7ec5f170253b86304896593ba6e984392d0dfc8a8342f6f",
-        "content_file_count": 212,
+        "content_digest_sha256": "8448d68a2867692ce591b6730c37d43af5ce4279e4c5d5add4aede581e6c1656",
+        "content_file_count": 204,
         "historical_source_hashes": [
           "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96"
         ],
@@ -99,21 +99,21 @@
     },
     "sow": {
       "current_provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "1183f3cd5aa402d0cef24203300801f6bd5ad25e1fdfc5a4455c10fec09f0aee",
+      "provenance_record_sha256": "b3b5e3ffaad953be7f678ea5d0beb310d8b98522da023d72516e460f9401d9e1",
       "superseded_provenance_paths": [
         "modules/sow/INSTALL-PROVENANCE.previous.json"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "57923d8f29091587f39b70551bcdad42e186b4afc92f055931608453c2fb4abf",
-        "content_file_count": 960,
+        "content_digest_sha256": "3ef75c33faf54d43a9de6205436b64f691b16ee825ef36ba2c56cf46738dea3b",
+        "content_file_count": 952,
         "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)"
       },
-      "version": "0.1.0 (sovereign-desktop)",
+      "version": "0.1.0",
       "locks": [
         {
           "path": "modules/sow/apps/desktop/package-lock.json",
-          "sha256": "573eba33d505d949ffa37e71609fbfb5df5f46ea6999ee482adb7d4cf6ffdbbf"
+          "sha256": "6a79bbcc8bdc249ddd75d711965eb6620b7499063997e51d0512081f627a87fa"
         }
       ],
       "artifacts": []
@@ -139,5 +139,111 @@
     "module_source_registry": "tools/release/module_source_registry.json",
     "release_manifest_check": "tools/release/release_manifest_check.py",
     "generate_module_provenance": "tools/release/generate_module_provenance.py"
-  }
+  },
+  "batch_files": [
+    {
+      "path": "BUILD-DIRECTIVE-SWS-UI-001.md",
+      "sha256": "657cf02a18d37cf0a1fb5021b261c7297c4cbe0ea5e7437b3b199065079f5af8"
+    },
+    {
+      "path": "docs/ADR-003.md",
+      "sha256": "c68e31f79c5399324049d575cadf00105d06aaf103d926ffe45885579f50a2be"
+    },
+    {
+      "path": "docs/DISCOVERY.md",
+      "sha256": "7a88d5b7167076b1e3b119f50bb761bd8b9bf81da21bace63005af50eb76a9e9"
+    },
+    {
+      "path": "modules/debate/MANIFEST-SHA256.json",
+      "sha256": "fa321c26d667679bcbba90ae0d951536d2bbec859956369d2bea9a70621dde39"
+    },
+    {
+      "path": "modules/debate/config.json",
+      "sha256": "59f2f4d8462e70af38bb4d230c0202277362e8028891b086c70db1401847d898"
+    },
+    {
+      "path": "modules/sow/adapters/frontier/process_tree.py",
+      "sha256": "8186a55153a5f02ec736d4c688d3e7da0b97c10828d8113c270d42379bf03b56"
+    },
+    {
+      "path": "modules/sow/tests/integration/test_managed_clean_success.py",
+      "sha256": "ef0e421063edb2ca59eeb66872cfbb9ac64f336977ee985cd381b80920b2dddb"
+    },
+    {
+      "path": "shell/BUILD-MANIFEST.txt",
+      "sha256": "9b0760e262f5fcb05cbf725c4b181083157bda8951710f772d0415f570ba448a"
+    },
+    {
+      "path": "shell/config/install.json",
+      "sha256": "1ca7821b80863858f0beaad752ad7603d4b90e9f5258744109f77a4b6e8baab9"
+    },
+    {
+      "path": "shell/src/probe.py",
+      "sha256": "40923a1881a247a86d648047eaa8d830740aacc5cfd7d261c9943f023f826bf6"
+    },
+    {
+      "path": "shell/static/app.css",
+      "sha256": "88172e1fc78bc0cb6664a58a919d056957f86d2b7f924370cb0abe74906e35c7"
+    },
+    {
+      "path": "shell/static/app.js",
+      "sha256": "8404bdb7ff9969af7ed78452f0ccd1a0cee6dc0498e95736e9302d3962b7d8eb"
+    },
+    {
+      "path": "shell/static/brand-mark.svg",
+      "sha256": "8a857b46058e252b1d3926e68b18da34e712d0b88b85197a1c9fd736e298f7a7"
+    },
+    {
+      "path": "shell/static/index.html",
+      "sha256": "71e5b816b1196b7c2790d1fafbef472120aa5834c3d3dda9e25da82f3d30dba1"
+    },
+    {
+      "path": "shell/static/workspace-bg.svg",
+      "sha256": "18cccf8ae3440206e554110e8b2024959791b589b0940abf54bc4514c8065203"
+    },
+    {
+      "path": "shell/tests/test_probe.py",
+      "sha256": "8d6f9dc433a1c7b8997f9633f40d20f12fdeddb71959e05785683298dab4934c"
+    },
+    {
+      "path": "shell/tests/test_render.py",
+      "sha256": "09a2b09c2a7167fa699db12b03aa86d193469bd456dca9d77c8b90075edc0db1"
+    },
+    {
+      "path": "tools/release/README-GATE-POLICY.md",
+      "sha256": "5625c9abfa0797a64f3034b2eb9fb0de8f43d0984da9837e46bc2a14c04e6457"
+    },
+    {
+      "path": "tools/release/fixture_allowlist.json",
+      "sha256": "dadfc5d1025a35aeb37d8289f3b64c932739e88742a53e030fd40a281b8da82d"
+    },
+    {
+      "path": "tools/release/generate_module_provenance.py",
+      "sha256": "f13fe0505ee8d147c09445bbb84158b2b60286a54d2dd5f76902833ca7b583b5"
+    },
+    {
+      "path": "tools/release/module_source_registry.json",
+      "sha256": "31c32808ec7d65cef4902a587e751805e34484bafaee30d4767a73d9634290ec"
+    },
+    {
+      "path": "tools/release/rebase_adapters.py",
+      "sha256": "7c22c2a2b11d0a0db9565bef34e0e240cef7a35eafbec4c5c72830b54cd06dd6"
+    },
+    {
+      "path": "tools/release/release_manifest_check.py",
+      "sha256": "604304d1195abe0912f08632c013d92de4cf9af5b2a344ff1a0fa969187cfb13"
+    },
+    {
+      "path": "tools/release/test_package_boundary_gate.py",
+      "sha256": "8a55655da477ae9c69b9d0c81963d11201b21e306c03232aed3ea7de65dd0896"
+    },
+    {
+      "path": "tools/release/test_rebase_adapters.py",
+      "sha256": "feee1554c535dc6851385814931e4f50824c3157657989c59d403f03ee2baddb"
+    },
+    {
+      "path": "tools/release/test_release_manifest_check.py",
+      "sha256": "ea7597f7673fc28cca36276247eea305f185ea89efe5316b4c5677df84534491"
+    }
+  ]
 }

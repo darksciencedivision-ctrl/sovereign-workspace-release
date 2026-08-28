@@ -1,18 +1,18 @@
 {
   "module": "debate",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-08-28T02:33:25Z",
-  "producer": "builder qwen3.8-max via tools/release/generate_module_provenance.py",
+  "generated_utc": "2026-08-28T17:05:56Z",
+  "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "f1d9304d64221403333df5e1318617b2ea1922d3"
+    "worktree_commit_at_generation": "c287dab23444bbdfb36ef4c4d20b331175c62349"
   },
   "source_kind": "candidate_tree_module",
-  "source_sha256": "dface6ca252514b1253e059d602a36b4350c1447a45a223210c396007f49c0a5",
-  "source_sha256_basis": "module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 53 files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself",
+  "source_sha256": "1087827b4f26b8911c237d8ac6e845b0f67f69ce215808fc58150fe5f7931c3c",
+  "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 53 git-tracked files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
   "content_file_count": 53,
   "version": "v1.2.1-hardening",
   "lockfiles": [

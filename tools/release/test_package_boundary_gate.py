@@ -4,7 +4,7 @@
 Each rejected class must FAIL the gate; a declared fixture (value-based:
 exact path + exact sha256) must PASS; glob allow-list entries must be
 rejected as configuration errors; quarantined-historical lanes must never
-fail the scan; and the cleaned worktree must PASS.
+fail the scan; and a clean git archive must PASS.
 
 Stdlib-only (unittest) so the suite runs offline with no provisioning.
 Run: python -m unittest tools.release.test_package_boundary_gate -v
@@ -17,7 +17,9 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 
@@ -218,26 +220,31 @@ class TestQuarantineLanes(GateFixtureBase):
 
 
 class TestCleanedWorktree(GateFixtureBase):
-    """Pass-after proof: the actual cleaned worktree must PASS the gate."""
+    """Pass-after proof: the tracked release archive must PASS the gate."""
 
-    def test_worktree_passes(self):
+    def test_archive_passes(self):
         if not os.path.isdir(os.path.join(WORKTREE_ROOT, "modules")):
             self.skipTest("worktree not present beside this checkout")
-        # Remove this suite's own bytecode byproduct (from importing the
-        # gate module) so the scan measures the cleaned tree, not the test
-        # run's side effect. sys.dont_write_bytecode prevents recreation.
-        pycache = os.path.join(HERE, "__pycache__")
-        if os.path.isdir(pycache):
-            shutil.rmtree(pycache, ignore_errors=True)
-        allowlist_path = os.path.join(HERE, "fixture_allowlist.json")
-        res = gate.scan_tree(
-            WORKTREE_ROOT, gate.DEFAULT_QUARANTINE_LANES,
-            gate.load_allowlist(allowlist_path),
-            allowlist_source_path=allowlist_path)
+        with tempfile.TemporaryDirectory(prefix="pbg-archive-") as extracted:
+            archive = os.path.join(extracted, "release.tar")
+            cp = subprocess.run(
+                ["git", "archive", "--format=tar", "--output", archive, "HEAD"],
+                cwd=WORKTREE_ROOT, capture_output=True, text=True, check=False)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            archive_root = os.path.join(extracted, "tree")
+            os.makedirs(archive_root)
+            with tarfile.open(archive, "r") as tf:
+                tf.extractall(archive_root, filter="data")
+            allowlist_path = os.path.join(
+                archive_root, "tools", "release", "fixture_allowlist.json")
+            res = gate.scan_tree(
+                archive_root, gate.DEFAULT_QUARANTINE_LANES,
+                gate.load_allowlist(allowlist_path),
+                allowlist_source_path=allowlist_path)
         problems = res["violations"] + res["credential_hits"]
         self.assertFalse(
             problems,
-            "cleaned worktree must pass; first problems: %r" % problems[:10])
+            "clean archive must pass; first problems: %r" % problems[:10])
         self.assertGreater(res["files_scanned"], 1000)
         self.assertGreater(len(res["quarantined"]), 0,
                            "evidence/dev lanes must be present and quarantined")

@@ -25,7 +25,7 @@
     },
     {
       "path": "tools/release/test_package_boundary_gate.py",
-      "sha256": "2d2a838be44c6654a0ad693bce1251d240feb43cbe2944948152350bba8ab3dc",
+      "sha256": "8a55655da477ae9c69b9d0c81963d11201b21e306c03232aed3ea7de65dd0896",
       "reason": "declared test fixture: the gate's own regression tests embed an AKIA example key and a PRIVATE KEY block by design; any edit to this file requires a re-declared hash"
     }
   ]

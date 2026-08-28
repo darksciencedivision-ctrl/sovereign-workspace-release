@@ -8,6 +8,8 @@ Reads RELEASE-MANIFEST.json and mechanically verifies, per enumerated module:
 * every superseded provenance path exists (legacy files preserved untouched);
 * every enumerated lock / module-manifest / artifact path exists and its
   SHA-256 equals the enumerated hash;
+* every explicitly enumerated batch-touched file exists and its SHA-256 equals
+  the freshly measured hash (the manifest excludes itself by construction);
 * the current record's own ``source_sha256`` equals the manifest's
   ``source_identity.content_digest_sha256`` or ``source_identity.source_sha256``
   when both are enumerated (consistency, not trust).
@@ -93,6 +95,22 @@ def check(root: str, manifest: dict) -> list:
                 problems.append(
                     f"{name}: record source_sha256 {actual_src} != manifest "
                     f"source identity {expected_src}")
+
+    for item in manifest.get("batch_files", []):
+        path = item.get("path")
+        expected = item.get("sha256")
+        if not path or not expected:
+            problems.append("batch_files: every item must enumerate path and sha256")
+            continue
+        full = os.path.join(root, path.replace("/", os.sep))
+        if not os.path.isfile(full):
+            problems.append(f"batch_files: file missing at {path}")
+            continue
+        actual = sha256_file(full)
+        if actual != expected:
+            problems.append(
+                f"batch_files: hash mismatch at {path} "
+                f"(enumerated {expected}, measured {actual})")
     return problems
 
 

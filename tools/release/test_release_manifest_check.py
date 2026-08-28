@@ -60,6 +60,15 @@ class ManifestValidatorTests(unittest.TestCase):
         self.assertTrue(any("superseded record missing" in p for p in problems),
                         problems)
 
+    def test_corrupted_batch_file_hash_detected(self):
+        tampered = copy.deepcopy(self.manifest)
+        self.assertTrue(tampered.get("batch_files"),
+                        "manifest has no batch_files enumeration")
+        tampered["batch_files"][0]["sha256"] = "e" * 64
+        problems = rmc.check(WORKTREE_ROOT, tampered)
+        self.assertTrue(any("batch_files: hash mismatch" in p for p in problems),
+                        problems)
+
     def test_record_source_identity_consistency_enforced(self):
         tampered = copy.deepcopy(self.manifest)
         tampered["modules"]["distillery"]["source_identity"][
