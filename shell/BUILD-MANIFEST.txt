@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-28T02:18:09Z
+# utc: 2026-08-28T16:36:01Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 63
+# entries: 64
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json
 661d36050de163ffd6a0558d32aa0977110c4e25c8bc6e29d78fe5a5a10e5c05  modules/distillery.json
 29fca23318c46abe7d7bc0c14547d38d871ce51ca9941658f8f292b7a6ac32e6  modules/llamacpp.json
@@ -19,7 +19,7 @@ f3277e290ba67fb096000b56e06d0fd83aaab8b305dd9db0c81aa8fa9cdb0f1d  src/adapter.py
 2a4eac622c6eb61edb7653be324c7d2b199b35de518c4d08d8facc8bbbf2673a  src/logring.py
 40923a1881a247a86d648047eaa8d830740aacc5cfd7d261c9943f023f826bf6  src/probe.py
 b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6  src/redact.py
-6eeb30e3f76fbdff3097ca857b4f21482b67f88b74b1285a4d8c0f6fba80f478  src/server.py
+54d391c591ca16371d8d89de69ddede0be89e2cbe38a5c2640d09bc1829e9154  src/server.py
 dfae2514e4972c93028b61c8a554f3b91a2f94f86b5fe124b2048309ea8006d6  src/startup_test.py
 d448fd417b669783c41390e3b7af8d575c3f380e708b521a4b24c5ef3e20c676  src/states.py
 bb09c62b2388229fcd729381d4f10cd1eb307cf9e7a74fc935ce3c32a3ae1fc7  src/supervisor.py
@@ -52,6 +52,7 @@ e808cfb61174c36ebbfb58fb0bc2470c69771a24bd9a64c4911ee6aed9b51bb8  tests/test_new
 9a8e5d9113d37cba326228d277ebf8b8de48d6a67a81d55e379b796571223f26  tests/test_ollama_unsupported_honest.py
 4937463b90d503208a773967c93968e946b252b025819ced80138ed4ef79d754  tests/test_paths.py
 b39ba48b46919cb7a2d19b242245717afea5afb9a56dada6db620987eaa8ac74  tests/test_planner_never_evicts_generating.py
+8d6f9dc433a1c7b8997f9633f40d20f12fdeddb71959e05785683298dab4934c  tests/test_probe.py
 76946bc127bd77f1528b57c94aedee1a7f1fd6e1b9ed3e9129c8891597b32104  tests/test_promotion_axis_orthogonal.py
 46dcd300db0845e98b3e4eeb12ddd027981788c42548543ead680a104d9a5960  tests/test_reasoning_failure_no_fallback.py
 911d859dbbeb3108c24faf8ed272b87bb1529ec12198667707c42ebeb2fe40a2  tests/test_redaction_surfaces.py
