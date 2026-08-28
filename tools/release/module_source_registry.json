@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "directive": "SWS-REM-DIR-20260828 R2 / B2-1 (C-2 closure) and B2-2 (C-3)",
+  "policy": "Registry of per-module source identities. Enumeration is explicit (module -> exact provenance path); consumers must never infer paths by glob. A provenance record whose source_sha256 matches the registered hash of a DIFFERENT module is a cross-module-hash defect and must FAIL. 'pending' modules are reported PENDING until their current record is generated (B2-2).",
+  "modules": {
+    "sovereign": {
+      "provenance_path": "modules/sovereign/INSTALL-PROVENANCE.json",
+      "source_sha256": "150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51",
+      "source": "D:/Product Software/SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip",
+      "status": "verified",
+      "verified_utc": "2026-08-28T02:24:00Z",
+      "verified_by": "builder qwen3.8-max (Get-FileHash SHA256 of the archive on operator disk; measured value equals the punch-list C-2 'real' hash)"
+    },
+    "distillery": {
+      "provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
+      "source_sha256": "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96",
+      "source": "recorded Distillery source archive (path [U])",
+      "status": "pending",
+      "note": "Punch List v2.1 C-2 [B]: this digest is the Distillery source hash — it is exactly the value found mis-attributed inside sovereign's INSTALL-PROVENANCE.json. Registered here so the cross-module-hash check can detect this defect class; the current distillery record itself is generated in B2-2 (Punch List C-3: no current record exists). Independent re-hash of the Distillery archive remains [U] (archive path not located on this disk)."
+    },
+    "debate": {
+      "provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
+      "source_sha256": null,
+      "status": "pending",
+      "note": "current record to be generated in B2-2 against the candidate's actual contents"
+    },
+    "sow": {
+      "provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
+      "source_sha256": null,
+      "status": "pending",
+      "note": "current record to be generated in B2-2 against the candidate's actual contents"
+    },
+    "tokencenter": {
+      "provenance_path": "modules/tokencenter/INSTALL-PROVENANCE.json",
+      "source_sha256": null,
+      "status": "pending",
+      "note": "current record exists (2026-08-26); source identity to be registered in B2-2"
+    }
+  }
+}

@@ -2,7 +2,7 @@
   "module": "sovereign",
   "source": "D:/Product Software/SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip",
   "source_kind": "archive",
-  "source_sha256": "150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51",
+  "source_sha256": "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96",
   "source_revision": "SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520",
   "source_content_manifest_sha256": "d2fa7633e8f98cbf1143fb60a724eb3cfede224c6df318313edb3230de8305da",
   "lockfiles": [
@@ -21,11 +21,8 @@
     ".venv/Scripts/python.exe -m pip freeze > WORKSPACE-RESOLVED-LOCK.txt"
   ],
   "integrity_verified": true,
-  "verification_basis": "source_sha256 recomputed 2026-08-28T02:24Z by builder seat qwen3.8-max via Get-FileHash SHA256 over D:\\Product Software\\SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip (453,948 bytes) on operator disk; measured value equals the Punch List v2.1 C-2 'real' hash. PACKAGE_MANIFEST.txt (d2fa7633…) and WORKSPACE-RESOLVED-LOCK.txt (1a850957…) re-hashed in the release worktree and matched.",
   "source_content_manifest_path": "modules/sovereign/PACKAGE_MANIFEST.txt",
   "operator_authorization_note": "docs/DECISIONS.md is byte-identical to the VOID builder-authored hash named in REM-01 section 1 and carries no signature block. No operator authorization artifact exists as of updated_utc. Prior value of this field was the string 'DECISIONS.md'.",
-  "superseded_record": "modules/sovereign/INSTALL-PROVENANCE.previous.json",
-  "correction_note": "C-2 repair (SWS-REM-DIR-20260828 R2, B2-1): the superseded record carried source_sha256 620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96 — the DISTILLERY source digest — against this SOVEREIGN archive, and self-attested integrity_verified: true on that foreign digest with operator_authorized: null. The wrong record is preserved byte-identical at the superseded path as classified historical defective record (R2 §8); nothing in it is rewritten.",
-  "producer": "builder qwen3.8-max (SWS-REM-DIR-20260828 R2 B2-1); original record producer: claude-code REM-01",
-  "updated_utc": "2026-08-28T02:26:00Z"
+  "producer": "claude-code REM-01",
+  "updated_utc": "2026-08-21T04:47:52.7378429Z"
 }
