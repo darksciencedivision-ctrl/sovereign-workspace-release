@@ -12,6 +12,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from adapters.cmd_shim import assert_cmd_shim_argv_safe
+
 
 _JOB_MEMBER_FLAG = "--sovereign-job-member"
 
@@ -351,6 +353,7 @@ def run_managed_process(
     workspace binding IS its working directory because it has no `--cwd`-equivalent flag (`agy`):
     without it the choice would have been between the job-object boundary and workspace
     containment, and giving up either would be a real loss."""
+    assert_cmd_shim_argv_safe(cmd)
     if os.name == "nt":
         return _run_windows(
             cmd, timeout=timeout, env=env, stdin=stdin, input_text=input_text, cwd=cwd)

@@ -44,6 +44,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from adapters.base.backend import Backend, BackendAuthPause
 from adapters.base.contract import AdapterContext
+from adapters.cmd_shim import assert_cmd_shim_argv_safe
 from adapters.model_adapter import ModelWorkerAdapter
 
 # Provider id — MUST equal the frozen node.schema.json `adapter` enum member and
@@ -446,6 +447,7 @@ class CodexAuthError(BackendAuthPause):
 def _assert_no_forbidden(argv: list[str]) -> None:
     """Fail-closed guard: refuse to emit any credential-passing or sandbox/approval-bypass arg.
     Deterministic permission logic (Buildout Directive §4), not caller convention."""
+    assert_cmd_shim_argv_safe(argv)
     lowered = [a.lower() for a in argv]
     for bad in _FORBIDDEN_CODEX_ARGS:
         if bad in lowered:

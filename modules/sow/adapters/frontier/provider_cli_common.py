@@ -53,6 +53,7 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from adapters.base.backend import BackendAuthPause
+from adapters.cmd_shim import assert_cmd_shim_argv_safe
 
 # ---------------------------------------------------------------------------------------------
 # Credential isolation (operator directive §13; build directive §2.2)
@@ -1383,6 +1384,7 @@ class FrontierProviderCliBackend:
         benign prompt whose text happens to equal a flag token is never read as smuggling one."""
         assert_no_forbidden_provider_args(argv)
         assert_no_untrusted_instruction_args(argv)
+        assert_cmd_shim_argv_safe(argv)
 
     def generate(self, prompt: str, *, max_tokens: int = 256) -> str:
         import subprocess  # noqa: PLC0415 — local: the deterministic suite never reaches this

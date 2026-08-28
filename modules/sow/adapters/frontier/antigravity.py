@@ -144,6 +144,7 @@ def build_interactive_antigravity_command(executable: str, *, model: str | None 
         argv += [ANTIGRAVITY_ADD_DIR_FLAG, ws]
     C.assert_no_forbidden_provider_args(argv)
     C.assert_no_untrusted_instruction_args(argv)
+    C.assert_cmd_shim_argv_safe(argv)
     return argv
 
 

@@ -45,6 +45,8 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 from urllib.parse import urlparse
 
+from adapters.cmd_shim import assert_cmd_shim_argv_safe
+
 # The harness id — must equal the roster `harness` / capability `harness_class` value so a
 # coding_tui task can only match a node that really drives OpenCode (Phase 6 F1).
 OPENCODE_HARNESS = "opencode"
@@ -146,6 +148,7 @@ def _opencode_run_argv(executable: str, prompt: str, *, model: str, workdir: str
     if workdir:
         argv += ["--dir", str(workdir)]
     argv += ["-m", model, "--format", "json", prompt]
+    assert_cmd_shim_argv_safe(argv)
     return argv
 
 

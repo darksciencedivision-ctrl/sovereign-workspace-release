@@ -40,6 +40,7 @@ from typing import Any
 
 from adapters.base.backend import Backend, BackendAuthPause, ConductorBackend
 from adapters.base.contract import AdapterContext
+from adapters.cmd_shim import assert_cmd_shim_argv_safe
 from adapters.frontier.process_tree import run_managed_process
 from adapters.model_adapter import ModelWorkerAdapter
 
@@ -308,6 +309,7 @@ def _assert_no_forbidden(argv: list[str]) -> None:
     Deterministic permission logic (Buildout Directive §4), not caller convention. Guards the
     FLAGS only (call before the prompt is appended) so a benign prompt that happens to equal a
     flag token is never misread as smuggling one."""
+    assert_cmd_shim_argv_safe(argv)
     lowered = [a.lower() for a in argv]
     for bad in _FORBIDDEN_CLAUDE_ARGS:
         if bad in lowered:

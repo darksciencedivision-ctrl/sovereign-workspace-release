@@ -201,6 +201,7 @@ def build_interactive_grok_command(executable: str, *, model: str | None = None,
     # not a backend method; the guards are the shared policy either way.
     C.assert_no_forbidden_provider_args(argv)
     C.assert_no_untrusted_instruction_args(argv)
+    C.assert_cmd_shim_argv_safe(argv)
     return argv
 
 
