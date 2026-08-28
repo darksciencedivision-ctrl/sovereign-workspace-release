@@ -76,7 +76,7 @@ Build a **single, hardened, local-only workspace shell** that gives the operator
 | Module | Artifact | Live tree |
 |---|---|---|
 | SOVEREIGN 3.1.2 | `SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip` | Unknown — **operator to state in DECISIONS.md** |
-| Debate Table v1.2 P1 | `Debate_Table_v1.2_Phase1_Production_20260811_201116 - Copy.zip` | Unknown — **operator to state** |
+| Debate Table v1.2.1-hardening | `Debate_Table_v1.2.1_Hardening_20260823_143520.zip` | sha256 d03ba417914e1465898f5144cc5735afb92f7f6da5e846e0a968fe48c531d265 — VERIFIED |
 | SOW | `SOW_CONTINUATION_BASELINE_20260815_210626.candidate.zip` + `SOW_REVIEW_ROUND2_RAW\` | `D:\multi model terminal app\sovereign-orchestration-workspace` (HEAD `bad029e7`) |
 | Sovereign Distillery | `SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e.zip` + folder | `D:\Sovereign Distillery\` — **no product runtime** |
 

@@ -1,3 +1,4 @@
+> Historical record of the v1.2-P1 era (annotated 2026-08-28 per OD-22): Debate is v1.2.1-hardening as of RELEASE-MANIFEST.json; original text preserved below.
 # DISCOVERY.md — SWS-UI-001 v1.2 Phase 1
 # captured: 2026-08-20T21:55:00-05:00
 # by: DeepSeek V4 Pro (builder)
