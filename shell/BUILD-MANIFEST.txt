@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-27T05:04:06Z
+# utc: 2026-08-28T02:18:09Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 62
+# entries: 63
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json
 661d36050de163ffd6a0558d32aa0977110c4e25c8bc6e29d78fe5a5a10e5c05  modules/distillery.json
 29fca23318c46abe7d7bc0c14547d38d871ce51ca9941658f8f292b7a6ac32e6  modules/llamacpp.json
@@ -19,7 +19,7 @@ f3277e290ba67fb096000b56e06d0fd83aaab8b305dd9db0c81aa8fa9cdb0f1d  src/adapter.py
 2a4eac622c6eb61edb7653be324c7d2b199b35de518c4d08d8facc8bbbf2673a  src/logring.py
 f0df2775936f8bb3583304cadefa9d83b295ff932d47d13dcfe6f9327d7f0643  src/probe.py
 b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6  src/redact.py
-743ecd47027ba88a95d03f6e9dd2b420fae620a8ad25f50e9a8068529aea7deb  src/server.py
+6eeb30e3f76fbdff3097ca857b4f21482b67f88b74b1285a4d8c0f6fba80f478  src/server.py
 dfae2514e4972c93028b61c8a554f3b91a2f94f86b5fe124b2048309ea8006d6  src/startup_test.py
 d448fd417b669783c41390e3b7af8d575c3f380e708b521a4b24c5ef3e20c676  src/states.py
 bb09c62b2388229fcd729381d4f10cd1eb307cf9e7a74fc935ce3c32a3ae1fc7  src/supervisor.py
@@ -61,6 +61,7 @@ e1fb590327e0fceb9228b7c23ff0406a6d91c9d203baea91907779f3c443d2f8  tests/test_rou
 a829ebe603c03a7ad5897384710a9b0f346b441e1778f5dc4abcef416aadea2a  tests/test_selection_flow.py
 52d7c2565245ac5e47cc88e4fe5545bcc267230a48cbb1cb13df41854b6938fa  tests/test_shell.py
 478a2a3eef118fe348cc575bcecd631cba5b5a770a400b1d720086b817a5a505  tests/test_start_invokes_no_pipeline.py
+8969c5f72679b490d2a1fbe8c5475c0c49060d8e9314ecad785e96a2c57e2519  tests/test_start_worker_failure.py
 23138162cc018400523a399d7c3cc1471b656c7a7c155f181924637a984f27b5  tests/test_states.py
 0b7055a5e637431c53fda6d6ffe69422812b6ef14f7dddaa095ffeec2ffeea62  tests/test_supervisor.py
 91182e433ad64d331368e4ca6cea3d131d33180929a43d061b9f4116dfa74768  tests/test_tokencenter_loopback_and_csrf.py
