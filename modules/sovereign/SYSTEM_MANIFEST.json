@@ -1,4 +1,4 @@
-﻿{
+{
   "ARCHIVE_VERSION": "3.1.2",
   "MODELS": {
     "PRIMARY_REASONER": "qwen3:14b",

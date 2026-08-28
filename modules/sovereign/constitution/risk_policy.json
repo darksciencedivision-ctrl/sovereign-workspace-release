@@ -1,4 +1,4 @@
-﻿{
+{
   "schema_version": "1.0",
   "thresholds": {
     "minimum_convergence_for_review": 0.55,

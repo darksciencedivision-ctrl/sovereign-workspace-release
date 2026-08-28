@@ -649,7 +649,10 @@ class ProductService:
             indent=2,
         ) + "\n"
         try:
-            with temporary.open("w", encoding="utf-8-sig", newline="\n") as handle:
+            # M-5 (B2-5): write WITHOUT a BOM. The previous utf-8-sig writer
+            # re-introduced the BOM on every manifest update, which strict
+            # utf-8 JSON parsers reject.
+            with temporary.open("w", encoding="utf-8", newline="\n") as handle:
                 handle.write(encoded)
                 handle.flush()
                 os.fsync(handle.fileno())
