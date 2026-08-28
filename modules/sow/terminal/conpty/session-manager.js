@@ -7,9 +7,13 @@
  * Node Runtime — no naked sessions**. This manager enforces that mechanically:
  *
  *   1. a spawn with no node binding is refused before any process starts;
- *   2. after the PTY starts, the manager asks the supervisor to ADMIT it (in production the
- *      supervisor reports the pid to the Node Runtime, which assigns it to a Windows Job
- *      Object — containment.py — and records it in the control plane);
+ *   1b. H-1: admission is asked BEFORE the PTY exists — a pre-spawn verdict gates the factory
+ *       call, so a refusal costs nothing and a renderer/governance-chosen executable is judged
+ *       first and launched second (or never). After the PTY starts the manager asks the
+ *       supervisor to ADMIT it AGAIN with the real pid (in production the supervisor reports
+ *       the pid to the Node Runtime, which assigns it to a Windows Job Object — containment.py —
+ *       and records it in the control plane); the second verdict re-verifies the channel that
+ *       may have dropped between the two calls;
  *   3. if admission is denied or errors, the PTY is KILLED immediately and the session goes
  *      to REFUSED. A process that cannot be contained never keeps running (fail-closed,
  *      invariant 2 / invariant 29, Directive §4).
@@ -55,6 +59,11 @@ class SessionManager {
   /**
    * Spawn a supervised session. Throws SupervisionDenied (after killing the PTY) if the
    * supervisor refuses admission. Returns the session record on success.
+   *
+   * H-1: admission precedes existence. The supervisor is asked for a verdict BEFORE the PTY
+   * factory runs — a pre-spawn refusal means no OS process ever starts. The post-spawn admit
+   * then binds the real pid and re-verifies; if the channel dropped between the two verdicts
+   * the just-started PTY is killed and the session goes REFUSED (fail-closed, as before).
    */
   spawn({ id, nodeId, spec }) {
     if (!id) throw new Error("spawn requires an id");
@@ -65,6 +74,25 @@ class SessionManager {
         + `(pid ${priorHandle.pid}) — replacement refused until matching PTY exit`);
     }
     if (this.registry.has(id)) throw new Error(`duplicate session ${id}`);
+
+    // H-1 pre-spawn verdict: judge first, launch second — or never.
+    let preAdmission;
+    try {
+      preAdmission = this._supervisor.admit({ id, nodeId });
+    } catch (e) {
+      preAdmission = { supervised: false, reason: `supervisor error: ${e.message}` };
+    }
+    if (!preAdmission || preAdmission.supervised !== true) {
+      const reason = preAdmission ? preAdmission.reason : "no verdict";
+      // Nothing was started, so there is no registry record to transition and no process to
+      // kill — the refusal is total. Emit so view sinks can surface it.
+      this._emit({ kind: "refused", id, nodeId, pid: null, generation: null, reason,
+        preSpawn: true });
+      const error = new SupervisionDenied(
+        `session ${id} refused before spawn: ${reason}`);
+      error.preSpawnRefusal = true;
+      throw error;
+    }
 
     const p = this._ptyFactory(spec || {});
     const generation = ++this._generation;
@@ -100,6 +128,8 @@ class SessionManager {
 
     let admission;
     try {
+      // Post-spawn verdict: binds the real pid (the pre-spawn verdict had none) and re-verifies
+      // the channel — a drop between the two verdicts is refused exactly like any denial.
       admission = this._supervisor.admit({ id, nodeId, pid: p.pid });
     } catch (e) {
       admission = { supervised: false, reason: `supervisor error: ${e.message}` };

@@ -502,6 +502,11 @@ function ptyFactory(spec) {
  *
  * An allow-list rather than more deletions, deliberately: with a deny-list every field added to a
  * spec in future is permitted by default, and the missed field is found the way this one was.
+ *
+ * H-1 closure note (B3-1): `session-manager.js` now asks the supervisor for an admission verdict
+ * BEFORE the PTY factory runs, so a renderer-chosen executable would be judged first even without
+ * this allow-list. The allow-list stays as the stronger, earlier guarantee: the renderer never
+ * names an executable at all, so there is nothing to judge.
  */
 const RENDERER_SPEC_ALLOWED_KEYS = Object.freeze(["title", "cols", "rows"]);
 

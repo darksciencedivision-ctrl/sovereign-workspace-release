@@ -11,6 +11,9 @@
  *       `:101`, so a renderer-chosen executable is launched FIRST and judged SECOND — a supervision
  *       denial can only try to kill something already running. An allow-list is the only point where
  *       the choice can be refused before a process exists.
+ *       [B3-1/H-1 status: session-manager now takes a pre-spawn admission verdict, so the
+ *       launch-first-judge-second ordering described above is closed at that layer too; this
+ *       allow-list remains the earliest guarantee.]
  *
  *   (b) The sanitiser was COUNTER-PROTECTIVE about environments. Deleting `env` is exactly what
  *       triggers `ptyFactory`'s `spec.env || { ...process.env }` fallback, so scrubbing the one

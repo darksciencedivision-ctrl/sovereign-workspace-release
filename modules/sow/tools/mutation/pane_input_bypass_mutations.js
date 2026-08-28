@@ -212,7 +212,17 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // conductor mint. No pane:input path, voice-release sink or PTY write site moved.
 // Worktree copy verified zero CR bytes before re-pinning (U274). Previous pin:
 // DA9C7CA3...859F4.
-const PINNED_BASELINE = "526FBA8CF34235B6B3419771FA8DCF3727D5321FE8EF7D178D99C48C73801A0A";
+// Re-pinned at B3-1 (H-1, SWS-REM-DIR-20260828 R2) for a COMMENT-ONLY change to main.js:
+// the RENDERER_SPEC_ALLOWED_KEYS doc block gained an H-1 closure note (session-manager now
+// takes a pre-spawn admission verdict, so the allow-list is defense in depth). No statement
+// moved, no `pane:*` handler, voice-release sink, disarm path or `manager.write(` site was
+// added or removed, and every anchor below was re-read against the new bytes and re-counted
+// as present exactly once (`IN_HANDLER`, `HANDLER_TOP`, `AFTER_RESUME`, `BEFORE_INPUT`,
+// `REAL_DISARM`, `function clearConductorInputResidue(why) {`, and the four `pane:*`
+// handlers X1-X4 target) — which this harness re-checks itself, since it refuses to splice
+// a non-unique anchor. Worktree copy verified to carry zero CR bytes before re-pinning
+// (U274). Harness re-run against these exact bytes: all CAUGHT, restore BYTE-IDENTICAL.
+const PINNED_BASELINE = "E334706C543D7B7C1BC9B88443D87FA218EDC7DBB5FBE1702517E9382AA30BA7";
 
 let lockFd;
 try {

@@ -56,9 +56,60 @@ test("admitted spawn goes RUNNING, feeds scrollback, and surfaces data events", 
   assert.ok(sup.events.some((e) => e.kind === "spawn"));
 });
 
-test("denied admission KILLS the PTY and marks the session REFUSED (fail-closed)", () => {
+test("pre-spawn denial starts NO process: no PTY, no registry record, no killable thing (H-1)", () => {
+  let factoryCalls = 0;
+  const countingFactory = (spec) => { factoryCalls += 1; return fakePtyFactory(spec); };
   const denying = { admit: () => ({ supervised: false, reason: "policy: node not registered" }), notify() {} };
-  const mgr = new SessionManager({ ptyFactory: fakePtyFactory, supervisor: denying, now: clock });
+  const mgr = new SessionManager({ ptyFactory: countingFactory, supervisor: denying, now: clock });
+  const events = [];
+  mgr.onEvent((e) => events.push(e));
+  assert.throws(() => mgr.spawn({ id: "s1", nodeId: "n1", spec: {} }), SupervisionDenied);
+  assert.strictEqual(factoryCalls, 0, "admission refused before spawn: the executable is judged first and never launched");
+  assert.strictEqual(mgr.registry.has("s1"), false, "a pre-spawn refusal leaves no registry record behind");
+  assert.strictEqual(mgr.pendingProcessIdentities().length, 0);
+  assert.strictEqual(mgr.alive().length, 0);
+  const refused = events.find((e) => e.kind === "refused");
+  assert.ok(refused, "view sinks still see the refusal");
+  assert.strictEqual(refused.preSpawn, true);
+  assert.strictEqual(refused.pid, null);
+  // nothing was started and nothing was recorded, so the id is immediately reusable
+  const mgr2spawn = new SessionManager({ ptyFactory: countingFactory, supervisor: admittingSupervisor(), now: clock });
+  mgr2spawn.spawn({ id: "s1", nodeId: "n1", spec: {} });
+  assert.strictEqual(mgr2spawn.registry.get("s1").state, "RUNNING");
+});
+
+test("admission verdict ORDER: the supervisor is asked before the PTY factory runs (H-1)", () => {
+  const order = [];
+  const sup = {
+    admit: ({ pid }) => { order.push(pid === undefined ? "admit:pre" : "admit:post"); return { supervised: true }; },
+    notify() {},
+  };
+  const mgr = new SessionManager({
+    ptyFactory: (spec) => { order.push("spawn"); return fakePtyFactory(spec); },
+    supervisor: sup, now: clock,
+  });
+  mgr.spawn({ id: "s1", nodeId: "n1", spec: {} });
+  assert.deepStrictEqual(order, ["admit:pre", "spawn", "admit:post"],
+    "pre-spawn verdict, THEN the process, THEN the pid-binding verdict");
+});
+
+test("the post-spawn verdict receives the real pid (supervision binding)", () => {
+  const seen = [];
+  const sup = { admit: (q) => { seen.push(q); return { supervised: true }; }, notify() {} };
+  const mgr = new SessionManager({ ptyFactory: fakePtyFactory, supervisor: sup, now: clock });
+  mgr.spawn({ id: "s1", nodeId: "n1", spec: {} });
+  assert.strictEqual(seen.length, 2);
+  assert.strictEqual(seen[0].pid, undefined, "pre-spawn verdict carries no pid — none exists yet");
+  assert.strictEqual(seen[1].pid, fakePtyFactory.last.pid, "post-spawn verdict binds the real pid");
+});
+
+test("a channel drop BETWEEN verdicts kills the just-started PTY and marks REFUSED (fail-closed)", () => {
+  let calls = 0;
+  const dropAfterFirst = {
+    admit: () => { calls += 1; return calls === 1 ? { supervised: true } : { supervised: false, reason: "channel dropped" }; },
+    notify() {},
+  };
+  const mgr = new SessionManager({ ptyFactory: fakePtyFactory, supervisor: dropAfterFirst, now: clock });
   assert.throws(() => mgr.spawn({ id: "s1", nodeId: "n1", spec: {} }), SupervisionDenied);
   assert.strictEqual(fakePtyFactory.last.killed, true);
   assert.strictEqual(typeof fakePtyFactory.last._exitCb, "function",
@@ -72,13 +123,14 @@ test("denied admission KILLS the PTY and marks the session REFUSED (fail-closed)
   assert.strictEqual(mgr.registry.has("s1"), false);
 });
 
-test("a throwing supervisor is treated as denial, not as admission", () => {
+test("a supervisor that THROWS is treated as denial at the pre-spawn verdict (H-1)", () => {
+  let factoryCalls = 0;
+  const countingFactory = (spec) => { factoryCalls += 1; return fakePtyFactory(spec); };
   const boom = { admit: () => { throw new Error("supervisor offline"); }, notify() {} };
-  const mgr = new SessionManager({ ptyFactory: fakePtyFactory, supervisor: boom, now: clock });
-  assert.throws(() => mgr.spawn({ id: "s1", nodeId: "n1", spec: {} }), /refused/);
-  assert.strictEqual(fakePtyFactory.last.killed, true);
-  assert.strictEqual(mgr.registry.get("s1").state, "REFUSED");
-  assert.throws(() => mgr.forget("s1"), /has not exited/);
+  const mgr = new SessionManager({ ptyFactory: countingFactory, supervisor: boom, now: clock });
+  assert.throws(() => mgr.spawn({ id: "s1", nodeId: "n1", spec: {} }), /refused before spawn/);
+  assert.strictEqual(factoryCalls, 0, "a throwing supervisor must not be scored as admission, and nothing may start");
+  assert.strictEqual(mgr.registry.has("s1"), false);
 });
 
 test("process exit transitions RUNNING -> EXITED with the exit code", () => {
