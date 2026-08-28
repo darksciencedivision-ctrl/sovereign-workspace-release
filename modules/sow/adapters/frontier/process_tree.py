@@ -125,11 +125,19 @@ class WindowsJob:
     def terminate_and_wait(self, timeout_s: float) -> tuple[int, ...]:
         if self.pids() and not self._kernel32.TerminateJobObject(self.handle, 1):
             raise ctypes.WinError(ctypes.get_last_error())
-        result = self._kernel32.WaitForSingleObject(self.handle, max(1, int(timeout_s * 1000)))
-        remaining = self.pids()
-        if result != self._WAIT_OBJECT_0 or remaining:
-            return remaining
-        return ()
+        # M-4: a Job Object handle is signaled only on an end-of-job TIME LIMIT, never on
+        # member exit — WaitForSingleObject here always ran to the full ceiling even when the
+        # job was already empty (a measured ~15 s tax on EVERY managed run; independent review
+        # F-3 / INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md). Poll the pid list instead: the
+        # wait ends as soon as the last member is gone, still bounded by timeout_s.
+        deadline = time.monotonic() + max(0.001, timeout_s)
+        while True:
+            remaining = self.pids()
+            if not remaining:
+                return ()
+            if time.monotonic() >= deadline:
+                return remaining
+            time.sleep(0.05)
 
     def close(self) -> None:
         if self.handle:
