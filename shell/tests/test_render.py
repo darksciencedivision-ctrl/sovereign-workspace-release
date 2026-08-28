@@ -358,7 +358,7 @@ class TestRenderProofs(unittest.TestCase):
     def test_rendered_dom(self):
         edge = self._edge_path()
         prof = tempfile.mkdtemp(prefix="sws-h17-")
-        lines = [header("H-17 - rendered DOM of / (headless Edge) shows the four cards, "
+        lines = [header("H-17 - rendered DOM of / (headless Edge) shows the five cards, "
                         "their action rows, and the disabled Distillery controls")]
         proc, port, nonce = start_shell()
         url = "http://127.0.0.1:{}/".format(port)
@@ -378,7 +378,7 @@ class TestRenderProofs(unittest.TestCase):
             cards = _CardDOM()
             cards.feed(dom)
             lines.append("card order      : {}".format(cards.order))
-            self.assertEqual(cards.order, ["sovereign", "sow", "debate", "distillery"])
+            self.assertEqual(cards.order, ["sovereign", "sow", "tokencenter", "debate", "distillery"])
 
             expected_actions = {"start", "stop", "restart", "open", "test", "logs"}
             for mid in cards.order:
@@ -414,7 +414,7 @@ class TestRenderProofs(unittest.TestCase):
 
             lines.append("")
             lines.append("edge binary: {}".format(edge))
-            lines.append("RESULT: four cards in order, six-action rows per contract "
+            lines.append("RESULT: five cards in order, six-action rows per contract "
                          "section 7.3(2), Distillery controls disabled, PNG differs from "
                          "the blank render.")
             write_artifact("h17-dom.txt", "\n".join(lines) + "\n")
@@ -460,7 +460,6 @@ class _CardDOM(HTMLParser):
 
 if __name__ == "__main__":
     unittest.main()
-
 
 
 

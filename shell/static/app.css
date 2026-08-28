@@ -28,6 +28,8 @@
   --radius: 6px;
   --font: ui-monospace, monospace;
   --mono: "Cascadia Code", Consolas, monospace;
+  --panel-alpha: rgba(21, 27, 40, 0.90);
+  --sidebar-alpha: rgba(13, 18, 28, 0.88);
 }
 
 @media (prefers-color-scheme: light) {
@@ -44,6 +46,8 @@
     --ok: #2f7a49;
     --warning: #8a6008;
     --danger: #c8394f;
+    --panel-alpha: #ffffff;
+    --sidebar-alpha: #eceef1;
   }
 }
 
@@ -62,7 +66,7 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg) url("/static/workspace-bg.svg") center bottom / cover fixed no-repeat;
   color: var(--text);
   font-family: var(--font);
   font-size: 14px;
@@ -72,25 +76,69 @@ body {
 /* ---------- layout ---------- */
 
 .shell {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1720px;
   margin: 0 auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 16px 28px;
 }
 
 /* ---------- header ---------- */
 
 .header {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 28px;
+  align-items: stretch;
+}
+
+.identity-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding-right: 24px;
+  border-right: 1px solid var(--border);
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.brand-subtitle {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  background: var(--sidebar);
+  background: var(--sidebar-alpha);
   border: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 16px;
 }
@@ -162,7 +210,8 @@ body {
 /* ---------- collapsible panels ---------- */
 
 .panel {
-  background: var(--panel);
+  grid-column: 2;
+  background: var(--panel-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -271,6 +320,7 @@ body {
 /* ---------- module grid & cards ---------- */
 
 .module-grid {
+  grid-column: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -280,7 +330,7 @@ body {
 }
 
 .module-card {
-  background: var(--panel);
+  background: var(--panel-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
@@ -393,14 +443,23 @@ body {
   appearance: none;
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--bg);
+  background: transparent;
+  color: var(--text-muted);
   font-family: var(--font);
   font-size: 13px;
   font-weight: 600;
   padding: 8px 12px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--text);
 }
 
 .btn:hover:not(:disabled) {
@@ -444,7 +503,7 @@ body {
 
 .log-output {
   margin: 0;
-  background: var(--panel);
+  background: var(--panel-alpha);
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
@@ -461,6 +520,7 @@ body {
 /* ---------- footer & misc ---------- */
 
 .footer {
+  grid-column: 2;
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -489,11 +549,36 @@ body {
 /* ---------- responsive ---------- */
 
 @media (max-width: 720px) {
+  body {
+    background-position: 35% bottom;
+  }
+
+  .shell {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .identity-brand {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .panel,
+  .module-grid,
+  .footer {
+    grid-column: 1;
+  }
+
   .module-grid {
     grid-template-columns: 1fr;
   }
 
-  .header {
+  .header-bar {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;

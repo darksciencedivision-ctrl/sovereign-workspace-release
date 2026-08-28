@@ -12,14 +12,23 @@
 <body>
   <div class="shell">
 
-    <!-- Header bar: SWS version, build ID, host, clock, document links -->
+    <!-- Branded identity rail + breadcrumb bar, matching the approved shell capture. -->
     <header class="header">
-      <div class="header-brand">
+      <div class="identity-brand" aria-label="Sovereign Workspace Systems Control">
+        <img class="brand-mark" src="/static/brand-mark.svg" alt="">
+        <div class="brand-copy">
+          <span class="brand-title">SOVEREIGN WORKSPACE</span>
+          <span class="brand-subtitle">SYSTEMS CONTROL</span>
+        </div>
+      </div>
+      <div class="header-bar">
+      <div class="header-brand" aria-label="Workspace build identity">
         <span class="header-title">SWS</span>
-        <span class="header-ver" id="shell-version">v —</span>
-        <span class="header-sep" aria-hidden="true">·</span>
+        <span class="header-sep" aria-hidden="true">›</span>
+        <span class="header-ver" id="shell-version">SWS-UI-001 v1.2</span>
+        <span class="header-sep" aria-hidden="true">›</span>
         <span class="header-build" id="shell-build">build —</span>
-        <span class="header-sep" aria-hidden="true">·</span>
+        <span class="header-sep" aria-hidden="true">›</span>
         <span class="header-host" id="shell-host">host —</span>
       </div>
       <div class="header-right">
@@ -29,6 +38,7 @@
           <a class="header-link" id="link-directive" href="/doc/directive">directive</a>
         </nav>
         <time class="header-clock" id="shell-clock">--:--:--</time>
+      </div>
       </div>
     </header>
 

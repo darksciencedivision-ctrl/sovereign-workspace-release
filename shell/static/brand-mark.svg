@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sovereign diamond mark">
+  <g fill="none" stroke="#c7d1de" stroke-width="2" stroke-linejoin="round">
+    <path d="M32 3 54 20 49 46 32 61 15 46 10 20Z"/>
+    <path d="M32 3 42 20 37 48 32 61 27 48 22 20Z"/>
+    <path d="m10 20 12 5 10-9 10 9 12-5M15 46l12-9 5 11 5-11 12 9"/>
+  </g>
+  <path d="M32 9v45M18 21l14 33 14-33" fill="none" stroke="#7fc8e8" stroke-width="1.5"/>
+</svg>

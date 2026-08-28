@@ -436,7 +436,8 @@
       for (const pair of ACTION_LABELS) {
         const action = pair[0];
         const label = pair[1];
-        const btn = make("button", "btn", label);
+        const primary = action === "start" || action === "open" || action === "test";
+        const btn = make("button", "btn " + (primary ? "btn-primary" : "btn-secondary"), label);
         btn.type = "button";
         btn.dataset.action = action;
         btn.setAttribute("aria-label", label + " — " + mod.name);
@@ -694,7 +695,7 @@
       const build = firstString(info.build_id, info.build, info.commit);
       const host = firstString(info.host, info.hostname);
 
-      if (version) el.version.textContent = "v " + version;
+      if (version) el.version.textContent = version;
       if (build) el.build.textContent = "build " + build;
       if (host) el.host.textContent = host;
 
