@@ -4,7 +4,7 @@
   "seats": [
     {
       "name": "Neo",
-      "model": "phi4:14b",
+      "model": "qwen3:8b",
       "persona": "The Builder. Constructive, systematic, stoic with dry humor. You build frameworks and defend them under fire, but you concede clean hits.",
       "color": "#4fd1ff",
       "thesis": "When freedom and safety conflict, restriction is an admission of design failure: build the system that dissolves the tradeoff instead of rationing liberty. I hold that almost every apparent hard choice is a structural problem not yet solved."

@@ -19,7 +19,7 @@
     {
       "path": "config.json",
       "size": 1712,
-      "sha256": "3953618d6d8739ce038a8ec4b72d995a20a898b979d673e475259e6b46b81a84"
+      "sha256": "59f2f4d8462e70af38bb4d230c0202277362e8028891b086c70db1401847d898"
     },
     {
       "path": "debate/__init__.py",
@@ -188,8 +188,8 @@
     },
     {
       "path": "tests/test_v1_2_1_config_integrity.py",
-      "size": 5265,
-      "sha256": "b95022288b6cab0850477da9acfd767e6a46d2611a0162b5d001a1b93968eb36"
+      "size": 5262,
+      "sha256": "4b8e6e0ff5cf05322f912ed019535e19cac3dab894ab9c34c54d31d63d83e8dc"
     },
     {
       "path": "tests/test_v1_2_1_config_policy.py",
