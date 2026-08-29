@@ -49,7 +49,7 @@ function fakeSurface({ omit = [], throws = [] } = {}) {
     surface[entry.method] = async (...args) => {
       calls.push({ method: entry.method, args });
       if (throws.includes(entry.method)) throw new Error(`${entry.method} refused`);
-      return entry.method === "newPane" ? "pane-scratch-7" : { ok: true };
+      return entry.method === "createEmptyPane" ? "pane-scratch-7" : { ok: true };
     };
   }
   return { surface, calls };
@@ -166,7 +166,7 @@ test("the destructive pane intents never target the conductor pane", () => {
 
 // ---- the driver ------------------------------------------------------------------------------
 
-test("the sweep drives every channel once, scratch pane created first and closed after", async () => {
+test("the sweep drives every channel once, empty scratch pane created first and closed after", async () => {
   const { surface, calls } = fakeSurface();
   const res = await runChannelSweep(surface, CTX);
   assert.equal(res.ok, true, `sweep not ok: ${JSON.stringify(res.uncovered)} ${JSON.stringify(res.missing)}`);
@@ -174,16 +174,19 @@ test("the sweep drives every channel once, scratch pane created first and closed
   assert.ok(res.channels.every((c) => c.invoked === true), "every channel must be invoked");
   assert.deepEqual(calls.map((c) => c.method).sort(), SWEEP.map((e) => e.method).sort());
   const order = calls.map((c) => c.method);
-  assert.equal(order[0], "newPane", "the scratch pane must exist before anything targets it");
+  assert.equal(order[0], "createEmptyPane", "the scratch pane must exist before anything targets it");
   for (const scratch of SWEEP.filter((e) => e.pane === "scratch")) {
-    assert.ok(order.indexOf(scratch.method) > order.indexOf("newPane"),
+    assert.ok(order.indexOf(scratch.method) > order.indexOf("createEmptyPane"),
       `${scratch.method}() ran before the scratch pane existed`);
   }
   assert.equal(order[order.length - 1], "close", "the scratch pane must be closed last");
   // the scratch-targeted calls carry the id the create returned, never the conductor's
   for (const call of calls) {
     const entry = SWEEP.find((e) => e.method === call.method);
-    if (entry.pane === "scratch") assert.equal(call.args[0], "pane-scratch-7", `${call.method} targeted the wrong pane`);
+    if (entry.pane === "scratch") {
+      const target = call.method === "selectExecution" ? call.args[0].id : call.args[0];
+      assert.equal(target, "pane-scratch-7", `${call.method} targeted the wrong pane`);
+    }
     if (entry.pane === "conductor") assert.equal(call.args[0], "pane-1", `${call.method} targeted the wrong pane`);
   }
   assert.equal(res.scratch_pane_id, "pane-scratch-7");
@@ -225,7 +228,7 @@ test("with no conductor pane the sweep refuses rather than driving a wrong pane"
 
 test("if the scratch pane cannot be created, its intents are refused, not aimed elsewhere", async () => {
   const surface = fakeSurface().surface;
-  surface.newPane = async () => null;                       // supervision denied, say
+  surface.createEmptyPane = async () => null;                // container creation failed, say
   const res = await runChannelSweep(surface, CTX);
   assert.equal(res.ok, false);
   for (const row of res.channels.filter((c) => c.pane === "scratch")) {

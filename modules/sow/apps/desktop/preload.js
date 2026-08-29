@@ -16,7 +16,8 @@ contextBridge.exposeInMainWorld("sovereign", {
   selectExecution: (payload) => ipcRenderer.invoke("pane:select-execution", payload),
   // G25: persistent operator typing surface - text goes through the SAME guarded
   // delivery path voice chat uses (deliverConductorChat); never straight to a PTY.
-  sendOperatorText: (text) => ipcRenderer.invoke("conductor:operator-text", { text }),
+  sendOperatorText: (text, sweep = false) => ipcRenderer.invoke(
+    "conductor:operator-text", sweep ? { text, __sweep: true } : { text }),
   onConductorTranscript: (cb) => ipcRenderer.on("shell:conductor-transcript", (_e, t) => cb(t)),
   input: (id, data) => ipcRenderer.invoke("pane:input", id, data),
   // Phase 16A: byte-exact scrollback for a pane's session, replayed when the term view (re)attaches.

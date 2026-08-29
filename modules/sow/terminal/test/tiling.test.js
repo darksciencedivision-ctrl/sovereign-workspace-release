@@ -89,10 +89,18 @@ test("cards are ordered P2-overflow first, then background/idle", () => {
   assert.deepEqual(plan.cards.map((c) => c.id), ["act6", "bg", "idle"]);
 });
 
-test("default maxVisible is 6", () => {
-  assert.equal(DEFAULT_MAX_VISIBLE, 6);
-  const members = Array.from({ length: 8 }, (_, i) => M(`p${i}`));
-  assert.equal(planLayout(members).grid.cells.length, 6);
+test("default cap tiles 8 concurrent session-backed panes and cards the 9th", () => {
+  assert.equal(DEFAULT_MAX_VISIBLE, 8);
+  const panes = new PaneModel();
+  for (let i = 0; i < 9; i++) {
+    panes.createPane({ id: `p${i}`, sessionId: `session-${i}` });
+  }
+  const plan = planLayout(panes.tilingMembers());
+  assert.equal(plan.grid.cells.length, 8);
+  assert.deepEqual(plan.grid.cells.map((cell) => cell.id),
+    ["p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"]);
+  assert.deepEqual(plan.cards, [{ id: "p8", priority: "P2" }]);
+  assert.equal(panes.size(), 9, "the 9th session remains supervised; only its pane collapses");
 });
 
 test("maxVisible is operator-tunable", () => {

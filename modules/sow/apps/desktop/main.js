@@ -89,7 +89,7 @@ const { RecoveryStore } = require("./recovery-store");
 const { resizePane, refusalWorthLogging } = require("./panes/resize-intent");
 /** `paneId:reason` pairs already reported, so a continuously-fitting renderer logs each fault once. */
 const resizeRefusalsLogged = new Set();
-const { buildLayoutSnapshot, reconstructLayout } = require("../../terminal/recovery/layout-reconstruct");
+const { buildLayoutSnapshot, reconstructLayout, resumePaneSeq } = require("../../terminal/recovery/layout-reconstruct");
 const { runPaneIoSelfCheck } = require("./selfcheck/pane-io-selfcheck");
 const { runPickerSelfCheck } = require("./selfcheck/picker-selfcheck");
 // Phase 18B `.picker` (OP-12): the two new providers in the REAL shell — groups, honest grey,
@@ -274,9 +274,9 @@ const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const IS_WIN = process.platform === "win32";
 const NODE_ID = process.env.SOVEREIGN_IPC_NODE || "shell";
 // Plan §10.2 visible cap. The layout POLICY (planLayout) takes maxVisible as a parameter and is
-// tunable; the shell currently pins the §10.2 default of 6. Exposing an operator control to
+// tunable; the shell currently pins the product cap of 8. Exposing an operator control to
 // retune it live is deferred to the settings/approval surface (later 14A sub-step).
-const MAX_VISIBLE = 6;
+const MAX_VISIBLE = 8;
 
 let win = null;
 let gatewayProc = null;
@@ -1763,7 +1763,7 @@ function registerIpc() {
     }
     return answer;
   });
-  ipcMain.handle("pane:close", (_e, id) => { try { manager.kill(id); } catch { /* terminal */ } if (panes.panes.has(id)) panes.destroyPane(id); paneChrome.delete(id); persistLayoutSnapshot(); pushState(); });
+  ipcMain.handle("pane:close", (_e, id) => { try { manager.kill(id); } catch { /* terminal */ } if (panes.panes.has(id)) panes.destroyPane(id); emptyPanes.delete(id); paneChrome.delete(id); persistLayoutSnapshot(); pushState(); });
   ipcMain.handle("pane:focus", (_e, id) => { panes.focus(id); pushState(); });
   ipcMain.handle("pane:maximize", (_e, id) => { panes.maximize(id); pushState(); });
   ipcMain.handle("pane:restore", (_e, id) => { panes.restore(id); pushState(); });
@@ -2748,6 +2748,9 @@ function makeWindow() {
   layoutSched = new LayoutScheduler({ onLayout: (plan) => { if (win && !win.isDestroyed()) win.webContents.send("shell:layout", plan); } });
   win.webContents.on("did-finish-load", () => {
     createConductorPane(); // conductor-first: pane 1 is the pinned CONDUCTOR node (§12.4)
+    // A recovery snapshot may already hold worker pane-N ids. New ids must resume above that
+    // high-water mark, while the structural conductor remains the first pane minted this boot.
+    paneSeq = Math.max(paneSeq, resumePaneSeq({ snapshot: recoveryStore.loadLayout(), paneSeq }));
     pushState();
     pushApprovals();       // seed the badge from the cached model immediately (honest 0 until sourced)
     // Phase 17D `.events`: start THIS run's approval log empty. A pending row names a broker

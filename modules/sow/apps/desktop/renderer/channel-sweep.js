@@ -75,8 +75,14 @@
    * create is first, the close is last.
    */
   const SWEEP = [
-    // the scratch pane every destructive intent below is aimed at
-    { method: "newPane", channel: "pane:new", pane: "create", args: () => [{ title: SWEEP_PROBE }] },
+    // G20's empty container is the scratch pane every destructive intent below is aimed at. The
+    // legacy pane:new route is still driven, but now honestly refuses because renderer bytes no
+    // longer select an executable.
+    { method: "createEmptyPane", channel: "pane:create-empty", pane: "create",
+      args: () => [{ title: SWEEP_PROBE }] },
+    { method: "newPane", channel: "pane:new", pane: "none", args: () => [{ title: SWEEP_PROBE }] },
+    { method: "selectExecution", channel: "pane:select-execution", pane: "scratch",
+      args: (c) => [{ id: c.scratchPaneId, executionType: "powershell" }] },
 
     // ---- the conductor pane ----
     // `input` is the point of the exercise: these are renderer bytes, on the channel the supervised
@@ -99,6 +105,9 @@
     // ---- pane-less intents ----
     { method: "snapshot", channel: "shell:snapshot", pane: "none", args: () => [] },
     { method: "conductorState", channel: "conductor:state", pane: "none", args: () => [] },
+    // A self-check-only no-delivery marker: main returns before writing to the conductor.
+    { method: "sendOperatorText", channel: "conductor:operator-text", pane: "none",
+      args: () => [SWEEP_PROBE, true] },
     // refused: a live conductor session is already running in pane 1 (main's own fail-closed path)
     { method: "launchConductor", channel: "conductor:launch", pane: "none", args: () => [] },
     // refused: selection is pre-launch only, and an empty descriptor cannot resolve or persist

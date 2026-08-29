@@ -227,7 +227,10 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // Those additions restore product paths the committed tests already guard; none changes the
 // pane:input handler, voice-residue decision, or release sinks targeted below. Every mutation was
 // re-read against the reconciled tree and is re-run before this pin is accepted.
-const PINNED_BASELINE = "8B6EA9A678DBE7F6A19C03761C8CD41978D933EC865978081171FD0CDCE425EA";
+// Re-pinned for CONVERGE-01 OP-3. The cap edit and recovered pane-id high-water mark are outside
+// pane:input. The close handler additionally forgets a closed EMPTY container, without adding a
+// release sink or changing any target anchor. Every mutation is re-run against these exact bytes.
+const PINNED_BASELINE = "A390F892CB9168F8C982AC2C5458F2B5D8DF6BC7EF5F1FDCA941FD41EB0618FE";
 
 let lockFd;
 try {

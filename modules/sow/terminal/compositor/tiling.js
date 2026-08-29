@@ -16,7 +16,7 @@
  *   P4  completed/idle           — activity "idle"
  *
  * Hard rules enforced here (fail-closed, deterministic — never model output):
- *   1. Visible/tiled set = P0..P2 up to `maxVisible` (default 6, operator-tunable). P3/P4 and
+ *   1. Visible/tiled set = P0..P2 up to `maxVisible` (default 8, operator-tunable). P3/P4 and
  *      any P2 that overflows the budget collapse to status cards.
  *   2. P0 (pinned) and P1 (awaiting-operator) are ALWAYS tiled and can NEVER be auto-collapsed
  *      — even when their count alone exceeds `maxVisible`. Operator-required panes are a hard
@@ -28,7 +28,7 @@
  * that must restyle a pane WITHOUT triggering a relayout. Priority comes from pinned + activity.
  */
 
-const DEFAULT_MAX_VISIBLE = 6;
+const DEFAULT_MAX_VISIBLE = 8;
 
 const ACTIVITY_TO_PRIORITY = {
   awaiting_operator: "P1",
@@ -82,7 +82,7 @@ function resolveMaxVisible(opts) {
 /**
  * Compute the full layout plan for a set of tiling members.
  * @param members [{id, pinned, attention, activity}] in stable (creation/z) order.
- * @param opts    {maxVisible?} operator-tunable visible cap (default 6).
+ * @param opts    {maxVisible?} operator-tunable visible cap (default 8).
  * @returns {grid:{cols,rows,cells:[{id,slot,span,priority}]}, cards:[{id,priority}], maxVisible}
  */
 function planLayout(members, opts = {}) {
