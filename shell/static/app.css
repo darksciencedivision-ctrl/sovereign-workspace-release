@@ -66,22 +66,27 @@ body {
 }
 
 body {
-  background: var(--bg) url("/static/workspace-bg.svg") center bottom / cover fixed no-repeat;
+  background-color: var(--bg);
+  background-image: url("/static/workspace-bg-v2.png");
+  background-position: right center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* ---------- layout ---------- */
 
 .shell {
   width: 100%;
-  max-width: 1720px;
-  margin: 0 auto;
-  padding: 20px 24px;
+  max-width: 1496px;
+  margin: 0;
+  padding: 20px 24px 0;
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: 267px minmax(0, 1fr);
   gap: 16px 28px;
 }
 
@@ -90,23 +95,25 @@ body {
 .header {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: 267px minmax(0, 1fr);
   gap: 28px;
   align-items: stretch;
+  height: 39px;
 }
 
 .identity-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
+  min-height: 39px;
+  height: 39px;
   padding-right: 24px;
   border-right: 1px solid var(--border);
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
 }
 
@@ -119,7 +126,7 @@ body {
 
 .brand-title {
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -140,7 +147,9 @@ body {
   background: var(--sidebar-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  min-height: 39px;
+  height: 39px;
+  padding: 8px 16px;
 }
 
 .header-brand {
@@ -220,7 +229,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   user-select: none;
 }
@@ -255,7 +264,7 @@ body {
 .preflight-grid {
   list-style: none;
   margin: 0;
-  padding: 4px 16px 16px;
+  padding: 2px 16px 12px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 8px 16px;
@@ -270,7 +279,7 @@ body {
 
 .preflight-label {
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -303,7 +312,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -323,25 +332,42 @@ body {
   grid-column: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px 16px;
 }
 .module-card[data-module="tokencenter"] {
   grid-column: 1 / -1;
+  min-height: 181px;
 }
 
 .module-card {
   background: var(--panel-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.module-card[data-module="distillery"] {
+  gap: 5px;
+}
+
+.module-card[data-module="distillery"] .module-desc {
+  line-height: 1.2;
+}
+
+.module-card[data-module="distillery"] .module-meta,
+.module-card[data-module="distillery"] .meta-row,
+.module-card[data-module="distillery"] .distillery-links,
+.module-card[data-module="distillery"] .distillery-note {
+  font-size: 9.5px;
+  line-height: 11.5px;
 }
 
 .module-name {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -349,7 +375,7 @@ body {
 .module-desc {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .state-line {
@@ -368,7 +394,7 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .meta-row {
@@ -436,7 +462,7 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .btn {
@@ -446,9 +472,9 @@ body {
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 5px 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
 }
@@ -492,7 +518,15 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 16px 12px;
+  padding: 2px 16px 8px;
+}
+
+.log-panel {
+  margin-top: -4px;
+}
+
+.log-panel .panel-summary {
+  padding-block: 8px;
 }
 
 .log-status {
@@ -547,6 +581,27 @@ body {
 }
 
 /* ---------- responsive ---------- */
+
+@media (min-width: 2800px) {
+  body {
+    background-size: auto 100%;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1500px) {
+  .module-card[data-module="distillery"] {
+    gap: 4px;
+    padding-block: 12px;
+  }
+
+  .module-card[data-module="distillery"] .module-meta,
+  .module-card[data-module="distillery"] .meta-row,
+  .module-card[data-module="distillery"] .distillery-links,
+  .module-card[data-module="distillery"] .distillery-note {
+    font-size: 9px;
+    line-height: 10px;
+  }
+}
 
 @media (max-width: 720px) {
   body {
