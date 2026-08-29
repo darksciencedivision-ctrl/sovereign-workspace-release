@@ -33,7 +33,7 @@ LOOKBACK_DAYS = 45
 # script/style/handlers), so a strict 'self' policy is safe.
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
        "connect-src 'self'; img-src 'self' data:; "
-       "frame-ancestors 'none'; object-src 'none'; base-uri 'none'")
+       "frame-ancestors http://127.0.0.1:5180; object-src 'none'; base-uri 'none'")
 
 
 @dataclass(frozen=True)
@@ -780,7 +780,6 @@ def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRe
             super().send_response(code, message)
             self.send_header("Content-Security-Policy", CSP)
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("X-Frame-Options", "DENY")
             self.send_header("Referrer-Policy", "no-referrer")
 
         def _loopback_host(self) -> bool:

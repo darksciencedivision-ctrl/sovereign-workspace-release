@@ -336,7 +336,44 @@ body {
 }
 .module-card[data-module="tokencenter"] {
   grid-column: 1 / -1;
-  min-height: 181px;
+  min-height: 560px;
+}
+
+.tokencenter-embed {
+  min-height: 390px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tokencenter-frame {
+  display: block;
+  width: 100%;
+  height: min(64vh, 620px);
+  min-height: 390px;
+  border: 0;
+  background: var(--bg);
+}
+
+.tokencenter-fallback {
+  min-height: 390px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.tokencenter-fallback-status {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.tokencenter-frame[hidden],
+.tokencenter-fallback[hidden] {
+  display: none;
 }
 
 .module-card {

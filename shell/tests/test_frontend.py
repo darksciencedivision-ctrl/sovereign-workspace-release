@@ -83,6 +83,17 @@ class TestFrontendStatic(unittest.TestCase):
         self.assertIn("textContent", joined,
                       "no textContent assignment found; how is dynamic text rendered?")
 
+    def test_tokencenter_is_embedded_with_a_stopped_fallback(self):
+        path = os.path.join(STATIC, "app.js")
+        with open(path, "r", encoding="utf-8") as f:
+            js = f.read()
+        self.assertIn('TOKEN_CENTER_URL = "http://127.0.0.1:8765/"', js)
+        self.assertIn('make("iframe", "tokencenter-frame")', js)
+        self.assertIn('frame.setAttribute("sandbox", "allow-scripts allow-same-origin")', js)
+        self.assertIn('embed.frame.removeAttribute("src")', js)
+        self.assertIn('make("button", "btn btn-primary", "Start Token Center")', js)
+        self.assertIn('mod.id === "tokencenter" && action === "open"', js)
+
 
 class TestFrontendLogRoundTrip(unittest.TestCase):
     """H-4 part 2: a <script> log line survives the API as JSON string data, not markup."""

@@ -8,8 +8,8 @@ Extends the B1-2 CSRF contract with the full M-1 hardening surface:
 * mutation guard: the refresh endpoint accepts NO body — Content-Length > 0,
   chunked Transfer-Encoding, and form-family Content-Types are refused;
 * standard security headers on ALL responses (JSON, static, token endpoint,
-  200 and 403 alike): Content-Security-Policy (strict 'self'), nosniff,
-  X-Frame-Options DENY, Referrer-Policy no-referrer;
+  200 and 403 alike): Content-Security-Policy (strict 'self' plus the exact
+  shell frame ancestor), nosniff, Referrer-Policy no-referrer;
 * lifecycle: the token is stable within one process and differs across
   independently constructed handler servers.
 
@@ -74,8 +74,8 @@ class _Server:
         except urllib.error.HTTPError as exc:
             return exc.code, dict(exc.headers), exc.read()
 
-    def get(self, path):
-        req = urllib.request.Request(self.base + path)
+    def get(self, path, headers=None):
+        req = urllib.request.Request(self.base + path, headers=headers or {})
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return resp.status, dict(resp.headers), resp.read()
@@ -184,10 +184,10 @@ class SecurityHeaderTests(unittest.TestCase):
     def _assert_headers(self, headers, context):
         csp = headers.get("Content-Security-Policy", "")
         self.assertIn("default-src 'self'", csp, context)
-        self.assertIn("frame-ancestors 'none'", csp, context)
+        self.assertIn("frame-ancestors http://127.0.0.1:5180", csp, context)
         self.assertEqual(headers.get("X-Content-Type-Options"), "nosniff",
                          context)
-        self.assertEqual(headers.get("X-Frame-Options"), "DENY", context)
+        self.assertIsNone(headers.get("X-Frame-Options"), context)
         self.assertEqual(headers.get("Referrer-Policy"), "no-referrer",
                          context)
 
@@ -226,6 +226,23 @@ class SecurityHeaderTests(unittest.TestCase):
         status, headers, _ = self.fx.get("/no-such-route")
         self.assertEqual(status, 404)
         self._assert_headers(headers, "GET 404")
+
+    def test_shell_framed_client_keeps_same_origin_token_flow(self):
+        status, headers, _ = self.fx.get("/", headers={
+            "Referer": "http://127.0.0.1:5180/",
+            "Sec-Fetch-Dest": "iframe",
+        })
+        self.assertEqual(status, 200)
+        self.assertIn("frame-ancestors http://127.0.0.1:5180",
+                      headers.get("Content-Security-Policy", ""))
+
+        # The framed document remains its own 8765 origin: its relative token fetch and
+        # bodyless refresh POST therefore use Token Center's exact expected origin, not the
+        # top-level shell origin.
+        token = self.fx.token()
+        refresh_status, _, body = self.fx.post_refresh(self.fx.base, token)
+        self.assertEqual(refresh_status, 200)
+        self.assertTrue(json.loads(body.decode("utf-8"))["ok"])
 
 
 class TokenLifecycleTests(unittest.TestCase):

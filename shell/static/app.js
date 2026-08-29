@@ -26,6 +26,7 @@
   const POLL_SETTLED_MS = 30000; // STOPPED / other live states -> slow poll
   const PREFLIGHT_INTERVAL_MS = 30000;
   const LOG_REFRESH_MS = 2000;
+  const TOKEN_CENTER_URL = "http://127.0.0.1:8765/";
 
   // Fixed card order, per spec.
   const MODULES = [
@@ -436,6 +437,7 @@
       for (const pair of ACTION_LABELS) {
         const action = pair[0];
         const label = pair[1];
+        if (mod.id === "tokencenter" && action === "open") continue;
         const primary = action === "start" || action === "open" || action === "test";
         const btn = make("button", "btn " + (primary ? "btn-primary" : "btn-secondary"), label);
         btn.type = "button";
@@ -448,6 +450,29 @@
         buttons[action] = btn;
       }
 
+      let tokencenterEmbed = null;
+      if (mod.id === "tokencenter") {
+        const region = make("section", "tokencenter-embed");
+        region.setAttribute("aria-label", "Embedded Token Center");
+        const frame = make("iframe", "tokencenter-frame");
+        frame.title = "Sovereign Token Center";
+        frame.loading = "lazy";
+        frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+        frame.hidden = true;
+
+        const fallback = make("div", "tokencenter-fallback");
+        const fallbackStatus = make("p", "tokencenter-fallback-status", "Token Center is not running.");
+        const fallbackStart = make("button", "btn btn-primary", "Start Token Center");
+        fallbackStart.type = "button";
+        fallbackStart.dataset.action = "start";
+        fallbackStart.addEventListener("click", function () { onAction("tokencenter", "start"); });
+        fallback.appendChild(fallbackStatus);
+        fallback.appendChild(fallbackStart);
+        region.appendChild(frame);
+        region.appendChild(fallback);
+        tokencenterEmbed = { region, frame, fallback, fallbackStatus, fallbackStart };
+      }
+
       card.appendChild(title);
       card.appendChild(desc);
       card.appendChild(stateLine);
@@ -456,6 +481,7 @@
         card.appendChild(extra.linksRow);
         card.appendChild(extra.note);
       }
+      if (tokencenterEmbed) card.appendChild(tokencenterEmbed.region);
       card.appendChild(actions);
       el.moduleGrid.appendChild(card);
 
@@ -467,6 +493,7 @@
         endpoint: endpointRow.value,
         buttons,
         extra,
+        tokencenterEmbed,
       });
     }
   }
@@ -516,7 +543,30 @@
       _endpointText: url || (port ? "port " + port : ""),
     }));
 
+    refreshTokenCenterEmbed(id);
     refreshButtons(id);
+  }
+
+  function refreshTokenCenterEmbed(id) {
+    const refs = cards.get(id);
+    if (id !== "tokencenter" || !refs || !refs.tokencenterEmbed) return;
+    const rec = moduleState.get(id) || {};
+    const running = rec.state === "READY" || rec.state === "EXTERNAL";
+    const embed = refs.tokencenterEmbed;
+    embed.frame.hidden = !running;
+    embed.fallback.hidden = running;
+    if (running) {
+      if (embed.frame.getAttribute("src") !== TOKEN_CENTER_URL) {
+        embed.frame.setAttribute("src", TOKEN_CENTER_URL);
+      }
+      return;
+    }
+    // A stopped service never leaves a failed navigation visible. Removing src returns the hidden
+    // frame to an inert document while the local status + Start control remain usable.
+    embed.frame.removeAttribute("src");
+    const meta = STATE_META[rec.state] || STATE_META.NOT_STARTED;
+    embed.fallbackStatus.textContent = "Token Center is " + meta.label.toLowerCase() + ".";
+    embed.fallbackStart.disabled = ACTION_STATES.start.indexOf(rec.state || "NOT_STARTED") === -1;
   }
 
   /* G18: close only handles this shell opened; never touch any other browser. */

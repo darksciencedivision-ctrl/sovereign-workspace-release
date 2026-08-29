@@ -30,6 +30,7 @@ START_RATE_LIMIT_S = 2.0  # H-7: one Start per module per 2 s
 
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
        "connect-src 'self'; img-src 'self' data:; "
+       "frame-src http://127.0.0.1:8765; "
        "frame-ancestors 'none'; object-src 'none'; base-uri 'none'")
 
 # REM-02 D2: the single permitted route addition; anything unnamed is a 404.
