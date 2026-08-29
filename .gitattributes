@@ -15,5 +15,10 @@
 # references to it are prose comments saying it is NOT the real component.
 # Excluding it closes C2-RISK-SPIKE-ELECTRON-LOCK-HELD-NONPRODUCT mechanically
 # instead of shipping a vulnerable dependency declaration.
+# Both forms are required. The `/**` form excludes the CONTENTS; the bare
+# directory form excludes the directory ENTRY itself. With only `/**`, git
+# archive still emits two empty directory members - measured, not assumed.
+modules/sow/tools/spike_compositor export-ignore
 modules/sow/tools/spike_compositor/** export-ignore
+evidence/cpm1/before-b/modules/sow/tools/spike_compositor export-ignore
 evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
