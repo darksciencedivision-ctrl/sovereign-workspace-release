@@ -429,10 +429,10 @@ class TestServerEndpoints(unittest.TestCase):
 
     def test_h2_body_under_limit_is_read(self):
         """A body under the cap passes H-2 and is judged on its merits, not its size."""
-        body = {"id": "distillery", "pad": "x" * 8000}
+        body = {"id": "nope", "pad": "x" * 8000}
         status, text = self._post(self._good_headers(), body=body)
         self.assertEqual(status, 400)
-        self.assertIn("no runtime", text.lower())
+        self.assertIn("unknown module", text.lower())
 
     def test_h2_non_get_verbs_validated(self):
         for method in ("PUT", "DELETE", "PATCH"):
@@ -446,10 +446,9 @@ class TestServerEndpoints(unittest.TestCase):
             self.assertIn(code, (400, 403, 405), "{} was not rejected".format(method))
 
     # -- start refusals -----------------------------------------------------
-    def test_start_distillery_refused(self):
-        status, text = self._post(self._good_headers(), body={"id": "distillery"})
-        self.assertEqual(status, 400)
-        self.assertIn("no runtime", text.lower())
+    def test_distillery_is_declared_runnable(self):
+        adapter = load_all_adapters()["distillery"]
+        self.assertEqual(adapter["state_class"], "runnable")
 
     def test_start_unknown_module_refused(self):
         status, _ = self._post(self._good_headers(), body={"id": "nope"})

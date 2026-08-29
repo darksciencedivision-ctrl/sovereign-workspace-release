@@ -157,9 +157,11 @@ class TestH10QuotaGuardLayer2(unittest.TestCase):
 
     def test_layer1_static_guard_rejects_adapter_without_flag(self):
         """H-10 layer 1: a sow adapter lacking the flag is a CONFIG_ERROR at compile."""
-        raw = json.load(open(os.path.join(
+        path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "modules", "sow.json"), encoding="utf-8"))
+            "modules", "sow.json")
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
         raw["launch"]["env_set"].pop("SOW_CONDUCTOR_AUTOLAUNCH", None)
         from shell.src.adapter import AdapterError
         with self.assertRaises(AdapterError) as ctx:

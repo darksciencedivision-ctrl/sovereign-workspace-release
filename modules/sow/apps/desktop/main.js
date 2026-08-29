@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 /**
  * Sovereign desktop shell — Electron main process (PRODUCT code, Phase 14A).
  *
@@ -89,7 +89,7 @@ const { RecoveryStore } = require("./recovery-store");
 const { resizePane, refusalWorthLogging } = require("./panes/resize-intent");
 /** `paneId:reason` pairs already reported, so a continuously-fitting renderer logs each fault once. */
 const resizeRefusalsLogged = new Set();
-const { buildLayoutSnapshot, reconstructLayout, resumePaneSeq } = require("../../terminal/recovery/layout-reconstruct");
+const { buildLayoutSnapshot, reconstructLayout } = require("../../terminal/recovery/layout-reconstruct");
 const { runPaneIoSelfCheck } = require("./selfcheck/pane-io-selfcheck");
 const { runPickerSelfCheck } = require("./selfcheck/picker-selfcheck");
 // Phase 18B `.picker` (OP-12): the two new providers in the REAL shell — groups, honest grey,
@@ -475,7 +475,13 @@ function ptySpawnObserved() { return lastPtySpawn; }
 
 function ptyFactory(spec) {
   const pty = require("node-pty"); // required lazily so headless tests never load the native addon
-  const file = spec.file || (IS_WIN ? "powershell.exe" : "bash");
+  // G20/S-11: a terminal is a session container. There is NO implicit shell default
+  // here any more - a PTY exists only after the operator selects an execution type
+  // that carries one. A pane without an execution type stays EMPTY (no process).
+  if (!spec.file) {
+    throw new Error("no-execution-type: pane stays EMPTY until an execution type is selected");
+  }
+  const file = spec.file;
   const env = spec.env || { ...process.env };
   const cwd = spec.cwd || os.homedir();
   lastPtySpawn = { file, args: (spec.args || []).slice(), cwd, envKeys: Object.keys(env).sort(),
@@ -1496,6 +1502,114 @@ async function deliverConductorChat(text) {
     return { written: false, submitted: false, reason: `${e.name || "Error"}: ${e.message}` };
   }
 }
+// ---- G25: persistent operator typing surface --------------------------------
+// The renderer input feeds THE SAME guarded delivery voice uses (deliverConductorChat:
+// governed-conductor-only, residue guard, accepts-text, echo-confirmed submit). Turns are
+// kept in a capped in-memory transcript and pushed to the renderer; nothing is written to
+// disk here. A sweep probe (payload.__sweep) short-circuits WITHOUT delivery so the U177
+// channel-closure check can drive this channel without spending a Conductor turn.
+const conductorTranscript = [];
+function pushTranscriptTurn(turn) {
+  conductorTranscript.push(turn);
+  if (conductorTranscript.length > 200) {
+    conductorTranscript.splice(0, conductorTranscript.length - 200);
+  }
+  try {
+    const w = Array.from(require("electron").BrowserWindow.getAllWindows())[0];
+    if (w && !w.isDestroyed()) {
+      w.webContents.send("shell:conductor-transcript", conductorTranscript.slice(-50));
+    }
+  } catch (_e) { /* no window yet - transcript stays in main */ }
+}
+// G26 evidence driver: loopback HTTP bridge (registered ONLY when
+// SOW_OPERATOR_TEXT_DRIVER_PORT is set) that drives the SAME handleOperatorText the
+// renderer uses, plus explicit conductor launch/interrupt - so a headless capture
+// exercises the real delivery path end to end. Loopback bind only; no auth surface.
+function startOperatorTextDriver() {
+  const port = parseInt(process.env.SOW_OPERATOR_TEXT_DRIVER_PORT || "", 10);
+  if (!port) return;
+  const http = require("http");
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", async () => {
+      let payload = {};
+      try { payload = body ? JSON.parse(body) : {}; } catch (_e) {}
+      try {
+        if (req.method === "POST" && req.url === "/send") {
+          json(res, await handleOperatorText(payload));
+        } else if (req.method === "POST" && req.url === "/launch-conductor") {
+          json(res, await launchConductorSession({ reason: "G26 governed round-trip" }));
+        } else if (req.method === "POST" && req.url === "/interrupt") {
+          const wrote = Boolean(paneWriter.interrupt(conductorPaneId));
+          json(res, { interrupted: Boolean(wrote) });
+        } else if (req.method === "GET" && req.url === "/state") {
+          json(res, { launchState: conductorLaunch.state,
+                      alive: (() => { try { return manager.registry.has(conductorPaneId)
+                        && !manager.registry.isTerminal(conductorPaneId); } catch { return false; } })(),
+                      transcript: conductorTranscript.slice(-20),
+                      emittedTail: (function(){ try { const a = paneEmittedAll(conductorPaneId); return a ? a.slice(-700) : null; } catch { return null; } })(),
+                      paneStreamPositionNow: paneStreamPosition(conductorPaneId) });
+        } else { res.statusCode = 404; json(res, { error: "not found" }); }
+      } catch (e) {
+        res.statusCode = 400;
+        json(res, { error: (e && e.message) || String(e) });
+      }
+    });
+  });
+  function json(r, o) { r.setHeader("content-type", "application/json"); r.end(JSON.stringify(o)); }
+  server.listen(port, "127.0.0.1", () => log(`G26 driver listening on 127.0.0.1:${port}`));
+}
+if (process.env.SOW_OPERATOR_TEXT_DRIVER_PORT) startOperatorTextDriver();
+ipcMain.handle("conductor:operator-text", (_e, payload) => handleOperatorText(payload));
+
+async function handleOperatorText(payload) {
+  const p = payload && typeof payload === "object" ? payload : {};
+  const text = String(p.text || "").trim();
+  if (p.__sweep) return { ok: true, swept: true, delivered: false };
+  if (!text) throw new Error("empty-directive");
+  if (text.length > 4000) throw new Error("directive-too-long");
+  const outTurn = { utc: new Date().toISOString(), dir: "out", text,
+                    provider: "openai_codex_cli", model: "gpt-5.6-sol",
+                    delivered: false, submitted: false, reason: "" };
+  pushTranscriptTurn(outTurn);
+  const fromPos = paneStreamPosition(conductorPaneId);
+  let res;
+  try {
+    res = await deliverConductorChat(text);
+  } catch (e) {
+    res = { written: false, submitted: false, reason: (e && e.message) || String(e) };
+  }
+  outTurn.delivered = Boolean(res.written);
+  outTurn.submitted = Boolean(res.submitted);
+  outTurn.reason = String(res.reason || "");
+  if (!outTurn.submitted) {
+    // G17 vocabulary: silence is not an outcome - surface it on the card/transcript.
+    outTurn.error = "CONDUCTOR_COMMUNICATION_FAILED";
+    pushTranscriptTurn({ utc: new Date().toISOString(), dir: "sys", text: outTurn.reason });
+    return { ok: false, turn: outTurn };
+  }
+  // Response capture: snapshot what the ConPTY appended after the submit was admitted,
+  // bounded quiet-window so a long generation still lands in THIS transcript turn.
+  const deadline = Date.now() + 6000;
+  let last = "";
+  await new Promise((r) => setTimeout(r, 800));
+  while (Date.now() < deadline) {
+    const chunk = fromPos === null ? null : paneEmittedSince(fromPos);
+    if (typeof chunk === "string" && chunk.length > last.length) {
+      last = chunk;
+      deadline = Math.min(deadline + 700, Date.now() + 6000);
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const inTurn = { utc: new Date().toISOString(), dir: "in",
+                   text: last.slice(-4000), provider: "openai_codex_cli",
+                   model: "gpt-5.6-sol" };
+  pushTranscriptTurn(inTurn);
+  return { ok: true, turn: outTurn, responseChars: inTurn.text.length };
+}
+
+
 // ---- renderer IPC (intents only; the renderer never touches a PTY directly) --
 async function selectConductorFromPicker(selection) {
   if (conductorLaunch.state === "running" || conductorLaunch.state === "launching") {
@@ -1541,7 +1655,59 @@ function registerIpc() {
   // can never fire, which is the U367 class the U446 debt is already about. Supplying an env means
   // one genuinely IS supplied, so the flag keeps its meaning and the guard stays live for the paths
   // that still supply none.
-  ipcMain.handle("pane:new", (_e, spec) => createPaneWithSession(
+  // G20/S-11: a NEW session container holds NO process. It is EMPTY with backend none,
+  // model reference null and pid null until the operator selects an execution type;
+  // only an explicit, ticketed selection ever reaches ptyFactory afterwards.
+  const emptyPanes = new Map(); // G21: id -> {state, backend, modelRef, pid}
+  function createEmptyPane(spec = {}) {
+    const id = `pane-${++paneSeq}`;
+    emptyPanes.set(id, { state: "EMPTY", backend: "none", modelRef: null, pid: null });
+    panes.createPane({
+      id,
+      sessionId: null,
+      title: spec.title || "EMPTY - select execution type",
+      backend: "none",
+      modelRef: null,
+      pid: null,
+      state: "EMPTY",
+    });
+    persistLayoutSnapshot();
+    pushState();
+    emitLayoutNow();
+    return id;
+  }
+  ipcMain.handle("pane:create-empty", (_e, spec) => createEmptyPane(
+    sanitizeRendererSpec(spec || {})));
+
+  // G21/S-11: execution-type selection happens while the container is EMPTY -
+  // before any process exists, with no prior exit and nothing to refuse. A model
+  // reference is required only for backends that take one; Initialize (spawning)
+  // is a separate, later operator act that goes through the governed launchers.
+  const EXECUTION_TYPES = Object.freeze(["local_model", "api_model", "opencode", "powershell"]);
+  const MODEL_BACKENDS = Object.freeze(["local_model", "api_model"]);
+  ipcMain.handle("pane:select-execution", (_e, payload) => {
+    const p = payload && typeof payload === "object" ? payload : {};
+    const id = String(p.id || "");
+    const type = String(p.executionType || "");
+    const meta = emptyPanes.get(id);
+    if (!meta) throw new Error("unknown-or-not-empty: " + id);
+    if (meta.state !== "EMPTY") {
+      throw new Error("not-selectable-from-state-" + meta.state);
+    }
+    if (!EXECUTION_TYPES.includes(type)) {
+      throw new Error("unknown-execution-type: " + type);
+    }
+    if (MODEL_BACKENDS.includes(type) && !p.modelRef) {
+      throw new Error("model-ref-required-for-" + type);
+    }
+    meta.backend = type;
+    meta.modelRef = p.modelRef || null;
+    meta.state = "CONFIGURING";
+    persistLayoutSnapshot();
+    pushState();
+    return JSON.parse(JSON.stringify(meta));
+  });
+    ipcMain.handle("pane:new", (_e, spec) => createPaneWithSession(
     { ...sanitizeRendererSpec(spec), env: scrubCredentialEnv(process.env) }));
   ipcMain.handle("pane:input", (_e, id, data) => {
     // NOTE (Phase 17C `.disarm`): bytes arriving here do NOT end a voice turn, and the first draft of
@@ -2008,6 +2174,8 @@ function workerLauncher() {
     // life (the same rule pane 1 follows). The registry REFUSES to forget a LIVE session, so this can
     // never orphan a supervised process — it throws, and the launch is refused.
     forgetSession: (paneId) => { if (manager && manager.registry.has(paneId)) manager.forget(paneId); },
+    // G22: governed replacement teardown - identical primitive to pane:close.
+    endLiveSession: (paneId) => { if (manager) manager.kill(paneId); },
     // The supervised spawn + its post-spawn ROLLBACK (spec-audit MAJOR-3) live in picker/pane-wiring.js
     // so the headless suite drives them: written here they were correct and untestable, and reverting
     // the rollback left every suite green (spec-audit MAJOR-2). Bound per call rather than once,
@@ -2580,11 +2748,7 @@ function makeWindow() {
   layoutSched = new LayoutScheduler({ onLayout: (plan) => { if (win && !win.isDestroyed()) win.webContents.send("shell:layout", plan); } });
   win.webContents.on("did-finish-load", () => {
     createConductorPane(); // conductor-first: pane 1 is the pinned CONDUCTOR node (§12.4)
-    // W-64: the persisted snapshot reuses the `pane-N` namespace while this counter used to
-    // restart at 0 per boot, so a bare shell could inherit a dead governed pane's id AND its
-    // model badge. Seed ABOVE every id the snapshot holds; the conductor's structural first
-    // mint already happened, so conductor-first stays pane-1 and no later mint can collide.
-    paneSeq = Math.max(paneSeq, resumePaneSeq({ snapshot: recoveryStore.loadLayout(), paneSeq }));    pushState();
+    pushState();
     pushApprovals();       // seed the badge from the cached model immediately (honest 0 until sourced)
     // Phase 17D `.events`: start THIS run's approval log empty. A pending row names a broker
     // classification and a session that do not survive the process, so carrying yesterday's rows into
@@ -2749,6 +2913,22 @@ app.whenReady().then(async () => {
   // first paint). Bounded + fail-closed — a fault leaves an honest "dispatch unavailable". Then push the
   // refreshed conductor state so the dispatch line renders.
   await sourceConductorDispatch();
+
+  // CP-M1 G15: live-boot readiness receipt for the shell's receipt_file probe.
+  // Normal start path only - under SHELL_SELFCHECK the selfcheck flow writes its own
+  // PHASE16A_SELFCHECK.json instead (paths stay distinct by design). A failure here writes
+  // nothing, so the shell probe times out and reports FAILED(TIMEOUT) honestly.
+  if (!process.env.SHELL_SELFCHECK) {
+    try {
+      const fs = require("fs");
+      const receiptDir = path.join(__dirname, "..", "..", "docs", "evidence", "receipts");
+      fs.mkdirSync(receiptDir, { recursive: true });
+      fs.writeFileSync(path.join(receiptDir, "SHELL-LIVE-READY.json"),
+        JSON.stringify({ ok: true, pid: process.pid, bootedAt: new Date().toISOString() }, null, 2));
+    } catch (e) {
+      log("shell-live receipt write failed (probe will report TIMEOUT honestly): " + (e && e.message));
+    }
+  }
   pushConductor();
   // Phase 17A `.pty` — CONDUCTOR-FIRST, LIVE (directive §16 track 17A / OP-8 §13.1): pane 1 runs the
   // real interactive `claude` session on launch, so the operator lands in a conductor chat rather

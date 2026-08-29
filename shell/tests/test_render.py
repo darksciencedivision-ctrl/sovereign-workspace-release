@@ -359,7 +359,7 @@ class TestRenderProofs(unittest.TestCase):
         edge = self._edge_path()
         prof = tempfile.mkdtemp(prefix="sws-h17-")
         lines = [header("H-17 - rendered DOM of / (headless Edge) shows the five cards, "
-                        "their action rows, and the disabled Distillery controls")]
+                        "their action rows, and the runnable Distillery controls")]
         proc, port, nonce = start_shell()
         url = "http://127.0.0.1:{}/".format(port)
         try:
@@ -389,11 +389,15 @@ class TestRenderProofs(unittest.TestCase):
                                  "{} action row != contract section 7.3(2) set".format(mid))
 
             dist = {a: d for a, d in cards.buttons.get("distillery", [])}
-            for act in ("start", "stop", "open", "test"):
+            self.assertFalse(dist.get("start", True), "distillery start unexpectedly disabled")
+            self.assertFalse(dist.get("test", True), "distillery startup test unexpectedly disabled")
+            for act in ("stop", "restart", "open"):
                 self.assertTrue(dist.get(act, False),
-                                "distillery {} not disabled".format(act))
-            lines.append("distillery Start/Stop/Open/Test disabled: {} {} {} {}".format(
-                dist.get("start"), dist.get("stop"), dist.get("open"), dist.get("test")))
+                                "distillery {} unexpectedly enabled while STOPPED".format(act))
+            lines.append("distillery STOPPED action state start/stop/restart/open/test: "
+                         "{} {} {} {} {}".format(
+                             dist.get("start"), dist.get("stop"), dist.get("restart"),
+                             dist.get("open"), dist.get("test")))
             lines.append("distillery Logs enabled: {}".format(not dist.get("logs", False)))
 
             shot_dir = os.path.join(WORKSPACE, "evidence", "gate5", "screenshots")
@@ -415,7 +419,7 @@ class TestRenderProofs(unittest.TestCase):
             lines.append("")
             lines.append("edge binary: {}".format(edge))
             lines.append("RESULT: five cards in order, six-action rows per contract "
-                         "section 7.3(2), Distillery controls disabled, PNG differs from "
+                         "section 7.3(2), Distillery STOPPED controls are state-correct, PNG differs from "
                          "the blank render.")
             write_artifact("h17-dom.txt", "\n".join(lines) + "\n")
         finally:
@@ -460,7 +464,5 @@ class _CardDOM(HTMLParser):
 
 if __name__ == "__main__":
     unittest.main()
-
-
 
 

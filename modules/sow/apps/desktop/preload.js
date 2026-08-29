@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 /**
  * Preload: the ONLY bridge between the sandboxed renderer and the main process.
  *
@@ -12,6 +12,12 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("sovereign", {
   // pane / session intents (main enforces supervision + validity)
   newPane: (spec) => ipcRenderer.invoke("pane:new", spec),
+  createEmptyPane: (spec) => ipcRenderer.invoke("pane:create-empty", spec),
+  selectExecution: (payload) => ipcRenderer.invoke("pane:select-execution", payload),
+  // G25: persistent operator typing surface - text goes through the SAME guarded
+  // delivery path voice chat uses (deliverConductorChat); never straight to a PTY.
+  sendOperatorText: (text) => ipcRenderer.invoke("conductor:operator-text", { text }),
+  onConductorTranscript: (cb) => ipcRenderer.on("shell:conductor-transcript", (_e, t) => cb(t)),
   input: (id, data) => ipcRenderer.invoke("pane:input", id, data),
   // Phase 16A: byte-exact scrollback for a pane's session, replayed when the term view (re)attaches.
   // Returns {text, seq} — the snapshot plus the seq of the last chunk it includes. READ-ONLY.

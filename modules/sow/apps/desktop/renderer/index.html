@@ -234,5 +234,28 @@
        machinery with exactly one consumer — the self-check hook — so renderer.js fetches it on
        demand under ?selfcheck=1 and an operator launch never carries it (invariant 30). -->
   <script src="renderer.js"></script>
+<style>
+#conductor-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  background: #0d1117; border-top: 1px solid #21262d; padding: 6px 8px 8px;
+  font-family: ui-monospace, monospace; }
+#conductor-transcript { max-height: 150px; overflow-y: auto; margin-bottom: 6px;
+  color: #c9d1d9; }
+#conductor-transcript .turn { margin: 2px 0; white-space: pre-wrap; }
+#conductor-transcript .turn.out .who { color: #79c0ff; }
+#conductor-transcript .turn.in .who { color: #7ee787; }
+#conductor-form { display: flex; gap: 6px; }
+#conductor-input { flex: 1; background: #161b22; color: #c9d1d9;
+  border: 1px solid #30363d; border-radius: 4px; padding: 4px 6px; }
+#conductor-send { background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+  border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+</style>
+<div id="conductor-bar">
+  <div id="conductor-transcript" aria-live="polite"></div>
+  <form id="conductor-form">
+    <input id="conductor-input" type="text" autocomplete="off"
+           placeholder="Message the Conductor..." />
+    <button id="conductor-send" type="submit">Send</button>
+  </form>
+</div>
 </body>
 </html>

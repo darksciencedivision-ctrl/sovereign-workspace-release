@@ -222,15 +222,15 @@ class TestExternalTransitions(_Base):
 
 class TestNotStartedAndConfigError(unittest.TestCase):
 
-    def test_distillery_is_not_started(self):
+    def test_distillery_is_stopped_and_startable(self):
         from shell.src.adapter import load_all_adapters
         adapters = load_all_adapters()
         self.assertIn("distillery", adapters)
         r = ModuleRunner("distillery", adapters["distillery"], None)
-        self.assertEqual(r.state, "NOT_STARTED")
+        self.assertEqual(r.state, "STOPPED")
         allowed, status, _ = r.can_start()
-        self.assertFalse(allowed)
-        self.assertEqual(status, 400)
+        self.assertTrue(allowed)
+        self.assertEqual(status, 200)
 
     def test_config_error_adapter(self):
         r = ModuleRunner("bad", {"error": "CONFIG_ERROR", "reason": "bad json"}, None)

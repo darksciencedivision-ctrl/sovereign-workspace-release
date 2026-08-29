@@ -222,7 +222,12 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // handlers X1-X4 target) — which this harness re-checks itself, since it refuses to splice
 // a non-unique anchor. Worktree copy verified to carry zero CR bytes before re-pinning
 // (U274). Harness re-run against these exact bytes: all CAUGHT, restore BYTE-IDENTICAL.
-const PINNED_BASELINE = "E334706C543D7B7C1BC9B88443D87FA218EDC7DBB5FBE1702517E9382AA30BA7";
+// Re-pinned at CONVERGE-01 C0 after reconciling the already-evidenced CP-M1 Band 3/4 source bytes
+// (`pane:create-empty`, execution selection, governed replacement, and conductor text surface).
+// Those additions restore product paths the committed tests already guard; none changes the
+// pane:input handler, voice-residue decision, or release sinks targeted below. Every mutation was
+// re-read against the reconciled tree and is re-run before this pin is accepted.
+const PINNED_BASELINE = "8B6EA9A678DBE7F6A19C03761C8CD41978D933EC865978081171FD0CDCE425EA";
 
 let lockFd;
 try {

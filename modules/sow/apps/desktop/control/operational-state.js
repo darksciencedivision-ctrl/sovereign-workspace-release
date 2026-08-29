@@ -62,6 +62,8 @@ function createOperationalState(io) {
       process_tree_owned: record.supervised === true,
       readiness: record.readiness || null,
       structured_failure: record.structuredFailure || null,
+      created_utc: record.startedAt || record.created_utc || null,
+      backend: (chrome.backend || record.backend || null),
     };
   };
 

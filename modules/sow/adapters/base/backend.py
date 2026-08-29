@@ -27,6 +27,12 @@ class Backend(Protocol):
     name: str
 
     def generate(self, prompt: str, *, max_tokens: int = 256) -> str: ...
+    def list_models(self) -> dict: ...
+    def load_model(self, artifact_id: str) -> dict: ...
+    def unload_model(self, artifact_id: str) -> dict: ...
+    def cancel(self, request_id: str) -> dict: ...
+    def health(self) -> dict: ...
+    def capabilities(self) -> dict: ...
 
 
 @runtime_checkable
@@ -63,6 +69,19 @@ class MockBackend:
         h = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:12]
         return f"[{self.name}] deterministic response to prompt (h={h}): {prompt[:80]}"
 
+    def list_models(self) -> dict:
+        return {"supported": True, "models": [self.name]}
+    def load_model(self, artifact_id: str) -> dict:
+        return {"supported": False, "reason": "mock backend has no load"}
+    def unload_model(self, artifact_id: str) -> dict:
+        return {"supported": False, "reason": "mock backend has no unload"}
+    def cancel(self, request_id: str) -> dict:
+        return {"supported": False, "reason": "mock backend has no cancel"}
+    def health(self) -> dict:
+        return {"supported": True, "ok": True}
+    def capabilities(self) -> dict:
+        return {"generate": True, "stream": False, "load": False, "unload": False, "cancel": False}
+
 
 class OllamaBackend:
     """Real local backend over the Ollama daemon (127.0.0.1). No credentials, local only —
@@ -90,3 +109,26 @@ class OllamaBackend:
         with urllib.request.urlopen(req, timeout=180) as r:
             data = json.loads(r.read().decode("utf-8"))
         return data.get("response", "")
+
+
+    def list_models(self) -> dict:
+        return {"supported": True, "models": [self.model]}
+
+    def load_model(self, artifact_id: str) -> dict:
+        return {"supported": False, "reason": "Ollama loads on first generate; explicit load is not a native API"}
+
+    def unload_model(self, artifact_id: str) -> dict:
+        return {"supported": False, "reason": "Ollama has no explicit unload in the local HTTP generate API"}
+
+    def cancel(self, request_id: str) -> dict:
+        return {"supported": False, "reason": "Ollama /api/generate cancel is not exposed on this adapter"}
+
+    def health(self) -> dict:
+        try:
+            urllib.request.urlopen(f"{self._host}/api/tags", timeout=3)
+            return {"supported": True, "ok": True}
+        except Exception as e:
+            return {"supported": True, "ok": False, "reason": str(e)}
+
+    def capabilities(self) -> dict:
+        return {"generate": True, "stream": False, "load": False, "unload": False, "cancel": False}

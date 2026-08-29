@@ -11,7 +11,7 @@ class TestTokencenterLoopbackAndCsrf(unittest.TestCase):
         self.assertIn('ThreadingHTTPServer(("127.0.0.1", args.port)', self.t)
     def test_post_requires_origin_host_csrf(self):
         self.assertIn("X-CSRF-Nonce", self.t)
-        self.assertIn("Origin required", self.t)
+        self.assertIn("Origin must exactly match the serving origin", self.t)
         self.assertIn("Host not loopback", self.t)
 
 if __name__ == "__main__":

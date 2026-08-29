@@ -105,6 +105,9 @@ function createWorkerPaneLauncher(deps = {}) {
     isSupervised = () => false,
     hasLiveSession = () => false,
     forgetSession = () => {},
+    // G22: governed replacement tears the prior session down through THIS injected
+    // primitive - the same teardown the pane-close IPC uses - never an ad-hoc kill.
+    endLiveSession = () => {},
     onChange = () => {},
     // The §2.2 scrub rule itself, injectable for ONE reason: the leftover check below is a guard
     // over whatever produced the child env, and a guard nothing can drive is a guard nobody knows
@@ -233,9 +236,31 @@ function createWorkerPaneLauncher(deps = {}) {
     }
     // (2) the pane must be free.
     if (hasLiveSession(pid)) {
-      return refuse(pid, "refused",
-        `pane ${pid} already holds a live session — close it before launching another model into it `
-        + "(a running session is never killed to make room for a picker click)");
+      // G22: governed replacement. An unconfirmed click is still a soft refusal -
+      // but it names its own class and the confirm that unlocks it, instead of the
+      // old blanket "close it" wall. A CONFIRMED replacement terminates the prior
+      // session through endLiveSession (the pane-close primitive), waits bounded
+      // for the record to release, then falls through into a fresh launch.
+      if (selection.replaceConfirmed !== true) {
+        return refuse(pid, "replacement-requires-confirmation",
+          `pane ${pid} already holds a live session - governed replacement terminates and `
+          + "reinitializes ONLY on an explicit confirm (selection.replaceConfirmed: true); "
+          + "a running session is never killed by an unconfirmed click");
+      }
+      try {
+        endLiveSession(pid);
+      } catch (e) {
+        return refuse(pid, "refused",
+          `governed replacement could not terminate the prior session (${e.message})`);
+      }
+      const clearDeadline = Date.now() + 10000;
+      while (hasLiveSession(pid) && Date.now() < clearDeadline) {
+        await new Promise((r) => scheduleRetry(r, 100));
+      }
+      if (hasLiveSession(pid)) {
+        return refuse(pid, "refused",
+          "prior session did not release within the governed-replacement window");
+      }
     }
     try {
       forgetSession(pid);   // an ENDED record must not wedge the pane (same rule as pane 1)

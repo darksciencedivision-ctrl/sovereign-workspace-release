@@ -123,13 +123,15 @@ const RELEASE_OWNER = {
  * The per-channel property was never the whole one: the validator moved the `pane:input` relay into
  * `pane:focus` and every test in the repo stayed green (RESERVATION-1). Renderer bytes are renderer
  * bytes whichever channel carries them, so the walk below covers all of them and this is the closed
- * list of exceptions. `voice:capture` is the only legitimate one: it MINTS a turn (`arm`) and the
- * delivery it dispatches may `cancel` that same turn before admission — a turn nobody else has seen.
+ * list of exceptions. `voice:capture` and `conductor:operator-text` are legitimate because each
+ * MINTS a turn (`arm`) and the delivery it dispatches may `cancel` that same turn before admission —
+ * a turn nobody else has seen.
  * No channel may reach `disarm` or `reset`: those two are answers to facts main observes for itself
  * (the OS input path and the node-pty exit), and a renderer cannot witness either.
  */
 const CHANNEL_MAY_REACH_RELEASE = new Map([
   ["voice:capture", new Set(["cancel"])],
+  ["conductor:operator-text", new Set(["cancel"])],
 ]);
 
 /** Index of the closing quote of the `'`/`"` literal opening at `at`. */

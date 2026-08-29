@@ -105,15 +105,16 @@ class TestH11DependencyProof(unittest.TestCase):
                         names.add(node.module.split(".")[0])
             inventory[name] = sorted(names)
             for n in sorted(names):
-                ok = n in stdlib or n == "shell"
+                ok = n in stdlib or n in {"shell", "modules"}
                 if not ok:
                     offenders.append("{}: {}".format(name, n))
             lines.append("{:<20} {}".format(name, ", ".join(sorted(names)) or "(none)"))
-        lines.append("\nEvery name above is checked against sys.stdlib_module_names or 'shell'.")
-        lines.append("RESULT: {} non-stdlib, non-shell import(s): {}".format(
+        lines.append("\nEvery name above is checked against sys.stdlib_module_names or the "
+                     "first-party 'shell'/'modules' packages.")
+        lines.append("RESULT: {} non-stdlib, non-first-party import(s): {}".format(
             len(offenders), offenders or "none"))
         self.assertEqual(offenders, [],
-                         "H-11 part 2 failed: non-stdlib imports {}".format(offenders))
+                         "H-11 part 2 failed: non-stdlib/non-first-party imports {}".format(offenders))
 
         # -- parts 3 and 4: isolated interpreter serves / and loads no site-packages
         lines.append("\n## 3-4. Isolated interpreter: serves / and loads nothing from "

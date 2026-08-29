@@ -602,9 +602,47 @@ S.onPaneChrome((id, chrome) => {
 });
 
 document.getElementById("btn-new").addEventListener("click", async () => {
-  try { await S.newPane({}); }
-  catch (e) { console.error("new pane refused:", e); }
+  // G20/S-11: "+ Terminal" creates a session CONTAINER - no process, no PTY.
+  try { await S.createEmptyPane({}); }
+  catch (e) { console.error("empty pane refused:", e); }
 });
+
+// ---- G25: persistent Conductor typing surface ------------------------------
+(function wireConductorBar() {
+  const input = document.getElementById("conductor-input");
+  const sendBtn = document.getElementById("conductor-send");
+  const list = document.getElementById("conductor-transcript");
+  if (!input || !sendBtn || !list) return;
+
+  function render(turns) {
+    list.textContent = "";
+    for (const turn of turns) {
+      const row = document.createElement("div");
+      row.className = "turn " + (turn.dir === "in" ? "in" : turn.dir === "sys" ? "sys" : "out");
+      const who = document.createElement("span");
+      who.className = "who";
+      who.textContent = "[" + String(turn.utc || "").replace("T", " ").slice(0, 19) + "] "
+        + (turn.dir === "in" ? "Conductor:" : turn.dir === "sys" ? "system:" : "you:");
+      const body = document.createElement("span");
+      body.textContent = " " + String(turn.text || "");
+      row.appendChild(who);
+      row.appendChild(body);
+      list.appendChild(row);
+    }
+    list.scrollTop = list.scrollHeight;
+  }
+
+  S.onConductorTranscript(render);
+
+  document.getElementById("conductor-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    try { await S.sendOperatorText(text); }
+    catch (e) { console.error("operator text refused:", e); }
+  });
+})();
 
 // ---- routing/artifact inspector drawer (Plan §10.3) -------------------------
 // A THIN VIEW: it pulls governed MCP state on demand via the read-only bridge and renders the

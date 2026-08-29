@@ -109,6 +109,11 @@ class TestFailureClasses(unittest.TestCase):
             self.assertNotIn("TIMEOUT", disp2)
         finally:
             fx.terminate()
+            try:
+                fx.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                fx.kill()
+                fx.wait(timeout=10)
 
     def test_port_conflict_is_its_own_class(self):
         s = socket.socket()
