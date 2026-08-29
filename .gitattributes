@@ -1,0 +1,19 @@
+# Root attributes — CLOSEOUT-01.
+# Scope: release-archive membership only. No text/eol/diff attributes are set
+# here, so the existing modules/sow/.gitattributes and
+# modules/distillery/.gitattributes keep full control of normalisation for
+# their subtrees. Git resolves attributes per attribute, not per file, and a
+# deeper .gitattributes wins only for attributes it actually sets; neither of
+# those files sets export-ignore, so these rules apply unopposed.
+#
+# export-ignore removes a path from `git archive` ONLY. Every path below stays
+# tracked, stays in `git ls-files`, and stays in history.
+
+# X-2 (A-2 / OD-25) — the Phase-1 throwaway spike is not product code. Its
+# package-lock pins electron 31.7.7 and extract-zip 2.0.1, the two
+# high-severity findings. No product file imports it; the three product
+# references to it are prose comments saying it is NOT the real component.
+# Excluding it closes C2-RISK-SPIKE-ELECTRON-LOCK-HELD-NONPRODUCT mechanically
+# instead of shipping a vulnerable dependency declaration.
+modules/sow/tools/spike_compositor/** export-ignore
+evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
