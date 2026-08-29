@@ -52,6 +52,7 @@ models/
 # --- build output ---
 build/
 dist/
+release-artifacts/
 *.egg-info/
 *.whl
 *.tar.gz
