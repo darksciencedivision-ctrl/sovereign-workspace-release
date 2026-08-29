@@ -1,8 +1,8 @@
 {
   "manifest_kind": "RELEASE-MANIFEST",
   "directive": "SWS-REM-DIR-20260828 R2 / CONVERGE-01 C6",
-  "generated_utc": "2026-08-29T16:20:35Z",
-  "producer": "builder grok-4.6 (opencode) via C6 regeneration",
+  "generated_utc": "2026-08-29T19:06:42Z",
+  "producer": "builder claude-code (opus-5) via CLOSEOUT-01 PHASE Z regeneration",
   "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. Prior RELEASE-MANIFEST.json preserved as RELEASE-MANIFEST.json.pre-CONVERGE01. batch_files enumerates Batch 4-E plus CONVERGE-01 identity/UI/C4 tooling files except RELEASE-MANIFEST.json itself. This manifest covers TRACKED BYTES ONLY and carries no release-artifact hash: a tracked manifest enters the archive it would describe, so the archive's hash cannot live inside it (CLOSEOUT-01 A-1/OD-24). Release-artifact and sidecar hashes are authoritative only in the untracked release-artifacts/release-build-manifest.json, named here by release_archive_hash_authority. Every path+sha256 pair in this file is verified by tools/release/release_manifest_check.py; adding a hash-bearing section the checker does not verify makes the gate FAIL by construction (S-15).",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
@@ -10,7 +10,7 @@
     "baseline_sidecar": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip.sha256 (P0-1, beside the archive)",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "a45fb98cfa6d3619f6ea405044e3b76e87add24a",
+    "worktree_commit_at_generation": "be8dcb004b91c3d2ff2986f69a400b9317d36115",
     "construction_recipe": "bundles/PHASE0/WORKTREE-RECIPE.md",
     "rollback_archive": "SOVEREIGN_RESET_BASELINE_20260827T193540Z.zip",
     "rollback_sha256": "00ae9eefc7dada37943bb08a305020c73e2c029a6398858e8bba27078c349a7c"
@@ -18,15 +18,15 @@
   "modules": {
     "debate": {
       "current_provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "e2b34ea4b428cba0b232628a6b39813a67b4995a85b04e295355815cb535eb28",
+      "provenance_record_sha256": "f84b0534ea0919620df9445b8871f39c7092c79ac0b92a6619f6c02405c09a8f",
       "superseded_provenance_paths": [
         "modules/debate/INSTALL-PROVENANCE.previous.json",
         "modules/debate/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "03d055d6d92eb82e550cc0d2af68c93c9f53777828bf694c4468ba8ace933ab2",
-        "content_file_count": 54,
+        "content_digest_sha256": "2135f7d8728ff4ed72143c12a1249d1a628dbd96d591c8bd001fcf9154961101",
+        "content_file_count": 55,
         "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… [U]"
       },
       "version": "v1.2.1-hardening",
@@ -46,7 +46,7 @@
     },
     "distillery": {
       "current_provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "923892535d4bd48d5c8b9f01549b47e9830a56c1265b9914c32d2c2124244d28",
+      "provenance_record_sha256": "02f3e96110d993efc3c6f92327c149f530e8a001010ce3b21aff646684604668",
       "superseded_provenance_paths": [
         "modules/distillery/INSTALL-PROVENANCE.json.previous",
         "modules/distillery/INSTALL-MANIFEST.txt.previous",
@@ -54,8 +54,8 @@
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "c082cab780ffe89d3491cde1d6ab87840fd083a08ab58eae5834f8ff33adae95",
-        "content_file_count": 205,
+        "content_digest_sha256": "1efcf7c0d1caf96eed79caf4dcd50e0ebfa4d01451e3636ff88b3b5742f6fc4b",
+        "content_file_count": 206,
         "historical_source_hashes": [
           "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96"
         ],
@@ -103,15 +103,15 @@
     },
     "sow": {
       "current_provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "43fbe52518bec1f1ddab220d66fb8625bb4246eb8771c7fa965d33c3195c03b1",
+      "provenance_record_sha256": "50acc8396d5c5e33bd4359290851ab6d6a5549df4d99b635bf1213aae6ead720",
       "superseded_provenance_paths": [
         "modules/sow/INSTALL-PROVENANCE.previous.json",
         "modules/sow/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "bf4aa0334e94a023b26a926580eac38de990f2a097313f77a8ff951743118ee1",
-        "content_file_count": 956,
+        "content_digest_sha256": "d2dd119e68039094a6bd0a2994e1357217ec6a0b03ae6f48ed501c2c5e8ff6af",
+        "content_file_count": 957,
         "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)"
       },
       "version": "0.1.0",
@@ -158,15 +158,15 @@
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
-      "sha256": "30f6ae4eda772f3c4d774d7a89b860577cdc81af802a5cf4b99de3e7f9828963"
+      "sha256": "7b72c13489d2a2d3b5de006867b6efaec261b20039bbcfa817382676d99ba0eb"
     },
     {
       "path": "VERSION.json",
-      "sha256": "a98046811ac3cccc3c697a643eaf76e1456bf2bdc18acf35245eed29a057029c"
+      "sha256": "e42529d99120d443b76ac2eaf83ee575df1ed25fbeffc9d408ba3df863575f09"
     },
     {
       "path": "SBOM.json",
-      "sha256": "8340a287816e4c4c3640255d674c909559c186dafde40d713f8ef38c32858e7d"
+      "sha256": "13f8af51347e52b41b14b1b71fd4477efc977a87322bfe50e00194dde1d1d8ba"
     }
   ],
   "ui_assets": [
@@ -206,7 +206,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "8340a287816e4c4c3640255d674c909559c186dafde40d713f8ef38c32858e7d"
+      "sha256": "13f8af51347e52b41b14b1b71fd4477efc977a87322bfe50e00194dde1d1d8ba"
     },
     {
       "path": "SBOM.json.pre-CONVERGE01",
@@ -218,7 +218,7 @@
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
-      "sha256": "30f6ae4eda772f3c4d774d7a89b860577cdc81af802a5cf4b99de3e7f9828963"
+      "sha256": "7b72c13489d2a2d3b5de006867b6efaec261b20039bbcfa817382676d99ba0eb"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md.pre-CONVERGE01",
@@ -226,7 +226,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "a98046811ac3cccc3c697a643eaf76e1456bf2bdc18acf35245eed29a057029c"
+      "sha256": "e42529d99120d443b76ac2eaf83ee575df1ed25fbeffc9d408ba3df863575f09"
     },
     {
       "path": "VERSION.json.pre-CONVERGE01",
