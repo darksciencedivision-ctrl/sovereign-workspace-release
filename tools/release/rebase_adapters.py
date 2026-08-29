@@ -44,12 +44,21 @@ def _set(document: object, pointer: str, value: str) -> None:
         current[tokens[-1]] = value
 
 
-def _mapped(value: str, modules_root: str, python_312: str) -> str:
-    if value == OLD_PYTHON:
+def _mapped(
+    value: str,
+    modules_root: str,
+    python_312: str,
+    source_modules_root: str = OLD_ROOT,
+) -> str:
+    normalized_value = value.replace("\\", "/")
+    if normalized_value == OLD_PYTHON:
         return python_312
-    if value.startswith(OLD_ROOT):
-        suffix = value[len(OLD_ROOT):].replace("/", "\\")
-        return str(Path(modules_root)) + suffix
+    prefixes = (source_modules_root, OLD_ROOT)
+    for prefix in prefixes:
+        normalized_prefix = str(prefix).replace("\\", "/").rstrip("/")
+        if normalized_value == normalized_prefix or normalized_value.startswith(normalized_prefix + "/"):
+            suffix = normalized_value[len(normalized_prefix):].replace("/", "\\")
+            return str(Path(modules_root)) + suffix
     return value
 
 
@@ -68,6 +77,7 @@ def run(root: Path, dry_run: bool = False) -> int:
         install = json.loads(install_path.read_text(encoding="utf-8"))
         modules_root = str(Path(install["modules_root"]).resolve())
         python_312 = str(Path(install["python_312"]).resolve())
+        source_modules_root = str(install.get("source_modules_root") or OLD_ROOT)
         optional_adapters = install.get("optional_adapters", [])
         if not isinstance(optional_adapters, list) or not all(
             isinstance(name, str) for name in optional_adapters
@@ -96,7 +106,7 @@ def run(root: Path, dry_run: bool = False) -> int:
             if not isinstance(old, str):
                 print(f"ERROR: {name}{pointer} is not a string", file=sys.stderr)
                 return 2
-            new = _mapped(old, modules_root, python_312)
+            new = _mapped(old, modules_root, python_312, source_modules_root)
             if new != old:
                 changes.append((name, pointer, old, new))
 

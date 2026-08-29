@@ -98,12 +98,13 @@ else {
 
 # --- run -------------------------------------------------------------------
 $url = "http://127.0.0.1:$Port"
+$env:PYTHONDONTWRITEBYTECODE = '1'
 Write-Host ""
 Write-Host "  Starting. Ctrl+C to stop." -ForegroundColor Cyan
 Write-Host ""
 
 $proc = Start-Process -FilePath $py `
-                      -ArgumentList @('-3.12', '-m', 'shell.src', '--port', "$Port") `
+                      -ArgumentList @('-3.12', '-B', '-m', 'shell.src', '--port', "$Port") `
                       -WorkingDirectory $root -NoNewWindow -PassThru
 
 try {

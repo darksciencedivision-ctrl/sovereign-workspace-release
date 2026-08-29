@@ -111,6 +111,21 @@ class RebaseAdaptersTests(unittest.TestCase):
         self.assertIn("SKIPPED-WITH-RECORD llamacpp", second.stdout)
         self.assertTrue(second.stdout.endswith("NO-OP\n"))
 
+    def test_rebases_from_an_installed_candidate_root(self) -> None:
+        source_root = self.root / "prior install"
+        install_path = self.root / "shell/config/install.json"
+        install = json.loads(install_path.read_text(encoding="utf-8"))
+        install["source_modules_root"] = str(source_root)
+        self._write(install_path, install)
+        debate_path = self.root / "shell/modules/debate.json"
+        self._write(debate_path, {"root": str(source_root / "modules/debate")})
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        debate = json.loads(debate_path.read_text(encoding="utf-8"))
+        self.assertEqual(debate["root"], str(self.modules_root / "modules/debate"))
+
 
 if __name__ == "__main__":
     unittest.main()
