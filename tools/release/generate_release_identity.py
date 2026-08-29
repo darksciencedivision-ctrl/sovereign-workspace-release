@@ -19,6 +19,14 @@ from typing import Any, Iterable
 
 
 SYSTEM_VERSION = "1.0.0-rc.1"
+
+# CLOSEOUT-01 X-5 (A-4). VERSION.json is tracked, so its bytes are part of the
+# tree the commit hash is taken over. A tracked file therefore CANNOT contain
+# the hash of the commit that introduces it: writing the hash changes the hash.
+# `source_commit` is consequently defined as the last product/tooling commit,
+# and the seal commit is recorded in the untracked build manifest named here.
+# See README-GATE-POLICY.md, "Release identity and the seal commit".
+SEAL_COMMIT_RECORD = "release-artifacts/release-build-manifest.json"
 PYTHON_LOCKS = (
     ("sovereign", "modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt", "modules/sovereign/.venv"),
     ("debate", "modules/debate/requirements.lock.txt", "modules/debate/.venv"),
@@ -271,6 +279,11 @@ def generate(root: Path, source_commit: str, generated_utc: str) -> tuple[Path, 
         "system": "sovereign-workspace",
         "version": SYSTEM_VERSION,
         "source_commit": source_commit,
+        "source_commit_definition": (
+            "last product/tooling commit; NOT the seal commit. A tracked file cannot "
+            "carry the hash of the commit that introduces it."
+        ),
+        "seal_commit_record": SEAL_COMMIT_RECORD,
         "modules": versions,
     }
     seed = "\n".join(

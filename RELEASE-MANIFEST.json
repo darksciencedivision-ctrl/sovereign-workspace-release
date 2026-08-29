@@ -162,7 +162,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "b468413c1abfeff0b8f7f44d597be7ebb9a18975e9f1e943dcaf24e26bbcf589"
+      "sha256": "a98046811ac3cccc3c697a643eaf76e1456bf2bdc18acf35245eed29a057029c"
     },
     {
       "path": "SBOM.json",
@@ -226,7 +226,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "b468413c1abfeff0b8f7f44d597be7ebb9a18975e9f1e943dcaf24e26bbcf589"
+      "sha256": "a98046811ac3cccc3c697a643eaf76e1456bf2bdc18acf35245eed29a057029c"
     },
     {
       "path": "VERSION.json.pre-CONVERGE01",
@@ -318,7 +318,7 @@
     },
     {
       "path": "tools/release/README-GATE-POLICY.md",
-      "sha256": "5625c9abfa0797a64f3034b2eb9fb0de8f43d0984da9837e46bc2a14c04e6457"
+      "sha256": "e027bc70bf2091bec2faa4575dbf7cabd9e6702fd565f049db04e1da87914824"
     },
     {
       "path": "tools/release/build_release.ps1",
@@ -334,7 +334,7 @@
     },
     {
       "path": "tools/release/generate_release_identity.py",
-      "sha256": "6762e85c227eaf2929c727f412471d1d5afa6d9f3362f09586579d7860ca8c3a"
+      "sha256": "ebd27610e27375479b55f69579993de4c282b04c5b4e32a042d6b5979fff7bad"
     },
     {
       "path": "tools/release/install.ps1",
@@ -358,7 +358,7 @@
     },
     {
       "path": "tools/release/test_generate_release_identity.py",
-      "sha256": "70a043ed0ea3b36cf40ba6151e2585f68b8d48a04e360f59f66ae297ac7095b9"
+      "sha256": "7ae9db24b8a721a9f64aa5bc83b0e44563be3fe005f5b31cc994dfcd6d608329"
     },
     {
       "path": "tools/release/test_install_shortcut.ps1",
