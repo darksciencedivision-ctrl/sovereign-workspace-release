@@ -1,19 +1,19 @@
 {
   "module": "sow",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-08-29T16:20:36Z",
+  "generated_utc": "2026-08-28T17:05:56Z",
   "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "a45fb98cfa6d3619f6ea405044e3b76e87add24a"
+    "worktree_commit_at_generation": "c287dab23444bbdfb36ef4c4d20b331175c62349"
   },
   "source_kind": "candidate_tree_module",
-  "source_sha256": "bf4aa0334e94a023b26a926580eac38de990f2a097313f77a8ff951743118ee1",
-  "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 956 git-tracked files under modules/sow/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
-  "content_file_count": 956,
+  "source_sha256": "3ef75c33faf54d43a9de6205436b64f691b16ee825ef36ba2c56cf46738dea3b",
+  "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 952 git-tracked files under modules/sow/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
+  "content_file_count": 952,
   "version": "0.1.0",
   "lockfiles": [
     {
