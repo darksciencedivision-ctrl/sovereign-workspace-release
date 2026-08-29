@@ -68,11 +68,24 @@ def run(root: Path, dry_run: bool = False) -> int:
         install = json.loads(install_path.read_text(encoding="utf-8"))
         modules_root = str(Path(install["modules_root"]).resolve())
         python_312 = str(Path(install["python_312"]).resolve())
+        optional_adapters = install.get("optional_adapters", [])
+        if not isinstance(optional_adapters, list) or not all(
+            isinstance(name, str) for name in optional_adapters
+        ):
+            raise ValueError("optional_adapters must be a list of adapter names")
+        known_adapters = {Path(name).stem for name in INVENTORY}
+        unknown_adapters = sorted(set(optional_adapters) - known_adapters)
+        if unknown_adapters:
+            raise ValueError(
+                "optional_adapters contains unknown adapter(s): "
+                + ", ".join(unknown_adapters)
+            )
+        optional_adapters = set(optional_adapters)
         documents = {
             name: json.loads((modules_dir / name).read_text(encoding="utf-8"))
             for name in INVENTORY
         }
-    except (OSError, KeyError, json.JSONDecodeError) as exc:
+    except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
@@ -87,27 +100,48 @@ def run(root: Path, dry_run: bool = False) -> int:
             if new != old:
                 changes.append((name, pointer, old, new))
 
-    if not changes:
+    missing_by_adapter: dict[str, list[str]] = {}
+    for name, _, _, new in changes:
+        if not Path(new).exists():
+            missing_by_adapter.setdefault(Path(name).stem, []).append(new)
+
+    fatal_missing = {
+        adapter: sorted(set(paths))
+        for adapter, paths in missing_by_adapter.items()
+        if adapter not in optional_adapters
+    }
+    if fatal_missing:
+        for name, pointer, old, new in changes:
+            print(f"{name}{pointer}: {old!r} -> {new!r}")
+        for paths in fatal_missing.values():
+            for path in paths:
+                print(f"ERROR: target path does not exist: {path}", file=sys.stderr)
+        return 2
+
+    skipped = sorted(set(missing_by_adapter) & optional_adapters)
+    for adapter in skipped:
+        paths = sorted(set(missing_by_adapter[adapter]))
+        print(f"SKIPPED-WITH-RECORD {adapter}: missing target(s): {'; '.join(paths)}")
+
+    active_changes = [
+        change for change in changes if Path(change[0]).stem not in skipped
+    ]
+    if not active_changes:
         print("NO-OP")
         return 0
 
-    missing = sorted({new for _, _, _, new in changes if not Path(new).exists()})
-    for name, pointer, old, new in changes:
+    for name, pointer, old, new in active_changes:
         print(f"{name}{pointer}: {old!r} -> {new!r}")
-    if missing:
-        for path in missing:
-            print(f"ERROR: target path does not exist: {path}", file=sys.stderr)
-        return 2
     if dry_run:
         return 0
 
-    touched = {name for name, _, _, _ in changes}
+    touched = {name for name, _, _, _ in active_changes}
     for name in sorted(touched):
         source = modules_dir / name
         backup = modules_dir / f"{name}.pre-rebase"
         if not backup.exists():
             shutil.copyfile(source, backup)
-        for changed_name, pointer, _, new in changes:
+        for changed_name, pointer, _, new in active_changes:
             if changed_name == name:
                 _set(documents[name], pointer, new)
         source.write_text(json.dumps(documents[name], indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")

@@ -3,15 +3,15 @@
   "display_name": "Token Center",
   "description": "Read-only local usage telemetry. No credentials.",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\tokencenter",
+  "root": "D:/Product Software/Production Workspace/modules/tokencenter",
   "runtime_writes": [
     "${root}/data"
   ],
   "launch": {
     "cwd": "${root}",
     "argv": [
-      "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
-      "D:\\producttion software 2\\release-worktree\\modules\\tokencenter\\piggybank.py",
+      "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe",
+      "D:/Product Software/Production Workspace/modules/tokencenter/piggybank.py",
       "--port",
       "8765"
     ],

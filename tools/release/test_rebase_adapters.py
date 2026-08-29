@@ -23,7 +23,11 @@ class RebaseAdaptersTests(unittest.TestCase):
         self.python.touch()
         (self.root / "shell/config").mkdir(parents=True)
         (self.root / "shell/modules").mkdir(parents=True)
-        install = {"modules_root": str(self.modules_root), "python_312": str(self.python)}
+        install = {
+            "modules_root": str(self.modules_root),
+            "python_312": str(self.python),
+            "optional_adapters": ["llamacpp"],
+        }
         self._write(self.root / "shell/config/install.json", install)
         documents = {
             "debate.json": {"root": f"{OLD_ROOT}/modules/debate"},
@@ -83,13 +87,29 @@ class RebaseAdaptersTests(unittest.TestCase):
         self.assertEqual(result.stdout, "NO-OP\n")
 
     def test_refusal_makes_no_writes(self) -> None:
-        (self.modules_root / "runtime/llama.cpp/current/llama-server.exe").unlink()
+        (self.modules_root / "modules/distillery/serve.py").unlink()
         before = (self.root / "shell/modules/distillery.json").read_bytes()
         result = self._run("--dry-run")
         self.assertEqual(result.returncode, 2)
         self.assertIn("target path does not exist", result.stderr)
         self.assertEqual((self.root / "shell/modules/distillery.json").read_bytes(), before)
         self.assertFalse((self.root / "shell/modules/distillery.json.pre-rebase").exists())
+
+    def test_missing_optional_adapter_is_skipped_with_record(self) -> None:
+        (self.modules_root / "runtime/llama.cpp/current/llama-server.exe").unlink()
+        llama_before = (self.root / "shell/modules/llamacpp.json").read_bytes()
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("SKIPPED-WITH-RECORD llamacpp", result.stdout)
+        self.assertEqual((self.root / "shell/modules/llamacpp.json").read_bytes(), llama_before)
+        self.assertFalse((self.root / "shell/modules/llamacpp.json.pre-rebase").exists())
+        debate = json.loads((self.root / "shell/modules/debate.json").read_text(encoding="utf-8"))
+        self.assertEqual(debate["root"], str(self.modules_root / "modules/debate"))
+
+        second = self._run()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertIn("SKIPPED-WITH-RECORD llamacpp", second.stdout)
+        self.assertTrue(second.stdout.endswith("NO-OP\n"))
 
 
 if __name__ == "__main__":

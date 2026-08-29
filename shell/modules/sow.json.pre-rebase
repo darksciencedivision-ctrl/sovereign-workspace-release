@@ -3,7 +3,7 @@
   "display_name": "Multi-Model Terminal",
   "description": "Sovereign Orchestration Workspace (Electron + xterm.js)",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\sow",
+  "root": "D:/Product Software/Production Workspace/modules/sow",
   "runtime_writes": [
     "${root}/apps/desktop/.recovery",
     "${root}/docs/evidence/receipts"

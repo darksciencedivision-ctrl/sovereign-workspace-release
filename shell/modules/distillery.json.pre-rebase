@@ -1,17 +1,17 @@
 {
   "id": "distillery",
   "display_name": "Sovereign Distillery",
-  "description": "Distillery runtime console — health only, no compute on open",
+  "description": "Distillery runtime console \u2014 health only, no compute on open",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\distillery",
+  "root": "D:/Product Software/Production Workspace/modules/distillery",
   "runtime_writes": [
     "${root}/logs"
   ],
   "launch": {
     "cwd": "${root}",
     "argv": [
-      "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
-      "D:\\producttion software 2\\release-worktree\\modules\\distillery\\serve.py"
+      "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe",
+      "D:/Product Software/Production Workspace/modules/distillery/serve.py"
     ],
     "env_allowlist": [
       "SYSTEMROOT",

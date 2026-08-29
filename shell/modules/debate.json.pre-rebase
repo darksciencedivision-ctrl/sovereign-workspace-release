@@ -3,25 +3,12 @@
   "display_name": "Debate Table",
   "description": "Multi-model debate table (FastAPI, :8700)",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\debate",
-  "runtime_writes": [
-    "${root}/config.json"
-  ],
+  "root": "D:/Product Software/Production Workspace/modules/debate",
+  "runtime_writes": ["${root}/config.json"],
   "launch": {
     "cwd": "${root}",
-    "argv": [
-      "${root}/.venv/Scripts/python.exe",
-      "app.py"
-    ],
-    "env_allowlist": [
-      "SYSTEMROOT",
-      "PATH",
-      "TEMP",
-      "TMP",
-      "USERPROFILE",
-      "LOCALAPPDATA",
-      "APPDATA"
-    ],
+    "argv": ["${root}/.venv/Scripts/python.exe", "app.py"],
+    "env_allowlist": ["SYSTEMROOT", "PATH", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1"
     }
