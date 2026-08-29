@@ -3,7 +3,7 @@
   "directive": "SWS-REM-DIR-20260828 R2 / CONVERGE-01 C6",
   "generated_utc": "2026-08-29T16:20:35Z",
   "producer": "builder grok-4.6 (opencode) via C6 regeneration",
-  "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. Prior RELEASE-MANIFEST.json preserved as RELEASE-MANIFEST.json.pre-CONVERGE01. batch_files enumerates Batch 4-E plus CONVERGE-01 identity/UI/C4 tooling files except RELEASE-MANIFEST.json itself.",
+  "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. Prior RELEASE-MANIFEST.json preserved as RELEASE-MANIFEST.json.pre-CONVERGE01. batch_files enumerates Batch 4-E plus CONVERGE-01 identity/UI/C4 tooling files except RELEASE-MANIFEST.json itself. This manifest covers TRACKED BYTES ONLY and carries no release-artifact hash: a tracked manifest enters the archive it would describe, so the archive's hash cannot live inside it (CLOSEOUT-01 A-1/OD-24). Release-artifact and sidecar hashes are authoritative only in the untracked release-artifacts/release-build-manifest.json, named here by release_archive_hash_authority. Every path+sha256 pair in this file is verified by tools/release/release_manifest_check.py; adding a hash-bearing section the checker does not verify makes the gate FAIL by construction (S-15).",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
@@ -187,110 +187,7 @@
       "sha256": "a8df12c0b0f14c91ea981b8f394b77447122b3445c83e8f69a67a5fca751f4bc"
     }
   ],
-  "release_archives_gitignored": [
-    {
-      "path": "release-artifacts/debate-v1.2.1-hardening-src.zip",
-      "sha256": "dee5f4469726a7e46de7c8f83d9bcd914f6d4f010d583614b9d739f95a115e66",
-      "bytes": 184500,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/debate-v1.2.1-hardening-src.zip.sha256",
-      "sha256": "93fbd2d2505d3b324b9481335b8d369d717f3f4007e617679ffa3676f11a6e76",
-      "bytes": 98,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/distillery-1.1.0rc3-src.zip",
-      "sha256": "60d433c77fd5f6aaf27b3cac0d14287ca2bca5755e3eefa8599d6ffc5d83fd00",
-      "bytes": 2202821,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/distillery-1.1.0rc3-src.zip.sha256",
-      "sha256": "c83690532cd7710cf8fe4ba2541db5f70555544b974ce0f260c96a18c306535b",
-      "bytes": 94,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/release-build-manifest.json",
-      "sha256": "ef3fcc8ee0927c72737eef0db9f6af43aa25e211790da607c7ea3525070bf09f",
-      "bytes": 1036,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/shell-1.0.0-rc.1-src.zip",
-      "sha256": "2c362a39f253edea70afbdf0148f6d0ce48f3d440293c7523d3287f1aa95cc66",
-      "bytes": 1660535,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/shell-1.0.0-rc.1-src.zip.sha256",
-      "sha256": "e579d1d621cb55cf9891dba8bcdcaa2643955a532b1a663d7305adb3af16305e",
-      "bytes": 91,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520-src.zip",
-      "sha256": "5425438580dd416df89c819af9f82960b5d6417aeb315904fb14da46cc043363",
-      "bytes": 476636,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520-src.zip.sha256",
-      "sha256": "675b8c9d7878bbc4786c445e54a3f3df1d1c5f8e7e7ce8072c9d282c614e15cb",
-      "bytes": 132,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-workspace-1.0.0-rc.1-install.zip",
-      "sha256": "baebaafe8ce103dff0640885491a99c2255d3f7a3bf17cc2cbca761ac96d1349",
-      "bytes": 29990963,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-workspace-1.0.0-rc.1-install.zip.sha256",
-      "sha256": "b1b96705279139c964e00c8aac1e05dd4f8ac426e51dd7b44f6832cc1726c48b",
-      "bytes": 109,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-workspace-1.0.0-rc.1-source.zip",
-      "sha256": "e4b3e3da9bc4ec6e7f1448dc0d3a87b5d0268fe5796bbfb04a2c65e2914ef329",
-      "bytes": 29820189,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sovereign-workspace-1.0.0-rc.1-source.zip.sha256",
-      "sha256": "a720869503d463719129343986d8c128c23363a9c3ffad77c300a49074e2ab8a",
-      "bytes": 108,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sow-0.1.0-src.zip",
-      "sha256": "d28612dc02cf69b0ebf028258b20fbe5a191325ab721d3397dafd7e527ebdc37",
-      "bytes": 4902246,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/sow-0.1.0-src.zip.sha256",
-      "sha256": "122cb35010de7d7516ceb68cababfb640c9e54b22f9dc8d7e35ad364c30c8f8d",
-      "bytes": 84,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/tokencenter-record-dated-2026-08-26-src.zip",
-      "sha256": "a36e7dec02600e950a525c961db44aa622cfcc556bb88773696bacfb3eb1effe",
-      "bytes": 387961,
-      "gitignored": true
-    },
-    {
-      "path": "release-artifacts/tokencenter-record-dated-2026-08-26-src.zip.sha256",
-      "sha256": "b872850813c3eb5f877896c532be7b9843b951c57b3848bd7ac09e960d705ac8",
-      "bytes": 110,
-      "gitignored": true
-    }
-  ],
+  "release_archive_hash_authority": "release-artifacts/release-build-manifest.json",
   "superseded_manifests": [
     "RELEASE-MANIFEST.json.pre-CONVERGE01"
   ],
@@ -425,7 +322,7 @@
     },
     {
       "path": "tools/release/build_release.ps1",
-      "sha256": "4790b971fcd43582d5625a415e69ebe0afadfd4f277c6d05fa07d0067376d263"
+      "sha256": "76769ff349776eea742b70fe3ab91c4b45ebe070ad543cbe94d680298a87371e"
     },
     {
       "path": "tools/release/fixture_allowlist.json",
@@ -457,7 +354,7 @@
     },
     {
       "path": "tools/release/release_manifest_check.py",
-      "sha256": "604304d1195abe0912f08632c013d92de4cf9af5b2a344ff1a0fa969187cfb13"
+      "sha256": "a421e539d75c649b8f83e38a4d8ca06a27246ac90e58868e6530af5d27e21648"
     },
     {
       "path": "tools/release/test_generate_release_identity.py",
@@ -477,7 +374,7 @@
     },
     {
       "path": "tools/release/test_release_manifest_check.py",
-      "sha256": "ea7597f7673fc28cca36276247eea305f185ea89efe5316b4c5677df84534491"
+      "sha256": "3de4eb3a2148cc692be1749dd226488189aae5524ad7bb4c865b8f10bb18b765"
     },
     {
       "path": "tools/release/uninstall.ps1",

@@ -10,9 +10,20 @@ Reads RELEASE-MANIFEST.json and mechanically verifies, per enumerated module:
   SHA-256 equals the enumerated hash;
 * every explicitly enumerated batch-touched file exists and its SHA-256 equals
   the freshly measured hash (the manifest excludes itself by construction);
+* every enumerated identity document and UI asset exists and its SHA-256 equals
+  the freshly measured hash;
 * the current record's own ``source_sha256`` equals the manifest's
   ``source_identity.content_digest_sha256`` or ``source_identity.source_sha256``
   when both are enumerated (consistency, not trust).
+
+Finally, and independently of the schema above, the validator sweeps the WHOLE
+manifest for any object carrying both ``path`` and ``sha256``. Every such object
+that the checks above did not actually verify is reported as a problem and the
+gate FAILS. This closes CLOSEOUT-01 standing rule S-15: a manifest may not carry
+a ``path``+``sha256`` pair its own checker does not verify, so a future
+hash-bearing section cannot be added and pass silently. Membership is tracked by
+object identity, not by key name, so adding hashes anywhere — including inside an
+already-handled section — is caught.
 
 The validator NEVER infers paths by glob: the manifest is the enumeration
 authority (R2 §4 Batch 2, C-3 design). Exit codes: 0 pass, 1 failures,
@@ -37,8 +48,49 @@ def sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
+def _verify_hashed_items(root: str, items, label: str, problems: list,
+                         verified: set) -> None:
+    """Verify each ``path``+``sha256`` item and mark it as actually checked.
+
+    Membership in ``verified`` is recorded by object identity so the S-15 sweep
+    below cannot be satisfied by a same-valued entry somewhere else.
+    """
+    for item in items:
+        if not isinstance(item, dict):
+            problems.append(f"{label}: entry is not an object")
+            continue
+        p = item.get("path")
+        want = item.get("sha256")
+        if not p or not want:
+            problems.append(f"{label}: every item must enumerate path and sha256")
+            continue
+        verified.add(id(item))
+        full = os.path.join(root, p.replace("/", os.sep))
+        if not os.path.isfile(full):
+            problems.append(f"{label}: file missing at {p}")
+            continue
+        got = sha256_file(full)
+        if got != want:
+            problems.append(
+                f"{label}: hash mismatch at {p} "
+                f"(enumerated {want}, measured {got})")
+
+
+def _hash_bearing_objects(node, jsonpath: str = "$"):
+    """Yield every ``(jsonpath, object)`` carrying both ``path`` and ``sha256``."""
+    if isinstance(node, dict):
+        if isinstance(node.get("path"), str) and isinstance(node.get("sha256"), str):
+            yield jsonpath, node
+        for key, value in node.items():
+            yield from _hash_bearing_objects(value, f"{jsonpath}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _hash_bearing_objects(value, f"{jsonpath}[{index}]")
+
+
 def check(root: str, manifest: dict) -> list:
     problems = []
+    verified: set = set()
     modules = manifest.get("modules", {})
     if not modules:
         problems.append("manifest enumerates no modules")
@@ -76,6 +128,7 @@ def check(root: str, manifest: dict) -> list:
             for item in entry.get(group, []):
                 p = item.get("path")
                 want = item.get("sha256")
+                verified.add(id(item))
                 full = os.path.join(root, p.replace("/", os.sep))
                 if not os.path.isfile(full):
                     problems.append(f"{name}: {group} file missing at {p}")
@@ -102,6 +155,7 @@ def check(root: str, manifest: dict) -> list:
         if not path or not expected:
             problems.append("batch_files: every item must enumerate path and sha256")
             continue
+        verified.add(id(item))
         full = os.path.join(root, path.replace("/", os.sep))
         if not os.path.isfile(full):
             problems.append(f"batch_files: file missing at {path}")
@@ -111,6 +165,18 @@ def check(root: str, manifest: dict) -> list:
             problems.append(
                 f"batch_files: hash mismatch at {path} "
                 f"(enumerated {expected}, measured {actual})")
+
+    for section in ("identity_documents", "ui_assets"):
+        _verify_hashed_items(root, manifest.get(section, []), section,
+                             problems, verified)
+
+    # S-15 sweep: nothing carrying path+sha256 may go unverified.
+    for jsonpath, obj in _hash_bearing_objects(manifest):
+        if id(obj) not in verified:
+            problems.append(
+                f"unverified hash-bearing entry at {jsonpath}: {obj['path']} "
+                f"— this checker does not verify it; either add explicit "
+                f"handling for it or remove the hash (S-15)")
     return problems
 
 
