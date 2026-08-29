@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 OLD_ROOT = "D:/Product Software/Production Workspace"
-OLD_PYTHON = "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"
 INVENTORY = {
     "debate.json": ("/root",),
     "distillery.json": ("/root", "/launch/argv/0", "/launch/argv/1"),
@@ -19,6 +18,25 @@ INVENTORY = {
     "sovereign.json": ("/root",),
     "sow.json": ("/root",),
     "tokencenter.json": ("/root", "/launch/argv/0", "/launch/argv/1"),
+}
+
+# CLOSEOUT-01 X-4 (N-18). Pointers whose value IS the Python interpreter. These
+# are set from install.json's python_312 UNCONDITIONALLY: the interpreter of the
+# destination install is a fact of the destination, never something to be
+# inherited from whatever the source machine happened to have. The previous
+# logic rewrote the interpreter only when it exactly equalled a hardcoded
+# source-machine constant, so neutralising the committed value would have made
+# the rebase skip it in silence and produce an install pointing at an
+# interpreter that does not exist.
+#
+# This is declared per adapter and NOT as a blanket rule on "/launch/argv/0".
+# llamacpp.json also has a /launch/argv/0, but its value is
+# .../llama.cpp/current/llama-server.exe -- a native server binary, not an
+# interpreter. Overwriting it with python_312 would break that adapter. argv[0]
+# is the interpreter only where the launch is a Python launch.
+INTERPRETER_POINTERS = {
+    "distillery.json": ("/launch/argv/0",),
+    "tokencenter.json": ("/launch/argv/0",),
 }
 
 
@@ -47,12 +65,9 @@ def _set(document: object, pointer: str, value: str) -> None:
 def _mapped(
     value: str,
     modules_root: str,
-    python_312: str,
     source_modules_root: str = OLD_ROOT,
 ) -> str:
     normalized_value = value.replace("\\", "/")
-    if normalized_value == OLD_PYTHON:
-        return python_312
     prefixes = (source_modules_root, OLD_ROOT)
     for prefix in prefixes:
         normalized_prefix = str(prefix).replace("\\", "/").rstrip("/")
@@ -101,12 +116,16 @@ def run(root: Path, dry_run: bool = False) -> int:
 
     changes: list[tuple[str, str, str, str]] = []
     for name, pointers in INVENTORY.items():
+        interpreter_pointers = INTERPRETER_POINTERS.get(name, ())
         for pointer in pointers:
             old = _get(documents[name], pointer)
             if not isinstance(old, str):
                 print(f"ERROR: {name}{pointer} is not a string", file=sys.stderr)
                 return 2
-            new = _mapped(old, modules_root, python_312, source_modules_root)
+            if pointer in interpreter_pointers:
+                new = python_312
+            else:
+                new = _mapped(old, modules_root, source_modules_root)
             if new != old:
                 changes.append((name, pointer, old, new))
 

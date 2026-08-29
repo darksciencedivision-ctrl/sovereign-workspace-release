@@ -1,22 +1,22 @@
 {
   "id": "llamacpp",
   "display_name": "llama.cpp (candidate)",
-  "description": "Pinned llama.cpp router on 5183. Not production default.",
+  "description": "Pinned llama.cpp router on 5183. Not production default. The paths below are a NEUTRAL PLACEHOLDER, not a real location: the llama.cpp runtime and models ship in no release archive (R2 s3), so no real path exists on any machine. llamacpp is the declared optional adapter and is skipped by the installer; supply a real runtime location before enabling it.",
   "state_class": "runnable",
-  "root": "D:/Product Software/Production Workspace/runtime/llama.cpp",
+  "root": "C:/sovereign-workspace/optional-runtimes/llama.cpp",
   "runtime_writes": [
     "${root}/logs"
   ],
   "launch": {
     "cwd": "${root}/current",
     "argv": [
-      "D:/Product Software/Production Workspace/runtime/llama.cpp/current/llama-server.exe",
+      "C:/sovereign-workspace/optional-runtimes/llama.cpp/current/llama-server.exe",
       "--host",
       "127.0.0.1",
       "--port",
       "5183",
       "--models-dir",
-      "D:/Product Software/Production Workspace/runtime/llama.cpp/test-models",
+      "C:/sovereign-workspace/optional-runtimes/llama.cpp/test-models",
       "--no-models-autoload"
     ],
     "env_allowlist": [

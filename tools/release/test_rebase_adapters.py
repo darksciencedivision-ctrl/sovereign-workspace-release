@@ -11,7 +11,11 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("rebase_adapters.py")
 OLD_ROOT = "D:/Product Software/Production Workspace"
-OLD_PYTHON = "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"
+# A stand-in for whatever interpreter the SOURCE machine had. Since X-4 the
+# rebase no longer matches this value -- interpreter pointers are set from
+# install.json unconditionally -- so the fixture no longer needs, and must not
+# carry, a real developer path (S-16).
+OLD_PYTHON = "C:/source-machine/Python312/python.exe"
 
 
 class RebaseAdaptersTests(unittest.TestCase):
@@ -110,6 +114,48 @@ class RebaseAdaptersTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertIn("SKIPPED-WITH-RECORD llamacpp", second.stdout)
         self.assertTrue(second.stdout.endswith("NO-OP\n"))
+
+    def test_placeholder_interpreter_is_rewritten_unconditionally(self) -> None:
+        """CLOSEOUT-01 X-4 (N-18). argv[0] at an interpreter pointer is the
+        interpreter by definition, so it is set from install.json's python_312
+        unconditionally -- never by matching a hardcoded source-machine value.
+
+        Fail-before: with the old value-matching rewrite, replacing the
+        committed interpreter with a neutral placeholder made the rebase skip
+        it silently and produce an install pointing at an interpreter that does
+        not exist. That is the trap this test exists to keep shut.
+        """
+        placeholder = "C:/sovereign-workspace/python-312-resolved-at-install/python.exe"
+        for name in ("distillery.json", "tokencenter.json"):
+            path = self.root / "shell/modules" / name
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["launch"]["argv"][0] = placeholder
+            self._write(path, document)
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in ("distillery.json", "tokencenter.json"):
+            document = json.loads(
+                (self.root / "shell/modules" / name).read_text(encoding="utf-8"))
+            self.assertEqual(
+                document["launch"]["argv"][0], str(self.python),
+                f"{name}: placeholder interpreter was not rewritten")
+
+    def test_llamacpp_argv0_is_not_treated_as_an_interpreter(self) -> None:
+        """llamacpp.json's argv[0] is llama-server.exe, a native binary -- not a
+        Python interpreter. It must be path-mapped like any other path, never
+        overwritten with python_312."""
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(
+            (self.root / "shell/modules/llamacpp.json").read_text(encoding="utf-8"))
+        argv0 = document["launch"]["argv"][0]
+        self.assertNotEqual(argv0, str(self.python))
+        self.assertTrue(argv0.lower().endswith("llama-server.exe"), argv0)
+        self.assertEqual(
+            argv0,
+            str(self.modules_root / "runtime/llama.cpp/current/llama-server.exe"))
 
     def test_rebases_from_an_installed_candidate_root(self) -> None:
         source_root = self.root / "prior install"

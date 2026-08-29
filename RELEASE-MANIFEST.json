@@ -350,7 +350,7 @@
     },
     {
       "path": "tools/release/rebase_adapters.py",
-      "sha256": "60a4be51b1376937ca8b2468681acece9a581d6a8a978ce2b48523068dd44ee7"
+      "sha256": "17bf435e42a7665d8bb822eaa47eb215f4a33137416efd5245415eb9c9da7518"
     },
     {
       "path": "tools/release/release_manifest_check.py",
@@ -370,7 +370,7 @@
     },
     {
       "path": "tools/release/test_rebase_adapters.py",
-      "sha256": "03af9f825bf5f331816ed5f82e97dd6c522da91ff53507e25d5773942cf9db83"
+      "sha256": "cb3baa4ff5d0d1e32f0052ae947ac5c66f502b242d0fa0995706fdb905277da3"
     },
     {
       "path": "tools/release/test_release_manifest_check.py",
