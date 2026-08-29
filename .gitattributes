@@ -22,3 +22,25 @@ modules/sow/tools/spike_compositor export-ignore
 modules/sow/tools/spike_compositor/** export-ignore
 evidence/cpm1/before-b/modules/sow/tools/spike_compositor export-ignore
 evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
+
+# X-3 (A-3 / OD-26) — backup snapshots stay tracked as history but do not ship.
+# A distribution carrying two contradicting SBOMs and two contradicting release
+# manifests gives a consumer or scanner no rule for which is authoritative.
+# Preserving prior records is right; shipping them is not.
+#
+# Nothing reads these at runtime or during install, verified before excluding:
+#   rebase_adapters.py:151-153 tests `backup.exists()` and then WRITES a copy;
+#     it never reads a backup's contents. Absent backups are simply recreated.
+#   verify_install.ps1 builds its expected path set from the install-time
+#     install-manifest.json, not from any committed list, so build and verify
+#     stay consistent with each other.
+*.pre-CONVERGE01 export-ignore
+*.pre-rebase export-ignore
+
+# The directive names the pattern `*.pre-add08`. That pattern matches NOTHING:
+# the sole file is evidence/cpm1/baseline/host-hardware.pre-add08.json, where
+# `.pre-add08` is an INFIX, not the terminal suffix. Both forms are listed —
+# the exact one that matches today, and the suffix form for any future file
+# that does end in `.pre-add08`.
+*.pre-add08 export-ignore
+*.pre-add08.json export-ignore
