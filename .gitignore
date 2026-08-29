@@ -58,3 +58,6 @@ dist/
 
 # --- evidence scratch (loop-generated transient evidence only) ---
 evidence/scratch/
+
+# --- product-generated runtime evidence (never release input) ---
+.runtime/

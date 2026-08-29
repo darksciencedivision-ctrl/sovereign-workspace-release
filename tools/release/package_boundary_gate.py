@@ -65,7 +65,7 @@ COMPONENT_RULES = {
     "runtime-session-state": {
         "node_modules", ".venv", "venv", "env", ".eggs",
         "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-        ".cache", ".approvals", ".recovery", "runs",
+        ".cache", ".approvals", ".recovery", ".runtime", "runs",
     },
 }
 

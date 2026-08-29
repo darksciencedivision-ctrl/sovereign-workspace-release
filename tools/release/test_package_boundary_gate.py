@@ -40,7 +40,8 @@ def write(path: str, content: bytes = b"x") -> str:
 
 
 def sha256(path: str) -> str:
-    return hashlib.sha256(open(path, "rb").read()).hexdigest()
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 
 class GateFixtureBase(unittest.TestCase):
@@ -100,6 +101,10 @@ class TestRejectedClasses(GateFixtureBase):
 
     def test_rejects_recovery_state(self):
         self._expect_violation("app/.recovery/layout.json",
+                               "runtime-session-state")
+
+    def test_rejects_runtime_evidence_lane(self):
+        self._expect_violation(".runtime/evidence/startup-tests/module.json",
                                "runtime-session-state")
 
     def test_rejects_runs_history(self):
@@ -234,6 +239,13 @@ class TestCleanedWorktree(GateFixtureBase):
             archive_root = os.path.join(extracted, "tree")
             os.makedirs(archive_root)
             with tarfile.open(archive, "r") as tf:
+                runtime_members = [
+                    name for name in tf.getnames()
+                    if ".runtime" in name.replace("\\", "/").split("/")
+                ]
+                self.assertFalse(
+                    runtime_members,
+                    "runtime-evidence classes must never enter a release archive")
                 tf.extractall(archive_root, filter="data")
             allowlist_path = os.path.join(
                 archive_root, "tools", "release", "fixture_allowlist.json")

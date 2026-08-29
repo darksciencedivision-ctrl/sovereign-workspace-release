@@ -24,15 +24,16 @@ def _make_filename(module_id: str) -> str:
 def evidence_root() -> str:
     """Where startup-test records are written.
 
-    Defaults to the workspace's evidence/ tree. `SWS_EVIDENCE_ROOT` redirects it, which the test
-    suite uses so fixture records land in a tempfile directory instead of mixing synthetic
-    output into the operator's real evidence (REVIEW-BUILD-02 G4-2). It is a test seam, not a
-    feature: nothing in the product sets it and no UI or endpoint exposes it.
+    Defaults to the workspace's gitignored `.runtime/evidence/` lane so normal product use never
+    dirties tracked release inputs. `SWS_EVIDENCE_ROOT` redirects it, which the test suite uses
+    so fixture records land in a tempfile directory. It is a test seam, not a feature: nothing
+    in the product sets it and no UI or endpoint exposes it.
     """
     override = os.environ.get("SWS_EVIDENCE_ROOT", "").strip()
     if override:
         return override
-    return os.path.join(os.path.dirname(__file__), "..", "..", "evidence")
+    return os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "..", ".runtime", "evidence"))
 
 
 def _record_path(module_id: str) -> str:
