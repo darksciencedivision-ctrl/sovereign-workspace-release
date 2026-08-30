@@ -79,9 +79,14 @@ Stated as measurements, with their result, so the claims are checkable:
 
 **No live credential ships.** The distributed archive was extracted and swept for private key
 blocks, provider API keys, GitHub and Slack tokens, AWS access-key ids, and secret-shaped
-assignments. Every hit is a declared detector fixture; the recurring value
-`sk-synthetic000000000000000000` is registered in `export_enterprise.py` as
-`DECLARED_FIXTURE_SECRETS`. **No live credential is present.**
+assignments. Every hit is a declared detector fixture — the recurring one is a synthetic
+placeholder registered in `modules/distillery/tools/export_enterprise.py` as
+`DECLARED_FIXTURE_SECRETS`, and the others are self-evidently non-secrets used to test the
+detectors. **No live credential is present.**
+
+*(This paragraph deliberately does not quote the fixture value. It is credential-shaped by
+design, and reproducing it here would make this document itself a finding in the packaging
+gate — which is exactly what happened when it was first written.)*
 
 **No known advisory ships in a Node dependency.** `npm audit` runs against both Node trees
 with a threshold of zero, as release gate `tools/release/check_node_advisories.py`. Both are
