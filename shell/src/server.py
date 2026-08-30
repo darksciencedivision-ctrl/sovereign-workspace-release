@@ -17,7 +17,7 @@ import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 from shell.src.adapter import is_contained, load_all_adapters
-from shell.src.supervisor import JobSupervisor
+from shell.src.supervisor import JobSupervisor, focus_window_for_pids, job_pids
 from shell.src.logring import LogRing
 from shell.src.csrf import get_csrf
 from shell.src.probe import run_preflight
@@ -179,6 +179,8 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
             self._handle_restart(body)
         elif path == "/api/startup-test":
             self._handle_startup_test(body)
+        elif path == "/api/open":
+            self._handle_open(body)
         else:
             self._send_error("Not found", 404)
 
@@ -328,6 +330,36 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
             runner.start()
         except Exception as e:  # noqa: BLE001 - a runner failure must not kill the thread quietly
             runner._set(FAILED, f"PROCESS_START_FAILED: {e}")
+
+    def _handle_open(self, body: dict):
+        """N-23 part 2: raise the native window of a module the shell already launched.
+
+        `browser` modules are opened by the client, which owns the tab handle (G18). This route
+        exists for `focus_window`, where the thing to raise is a desktop window in a process the
+        shell owns - something no URL can express, and the reason SOW's Open button did nothing.
+        """
+        module_id, runner = self._runner(body)
+        if runner is None:
+            self._send_error("Unknown module", 400)
+            return
+        if runner.open_kind() != "focus_window":
+            self._send_error(
+                f"Module {module_id} declares open.kind {runner.open_kind()}; "
+                "this route raises windows only", 400)
+            return
+        if not runner.can_open():
+            self._send_error(f"Refused: {module_id} is {runner.display}", 409)
+            return
+        ph = self.supervisor.get_process(module_id)
+        if ph is None or not ph.is_alive():
+            self._send_error("Refused: the shell owns no live process for this module", 409)
+            return
+        pids = job_pids(ph.job_handle) or {ph.pid}
+        ok, detail = focus_window_for_pids(pids)
+        if not ok:
+            self._send_error(detail, 409)
+            return
+        self._send_json({"status": "raised", "id": module_id, "detail": detail})
 
     def _handle_stop(self, body: dict):
         module_id, runner = self._runner(body)

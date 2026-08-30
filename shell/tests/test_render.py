@@ -166,8 +166,11 @@ class TestRenderProofs(unittest.TestCase):
             # H-2 (v1.2 section 7.6) makes the four action endpoints POST-only; their 404
             # answer to GET is the designed behaviour and is pinned here rather than
             # treated as a broken reference.
+            # FIXUP-01 F-3 adds /api/open (N-23): raising a module's native desktop window is a
+            # state-changing action the page cannot perform itself, so it is POST-only like the
+            # other four and answers 404 to GET by the same H-2 design.
             action_post_routes = {"/api/start", "/api/stop", "/api/restart",
-                                  "/api/startup-test"}
+                                  "/api/startup-test", "/api/open"}
             bad = []
             for u in ordered:
                 s, hh, _body = request(port, u)

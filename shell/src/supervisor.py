@@ -23,6 +23,7 @@ import time
 from ctypes import wintypes
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+user32 = ctypes.WinDLL("user32", use_last_error=True)
 
 # --- constants -------------------------------------------------------------
 CREATE_SUSPENDED = 0x00000004
@@ -195,6 +196,95 @@ def query_process_image(pid: int) -> str | None:
         return None
     finally:
         kernel32.CloseHandle(h)
+
+
+SW_RESTORE = 9
+SW_SHOW = 5
+
+_ENUM_WINDOWS_PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+
+def _top_level_windows_for(pids: set) -> list:
+    """Visible, titled, top-level windows owned by any pid in `pids`, outermost first.
+
+    Electron splits a running app across a main process and several children, and the window
+    does not reliably belong to the pid the shell spawned. Matching a SET of pids - in practice
+    every pid in the module's Job Object - is what makes this work for a real desktop app.
+    """
+    found = []
+
+    def _cb(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        if user32.GetWindow(hwnd, 4) != 0:  # GW_OWNER: skip owned tool/dialog windows
+            return True
+        if user32.GetWindowTextLengthW(hwnd) == 0:
+            return True
+        owner = wintypes.DWORD(0)
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value in pids:
+            found.append(hwnd)
+        return True
+
+    user32.EnumWindows(_ENUM_WINDOWS_PROC(_cb), 0)
+    return found
+
+
+JobObjectBasicProcessIdList = 3
+
+
+class JOBOBJECT_BASIC_PROCESS_ID_LIST(ctypes.Structure):
+    _fields_ = [
+        ("NumberOfAssignedProcesses", wintypes.DWORD),
+        ("NumberOfProcessIdsInList", wintypes.DWORD),
+        ("ProcessIdList", ctypes.c_size_t * 512),
+    ]
+
+
+def job_pids(job_handle) -> set:
+    """Every pid currently assigned to `job_handle`.
+
+    A module is a process TREE - Electron alone is a main process plus renderer, GPU and utility
+    children - and the window belongs to whichever of them created it. The Job Object already
+    defines the tree the shell owns (H-9), so it is also the correct answer to "which processes
+    may I raise a window for": nothing outside the job is ever touched.
+    """
+    if not job_handle:
+        return set()
+    info = JOBOBJECT_BASIC_PROCESS_ID_LIST()
+    size = ctypes.sizeof(info)
+    ok = kernel32.QueryInformationJobObject(
+        job_handle, JobObjectBasicProcessIdList, ctypes.byref(info), size, None)
+    if not ok:
+        return set()
+    count = min(info.NumberOfProcessIdsInList, 512)
+    return {int(info.ProcessIdList[i]) for i in range(count)}
+
+
+def focus_window_for_pids(pids: set) -> tuple:
+    """Raise and focus a top-level window owned by one of `pids`.
+
+    Returns (ok, detail). The detail is reported to the operator verbatim, so a failure says what
+    actually happened rather than leaving a control that silently does nothing (S-17).
+    """
+    if not pids:
+        return False, "module is not running"
+    windows = _top_level_windows_for(pids)
+    if not windows:
+        return False, "the module is running but owns no visible top-level window yet"
+    hwnd = windows[0]
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, SW_RESTORE)
+    else:
+        user32.ShowWindow(hwnd, SW_SHOW)
+    user32.BringWindowToTop(hwnd)
+    raised = bool(user32.SetForegroundWindow(hwnd))
+    if raised:
+        return True, "window raised"
+    # Windows refuses SetForegroundWindow to a process that does not own the foreground window.
+    # The window HAS been restored and brought to the top of the Z-order, which is the visible
+    # part; say so plainly instead of claiming a focus that did not happen.
+    return True, "window restored and brought to front (foreground focus refused by Windows)"
 
 
 def _quote(arg: str) -> str:

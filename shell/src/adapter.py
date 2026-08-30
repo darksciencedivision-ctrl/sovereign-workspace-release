@@ -196,8 +196,15 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
 
         # Validate open
         open_cfg = adapter["open"]
-        if open_cfg["kind"] not in ("browser", "none"):
+        # N-23: a third kind. `browser` opens a URL, `focus_window` raises the native window the
+        # shell already launched, `none` declares that the module has no open action at all - and
+        # `none` now has to mean it, because the Open control follows this value (states.can_open).
+        if open_cfg["kind"] not in ("browser", "focus_window", "none"):
             raise AdapterError(f"Invalid open.kind: {open_cfg['kind']}")
+        if open_cfg["kind"] == "browser" and not open_cfg.get("url"):
+            raise AdapterError("open.kind browser requires open.url")
+        if open_cfg["kind"] != "browser" and open_cfg.get("url"):
+            raise AdapterError(f"open.url is meaningless for open.kind {open_cfg['kind']}")
 
         # Validate stop
         stop = adapter["stop"]

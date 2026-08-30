@@ -169,6 +169,7 @@
           "type": "string",
           "enum": [
             "browser",
+            "focus_window",
             "none"
           ]
         },

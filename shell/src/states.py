@@ -364,8 +364,23 @@ class ModuleRunner:
         path = self.runtime_path
         return True if not path else os.path.exists(path)
 
+    def open_kind(self) -> str:
+        """What this module's Open control would actually DO: browser | focus_window | none."""
+        return (self.adapter.get("open") or {}).get("kind", "none")
+
     def can_open(self) -> bool:
-        """Open is enabled in READY and EXTERNAL (§7.3 item 2)."""
+        """Open is enabled in READY and EXTERNAL (§7.3 item 2) AND only where the module declares
+        an open action the shell can perform.
+
+        N-23: this used to test state alone, so `sow.json` - which declared `open.kind: none` -
+        reported can_open true the moment it reached READY, and the operator got an enabled button
+        wired to an empty URL. A rendered control must be a performable action (S-17), so
+        enablement now follows capability as well as readiness.
+        """
+        if self.open_kind() == "none":
+            return False
+        if self.open_kind() == "browser" and not (self.adapter.get("open") or {}).get("url"):
+            return False
         return self.state in (READY, EXTERNAL)
 
     def to_dict(self) -> dict:
@@ -381,6 +396,7 @@ class ModuleRunner:
             "port": "",
             "url": self.adapter.get("open", {}).get("url", ""),
             "can_open": self.can_open(),
+            "open_kind": self.open_kind(),
             "runtime_present": self.runtime_present,
             "runtime_path": self.runtime_path,
         }

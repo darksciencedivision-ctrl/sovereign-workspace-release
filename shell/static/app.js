@@ -651,6 +651,17 @@
       } else if (mod && mod.noRuntime) {
         enabled = false;
         tip = DISTILLERY_TOOLTIP;
+      } else if (action === "open") {
+        /* N-23. This used to be `ACTION_STATES.open.indexOf(st) !== -1`, i.e. state alone, which
+           is how a module declaring `open.kind: none` came to present an ENABLED Open button
+           wired to an empty URL. The shell already computes the honest answer in
+           states.can_open(); use it. A rendered control must be a performable action (S-17). */
+        enabled = rec.can_open === true;
+        if (!enabled && rec.open_kind === "none") {
+          tip = "This module declares no open action.";
+        } else if (!enabled) {
+          tip = "Open becomes available when the module is running.";
+        }
       } else if (st === "EXTERNAL" && action === "stop") {
         enabled = false;
         tip = "Process is not owned by this shell; stopping would only release the shell view of an external process.";
@@ -756,13 +767,25 @@
 
     if (action === "open") {
       const rec = moduleState.get(id) || {};
-          if (rec._url) {
-      // G18: retain and reuse the per-module handle; never spawn a second tab.
-      let h = browserHandles.get(id);
-      h = h && !h.closed ? h : window.open(rec._url, "_blank", "noopener");
-      if (h) browserHandles.set(id, h);
-    }
-      else announce(name + ": no URL available");
+      if (rec.open_kind === "focus_window") {
+        // A native desktop window cannot be raised from the page; ask the shell, which owns the
+        // process, and report what actually happened rather than failing silently.
+        try {
+          const res = await apiPost("/api/open", { id: id });
+          announce(name + ": " + firstString(res && res.detail, "window raised"));
+        } catch (err) {
+          announce(name + ": could not raise the window - " + err.message);
+        }
+        return;
+      }
+      if (rec._url) {
+        // G18: retain and reuse the per-module handle; never spawn a second tab.
+        let h = browserHandles.get(id);
+        h = h && !h.closed ? h : window.open(rec._url, "_blank", "noopener");
+        if (h) browserHandles.set(id, h);
+      } else {
+        announce(name + ": no URL available");
+      }
       return;
     }
 

@@ -39,7 +39,7 @@
     "kind": "process_image"
   },
   "open": {
-    "kind": "none"
+    "kind": "focus_window"
   },
   "stop": {
     "kind": "job_object",
