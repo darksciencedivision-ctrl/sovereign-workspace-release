@@ -397,6 +397,30 @@ def _group_status(options: list[dict[str, Any]], group_reason: str | None) -> di
     return {"available": available, "reason": reason, "option_count": len(options)}
 
 
+def _local_group_reason(ollama_models: list[str],
+                        local_unavailable_reason: str | None) -> str | None:
+    """The LOCAL group's own availability line.
+
+    N-25/F-5. `_group_status` falls back to "no options enumerated for this provider" when a
+    group has neither options nor a reason, and the local group was passed no reason at all — so
+    with Ollama down the operator was told, about the one provider that costs nothing to run,
+    only that nothing was enumerated. That names neither Ollama nor anything the operator could
+    act on. It is the N-22 lesson in a second place: an absent thing must say what is absent.
+
+    `local_admission_reason` already computes the actionable text (daemon unreachable, runtime not
+    on PATH, no VRAM budget) and it was reaching the individual options but not the group heading
+    that is the only thing visible when there are zero options.
+    """
+    if local_unavailable_reason:
+        return local_unavailable_reason
+    if not ollama_models:
+        # Admission is fine and the daemon answered: it simply has nothing pulled. Distinct from
+        # a daemon that is not running, and the distinction is the whole point.
+        return ("the local ollama runtime is available but `ollama list` returned no models - "
+                "pull a model to offer it here")
+    return None
+
+
 def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
                    unavailable_reason: str | None = None) -> list[dict[str, Any]]:
     """One option per live-enumerated Ollama model, annotated with its residency state. Local
@@ -503,7 +527,8 @@ def build_pane_picker(
     # this list does not render (or vice versa).
     by_provider = {_ANTHROPIC: anthropic, _OPENAI: openai, GROK_ADAPTER: grok_options,
                    ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local}
-    reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason}
+    reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason,
+               _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason)}
     providers = [{"provider": p, "display": display, "options": by_provider[p],
                   "status": _group_status(by_provider[p], reasons.get(p))}
                  for p, display, _locality in _PROVIDER_TABLE]
