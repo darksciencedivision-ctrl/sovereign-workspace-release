@@ -7,6 +7,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 import json
 import os
+import shutil
 import random
 import re
 import sys
@@ -45,7 +46,38 @@ from debate.sentence_buffer import SentenceBuffer
 
 
 ROOT = Path(__file__).parent
-CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", ROOT / "config.json")).resolve()
+
+#: The configuration the application READS AND REWRITES. Seat edits are saved back to it, so
+#: it is runtime state as well as a shipped document.
+#:
+#: EPC-01 P4-4. It used to be `ROOT/config.json` unconditionally — a git-TRACKED path that the
+#: product writes to, so merely using the Debate Table dirtied the release candidate. That is
+#: the N-29 defect that `tools/release/test_runtime_writes_are_gitignored.py` exists to catch,
+#: and debate was still carrying it after every other module's writes had moved out.
+#:
+#: `CONFIG_PATH` now points into the module's state root, set by the shell. The shipped
+#: `ROOT/config.json` becomes a SEED: read once, copied to the state root the first time the
+#: application starts there, and never written again. Running app.py directly with no
+#: CONFIG_PATH set behaves exactly as before.
+CONFIG_TEMPLATE = (ROOT / "config.json").resolve()
+CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", CONFIG_TEMPLATE)).resolve()
+
+
+def _seed_config_from_template() -> None:
+    """Place the shipped configuration in the state root the first time it is needed.
+
+    Deliberately narrow: it copies ONLY when the target is absent, so an operator's edited
+    configuration is never overwritten by the shipped one, and it never touches the template.
+    """
+    if CONFIG_PATH == CONFIG_TEMPLATE or CONFIG_PATH.exists():
+        return
+    if not CONFIG_TEMPLATE.is_file():
+        return
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(CONFIG_TEMPLATE, CONFIG_PATH)
+
+
+_seed_config_from_template()
 
 DEFAULTS = {
     "ollama_url": "http://127.0.0.1:11434",

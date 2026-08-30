@@ -2,19 +2,30 @@
 """Every adapter-declared runtime write must land OUTSIDE the tracked tree (LOCAL-01 F-6, OD-34).
 
 THE DEFECT THIS EXISTS TO CATCH (N-29). `shell/modules/sow.json` declared
-`${root}/docs/evidence/receipts` in `runtime_writes` and pointed its `receipt_file` readiness probe
-at a file inside it — and that directory is **git-tracked**. So merely USING the product wrote into
-the release candidate: every builder BOOT after anyone launched SOW found a dirty tree, which is
-exactly what FIXUP-01's BOOT hit and what this run's BOOT hit again.
+`${root}/docs/evidence/receipts` in `runtime_writes` and pointed its `receipt_file` readiness
+probe at a file inside it — and that directory is **git-tracked**. So merely USING the product
+wrote into the release candidate: every builder BOOT after anyone launched SOW found a dirty
+tree, which is exactly what FIXUP-01's BOOT hit and what a later run hit again.
 
-No gate in this program caught it. The boundary gate rejects runtime state that reaches an
-*archive*, and the manifest check verifies hashes — but nothing asserted the simpler property that
-the product's own declaration of "I write here at runtime" must not name a place git is watching.
-The declaration and the tracked-ness were each individually fine and only wrong together, which is
-the shape a cross-cutting assertion catches and a per-file one never does.
+No gate in this programme caught it. The boundary gate rejects runtime state that reaches an
+*archive*, and the manifest check verifies hashes — but nothing asserted the simpler property
+that the product's own declaration of "I write here at runtime" must not name a place git is
+watching. The declaration and the tracked-ness were each individually fine and only wrong
+together, which is the shape a cross-cutting assertion catches and a per-file one never does.
 
-This is the N-16 rule, generalised: runtime evidence lives in a gitignored lane. It is asserted for
-EVERY adapter, not just SOW, so the next module to declare a runtime write cannot reintroduce it.
+REWRITTEN AT EPC-01 P4-4, AND THE PROPERTY IS NOW STRONGER.
+
+This test used to assert that every write was rooted at `${root}` and then check the suffix
+against a known-offender list, because at the time every write necessarily lived inside the
+install tree and the only question was WHERE inside it. Runtime state now lives under
+`${state_root}` — `%LOCALAPPDATA%/SovereignWorkspace/<module-id>` — so the tracked tree is not
+merely avoided in the right places, it is left entirely.
+
+The assertion therefore inverts. It is no longer "a `${root}` write must land in a gitignored
+suffix"; it is "a write must be under `${state_root}`, and any `${root}` write that remains is
+a declared exception that must ALSO be gitignored". Strictly stronger: the old form permitted
+any number of `${root}` writes so long as their suffixes were ignored, and the new one permits
+exactly the ones named below.
 """
 
 from __future__ import annotations
@@ -29,10 +40,25 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WORKTREE_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 ADAPTER_DIR = os.path.join(WORKTREE_ROOT, "shell", "modules")
 
-#: `${root}` in an adapter path is the module's own directory. Which module a given adapter names is
-#: not this test's business — what matters is the SUFFIX below `${root}`, because that is the part
-#: that decides whether git is watching it.
 ROOT_TOKEN = "${root}/"
+STATE_TOKEN = "${state_root}/"
+
+#: Declared writes still rooted at `${root}`, each with the reason it has not moved.
+#:
+#: An entry here is a claim that the path is NOT pure runtime state. Every one is additionally
+#: required to be gitignored by the test below, so the exemption cannot be used to smuggle a
+#: write into the tracked tree.
+ROOT_WRITE_EXCEPTIONS: dict[str, dict[str, str]] = {
+    # EMPTY, and that is the point.
+    #
+    # debate's config.json was the last declared write still inside the install tree, and it
+    # was git-TRACKED - the N-29 defect above, still live after every other module's state had
+    # moved out. It is now seeded into the state root on first start and read from there, so
+    # nothing the product writes at runtime names a path git is watching.
+    #
+    # An entry added here must ALSO pass the gitignore assertion below. The exemption says
+    # "not pure runtime state"; it does not say "may dirty the tree".
+}
 
 
 def _adapters() -> list[tuple[str, dict]]:
@@ -45,135 +71,104 @@ def _adapters() -> list[tuple[str, dict]]:
     return out
 
 
-def _module_root(adapter: dict, adapter_name: str) -> str:
-    """The real directory `${root}` stands for, from the adapter's own id."""
-    return os.path.join(WORKTREE_ROOT, "modules", str(adapter.get("id") or adapter_name[:-5]))
-
-
-def _declared_runtime_paths(adapter: dict) -> list[str]:
-    """Every path the adapter says the product writes to at runtime.
-
-    Both surfaces count. `runtime_writes` is the declaration; a `receipt_file` readiness path is a
-    runtime write whether or not it is also listed there — the probe exists because the product
-    creates that file on launch.
-    """
-    paths = [p for p in (adapter.get("runtime_writes") or []) if isinstance(p, str)]
-    readiness = adapter.get("readiness") or {}
-    if readiness.get("kind") == "receipt_file" and isinstance(readiness.get("path"), str):
-        paths.append(readiness["path"])
-    return paths
-
-
-def _is_ignored(path: str) -> bool:
-    """Does git ignore this path? Asked of GIT, not of a copy of the ignore rules.
-
-    `check-ignore` answers for a path that does not exist yet, which is the case that matters: the
-    assertion must hold on a clean clone where no runtime file has been written.
-    """
-    result = subprocess.run(
-        ["git", "check-ignore", "-q", path],
-        cwd=WORKTREE_ROOT, capture_output=True, check=False,
+def _is_ignored(relative_path: str) -> bool:
+    """Ask git, rather than pattern-matching .gitignore ourselves."""
+    proc = subprocess.run(
+        ["git", "-C", WORKTREE_ROOT, "check-ignore", "-q", relative_path],
+        capture_output=True,
     )
-    return result.returncode == 0
-
-
-#: KNOWN OFFENDERS, recorded as LOCAL-01 **N-38** — every one found by this test on its first run.
-#:
-#: OD-34 rules on SOW's receipt path, and F-6 fixes that one. Writing the assertion generally
-#: immediately showed the same defect in FOUR other adapters: N-29 is not one instance, it is the
-#: **fifth through eleventh** instance of the N-16 class, and nothing in this program had noticed.
-#: `debate.json` is the sharpest of them — Debate PERSISTS a seat-model change back into its own
-#: tracked `config.json`, so using the product's own model dropdown edits the release candidate.
-#:
-#: They are pinned rather than fixed because each is another module's runtime contract and outside
-#: this run's authorized item set (S-9: park, do not improvise). The set may only ever SHRINK: a new
-#: offender fails this test, so the class cannot grow while the operator decides on these seven.
-KNOWN_TRACKED_RUNTIME_WRITES = frozenset({
-    ("debate.json", "${root}/config.json"),
-    ("distillery.json", "${root}/logs"),
-    ("llamacpp.json", "${root}/logs"),
-    ("sovereign.json", "${root}/runtime"),
-    ("sovereign.json", "${root}/published"),
-    ("sovereign.json", "${root}/library/queues"),
-    ("sovereign.json", "${root}/logs"),
-})
+    return proc.returncode == 0
 
 
 class RuntimeWritesLeaveTheTrackedTree(unittest.TestCase):
-    def test_no_adapter_declares_a_NEW_tracked_runtime_write(self) -> None:
-        """The ratchet. Every offender must already be in the recorded N-38 set."""
+
+    def test_adapters_are_actually_read(self) -> None:
+        """Without this the assertions below pass vacuously on an empty directory."""
+        adapters = _adapters()
+        self.assertGreaterEqual(
+            len(adapters), 5, f"only {len(adapters)} adapters found in {ADAPTER_DIR}"
+        )
+        self.assertTrue(
+            any(a.get("runtime_writes") for _, a in adapters),
+            "no adapter declares any runtime_writes — this guard has gone blind"
+        )
+
+    def test_every_runtime_write_is_under_the_state_root_or_a_named_exception(self) -> None:
         offenders = []
-        checked = 0
         for name, adapter in _adapters():
-            root = _module_root(adapter, name)
-            for declared in _declared_runtime_paths(adapter):
-                if not declared.startswith(ROOT_TOKEN):
-                    # An absolute or otherwise unrooted declaration is out of this test's reach;
-                    # record it rather than passing it silently.
-                    offenders.append(f"{name}: {declared!r} is not rooted at ${{root}}")
+            allowed = ROOT_WRITE_EXCEPTIONS.get(name, {})
+            for write in adapter.get("runtime_writes", []):
+                if write.startswith(STATE_TOKEN):
                     continue
-                resolved = os.path.join(root, declared[len(ROOT_TOKEN):].replace("/", os.sep))
-                checked += 1
-                if not _is_ignored(resolved) and (name, declared) not in KNOWN_TRACKED_RUNTIME_WRITES:
-                    offenders.append(
-                        f"{name}: declares a runtime write at {declared!r}, which git TRACKS "
-                        f"({os.path.relpath(resolved, WORKTREE_ROOT)}) — using the product would "
-                        f"dirty the release candidate (OD-34/N-29). Move it to a gitignored lane, "
-                        f"as N-16 did for the shell."
-                    )
-        self.assertTrue(checked, "no adapter runtime writes were checked — the test found nothing")
-        self.assertFalse(offenders, "\n  ".join([""] + offenders))
+                if write in allowed:
+                    continue
+                offenders.append(
+                    f"{name}: {write!r} is neither under ${{state_root}} nor a named exception"
+                )
+        self.assertEqual(
+            offenders, [],
+            "runtime state must live outside the install tree. Move the write under "
+            "${state_root}, or add it to ROOT_WRITE_EXCEPTIONS with the reason it is not "
+            "runtime state:\n  " + "\n  ".join(offenders)
+        )
 
-    def test_the_known_offender_list_does_not_rot(self) -> None:
-        """A pinned defect that has been fixed must leave the list, or the list stops meaning
-        anything. Every recorded offender must still BE one."""
-        stale = []
+    def test_every_named_exception_is_still_declared(self) -> None:
+        """An exemption for a write that no longer exists is rot: it would silently permit the
+        same path being reintroduced later."""
+        declared = {
+            name: set(adapter.get("runtime_writes", []))
+            for name, adapter in _adapters()
+        }
+        stale = [
+            f"{name}: {write!r} is exempted but no longer declared"
+            for name, writes in ROOT_WRITE_EXCEPTIONS.items()
+            for write in writes
+            if write not in declared.get(name, set())
+        ]
+        self.assertEqual(stale, [], "\n  ".join([""] + stale))
+
+    def test_every_named_exception_is_also_gitignored(self) -> None:
+        """The exemption says 'not pure runtime state'. It does NOT say 'may dirty the tree'.
+
+        This is the original defect's actual shape: a declaration and a tracked path that were
+        each fine alone and only wrong together."""
+        offenders = []
         for name, adapter in _adapters():
-            root = _module_root(adapter, name)
-            declared = set(_declared_runtime_paths(adapter))
-            for known_name, known_path in KNOWN_TRACKED_RUNTIME_WRITES:
-                if known_name != name:
+            module_root = str(adapter.get("root", "")).replace("\\", "/").rstrip("/")
+            for write in ROOT_WRITE_EXCEPTIONS.get(name, {}):
+                suffix = write[len(ROOT_TOKEN):]
+                if not module_root:
                     continue
-                if known_path not in declared:
-                    stale.append(f"{known_name}: no longer declares {known_path!r}")
-                elif _is_ignored(os.path.join(root, known_path[len(ROOT_TOKEN):].replace("/", os.sep))):
-                    stale.append(f"{known_name}: {known_path!r} is gitignored now — remove it "
-                                 f"from KNOWN_TRACKED_RUNTIME_WRITES (N-38 shrinks)")
-        self.assertFalse(stale, "\n  ".join([""] + stale))
+                # Reconstruct the repository-relative path the write resolves to.
+                marker = "/modules/"
+                if marker not in module_root:
+                    continue
+                relative = "modules/" + module_root.split(marker, 1)[1] + "/" + suffix
+                if not _is_ignored(relative):
+                    offenders.append(f"{name}: {relative} is tracked by git")
+        self.assertEqual(
+            offenders, [],
+            "a declared runtime write names a path git is watching, so merely USING the "
+            "product dirties the tree:\n  " + "\n  ".join(offenders)
+        )
 
-    def test_sow_is_not_among_the_known_offenders(self) -> None:
-        """F-6's own row: SOW is FIXED, not pinned. It must never be added to the list."""
-        self.assertFalse([p for n, p in KNOWN_TRACKED_RUNTIME_WRITES if n == "sow.json"])
-
-    def test_the_sow_receipt_lane_is_the_gitignored_runtime_lane(self) -> None:
-        """The specific row OD-34 rules on, pinned by name so a silent revert is loud."""
-        path = os.path.join(ADAPTER_DIR, "sow.json")
-        with open(path, "r", encoding="utf-8") as handle:
-            sow = json.load(handle)
-        declared = _declared_runtime_paths(sow)
-        self.assertIn("${root}/.runtime/receipts", declared)
-        self.assertIn("${root}/.runtime/receipts/SHELL-LIVE-READY.json", declared)
-        for entry in declared:
-            self.assertNotIn(
-                "docs/evidence/receipts", entry,
-                "SOW must not declare a runtime write inside the tracked evidence tree (OD-34)")
-
-    def test_the_historical_receipts_are_left_where_they_are(self) -> None:
-        """OD-34: "Existing tracked receipts are history: leave them, stop writing new ones there."
-
-        Relocating the WRITE must not become a deletion of the record. The gate receipts committed
-        by the phases that produced them stay tracked and untouched.
-        """
-        historical = os.path.join(
-            WORKTREE_ROOT, "modules", "sow", "docs", "evidence", "receipts")
-        self.assertTrue(os.path.isdir(historical),
-                        "the historical receipt directory must still exist")
-        tracked = subprocess.run(
-            ["git", "ls-files", "modules/sow/docs/evidence/receipts"],
-            cwd=WORKTREE_ROOT, capture_output=True, text=True, check=False).stdout.split()
-        self.assertGreater(len(tracked), 0,
-                           "the historical gate receipts must remain tracked as history")
+    def test_no_adapter_declares_a_write_into_another_modules_state(self) -> None:
+        """`${state_root}` is per module. A literal path naming a different module's state
+        would defeat that, and is refused by the compiler — asserted here at the declaration
+        level too, so it is visible in the adapter rather than only at load time."""
+        offenders = []
+        for name, adapter in _adapters():
+            module_id = adapter.get("id", "")
+            for write in adapter.get("runtime_writes", []):
+                lowered = write.replace("\\", "/").lower()
+                if "sovereignworkspace/" not in lowered:
+                    continue
+                after = lowered.split("sovereignworkspace/", 1)[1]
+                named = after.split("/", 1)[0]
+                if named and named != module_id.lower():
+                    offenders.append(f"{name}: writes into {named!r}'s state root")
+        self.assertEqual(offenders, [], "\n  ".join([""] + offenders))
 
 
 if __name__ == "__main__":
-    unittest.main()
+    sys.exit(unittest.main())

@@ -5,7 +5,7 @@
   "state_class": "runnable",
   "root": "D:\\producttion software 2\\release-worktree\\modules\\debate",
   "runtime_writes": [
-    "${root}/config.json",
+    "${state_root}/config.json",
     "${state_root}/logs"
   ],
   "launch": {
@@ -25,7 +25,8 @@
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
-      "DEBATE_LOG_DIR": "${state_root}/logs"
+      "DEBATE_LOG_DIR": "${state_root}/logs",
+      "CONFIG_PATH": "${state_root}/config.json"
     }
   },
   "readiness": {

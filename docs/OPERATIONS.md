@@ -70,7 +70,7 @@ Runtime state lives **outside the install root**, under
 |---|---|---|
 | SOVEREIGN | `SovereignWorkspace\sovereign` | `runtime\`, `published\`, `library\queues\`, `logs\` |
 | SOW | `SovereignWorkspace\sow` | `.recovery\`, `receipts\`, `store\` |
-| Debate | `SovereignWorkspace\debate` | `logs\` |
+| Debate | `SovereignWorkspace\debate` | `config.json`, `logs\` |
 | Distillery | `SovereignWorkspace\distillery` | `logs\` |
 | Token Center | `SovereignWorkspace\tokencenter` | `data\` (the SQLite database) |
 
@@ -79,10 +79,15 @@ shell creates the declared directories before launching it. A module may write o
 install root or inside **its own** state root; a declaration naming anywhere else is refused
 as a configuration error, so one module cannot reach another's state.
 
-**One exception, stated because it is one:** the Debate Table's `config.json` still lives
-beside its code. It is a seeded document the application rewrites in place rather than pure
-runtime state, so relocating it requires the installer to place a copy in the state root
-first. It is the only declared write still inside the install tree.
+**Nothing the product writes at runtime is inside the install tree.** The Debate Table's
+`config.json` is the interesting case: the application rewrites it when seats are edited, and
+it used to live beside the code — a git-tracked file the product writes to, so merely using
+the Debate Table dirtied the release candidate. The shipped copy is now a **seed**: it is
+copied into the state root the first time the module starts and read from there afterwards.
+Your edits are never overwritten by the shipped one, and the shipped one is never written to.
+
+If you want to reset the Debate Table's configuration to the shipped defaults, delete
+`SovereignWorkspace\debate\config.json` and start it again.
 
 ### Backing it up
 
@@ -141,6 +146,27 @@ py -3.12 tools\release\package_boundary_gate.py --from-commit HEAD
 of zero. `package_boundary_gate --from-commit` scans the **distribution**, not the working
 tree — a working tree also holds `.venv`, `node_modules` and caches that no recipient receives,
 and scanning it produces tens of thousands of meaningless violations.
+
+### Comparing two releases
+
+Every release artifact carries the commit it was cut from — a pax global header in a tar, the
+archive comment in a zip. That is deliberate provenance, and it means **two archives of
+identical content cut at different commits have different sha256**. Diffing whole-file hashes
+between releases therefore shows every artifact as changed when most have not.
+
+To ask the other question:
+
+```powershell
+py -3.12 tools\release\archive_content_hash.py --compare <old.zip> <new.zip>
+```
+
+It reports both whole-file and content digests, names the commit each was cut from, and says
+`SAME CONTENT` or `DIFFERENT CONTENT`. The content digest covers entry names and bodies only —
+no timestamps, no compression metadata, no commit stamp. Exit code 1 means the contents really
+differ.
+
+Without an argument pair it prints a content digest per archive, which is the value to record
+if you want to track what actually changed between releases.
 
 ---
 
