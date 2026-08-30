@@ -21,6 +21,22 @@ except ImportError:  # direct execution: repository root not on sys.path
     assert_cmd_shim_argv_safe = _mod.assert_cmd_shim_argv_safe
 
 
+# N-27. How long ONE readiness request may wait for an answer. This is not the poll interval and
+# must never be derived from it: `poll_ms` says how often to ask, this says how long an answer may
+# take. A health endpoint that reports on downstream services legitimately takes seconds -
+# SOVEREIGN's /v1/health answers 200 in ~1.25 s because it reports on the local model service - and
+# a probe that hangs up before the answer arrives can never succeed no matter how large timeout_s
+# is. Capped so a hung socket cannot consume the whole readiness budget in one attempt.
+HTTP_REQUEST_TIMEOUT_CAP_S = 10.0
+HTTP_REQUEST_TIMEOUT_FLOOR_S = 0.5
+
+
+def _request_timeout(deadline: float) -> float:
+    """Per-request socket timeout: the remaining readiness budget, capped."""
+    remaining = deadline - time.time()
+    return max(HTTP_REQUEST_TIMEOUT_FLOOR_S, min(HTTP_REQUEST_TIMEOUT_CAP_S, remaining))
+
+
 def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tuple[bool, float, str]:
     """Poll an HTTP endpoint until it returns expect_status or timeout."""
     deadline = time.time() + timeout_s
@@ -29,7 +45,7 @@ def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tu
     while time.time() < deadline:
         try:
             req = urllib.request.Request(url, method="GET")
-            resp = urllib.request.urlopen(req, timeout=min(5, poll_ms / 1000))
+            resp = urllib.request.urlopen(req, timeout=_request_timeout(deadline))
             if resp.status == expect_status:
                 return True, time.time() - start, ""
             last_error = f"HTTP {resp.status}"
