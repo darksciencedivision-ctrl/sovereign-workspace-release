@@ -1,8 +1,8 @@
 {
   "manifest_kind": "RELEASE-MANIFEST",
   "directive": "SWS-REM-DIR-20260828 R2 / CONVERGE-01 C6",
-  "generated_utc": "2026-08-30T03:04:06Z",
-  "producer": "builder claude-code (opus-5) via bundles/FIXUP01/H/regenerate_release_manifest.py (FIXUP-01 Phase H)",
+  "generated_utc": "2026-08-30T06:14:42Z",
+  "producer": "builder claude-code (opus-5) via bundles/LOCAL01/H",
   "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. Prior RELEASE-MANIFEST.json preserved as RELEASE-MANIFEST.json.pre-CONVERGE01. batch_files enumerates Batch 4-E plus CONVERGE-01 identity/UI/C4 tooling files except RELEASE-MANIFEST.json itself. This manifest covers TRACKED BYTES ONLY and carries no release-artifact hash: a tracked manifest enters the archive it would describe, so the archive's hash cannot live inside it (CLOSEOUT-01 A-1/OD-24). Release-artifact and sidecar hashes are authoritative only in the untracked release-artifacts/release-build-manifest.json, named here by release_archive_hash_authority. Every path+sha256 pair in this file is verified by tools/release/release_manifest_check.py; adding a hash-bearing section the checker does not verify makes the gate FAIL by construction (S-15).",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
@@ -10,7 +10,7 @@
     "baseline_sidecar": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip.sha256 (P0-1, beside the archive)",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "be8dcb004b91c3d2ff2986f69a400b9317d36115",
+    "worktree_commit_at_generation": "b39d472119fa712a604a93177cb9245119aae283",
     "construction_recipe": "bundles/PHASE0/WORKTREE-RECIPE.md",
     "rollback_archive": "SOVEREIGN_RESET_BASELINE_20260827T193540Z.zip",
     "rollback_sha256": "00ae9eefc7dada37943bb08a305020c73e2c029a6398858e8bba27078c349a7c"
@@ -18,14 +18,14 @@
   "modules": {
     "debate": {
       "current_provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "0c5bbfe487defb0121c08d5e83892ba14e67a4382ab4d8e5f42868d0c945a5f6",
+      "provenance_record_sha256": "b4ba0f845959d054cd439e2dfae8405cd41136e2d2c4406abf9cb37e8ac4b7b2",
       "superseded_provenance_paths": [
         "modules/debate/INSTALL-PROVENANCE.previous.json",
         "modules/debate/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "2135f7d8728ff4ed72143c12a1249d1a628dbd96d591c8bd001fcf9154961101",
+        "content_digest_sha256": "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a",
         "content_file_count": 55,
         "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… [U]"
       },
@@ -46,7 +46,7 @@
     },
     "distillery": {
       "current_provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "cefd8274cd7384e7b93e981fc7e11314a11d2fd8e40dac9b2a30b5252b5bd663",
+      "provenance_record_sha256": "c58c9540ff1e614ad8df237a2a6bdce6e068f8795bc5fce56d04f0dfa7dd43cd",
       "superseded_provenance_paths": [
         "modules/distillery/INSTALL-PROVENANCE.json.previous",
         "modules/distillery/INSTALL-MANIFEST.txt.previous",
@@ -103,14 +103,14 @@
     },
     "sow": {
       "current_provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "964872b3cc615d8a934704cf1bd90c618169c17a2feb8c5a1f5b28e9e13ea454",
+      "provenance_record_sha256": "524c1e756dbd12da64ce4476be09e964143c8868ab5093e35af3186ccbb48a87",
       "superseded_provenance_paths": [
         "modules/sow/INSTALL-PROVENANCE.previous.json",
         "modules/sow/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "242b8560934bf6a7e3dff810ff31677c937fc9134f86250c50af4e5208e4087e",
+        "content_digest_sha256": "7a8e81aaab91706825b8a1a105e2d53847465993aba3b0bafa61b0137b6681aa",
         "content_file_count": 958,
         "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)"
       },
@@ -125,7 +125,7 @@
     },
     "tokencenter": {
       "current_provenance_path": "modules/tokencenter/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "506ea28cb0ca39c2243824a164ee79921aa106f49988e26ae2e93d980116da1d",
+      "provenance_record_sha256": "b3a2172f41e07459b8944a991162d0fc0e2ace2e4d7e7ba8319ab72ad2642bc1",
       "superseded_provenance_paths": [],
       "source_identity": {
         "kind": "copy-based",
@@ -158,15 +158,15 @@
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
-      "sha256": "e49e3ff9d471dd61272a22781d36703a25ac0523b2297152c541445488d17102"
+      "sha256": "41330ae98e303fa948674a617a2b2c78bdf802d53515313a2b94ac2b88c16648"
     },
     {
       "path": "VERSION.json",
-      "sha256": "4fe029b5924c8769d80c94b794bb7c0e00128b74cdf1510dc8bace38931a6917"
+      "sha256": "58b57aad0f051643f970a220358125dff27cae2d5cfde0a7e798a2746c568704"
     },
     {
       "path": "SBOM.json",
-      "sha256": "033c1bbe649eb0936fad27b4925834c0a67c61003b5a9fd549e97c3394b79e66"
+      "sha256": "aad902eb16381855f66cc13d50068867a07b757b60d5e621c4c945a19c246d4d"
     }
   ],
   "ui_assets": [
@@ -206,7 +206,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "033c1bbe649eb0936fad27b4925834c0a67c61003b5a9fd549e97c3394b79e66"
+      "sha256": "aad902eb16381855f66cc13d50068867a07b757b60d5e621c4c945a19c246d4d"
     },
     {
       "path": "SBOM.json.pre-CONVERGE01",
@@ -218,7 +218,7 @@
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
-      "sha256": "e49e3ff9d471dd61272a22781d36703a25ac0523b2297152c541445488d17102"
+      "sha256": "41330ae98e303fa948674a617a2b2c78bdf802d53515313a2b94ac2b88c16648"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md.pre-CONVERGE01",
@@ -226,7 +226,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "4fe029b5924c8769d80c94b794bb7c0e00128b74cdf1510dc8bace38931a6917"
+      "sha256": "58b57aad0f051643f970a220358125dff27cae2d5cfde0a7e798a2746c568704"
     },
     {
       "path": "VERSION.json.pre-CONVERGE01",
@@ -250,7 +250,7 @@
     },
     {
       "path": "modules/debate/config.json",
-      "sha256": "59f2f4d8462e70af38bb4d230c0202277362e8028891b086c70db1401847d898"
+      "sha256": "e0239b8a33754733e581ae80019f86fe6a84d63657f4e91f9b496a400f09312d"
     },
     {
       "path": "modules/distillery/INSTALL-PROVENANCE.json.pre-CONVERGE01",
@@ -322,7 +322,7 @@
     },
     {
       "path": "tools/release/build_release.ps1",
-      "sha256": "76769ff349776eea742b70fe3ab91c4b45ebe070ad543cbe94d680298a87371e"
+      "sha256": "eeecfdbb65980cf03cfe431fb6186eca2d23a765680dd1edbf06dbddc8940f33"
     },
     {
       "path": "tools/release/fixture_allowlist.json",
@@ -346,7 +346,7 @@
     },
     {
       "path": "tools/release/module_source_registry.json",
-      "sha256": "31c32808ec7d65cef4902a587e751805e34484bafaee30d4767a73d9634290ec"
+      "sha256": "0c5cc0fbecb8d5a011afb6cd452163362f115df01e69417be3e82964d6e49160"
     },
     {
       "path": "tools/release/rebase_adapters.py",

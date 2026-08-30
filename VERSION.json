@@ -7,7 +7,7 @@
     "tokencenter": "record-dated 2026-08-26"
   },
   "seal_commit_record": "release-artifacts/release-build-manifest.json",
-  "source_commit": "d9c74096d048460cbacfad1c380ccb060021116b",
+  "source_commit": "b39d472119fa712a604a93177cb9245119aae283",
   "source_commit_definition": "last product/tooling commit; NOT the seal commit. A tracked file cannot carry the hash of the commit that introduces it.",
   "system": "sovereign-workspace",
   "version": "1.0.0-rc.1"
