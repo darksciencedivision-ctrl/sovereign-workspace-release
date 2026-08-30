@@ -1,0 +1,31 @@
+﻿# utc: 2026-08-30T03:40:06Z
+# producer: grok-opencode LIVE-CENSUS-20260830
+# host: DESKTOP-03PTABH
+# retry of Start-Shell.ps1 -NoBrowser with redirected stdio
+launcher_pid=9180 hasexited_immediate=False
+listening=True loops=1 launcher_exited=False exitcode= ownerPid=36544
+--- stdout ---
+
+  Sovereign Workspace Shell
+  D:\producttion software 2\release-worktree
+
+  python   Python 3.12.10
+  port     5180 free
+  theme    dark
+
+  Starting. Ctrl+C to stop.
+
+SWS Shell listening on http://127.0.0.1:5180
+Modules loaded: ['debate', 'distillery', 'llamacpp', 'sovereign', 'sow', 'tokencenter']
+--- stderr ---
+GET http://127.0.0.1:5180/ status=200 len=3727
+GET http://127.0.0.1:5180/static/app.js status=200 len=37498
+GET http://127.0.0.1:5180/api/state status=200 len=3125
+{"modules": {"debate": {"id": "debate", "display_name": "Debate Table", "description": "Multi-model debate table (FastAPI, :8700)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "http://127.0.0.1:8700/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/debate/.venv/Scripts/python.exe"}, "distillery": {"id": "distillery", "display_name": "Sovereign Distillery", "description": "Distillery runtime console \u2014 health only, no compute on open", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "http://127.0.0.1:5184/console", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"}, "llamacpp": {"id": "llamacpp", "display_name": "llama.cpp (candidate)", "description": "Pinned llama.cpp router on 5183. Not production default. The paths below are a NEUTRAL PLACEHOLDER, not a real location: the llama.cpp runtime and models ship in no release archive (R2 s3), so no real path exists on any machine. llamacpp is the declared optional adapter and is skipped by the installer; supply a real runtime location before enabling it.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "", "can_open": false, "open_kind": "none", "runtime_present": false, "runtime_path": "C:/sovereign-workspace/optional-runtimes/llama.cpp/current/llama-server.exe"}, "sovereign": {"id": "sovereign", "display_name": "SOVEREIGN", "description": "Operator product service and UI (Flask, :5175)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "http://127.0.0.1:5175/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/sovereign/.venv/Scripts/python.exe"}, "sow": {"id": "sow", "display_name": "Multi-Model Terminal", "description": "Sovereign Orchestration Workspace (Electron + xterm.js)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "", "can_open": false, "open_kind": "focus_window", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe"}, "tokencenter": {"id": "tokencenter", "display_name": "Token Center", "description": "Read-only local usage telemetry. No credentials.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T03:40:07Z", "port": "", "url": "http://127.0.0.1:8765/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"}}}
+GET http://127.0.0.1:5180/api/preflight status=200 len=538
+{"checks": [{"id": "ollama", "status": "bad", "detail": "<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>"}, {"id": "py312", "status": "ok", "detail": "Python 3.12.10"}, {"id": "node", "status": "ok", "detail": "v24.16.0"}, {"id": "npm", "status": "ok", "detail": "11.17.0"}, {"id": "port_5175", "status": "ok", "detail": "free"}, {"id": "port_8700", "status": "ok", "detail": "free"}, {"id": "port_5180", "status": "ok", "detail": "shell"}], "timestamp": "2026-08-30T03:40:12Z"}
+stop shell.src pid=27912
+stop shell.src pid=36544
+PORT 5180 free
+PORT 5175 free
+PORT 8700 free

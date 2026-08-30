@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 import unittest
 import subprocess
 import time
@@ -218,29 +219,109 @@ class TestCsrf(unittest.TestCase):
 
 
 class TestDistilleryParser(unittest.TestCase):
-    """Distillery file parser tests."""
+    """Distillery file parser tests.
 
-    def test_returns_not_started(self):
+    EPC-01 P3-2. These used to pass because the source tree they parse happened to exist on
+    the machine running them, at a path compiled into the product. Two of them asserted
+    parsed VALUES, so on any other machine they failed - the suite was measuring the build
+    host, not the code. The tree is now named by SOVEREIGN_DISTILLERY_ROOT, and these tests
+    build their own, so both the configured and the unconfigured state are covered here
+    rather than one of them being whatever the host happens to offer.
+    """
+
+    HANDOFF = (
+        "# Canonical handoff\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| **Supersedes** | All prior status reports |\n"
+    )
+    QUESTIONS = (
+        "# Open questions\n\n"
+        "OQ-001 first\nOQ-002 second\n~~OQ-003~~ struck through\n\n"
+        "## Resolved\n\nOQ-004 resolved and must not count\n"
+    )
+
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in
+                       ("SOVEREIGN_DISTILLERY_ROOT", "SOVEREIGN_DISTILLERY_SNAPSHOT_ROOT")}
+        for key in self._saved:
+            os.environ.pop(key, None)
+
+    def tearDown(self):
+        for key, value in self._saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def _configure(self):
+        """Build a Distillery source tree and point the parser at it."""
+        root = tempfile.mkdtemp(prefix="sov-distillery-")
+        (Path(root) / "docs").mkdir()
+        (Path(root) / "CANONICAL-HANDOFF.md").write_text(self.HANDOFF, encoding="utf-8")
+        (Path(root) / "docs" / "02-OPEN-QUESTIONS.md").write_text(
+            self.QUESTIONS, encoding="utf-8")
+        snapshots = tempfile.mkdtemp(prefix="sov-snapshots-")
+        (Path(snapshots) / "SOVEREIGN_DISTILLERY_ENTERPRISE_20260101T000000Z").mkdir()
+        os.environ["SOVEREIGN_DISTILLERY_ROOT"] = root
+        os.environ["SOVEREIGN_DISTILLERY_SNAPSHOT_ROOT"] = snapshots
+        return root
+
+    # --- the state a recipient is in ---------------------------------------------------
+
+    def test_unconfigured_is_not_reported_as_a_misconfiguration(self):
+        """A recipient with no Distillery corpus has not made a mistake."""
         status = get_distillery_status()
         self.assertEqual(status["state"], "NOT_STARTED")
+        self.assertEqual(status["handoff"]["error"], "NOT_CONFIGURED")
+        self.assertIn("SOVEREIGN_DISTILLERY_ROOT", status["handoff"]["reason"])
+
+    def test_unconfigured_offers_no_links(self):
+        """A link to a path that exists only on the build machine looks like a working
+        affordance and is not one."""
+        self.assertEqual(get_distillery_status()["links"], {})
+
+    def test_a_configured_but_unreadable_tree_is_still_a_config_error(self):
+        """The NOT_CONFIGURED path must not become a way for a real fault to pass quietly."""
+        os.environ["SOVEREIGN_DISTILLERY_ROOT"] = os.path.join(
+            tempfile.mkdtemp(prefix="sov-empty-"), "no-such-tree")
+        status = get_distillery_status()
+        self.assertEqual(status["state"], "CONFIG_ERROR")
+
+    # --- the state an operator with a corpus is in -------------------------------------
+
+    def test_returns_not_started(self):
+        self._configure()
+        self.assertEqual(get_distillery_status()["state"], "NOT_STARTED")
 
     def test_has_handoff(self):
+        self._configure()
         status = get_distillery_status()
-        self.assertIn("handoff", status)
         self.assertEqual(status["handoff"]["status"], "not started")
+        self.assertEqual(status["handoff"]["supersedes"], "All prior status reports")
 
     def test_has_questions(self):
-        status = get_distillery_status()
-        self.assertIn("questions", status)
-        self.assertIn("open_count", status["questions"])
+        self._configure()
+        questions = get_distillery_status()["questions"]
+        self.assertEqual(questions["open_count"], 2, questions.get("open_ids"))
+        self.assertEqual(questions["open_ids"], ["OQ-001", "OQ-002"])
 
     def test_has_snapshot(self):
+        self._configure()
         status = get_distillery_status()
-        self.assertIn("snapshot", status)
+        self.assertEqual(
+            status["snapshot"]["snapshot_id"],
+            "SOVEREIGN_DISTILLERY_ENTERPRISE_20260101T000000Z")
+
+    def test_links_point_into_the_configured_tree(self):
+        root = self._configure()
+        links = get_distillery_status()["links"]
+        self.assertTrue(links["canonical_handoff"].endswith("/CANONICAL-HANDOFF.md"))
+        self.assertIn(Path(root).name, links["canonical_handoff"])
 
     def test_verbatim_line(self):
-        status = get_distillery_status()
-        self.assertIn("No runtime", status["verbatim"])
+        self._configure()
+        self.assertIn("No runtime", get_distillery_status()["verbatim"])
 
 
 class TestServerEndpoints(unittest.TestCase):

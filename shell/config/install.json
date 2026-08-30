@@ -1,1 +1,7 @@
-{"modules_root": "D:\\producttion software 2\\release-worktree", "python_312": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe", "optional_adapters": ["llamacpp"]}
+{
+  "modules_root": "<set-by-installer>",
+  "python_312": "<set-by-installer>",
+  "optional_adapters": [
+    "llamacpp"
+  ]
+}

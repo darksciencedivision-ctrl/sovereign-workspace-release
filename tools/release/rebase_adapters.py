@@ -22,6 +22,12 @@ OLD_ROOT = "D:/Product Software/Production Workspace"
 #: SHIPS, so every recipient received the same dead path. Rebasing it here puts it under the
 #: same install-time discipline as the shell adapters, instead of resting on nobody moving the
 #: repository.
+#: EPC-01 P3-4/P3-5. The SHIPPED shell/config/install.json carries this in place of the build
+#: machine's paths. `install.ps1` overwrites the file at the destination with real values
+#: before calling this tool, so seeing the sentinel here means the installer did not run --
+#: which is worth failing loudly for, rather than resolving it into a nonsense relative path.
+INSTALL_SENTINEL = "<set-by-installer>"
+
 CODEX_REGISTRATION = "modules/sow/.codex/config.toml"
 _CODEX_CWD = re.compile(r'^(cwd\s*=\s*")([^"]*)(")\s*$', re.MULTILINE)
 INVENTORY = {
@@ -134,6 +140,14 @@ def run(root: Path, dry_run: bool = False) -> int:
     modules_dir = root / "shell" / "modules"
     try:
         install = json.loads(install_path.read_text(encoding="utf-8"))
+        if INSTALL_SENTINEL in (install.get("modules_root"), install.get("python_312")):
+            print(
+                f"ERROR: {install_path} still holds {INSTALL_SENTINEL!r}. This is the SHIPPED "
+                f"template; an installer must write the destination's real modules_root and "
+                f"python_312 into it before adapters can be rebased.",
+                file=sys.stderr,
+            )
+            return 2
         modules_root = str(Path(install["modules_root"]).resolve())
         python_312 = str(Path(install["python_312"]).resolve())
         source_modules_root = str(install.get("source_modules_root") or OLD_ROOT)
@@ -166,6 +180,15 @@ def run(root: Path, dry_run: bool = False) -> int:
             if not isinstance(old, str):
                 print(f"ERROR: {name}{pointer} is not a string", file=sys.stderr)
                 return 2
+            if old.startswith("${") :
+                # EPC-01 P3-4/P3-5. The adapter expresses this value as a variable
+                # (${install_root}, ${python312}, ${root}), which the shell resolves at
+                # compile time from where it actually is. Rewriting it to an absolute path
+                # here would replace a value that is right by construction with one that is
+                # right only until the installation is moved -- and would put the installing
+                # machine's interpreter path back into a file that had been cleaned of it.
+                print(f"NO-OP {name}{pointer}: {old} is resolved at runtime")
+                continue
             if pointer in interpreter_pointers:
                 new = python_312
             else:

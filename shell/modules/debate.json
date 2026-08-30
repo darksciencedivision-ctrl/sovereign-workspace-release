@@ -3,7 +3,7 @@
   "display_name": "Debate Table",
   "description": "Multi-model debate table (FastAPI, :8700)",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\debate",
+  "root": "${install_root}/modules/debate",
   "runtime_writes": [
     "${state_root}/config.json",
     "${state_root}/logs"

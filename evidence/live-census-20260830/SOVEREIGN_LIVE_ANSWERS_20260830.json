@@ -1,0 +1,352 @@
+[
+  {
+    "id": "Q01",
+    "status": "ANSWERED",
+    "answer": "LIVE_WORKTREE=AMBIGUOUS. T-RW D:\\producttion software 2\\release-worktree supervisor.py sha256=acb266cf0c2461df0a1419e5ebc828a627be910a9b884fa0c70b706623c7f214 server.py sha256=18ef213e594692c8c0f513854d8826818c49b87eb0f58bc465182ed8ce9c151b Start-Shell.ps1 sha256=bd95eff8cb30d4d7914565d23ff75b78781de87ee38478a713b3412bf7b42e97. T-PW D:\\Product Software\\Production Workspace supervisor.py sha256=bb09c62b2388229fcd729381d4f10cd1eb307cf9e7a74fc935ce3c32a3ae1fc7 server.py sha256=743ecd47027ba88a95d03f6e9dd2b420fae620a8ad25f50e9a8068529aea7deb Start-Shell.ps1 sha256=44ec73ba5270fc022629c4e34d4b77a85864d9620fa29e0d8a3ed53e84b54914. Launch bat/ps1 name T-RW; supervisor hashes differ so no silent pick.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q02",
+    "status": "ANSWERED",
+    "answer": "T-RW exists. It is a git repository (HEAD 8d9f5d2415599eeb0b71dc85a25a36469b41641e main, porcelain 1) not a git worktree of T-PW (T-PW has no .git). Different generation: supervisor/server/Start-Shell hashes differ; __main__.py hashes equal. File counts excluding .venv/node_modules/__pycache__/.git: T-RW 3678 (shell_side 187) vs T-PW 3870 (shell_side 169).",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q03",
+    "status": "ANSWERED",
+    "answer": "T-RW is a git repo: HEAD 8d9f5d2 / 8d9f5d2415599eeb0b71dc85a25a36469b41641e branch main dirty count 1 (?? modules/sow/docs/evidence/receipts/SHELL-LIVE-READY.json) last subject 'H: regenerate provenance, identity and release manifest (SEAL)'. T-PW is not a git repo; git -C status verbatim: fatal: not a git repository (or any of the parent directories): .git",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q04",
+    "status": "ANSWERED",
+    "answer": "Sovereign Workspace.bat lives at D:\\producttion software 2\\Sovereign Workspace.bat (170 bytes, write 2026-08-29T05:55:54Z). On-disk content cds to D:\\producttion software 2\\release-worktree then runs .\\Start-Shell.ps1. No Sovereign*.bat under D:\\Product Software.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q05",
+    "status": "ANSWERED",
+    "answer": "Custody-root Start-Sovereign.ps1 lives at D:\\producttion software 2\\Start-Sovereign.ps1 (8387 bytes, 2026-08-30T00:18:37Z). $worktree = Join-Path $root 'release-worktree' resolves to D:\\producttion software 2\\release-worktree\\Start-Shell.ps1 which exists. D:\\Product Software\\Start-Sovereign.ps1 is missing. Other hits are module copies under modules\\sovereign and historical Sov 1 / baseline trees.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q06",
+    "status": "ANSWERED",
+    "answer": "System zip MATCH 75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138 at T-R2 and T-BASE. Raw zip MATCH 8594fdc266fee721c9ef69d5595d5bab5402d2ce00de5ee65720994d4efafc9c at T-R2 and T-BASE. Reset zip MATCH 00ae9eefc7dada37943bb08a305020c73e2c029a6398858e8bba27078c349a7c at T-R2 (and Copy.zip). T-PS and D:\\SOVEREIGN_RESET_BASELINE_20260827T193540Z.zip are a03baa107555ba3e70bf209bb465069cc95c495fdf322a59ead8de7a4504c3ec (15760021 bytes) — NOT the cited reset hash. Downloads SOVEREIGN_v3.1.1_baseline_20260715(1).zip is 24b20b79b0525b3df5cb738113dd84b01b918e92aad5442973784a9835167022.",
+    "evidence": ["evidence/live-census-20260830/06-zip-hashes.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q07",
+    "status": "ANSWERED",
+    "answer": "Yes. T-RW has many writes after 2026-08-27T23:05:06Z including shell\\BUILD-MANIFEST.txt 2026-08-30T03:18:10Z, evidence/hardening/*, release-artifacts zips 2026-08-30T03:09Z, supervisor.py 2026-08-30T02:40:28Z. T-PW runtime writes after that cutoff include sovereign.db 2026-08-29T05:45:43Z. Newest 20 listed in 00-identity plus this census's own 00-identity.md / OPERATOR-INSTRUCTIONS.log.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q08",
+    "status": "ANSWERED",
+    "answer": "T-RW file count excluding .venv/node_modules/__pycache__/.git = 3678, paths matching \\shell\\ = 187. T-PW = 3870 / 169. Neither matches the system baseline claim 3580 packaged / 2149 shell-side; the 2149 figure is not reproduced by this exclusion rule.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q09",
+    "status": "ANSWERED",
+    "answer": "modules\\sovereign exists on both, not git. T-RW INSTALL-PROVENANCE sha256=3c0c98e4ed286774258802c14789f89c2752fe03b782346f70e3304065c93da6 source_sha256=150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51 (corrected). T-PW INSTALL-PROVENANCE sha256=ea96af3fe4d7dc6ad8b63ce5a04082707ee110b99aaccde9f5b790ccd41b04f9 source_sha256=620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96. Newest: T-RW runtime\\sovereign.db 2026-08-30T00:58:03Z; T-PW same path 2026-08-29T05:45:43Z.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q10",
+    "status": "ANSWERED",
+    "answer": "modules\\debate exists on both, not git. T-RW BUILD-INFO version v1.2.1-hardening sha256=49c975d52bab8cef7d1f976407f28b96b67cc375140894da693dea844ba75d95. T-PW BUILD-INFO has no version key; phase 'v1.2 Phase 1 complete / pre-Voice Phase 2' sha256=545fb71412f513490e0a2b644a87a0ae26d6cd2a35b8f309fcf09c8bbd022387. Newest T-RW INSTALL-PROVENANCE 2026-08-30T03:04:07Z; T-PW config.json 2026-08-28T15:27:41Z.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q11",
+    "status": "ANSWERED",
+    "answer": "modules\\sow exists on both, not git. T-RW apps\\desktop\\package.json sha256=f9d932ba29784b1c518fb1a52c669c2e9b29748c6587082d04da2fe4054d2f32 electron ^43.4.1. T-PW and T-SOW package.json sha256=5b47c9747c62b82608081afc5f5d7f48148528c6acc20b53669d6b25af8d4687 electron ^31.0.0. Newest T-RW INSTALL-PROVENANCE 2026-08-30T03:04:07Z; T-PW .sovereign_store node_events.jsonl 2026-08-29T05:44:40Z.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q12",
+    "status": "ANSWERED",
+    "answer": "modules\\distillery exists on both, not git. serve.py present both. T-RW serve.py sha256=484c89d7a769757ac8ba5e849c74c18786488367817aca553360607d676d686f (3605 bytes). T-PW serve.py sha256=ab5fbfe5d7a420d5b93eb787039bd8bc59a2c893263c1ecb0f05dff91a212b21 (2217 bytes). T-DIST-A D:\\Sovereign-Grounded-Distillery HEAD 6cd9886 has no serve.py at repo root.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q13",
+    "status": "ANSWERED",
+    "answer": "modules\\tokencenter exists on both, not git. T-RW piggybank.py sha256=e0828b4a7a4a5953b7a839572adf1a5f62027379b89b9df80760a4c24537ac65 (38935 bytes, 2026-08-29T06:57:22Z) CSRF present. T-PW piggybank.py sha256=66215be2a6b9be439f8bb7ad3754aa9119e161dbbd776a4dd175f41a2cfda53f (36059 bytes, 2026-08-26T15:43:52Z) CSRF nonce checks present. Newest sqlite T-RW 2026-08-30T02:57:54Z T-PW 2026-08-29T05:45:05Z.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q14",
+    "status": "ANSWERED",
+    "answer": "T-RW modules\\debate\\BUILD-INFO.json version string is v1.2.1-hardening. T-PW BUILD-INFO.json has no version field; phase is v1.2 Phase 1 complete / pre-Voice Phase 2.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q15",
+    "status": "ANSWERED",
+    "answer": "T-RW sovereign INSTALL-PROVENANCE source_sha256=150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51 equals independently hashed D:\\Product Software\\SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip. T-PW still records 620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96 which independently hashes to SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e.zip — Distillery, not Sovereign. T-RW provenance file documents that cross-product defect as superseded.",
+    "evidence": ["evidence/live-census-20260830/06-zip-hashes.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q16",
+    "status": "ANSWERED",
+    "answer": "Both trees: SYSTEM_MANIFEST.json MODELS PRIMARY_REASONER=qwen3:14b ADVERSARIAL_CHALLENGER=ornith:9b CRITIC=qwen3:8b SYNTHESIZER=qwen3.8:27b EMBEDDING_MODEL=nomic-embed-text:latest. PACKAGE_MANIFEST.txt roles PRIMARY_REASONER=qwen3:14b ADVERSARIAL_CHALLENGER=qwen3:32b CRITIC=qwen3:8b SYNTHESIZER=qwen2.5:14b-instruct EMBEDDING_MODEL=nomic-embed-text:latest. Challenger and synthesizer disagree between the two files.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q17",
+    "status": "ANSWERED",
+    "answer": "Yes on both. T-RW modules\\sovereign\\runtime\\sovereign.db size=81920 last write 2026-08-30T00:58:03.6876869Z. T-PW size=90112 last write 2026-08-29T05:45:43.1848225Z. Not opened.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q18",
+    "status": "ANSWERED",
+    "answer": "T-RW modules\\sovereign\\ui\\ui_shell\\src\\ exists (recovered SPA) and dist\\ exists. T-PW ui_shell\\src\\ is absent; only dist\\ exists.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q19",
+    "status": "ANSWERED",
+    "answer": "modules\\sow is not a git repo on either live tree. T-SOW HEAD is e6fcb89984ba50f296a1f4debb6669bfef12f996 dirty 4. T-PW package.json hash 5b47c9747c62b82608081afc5f5d7f48148528c6acc20b53669d6b25af8d4687 equals T-SOW package.json. T-RW package.json hash f9d932ba29784b1c518fb1a52c669c2e9b29748c6587082d04da2fe4054d2f32 differs (electron pin moved to 43.4.1).",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q20",
+    "status": "ANSWERED",
+    "answer": "T-DIST-A HEAD is 6cd98862bfc28b7b8aef66b722620f3b42ab6eb7 (6cd9886) clean on remediation/release-baseline-v1. LIVE modules\\distillery is not a git checkout of that HEAD. serve.py is present on T-RW and T-PW; T-DIST-A repo root has no serve.py. 6cd9886 is upstream HEAD, not the live module tree HEAD.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q21",
+    "status": "ANSWERED",
+    "answer": "T-RW: debate/sovereign/sow argv use ${root} (no C:/Users/Sslaw). distillery and tokencenter argv[0]=C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe and argv script paths under D:\\producttion software 2\\release-worktree. roots are D:\\producttion software 2\\release-worktree\\modules\\... llamacpp root is placeholder C:/sovereign-workspace/optional-runtimes/llama.cpp. T-PW: same C:/Users/Sslaw python on distillery/tokencenter; roots D:/Product Software/Production Workspace/...; llamacpp root D:/Product Software/Production Workspace/runtime/llama.cpp.",
+    "evidence": ["evidence/live-census-20260830/21-adapters.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q22",
+    "status": "ANSWERED",
+    "answer": "If treating T-RW as live: adapter JSON roots already point at T-RW, not T-PW — not a launch-breaking T-PW mismatch. Distillery/tokencenter still embed host-absolute Python under C:\\Users\\Sslaw.",
+    "evidence": ["evidence/live-census-20260830/21-adapters.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q23",
+    "status": "ANSWERED",
+    "answer": "At identity capture and after shell stop: nothing listening on 5175, 5180, 5183, 5184, 8700, 8765, 11434, 17890. 8765 is neither workspace piggybank nor D:\\Token Piggy Bank\\piggybank.py. TOKENCENTER_LISTENER=none.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q24",
+    "status": "ANSWERED",
+    "answer": "GPU NVIDIA GeForce RTX 5060 Ti, 2148 MiB used / 8151 MiB total, driver 610.74 (VRAM free 6003 MiB). No ollama/llama-server/electron/node workspace compute at capture. Unrelated hermes-agent python gateway processes were present; no modules\\* python.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q25",
+    "status": "ANSWERED",
+    "answer": "Ollama daemon down (client 0.33.2, API not listening). Disk manifests under C:\\Users\\Sslaw\\.ollama\\models: SYSTEM_MANIFEST qwen3:14b PRESENT, ornith:9b PRESENT, qwen3:8b PRESENT, qwen3.8:27b PRESENT, nomic-embed-text:latest PRESENT. PACKAGE_MANIFEST qwen3:32b PRESENT, qwen2.5:14b-instruct PRESENT. Debate PRODUCTION-README phi4:14b PRESENT, qwen2.5:14b-instruct PRESENT. No pull.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q26",
+    "status": "ANSWERED",
+    "answer": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe exists and prints Python 3.12.10.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q27",
+    "status": "ANSWERED",
+    "answer": "T-RW and T-PW Start-Shell.ps1 warn on light mode but do not refuse (no exit 1 on AppsUseLightTheme=1). Host AppsUseLightTheme=0 so the warning path is not taken; theme currently does not refuse.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q28",
+    "status": "ANSWERED",
+    "answer": "Yes on both trees: shell\\src\\__main__.py and shell\\src\\__init__.py present, so py -3.12 -c import shell.src is theoretically possible from the workspace root. Confirmed live by T-RW Start-Shell.ps1 which runs py -3.12 -B -m shell.src.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q29",
+    "status": "ANSWERED",
+    "answer": "T-RW Start-Shell.ps1 -NoBrowser succeeded: SWS Shell listening http://127.0.0.1:5180, modules loaded debate distillery llamacpp sovereign sow tokencenter. GET / 200, GET /static/app.js 200 (DEFECT-G5-1 not live), GET /api/state 200 all STOPPED, GET /api/preflight 200 ollama=bad py312/node/npm=ok. Stopped; 5180/5175/8700 free; no modules\\* python/electron left. T-PW start NOT_RUN(TIME).",
+    "evidence": ["evidence/live-census-20260830/29-shell-start-T-RW-retry.txt"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q30",
+    "status": "ANSWERED",
+    "answer": "T-RW: py -3.12 -B -m unittest discover -s shell/tests -v → Ran 188 tests in 149.913s OK (exit 0). Suite side-effect rewrote shell\\BUILD-MANIFEST.txt and evidence/hardening/* via zz_evidence tests. T-PW suite NOT_RUN(TIME).",
+    "evidence": ["evidence/live-census-20260830/30-shell-suite-T-RW.txt"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q31",
+    "status": "NOT_RUN",
+    "answer": "Debate .venv exists on both T-RW and T-PW. Suite not executed: NOT_RUN(TIME).",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q32",
+    "status": "ANSWERED",
+    "answer": "Yes. T-RW and T-PW evidence\\test-run.txt both 1151 bytes, first line utc 2026-08-25T20:12:17.5424442Z, last lines 'Ran 129 tests in 105.720s' then 'OK'. Stale vs Q30 (188 tests / 149.913s on T-RW today).",
+    "evidence": ["evidence/live-census-20260830/30-shell-suite-T-RW.txt"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q33",
+    "status": "ANSWERED",
+    "answer": "T-RW and T-PW GATE-LEDGER.json identical sha256=e81a95e66cf3c0a207a7450641fe7ae270d974e3ac0e242f2aa27268fad5c7bf. Counts: PASS=9 STOP=1 CANDIDATE=19 NOT_REACHED=0 (29 keys). Newest by utc: id=9j status=CANDIDATE utc=2026-08-27T00:58:28.935Z. STOP is gate 5 utc=2026-08-22T00:18:00Z. Not edited.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q34",
+    "status": "ANSWERED",
+    "answer": "Newest numbered goalcheck is goalcheck-66.txt. Summary line: summary: 107/124 TRUE",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q35",
+    "status": "ANSWERED",
+    "answer": "Yes on both trees. sha256=17e4e5f8d6d63cf3ddfc0d24846b8da69897f1eb0c2ebddab180352702a93cc6 size=26590.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q36",
+    "status": "ANSWERED",
+    "answer": "docs\\DECISIONS.md sha256=bb911905c68b85f2c8abd5d3d2db8176cbd7a6999f8ed93fd815b4185c14869a on both trees — matches the historically cited hash.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q37",
+    "status": "NOT_FOUND",
+    "answer": "sovereign-production.skill v2.0 not found in targeted recurse (T-PS, T-R2, T-SOV1, baselines, Desktop, Downloads, Documents, D:\\ and profile depth-capped *.skill). No reconstruction.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q38",
+    "status": "ANSWERED",
+    "answer": "D:\\Product Software\\Start-SovereignTokenCenter.ps1 exists (2078 bytes, 2026-08-26T21:48:03Z). Sibling piggybank.py next to it does NOT exist, so cold-start would throw when building $scriptPath. Workspace copies exist under modules\\tokencenter\\piggybank.py.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q39",
+    "status": "ANSWERED",
+    "answer": "Not 31.7.7 on T-RW desktop: package.json electron ^43.4.1 and package-lock resolved electron-43.4.1.tgz. T-PW desktop package.json electron ^31.0.0. Spike compositor lock still resolves electron-31.7.7.tgz under modules\\sow\\tools\\spike_compositor\\package-lock.json.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q40",
+    "status": "ANSWERED",
+    "answer": "T-RW modules\\sow\\control_plane\\canonical_registry.py exists with build_canonical_registry and list_for_selectors. Grep outside that file in LIVE SOW: only INSTALL-PROVENANCE.json note. T-SOW: no canonical_registry.py and no list_for_selectors matches. Dead on T-RW (file present, not consumed); absent on T-SOW.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q41",
+    "status": "ANSWERED",
+    "answer": "Latest disposition: G26 NOT_RUN(CONDUCTOR_LAUNCH_PROCESS_DEATH). Quoted from evidence\\cpm1\\8d\\conductor-roundtrip.txt and GATE-LEDGER 8d note / RUN-LOG.md. Do not re-run live conductor.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q42",
+    "status": "ANSWERED",
+    "answer": "5184 was down. Started T-RW modules\\distillery\\serve.py only (adapter argv python 3.12 + serve.py). GET /health 200 body {\"ok\": true, \"status\": \"idle\", \"compute\": false}. Stopped; 5184 free. No training.",
+    "evidence": ["evidence/live-census-20260830/42-distillery-health-T-RW.txt"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q43",
+    "status": "ANSWERED",
+    "answer": "T-RW scan for sk-ant-, sk-live-, ghp_, AKIA, BEGIN PRIVATE KEY, xai- excluding .venv/node_modules: 57 shown hits, all declared_fixture (redaction regexes, test fixtures AKIAIOSFODNN7EXAMPLE / xai-abcdefghijklmnop1234, @xai-official/grok package name, docs). UNEXPECTED=0. No secret copied.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q44",
+    "status": "ANSWERED",
+    "answer": "Both README.md install sections name D:\\Product Software\\Debate_Table_v1.2_Phase1_Production_20260811_201116 - Copy.zip. T-RW modules\\debate actually contains v1.2.1-hardening. T-PW modules\\debate actually contains v1.2 Phase 1.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q45",
+    "status": "ANSWERED",
+    "answer": "Debate Phase1 zip first component Debate_Table_v1.2_Phase1_Production/ — Expand-Archive -DestinationPath modules\\debate WOULD nest. Sovereign enterprise zip first component SOVEREIGN/ — Expand-Archive to modules\\sovereign WOULD nest. Hardening zip not expanded here; staging tree uses Debate_Table_v1.2.1_Hardening_20260823_143520/ similarly nested.",
+    "evidence": ["evidence/live-census-20260830/06-zip-hashes.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q46",
+    "status": "ANSWERED",
+    "answer": "Yes relative to T-PW's v1.2 Phase 1: T-RW modules\\debate is v1.2.1-hardening; T-RW holds Debate_Table_v1.2.1_Hardening_20260823_143520.zip sha256=d03ba417914e1465898f5144cc5735afb92f7f6da5e846e0a968fe48c531d265 and release-artifacts\\debate-v1.2.1-hardening-src.zip sha256=36b40afb50be02ab24164f8084b267942f84dc4bb031f8e7dd1bc87ed511ec29. T-DEB git remains d7be335 (older baseline). No newer-than-v1.2.1-hardening Debate product found.",
+    "evidence": ["evidence/live-census-20260830/06-zip-hashes.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q47",
+    "status": "ANSWERED",
+    "answer": "No newer Sovereign enterprise than 2026-08-13 found. Newest enterprise zip is SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip sha256=150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51. Older 20260811/20260812 zips exist under D:\\Sov 1.",
+    "evidence": ["evidence/live-census-20260830/06-zip-hashes.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q48",
+    "status": "ANSWERED",
+    "answer": "T-SOW HEAD still e6fcb89984ba50f296a1f4debb6669bfef12f996. Dirty: M docs/loop/LOOP_STATE.json; M docs/registers/UNRESOLVED_ISSUE_REGISTER.md; ?? docs/evidence/INDEPENDENT_REVIEW_WINDOWS_HOST_20260816.md; ?? docs/evidence/PHASE19_UNIT10_U339_SUITE_AND_GATE.md. Newest write after commit: .pytest_cache 2026-08-26T07:05:44Z; UNRESOLVED_ISSUE_REGISTER.md 2026-08-26T06:48:11Z; several apps/desktop/*.js 2026-08-24T03:59:20Z.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q49",
+    "status": "ANSWERED",
+    "answer": "T-PW runtime\\llama.cpp exists as a directory, recursive size 6966389263 bytes (~6644 MiB); current\\ ~1660 MiB with CUDA/ggml DLLs (LM Studio-shaped, no llama-server.exe in the first listing). T-RW has no runtime\\llama.cpp; adapter uses placeholder C:/sovereign-workspace/optional-runtimes/llama.cpp. Nothing listening on 5183.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  },
+  {
+    "id": "Q50",
+    "status": "ANSWERED",
+    "answer": "No *invoice*, *stripe*, or *paypal* files under D:\\Product Software or T-RW (depth-capped). T-RW LICENSE files: LICENSE plus modules\\{debate,distillery,sovereign,sow,tokencenter}\\LICENSE. T-PS/T-PW: no license/invoice/stripe/paypal hits at depth 3/4. Names only; none opened as financial exports.",
+    "evidence": ["evidence/live-census-20260830/00-identity.md"],
+    "label": "FACT"
+  }
+]

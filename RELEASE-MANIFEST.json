@@ -270,11 +270,11 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "a499dbd3c37c44516d377b4a7365c34a624f01e9e6f3a315d32d99463f3ed895"
+      "sha256": "d61279d9d07617bc840db760392aaea87b18bb75ab92fc3d2b33522b66e9ad4f"
     },
     {
       "path": "shell/config/install.json",
-      "sha256": "960ccf0f1d86764a2b8012892b18ac0178e2c189854a70f0c5aaa258fb4f39dd"
+      "sha256": "dacd46cc21ec9e0bb2d50f0f45582629126026241b37899f3e4c73d88874facf"
     },
     {
       "path": "shell/src/probe.py",
@@ -350,7 +350,7 @@
     },
     {
       "path": "tools/release/rebase_adapters.py",
-      "sha256": "1cd893b9e87fd71855eac900004ced34c46c9598fac5059358e4073fb883626f"
+      "sha256": "3b0948e413052249faf468cd0febf8b132b5baf6ac09095935daf9c694751c2f"
     },
     {
       "path": "tools/release/release_manifest_check.py",

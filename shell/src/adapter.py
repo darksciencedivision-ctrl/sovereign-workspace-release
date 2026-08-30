@@ -7,6 +7,7 @@ prefix-string comparison. See _canonical() and is_contained().
 import ctypes
 import json
 import os
+import sys
 import re
 import hashlib
 from ctypes import wintypes
@@ -299,11 +300,59 @@ def module_state_root(module_id: str) -> str:
     return f"{workspace_state_root()}/{module_id}"
 
 
-def _resolve_var(value: str, root: str, state_root: str | None = None) -> str:
-    """Resolve ${root} and ${state_root}. Any other ${...} raises error."""
+# EPC-01 P3-4 / P3-5. The install root, DERIVED rather than configured.
+#
+# Every adapter used to hardcode this machine's absolute path in its `root`, and two of them
+# additionally hardcoded this machine's `python.exe`. `install.ps1` and `rebase_adapters.py`
+# rewrote both at install time, so it was a disclosure rather than a functional break -- the
+# archive shipped the build operator's username and directory layout to every recipient.
+#
+# Rewriting at install time also has a failure mode of its own: the value is correct only for
+# as long as nobody moves the installation, and a rebase that silently does not match leaves a
+# path that exists on no machine. Deriving the root from where the shell actually is removes
+# both problems. `${install_root}` is computed from this file's own location, so it is right by
+# construction, survives the directory being moved or renamed, and discloses nothing.
+#
+# The compiled value is still an absolute, canonicalised path, so H-5 containment is unchanged.
+INSTALL_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+#: Override for the interpreter that Python-launched modules run under. Absent, the shell
+#: launches them with the interpreter it is itself running under, which is the honest default:
+#: a recorded absolute path can go stale, `sys.executable` cannot.
+PYTHON_312_ENV = "SOVEREIGN_PYTHON_312"
+
+
+def install_root() -> str:
+    """The root of this installation, POSIX-separated. Derived, never configured."""
+    return INSTALL_ROOT.replace("\\", "/")
+
+
+def python_312() -> str:
+    """The interpreter Python-launched modules run under."""
+    override = os.environ.get(PYTHON_312_ENV, "").strip()
+    if override:
+        return os.path.abspath(override).replace("\\", "/")
+    return os.path.abspath(sys.executable).replace("\\", "/")
+
+
+def _resolve_var(value: str, root: str | None, state_root: str | None = None) -> str:
+    """Resolve ${install_root}, ${python312}, ${root} and ${state_root}.
+
+    Any other ${...} raises. `root` is None only while the adapter's own `root` field is being
+    resolved -- it cannot reference itself, and saying so is better than resolving it to
+    something empty and letting a containment check pass against nonsense.
+    """
     def replacer(m):
         var = m.group(1)
+        if var == "install_root":
+            return install_root()
+        if var == "python312":
+            return python_312()
         if var == "root":
+            if root is None:
+                raise AdapterError(
+                    "${root} is not available here; the adapter's own root field may only "
+                    "use ${install_root}")
             return root
         if var == "state_root":
             if state_root is None:
@@ -346,7 +395,7 @@ def compile_adapter(adapter: dict) -> dict:
     if not _ID_PATTERN.match(adapter.get("id", "")):
         raise AdapterError(f"Invalid id: {adapter.get('id')}")
 
-    root = adapter["root"]
+    root = _resolve_var(adapter["root"], root=None)
     _validate_path(root)
 
     compiled = dict(adapter)

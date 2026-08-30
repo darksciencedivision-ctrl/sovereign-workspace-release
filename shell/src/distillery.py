@@ -8,9 +8,46 @@ import json
 from pathlib import Path
 
 
-HANDOFF_PATH = "D:/Sovereign Distillery/CANONICAL-HANDOFF.md"
-OPEN_QUESTIONS_PATH = "D:/Sovereign Distillery/docs/02-OPEN-QUESTIONS.md"
-PRODUCT_SOFTWARE = "D:/Product Software"
+# EPC-01 P3-2. These three paths used to be literals naming two directories that exist on
+# exactly one machine: the one that built the release. Shipping them did two things, and
+# only one of them was visible.
+#
+# The visible half: on any other machine both reads fail and the pane reports CONFIG_ERROR.
+# That is honest, but it is honest about the wrong thing -- it reports a configuration
+# problem the recipient cannot fix, because the configuration was compiled in.
+#
+# The invisible half: the build operator's directory layout shipped to every recipient.
+#
+# They are configuration now, read from the environment, with NO built-in default. An
+# unset variable is reported as unconfigured rather than guessed at, and there is nothing
+# machine-specific left in this file. `docs/OPERATIONS.md` documents the variables.
+DISTILLERY_ROOT_ENV = "SOVEREIGN_DISTILLERY_ROOT"
+PRODUCT_SOFTWARE_ENV = "SOVEREIGN_DISTILLERY_SNAPSHOT_ROOT"
+
+
+def _distillery_root() -> str:
+    """The Distillery source tree, or "" when the operator has not named one."""
+    return os.environ.get(DISTILLERY_ROOT_ENV, "").strip().replace("\\", "/").rstrip("/")
+
+
+def _handoff_path() -> str:
+    root = _distillery_root()
+    return f"{root}/CANONICAL-HANDOFF.md" if root else ""
+
+
+def _open_questions_path() -> str:
+    root = _distillery_root()
+    return f"{root}/docs/02-OPEN-QUESTIONS.md" if root else ""
+
+
+def _snapshot_root() -> str:
+    """The tree searched for SOVEREIGN_DISTILLERY_ENTERPRISE_* snapshots."""
+    return os.environ.get(PRODUCT_SOFTWARE_ENV, "").strip().replace("\\", "/").rstrip("/")
+
+
+#: Returned wherever a source tree has not been configured. Distinct from CONFIG_ERROR, which
+#: means "you named a tree and it could not be read" -- a different problem with a different fix.
+NOT_CONFIGURED = "NOT_CONFIGURED"
 
 
 def _sha256_file(path: str) -> str:
@@ -29,8 +66,11 @@ def _sha256_file(path: str) -> str:
 
 def _parse_handoff() -> dict:
     """Parse CANONICAL-HANDOFF.md for status and supersedes."""
+    path = _handoff_path()
+    if not path:
+        return {"error": NOT_CONFIGURED, "reason": f"{DISTILLERY_ROOT_ENV} is not set"}
     try:
-        with open(HANDOFF_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             text = f.read()
     except (OSError, UnicodeDecodeError):
         return {"error": "CONFIG_ERROR", "reason": "Cannot read CANONICAL-HANDOFF.md"}
@@ -48,15 +88,18 @@ def _parse_handoff() -> dict:
         "status": status,
         "supersedes": supersedes,
         "handoff_text": text[:2000],  # first 2000 chars
-        "sha256": _sha256_file(HANDOFF_PATH),
+        "sha256": _sha256_file(path),
         "file": "CANONICAL-HANDOFF.md"
     }
 
 
 def _parse_open_questions() -> dict:
     """Parse 02-OPEN-QUESTIONS.md for open questions."""
+    path = _open_questions_path()
+    if not path:
+        return {"error": NOT_CONFIGURED, "reason": f"{DISTILLERY_ROOT_ENV} is not set"}
     try:
-        with open(OPEN_QUESTIONS_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             text = f.read()
     except (OSError, UnicodeDecodeError):
         return {"error": "CONFIG_ERROR", "reason": "Cannot read 02-OPEN-QUESTIONS.md"}
@@ -75,22 +118,25 @@ def _parse_open_questions() -> dict:
         "open_count": len(oq_ids),
         "open_ids": oq_ids,
         "rule": "Rows matching OQ-\\d+ not struck-through/CLOSED",
-        "sha256": _sha256_file(OPEN_QUESTIONS_PATH),
+        "sha256": _sha256_file(path),
         "file": "docs/02-OPEN-QUESTIONS.md"
     }
 
 
 def _find_snapshot() -> dict:
-    """Find SOVEREIGN_DISTILLERY_ENTERPRISE_* folders in Product Software."""
+    """Find SOVEREIGN_DISTILLERY_ENTERPRISE_* folders in the configured snapshot root."""
+    root = _snapshot_root()
+    if not root:
+        return {"error": NOT_CONFIGURED, "reason": f"{PRODUCT_SOFTWARE_ENV} is not set"}
     matches = []
     try:
-        for entry in os.listdir(PRODUCT_SOFTWARE):
+        for entry in os.listdir(root):
             if entry.startswith("SOVEREIGN_DISTILLERY_ENTERPRISE_") and os.path.isdir(
-                os.path.join(PRODUCT_SOFTWARE, entry)
+                os.path.join(root, entry)
             ):
                 matches.append(entry)
     except OSError:
-        return {"error": "CONFIG_ERROR", "reason": "Cannot read Product Software directory"}
+        return {"error": "CONFIG_ERROR", "reason": "Cannot read the configured snapshot root"}
 
     if len(matches) == 0:
         return {"error": "CONFIG_ERROR", "reason": "No Distillery snapshot found"}
@@ -100,17 +146,44 @@ def _find_snapshot() -> dict:
     return {"snapshot_id": matches[0]}
 
 
+def _links() -> dict:
+    """Where the source documents are, for a UI that wants to offer them.
+
+    Empty when no tree is configured. A link to a path that exists on the build machine is
+    worse than no link: it looks like a working affordance and is not one.
+    """
+    root = _distillery_root()
+    if not root:
+        return {}
+    return {
+        "canonical_handoff": f"{root}/CANONICAL-HANDOFF.md",
+        "open_questions": f"{root}/docs/02-OPEN-QUESTIONS.md",
+        "design_plan": f"{root}/SOVEREIGN-DISTILLERY-DESIGN-PLAN.md",
+    }
+
+
 def get_distillery_status() -> dict:
-    """Return full Distillery status for the API."""
+    """Return full Distillery status for the API.
+
+    EPC-01 P3-2. An unreadable source tree used to escalate to a top-level CONFIG_ERROR,
+    which was right while the paths were compiled in: unreadable then meant broken. Now that
+    the tree is named by the operator, NOT_CONFIGURED is an ordinary state for a recipient
+    who has no Distillery corpus, and it must not be reported as a misconfiguration.
+
+    It must also not mask the fact underneath it. The Distillery has no runtime, entry point
+    or UI in this release whatever the operator has configured, so NOT_STARTED is the true
+    state and the sub-objects carry their own status. A tree that IS named and cannot be read
+    is still a CONFIG_ERROR - that is a real problem with a real fix.
+    """
     handoff = _parse_handoff()
     questions = _parse_open_questions()
     snapshot = _find_snapshot()
 
-    if "error" in handoff:
-        return {"state": "CONFIG_ERROR", "reason": handoff["error"], "handoff": handoff, "questions": questions, "snapshot": snapshot}
-
-    if "error" in questions:
-        return {"state": "CONFIG_ERROR", "reason": questions["error"], "handoff": handoff, "questions": questions, "snapshot": snapshot}
+    for part in (handoff, questions):
+        error = part.get("error")
+        if error and error != NOT_CONFIGURED:
+            return {"state": "CONFIG_ERROR", "reason": error, "handoff": handoff,
+                    "questions": questions, "snapshot": snapshot}
 
     return {
         "state": "NOT_STARTED",
@@ -118,9 +191,5 @@ def get_distillery_status() -> dict:
         "questions": questions,
         "snapshot": snapshot,
         "verbatim": "No runtime, entry point, or UI exists for Sovereign Distillery. Startup test not applicable.",
-        "links": {
-            "canonical_handoff": "D:/Sovereign Distillery/CANONICAL-HANDOFF.md",
-            "open_questions": "D:/Sovereign Distillery/docs/02-OPEN-QUESTIONS.md",
-            "design_plan": "D:/Sovereign Distillery/SOVEREIGN-DISTILLERY-DESIGN-PLAN.md"
-        }
+        "links": _links(),
     }

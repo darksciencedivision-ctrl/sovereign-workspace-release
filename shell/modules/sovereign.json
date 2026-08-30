@@ -3,7 +3,7 @@
   "display_name": "SOVEREIGN",
   "description": "Operator product service and UI (Flask, :5175)",
   "state_class": "runnable",
-  "root": "D:\\producttion software 2\\release-worktree\\modules\\sovereign",
+  "root": "${install_root}/modules/sovereign",
   "runtime_writes": [
     "${state_root}/runtime",
     "${state_root}/published",
