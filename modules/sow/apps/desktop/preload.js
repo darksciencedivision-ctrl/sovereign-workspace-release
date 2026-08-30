@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 /**
  * Preload: the ONLY bridge between the sandboxed renderer and the main process.
  *

@@ -58,12 +58,44 @@ def test_the_t9_silence_only_retraction_is_recorded_here():
 
 
 def test_not_implemented_claims_are_enumerated():
-    """The card's registration duty: the four claims the review found asserted-but-unbuilt must be
-    visible as NOT IMPLEMENTED in this document - T2's adversarial tests, T3 as specified, T4's
-    periodic process audit, T14 entire."""
+    """The card's registration duty: every claim the review found asserted-but-unbuilt must stay
+    visible as NOT IMPLEMENTED in this document.
+
+    EPC-01 P2-8. This test listed FOUR markers and had gone red on the first of them, T2's
+    adversarial tests. The document was not at fault and the marker was not lost: commit
+    e7bd97e ("B3-5 (M-8): T2 harness-config-injection adversarial tests + THREAT_MODEL
+    status") BUILT those tests and updated the row in the same change. They exist at
+    tests/security/test_t2_harness_config_injection.py and pass 4/4. The stale artifact was
+    this test, which went on demanding a disclosure of absence for a gap that had been closed.
+
+    A registration test that cannot record a gap being CLOSED will eventually be silenced by
+    whoever is trying to ship, and the three real absences below would go with it. So T2 moves
+    from the absence list to the closure list, and is asserted just as strictly: the row must
+    claim IMPLEMENTED and must name the evidence file, which must exist on disk.
+    """
     text = TM.read_text(encoding="utf-8")
-    for token in ("ADVERSARIAL TESTS are **NOT IMPLEMENTED**",
-                  "**NOT IMPLEMENTED** as specified",
-                  "PERIODIC PROCESS AUDIT is **NOT IMPLEMENTED**",
-                  "**NOT IMPLEMENTED** — one docstring mention"):
+
+    still_absent = (
+        "**NOT IMPLEMENTED** as specified",            # T3, of three legs only worktree isolation
+        "PERIODIC PROCESS AUDIT is **NOT IMPLEMENTED**",  # T4
+        "**NOT IMPLEMENTED** — one docstring mention",    # T14, entire
+    )
+    for token in still_absent:
         assert token in text, f"missing registered-absence marker: {token!r}"
+
+    # T2 — closed, and its closure is asserted rather than assumed.
+    t2 = [line for line in text.splitlines() if line.startswith("| T2 |")]
+    assert t2, "T2 row vanished from THREAT_MODEL.md"
+    assert "**IMPLEMENTED**" in t2[0], (
+        "T2 no longer claims IMPLEMENTED. If the adversarial tests were removed, this row must "
+        "return to NOT IMPLEMENTED and be added back to the absence list above."
+    )
+    evidence = (pathlib.Path(__file__).resolve().parents[2]
+                / "tests" / "security" / "test_t2_harness_config_injection.py")
+    assert "test_t2_harness_config_injection.py" in t2[0], (
+        "T2 claims IMPLEMENTED without naming the evidence that closes it"
+    )
+    assert evidence.is_file(), (
+        f"T2 names {evidence.name} as the evidence for its IMPLEMENTED claim, but the file does "
+        f"not exist — the claim is unsupported"
+    )

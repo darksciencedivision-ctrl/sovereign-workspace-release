@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * CONDUCTOR selection data SOURCE (Phase 16C `.selection`; closes U65).
  *
@@ -58,7 +59,7 @@ function isWellFormedFeed(f) {
  * ConductorSourceError on timeout / non-zero exit / non-JSON / malformed shape.
  * @param {object} opts
  * @param {function} [opts.spawn]      child_process.spawn (injected in tests)
- * @param {string}   [opts.python]     interpreter (default "py")
+ * @param {string}   [opts.python]     interpreter (default resolved by python-runtime.js)
  * @param {string[]} [opts.pythonArgs] leading args (default ["-3.12"])
  * @param {string}   opts.cwd          repo root (so the tool's sys.path/imports resolve)
  * @param {number}   [opts.timeoutMs]  hard bound (default 20000)
@@ -66,8 +67,8 @@ function isWellFormedFeed(f) {
  */
 function fetchConductorFeed(opts = {}) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const cwd = opts.cwd;
   const timeoutMs = opts.timeoutMs || 20000;
   const args = [...pythonArgs, "tools/live/emit_conductor_selection.py", "--emit-conductor-selection"];
@@ -125,8 +126,8 @@ async function fetchConductorSelectionFeed(opts = {}) {
 /** Validate and persist one operator-selected registered conductor descriptor. Never throws. */
 function selectConductorPreference(selection, opts = {}) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const args = [...(opts.pythonArgs || ["-3.12"]), "tools/live/select_conductor.py", "--select-stdin"];
+  const python = opts.python || defaultPython();
+  const args = [...(opts.pythonArgs || defaultPythonArgs()), "tools/live/select_conductor.py", "--select-stdin"];
   return new Promise((resolve) => {
     let child;
     try { child = spawn(python, args, { cwd: opts.cwd }); }

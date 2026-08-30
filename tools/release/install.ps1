@@ -116,6 +116,30 @@ $debatePython = Join-Path $destRoot 'modules\debate\.venv\Scripts\python.exe'
 & $debatePython -m pip install --disable-pip-version-check --index-url https://pypi.org/simple --only-binary=:all: --no-deps -r (Join-Path $destRoot 'modules\debate\requirements.lock.txt')
 if ($LASTEXITCODE -ne 0) { throw 'Debate lock install failed' }
 
+Write-Output 'install: provisioning SOW Python from exact pinned runtime closure'
+# EPC-01 P0-2. This block did not exist. SOVEREIGN and Debate were provisioned; SOW was
+# not — while apps/desktop spawned `py -3.12` (the SYSTEM interpreter) for seventeen
+# entry points, twelve of whose modules import jsonschema. On a clean machine with
+# Python 3.12 and no jsonschema, the IPC gateway died on import at first launch.
+# apps/desktop/python-runtime.js resolves this venv when it exists and falls back to the
+# py launcher when it does not, so a development tree without one behaves as before.
+& $pyLauncher -3.12 -m venv (Join-Path $destRoot 'modules\sow\.venv')
+if ($LASTEXITCODE -ne 0) { throw 'SOW venv creation failed' }
+$sowPython = Join-Path $destRoot 'modules\sow\.venv\Scripts\python.exe'
+& $sowPython -m pip install --disable-pip-version-check --index-url https://pypi.org/simple --only-binary=:all: --no-deps -r (Join-Path $destRoot 'modules\sow\requirements.txt')
+if ($LASTEXITCODE -ne 0) { throw 'SOW runtime lock install failed' }
+# Prove the gateway imports in the environment we just built, before declaring install
+# success. A provisioning step that is not verified is a provisioning step that silently
+# regresses. This is the exact failure P0-2 records, asserted at install time. The check
+# runs FROM the module root because that is where the app spawns it from and where
+# sys.path resolves control_plane.
+Push-Location (Join-Path $destRoot 'modules\sow')
+try {
+    & $sowPython -c "import importlib; importlib.import_module('control_plane.ipc.run_gateway')"
+    if ($LASTEXITCODE -ne 0) { throw 'SOW gateway import check failed in the provisioned environment' }
+}
+finally { Pop-Location }
+
 foreach ($nodeRoot in @(
     (Join-Path $destRoot 'modules\sovereign\ui\ui_shell'),
     (Join-Path $destRoot 'modules\sow\apps\desktop')

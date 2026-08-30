@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 
 const { spawn: realSpawn } = require("node:child_process");
 
@@ -14,11 +15,11 @@ function valid(feed) {
 
 function fetchOperationalFeed(opts = {}) {
   const spawn = opts.spawn || realSpawn;
-  const args = [...(opts.pythonArgs || ["-3.12"]), "tools/live/emit_operational_state.py",
+  const args = [...(opts.pythonArgs || defaultPythonArgs()), "tools/live/emit_operational_state.py",
     "--project", opts.projectId || "proj", "--store-root", opts.storeRoot];
   return new Promise((resolve, reject) => {
     let child;
-    try { child = spawn(opts.python || "py", args, { cwd: opts.cwd }); }
+    try { child = spawn(opts.python || defaultPython(), args, { cwd: opts.cwd }); }
     catch (e) { reject(new OperationalSourceError(`could not launch operational-state emitter: ${e.message}`)); return; }
     let stdout = "";
     let stderr = "";

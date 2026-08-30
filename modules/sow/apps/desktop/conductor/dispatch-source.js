@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * CONDUCTOR governed-dispatch SOURCE (Phase 16C `.dispatch`; closes U58 as far as evidence allows).
  *
@@ -85,7 +86,7 @@ function isWellFormedDispatchFeed(f) {
  * ConductorDispatchSourceError on timeout / non-zero exit / non-JSON / malformed shape.
  * @param {object} opts
  * @param {function} [opts.spawn]      child_process.spawn (injected in tests)
- * @param {string}   [opts.python]     interpreter (default "py")
+ * @param {string}   [opts.python]     interpreter (default resolved by python-runtime.js)
  * @param {string[]} [opts.pythonArgs] leading args (default ["-3.12"])
  * @param {string}   opts.cwd          repo root (so the tool's sys.path/imports resolve)
  * @param {boolean}  [opts.liveWorkers] Phase 17E: ask the emitter for a governed LIVE worker
@@ -97,8 +98,8 @@ function isWellFormedDispatchFeed(f) {
  */
 function fetchConductorDispatchFeed(opts = {}) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const cwd = opts.cwd;
   const liveWorkers = opts.liveWorkers === true;
   const timeoutMs = opts.timeoutMs || (liveWorkers ? 900000 : 40000);

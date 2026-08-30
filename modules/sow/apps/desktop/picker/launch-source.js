@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * WORKER **launch-ticket** read-source (Phase 17B `.ticket`; closes the read half of U70).
  *
@@ -449,8 +450,8 @@ async function attestWorkerPaneSpawned(nodeKey, sessionId, pid, opts = {}) {
 function releaseWorkerTerminalSync(sessionId, opts = {}) {
   if (!sessionId) return { ok: false, released: false, error: "no session id" };
   const spawnSync = opts.spawnSync || require("child_process").spawnSync;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   try {
     const res = spawnSync(python, [...pythonArgs, EMITTER, "--release-session", String(sessionId)],
       { cwd: opts.cwd, timeout: opts.timeoutMs || 12000, encoding: "utf8" });

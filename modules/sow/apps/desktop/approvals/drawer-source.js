@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * APPROVAL-DRAWER read-source + decision router over the SESSION'S OWN events — Phase 17D `.events`.
  *
@@ -157,8 +158,8 @@ function runEmitter({ spawn, python, pythonArgs, cwd, timeoutMs, args, wellForme
 function fetchApprovalDrawerFeed(opts = {}) {
   return runEmitter({
     spawn: opts.spawn || realSpawn,
-    python: opts.python || "py",
-    pythonArgs: opts.pythonArgs || ["-3.12"],
+    python: opts.python || defaultPython(),
+    pythonArgs: opts.pythonArgs || defaultPythonArgs(),
     cwd: opts.cwd,
     // Phase 17D `.events`: folding a recorded log starts no MCP server and no flow, so the budget is
     // a Python interpreter start rather than a governed run — but it stays generous because a cold
@@ -224,8 +225,8 @@ async function routeApprovalDecision(opts = {}) {
   try {
     const feed = await runEmitter({
       spawn: opts.spawn || realSpawn,
-      python: opts.python || "py",
-      pythonArgs: opts.pythonArgs || ["-3.12"],
+      python: opts.python || defaultPython(),
+      pythonArgs: opts.pythonArgs || defaultPythonArgs(),
       cwd: opts.cwd,
       timeoutMs: opts.timeoutMs || 40000,
       args,

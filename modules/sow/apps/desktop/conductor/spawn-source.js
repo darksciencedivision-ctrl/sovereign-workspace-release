@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * CONDUCTOR governed-spawn SOURCE (Phase 16C `.spawn`).
  *
@@ -73,7 +74,7 @@ function isWellFormedSpawnFeed(f) {
  * ConductorSpawnSourceError on timeout / non-zero exit / non-JSON / malformed shape.
  * @param {object} opts
  * @param {function} [opts.spawn]      child_process.spawn (injected in tests)
- * @param {string}   [opts.python]     interpreter (default "py")
+ * @param {string}   [opts.python]     interpreter (default resolved by python-runtime.js)
  * @param {string[]} [opts.pythonArgs] leading args (default ["-3.12"])
  * @param {string}   opts.cwd          repo root (so the tool's sys.path/imports resolve)
  * @param {number}   [opts.timeoutMs]  hard bound (default 25000 — a governed spawn touches more than a read)
@@ -81,8 +82,8 @@ function isWellFormedSpawnFeed(f) {
  */
 function fetchConductorSpawnFeed(opts = {}) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const cwd = opts.cwd;
   const timeoutMs = opts.timeoutMs || 25000;
   const args = [...pythonArgs, "tools/live/emit_conductor_spawn.py", "--emit-conductor-spawn"];

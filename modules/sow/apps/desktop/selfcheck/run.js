@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Phase 16A self-check launcher (D-P16-0). Runs the packaged Electron shell in SHELL_SELFCHECK mode
  * via `node` (the permitted entrypoint — same as `npm start` would spawn electron), with a hard
@@ -209,8 +210,7 @@ const HARD_TIMEOUT_MS = KIND === "op12-live-acceptance" ? 1500000
 // spawn Electron, and waits for the job to become empty. Killing the host closes the kill-on-close job.
 const jobHost = path.join(__dirname, "windows-job-host.py");
 const child = process.platform === "win32"
-  ? spawn("py", [
-      "-3.12", jobHost, "--timeout-ms", String(HARD_TIMEOUT_MS), "--", electron, appDir,
+  ? spawn(defaultPython(), [...defaultPythonArgs(), jobHost, "--timeout-ms", String(HARD_TIMEOUT_MS), "--", electron, appDir,
     ], {
       cwd: appDir,
       stdio: "inherit",

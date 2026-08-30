@@ -6,38 +6,51 @@ systems — SOVEREIGN, Multi-Model Terminal (SOW), Debate Table, and Sovereign D
 Three commands: **Install**, **Run**, **Test**. Each is complete on its own; nothing below assumes
 a previous session left anything in place.
 
+## Requirements
+
+- Windows 10/11
+- Python 3.12, reachable as `py -3.12`
+- Node 24 and npm 11
+- [Ollama](https://ollama.com) for the local model slate
+
 ## Install
 
-From a clean extraction of `Production Workspace\`, with the working directory set to it. Every
-module runtime instance is created here, under `modules\` (BUILD-DIRECTIVE §6, Option A).
+`tools\release\install.ps1` is the **only** supported install path. It takes the release
+install archive and an empty destination, and does everything else itself.
 
 ```powershell
-# 1. SOVEREIGN and Debate Table come from the packaged archives in D:\Product Software\.
-Expand-Archive "D:\Product Software\SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip" -DestinationPath "modules\sovereign"
-Expand-Archive "D:\Product Software\Debate_Table_v1.2_Phase1_Production_20260811_201116 - Copy.zip" -DestinationPath "modules\debate"
-
-# 2. Verify each extraction against the manifest the archive ships with, before installing anything.
-py -3.12 -c "import hashlib,json,pathlib,sys; r=pathlib.Path('modules/debate'); m=json.loads((r/'MANIFEST-SHA256.json').read_text(encoding='utf-8')); bad=[e['path'] for e in m['files'] if not (r/e['path']).is_file() or hashlib.sha256((r/e['path']).read_bytes()).hexdigest()!=e['sha256']]; print(len(m['files']),'checked',len(bad),'mismatches'); sys.exit(bool(bad))"
-py -3.12 -c "import pathlib,sys; p=pathlib.Path('modules/sovereign/PACKAGE_MANIFEST.txt'); print('PACKAGE_MANIFEST.txt present' if p.is_file() else 'MISSING'); sys.exit(0 if p.is_file() else 1)"
-
-# 3. Workspace-owned virtualenvs, installed from resolved locks only.
-py -3.12 -m venv modules\sovereign\.venv
-modules\sovereign\.venv\Scripts\python.exe -m pip install -r modules\sovereign\WORKSPACE-RESOLVED-LOCK.txt
-py -3.12 -m venv modules\debate\.venv
-modules\debate\.venv\Scripts\python.exe -m pip install -r modules\debate\requirements.lock.txt
-
-# 4. SOW is a source copy of the live tree, excluding build and VCS artifacts.
-robocopy "D:\multi model terminal app\sovereign-orchestration-workspace" "modules\sow" /E /XD .git node_modules __pycache__ .pytest_cache .sovereign_store
-
-# 5. SOW dependency and Electron binary provisioning (ADR-005). Verifies the Electron zip's
-#    SHA-256 against the vendor-shipped checksums.json before extracting it.
-py -3.12 shell\tools\install_sow.py
+.\tools\release\install.ps1 -Dest "C:\SovereignWorkspace"
 ```
 
-`install_sow.py` runs `npm ci --ignore-scripts`, provisions `node_modules\electron\dist\` from a
-hash-verified zip, writes `path.txt` and `dist\version`, and verifies that `node-pty` loads from
-its `win32-x64` prebuild. It logs every step to `evidence\phase2-sow-install.txt` and exits
-non-zero on any mismatch. Do not run `npm install` by hand — see ADR-005 for why.
+It refuses a non-empty destination and refuses a filesystem root, so it cannot overwrite an
+existing install or scatter files into a drive root. What it does, in order:
+
+1. Verifies the install archive against its `.sha256` sidecar before reading a byte of it.
+2. Extracts it, rejecting any entry whose path would escape the destination.
+3. Rewrites `shell\config\install.json` and every module adapter to the destination, so the
+   installed copy refers to itself and not to the machine it was built on.
+4. Provisions the Python environments from exact pinned locks — SOVEREIGN, Debate and SOW —
+   and proves the SOW gateway imports before declaring success.
+5. Runs `npm ci` for the SOVEREIGN UI and the SOW desktop app.
+6. Writes `install-manifest.json`, a per-file SHA-256 record of everything it placed.
+
+Add `-TargetDir` to create desktop and Start Menu shortcuts; it refuses to overwrite an
+existing shortcut.
+
+### Verify and remove
+
+```powershell
+.\tools\release\verify_install.ps1 -Dest "C:\SovereignWorkspace"
+.\tools\release\uninstall.ps1      -Dest "C:\SovereignWorkspace"
+```
+
+`verify_install.ps1` re-hashes every path in the install manifest. `uninstall.ps1` removes
+exactly what the manifest records.
+
+> **Known limitation.** `uninstall.ps1` currently compares the whole install tree against the
+> manifest and refuses to run if anything was added — which includes the runtime state the
+> product itself writes. It therefore succeeds only on an installation that has not been used.
+> Tracked as P0-5; see `docs\RELEASE-ASSURANCE.md`.
 
 ## Run
 

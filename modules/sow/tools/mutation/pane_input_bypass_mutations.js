@@ -242,9 +242,21 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // before-input-event disarm path, and the harness was re-run again after it.
 // Also re-read for F-6 (the readiness receipt moves to the gitignored .runtime lane); it
 // touches neither the pane:input handler nor the before-input-event disarm path.
+// Also re-read for EPC-01 P0-2 (the interpreter default moves behind python-runtime.js so a
+// provisioned venv is used instead of the system `py`). The change to main.js is TWO lines,
+// read in full before re-pinning: a `require` of ./python-runtime at the top, and
+// `spawn("py", ["-3.12", ...])` becoming `spawn(defaultPython(), [...defaultPythonArgs(), ...])`
+// at the gateway launch. It touches neither the pane:input handler, nor `makeWindow`, nor
+// `handleOperatorResumeInput`, nor the before-input-event disarm path — the four surfaces every
+// mutation below anchors against — and all four anchors were confirmed present afterwards. The
+// harness was re-run against the new baseline and every mutation is still CAUGHT.
+// Also re-read for EPC-01 P1-7 (the UTF-8 BOM leaves main.js and preload.js). The change is
+// the removal of exactly THREE bytes from the head of the file — EF BB BF — with every
+// remaining byte identical, verified by comparing raw[3:] against the written bytes. It moves
+// no code, touches no anchor, and main.js still parses. Re-run and every mutation CAUGHT.
 // Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript labels),
-// BB350F20... (option-C deferred startup)
-const PINNED_BASELINE = "5415369797D8CC7E8C11307DEE173A1DAB20A00CDBC025EC5BBDB10C6E179641";
+// BB350F20... (option-C deferred startup), 54153697... (pre-P0-2), 5F79A2C1... (pre-BOM-removal)
+const PINNED_BASELINE = "63A5223C958A040B6FED1AE43830BF17E077C07639067765606D68D6C725E906";
 
 let lockFd;
 try {

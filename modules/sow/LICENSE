@@ -1,2 +1,16 @@
+SOVEREIGN WORKSPACE — SOFTWARE LICENCE AGREEMENT
+Module: Sovereign Orchestration Workspace
+
 Copyright (c) 2026 Samuel Lawson / Dark Science Division. All rights reserved.
-Interim license record; canonical license text to be supplied by the operator before external distribution.
+
+This module is a component of Sovereign Workspace and is licensed under the same
+terms as the workspace as a whole. The operative text is the LICENSE file at the
+root of the distribution; this file exists so the module carries its licence with
+it when distributed as a per-module source archive.
+
+STATUS: PENDING COUNSEL SIGN-OFF — see the root LICENSE for what that means. Every
+term of the root LICENSE is in force.
+
+Third-party components incorporated by this module are listed in the NOTICE file at
+the root of the distribution, together with their own licences, which govern them and
+are not superseded by this Agreement.

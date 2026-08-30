@@ -33,7 +33,12 @@ test("every caller of the fixture synthesizer refuses outside a self-check run (
   for (const caller of callers) {
     // the refusal must precede THE SPAWN, not merely appear somewhere in the file — a module header
     // that mentions the generator is not a guard, and the first mention in one of these files is one
-    const spawnAt = /spawn\(\s*"py"[\s\S]{0,120}?make_voice_fixture\.py/.exec(caller.src);
+    // EPC-01 P0-2: the interpreter default moved behind python-runtime.js, so the spawn now
+    // reads `spawn(defaultPython(), [...defaultPythonArgs(), "…/make_voice_fixture.py"`. Both
+    // forms are accepted deliberately — this guard is about WHERE THE GUARD SITS relative to
+    // the spawn, not about which interpreter expression the spawn uses.
+    const spawnAt = /spawn\(\s*(?:"py"|defaultPython\(\))[\s\S]{0,160}?make_voice_fixture\.py/
+      .exec(caller.src);
     assert.ok(spawnAt, `${caller.file} names the fixture generator but no spawn of it was found`);
     const at = spawnAt.index;
     const before = caller.src.slice(Math.max(0, at - 1200), at);

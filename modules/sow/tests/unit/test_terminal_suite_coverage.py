@@ -55,7 +55,16 @@ EXPECTED_FILES = (
 #: U528 mis-read as a subprocess quirk and U537 registered as a stale instrument. Re-taken to
 #: 222 by N4b (2026-08-23). Any future change to terminal/test/ updates this pin IN THE SAME
 #: COMMIT as the tests that move it.
-EXPECTED_TEST_COUNT = 222
+#:
+#: FOURTH instance, and the warning above went unheeded twice more. EPC-01 P2-11 (2026-08-30):
+#: re-taken to 225. The rise is genuine new coverage, not drift — two commits added terminal
+#: tests and neither swept this pin in the same commit, exactly as the paragraph above forbids:
+#:   1397a14  C1 OP-3: raise SOW visible terminal cap to eight
+#:   bf855e7  B3-1 (H-1): session-manager admission-before-spawn (two-phase verdict)
+#: Measured before re-pinning: `node --test test/*.test.js` reports 225 tests, 225 pass,
+#: 0 fail, 0 SKIPPED — the zero matters, because a skip reports as `ok` and would otherwise
+#: let a silently-disabled test hide inside a rising number.
+EXPECTED_TEST_COUNT = 225
 
 _SUMMARY = re.compile(r"^[\sℹ#]*\s*(tests|pass|fail|skipped)\s+(\d+)\s*$", re.MULTILINE)
 

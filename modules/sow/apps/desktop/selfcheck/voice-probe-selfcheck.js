@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Phase 17C `.probe` in-Electron self-check (D-P16-0 binding, per-track) — U74 / OP-11 finding F1.
  *
@@ -87,7 +88,7 @@ function referenceProbe(repoRoot, budgetS = 300, timeoutMs = 330000) {
       // VM. Forwarding `{...process.env}` verbatim was an explicit widening in a unit that crosses that
       // boundary, while the repo already had the scrub rule for exactly this. §2.2 does not stop at the
       // governed launch paths, so a diagnostic child gets the same treatment.
-      child = spawn("py", ["-3.12", "tools/live/emit_conductor_voice.py", "--emit-voice-probe", "--force"], {
+      child = spawn(defaultPython(), [...defaultPythonArgs(), "tools/live/emit_conductor_voice.py", "--emit-voice-probe", "--force"], {
         cwd: repoRoot,
         env: childEnv({ SOW_NEMO_PROBE_TIMEOUT_S: String(budgetS) }, process.env).env,
       });

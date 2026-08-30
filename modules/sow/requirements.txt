@@ -1,0 +1,35 @@
+# SOW RUNTIME dependencies — the closure the desktop app's Python subprocesses need.
+#
+# EPC-01 P0-2. Before this file existed, `jsonschema` was declared ONLY in
+# requirements-dev.txt, unpinned, as `jsonschema>=3.2` — while being imported by
+# TWELVE runtime modules (adapters/roster.py, control_plane/gates/{criteria,engine}.py,
+# control_plane/ipc/envelope.py, control_plane/orchestration/session_approvals.py,
+# control_plane/recovery/succession.py, debate_service/service.py,
+# node_runtime/context/loaders.py, node_runtime/gate/local_gate.py,
+# node_runtime/supervisor/provider_node_registration.py, persistence/store.py,
+# tools/live/emit_provider_node_registration.py). install.ps1 provisioned Python for
+# SOVEREIGN and Debate and never for SOW, so on a clean machine the IPC gateway died on
+# import the first time apps/desktop/main.js spawned it.
+#
+# This is a RUNTIME file. requirements-dev.txt stays the development superset and now
+# installs this file plus the test-only additions.
+#
+# The closure is EXACT and was resolved, not guessed: a Python 3.12 virtualenv carrying
+# only these six packages imports all seventeen entry points the desktop app spawns —
+# both `-m` module targets and all fifteen tools/live scripts. Verified 2026-08-30.
+#
+# Pins are exact (==) rather than floors. Two operators installing a month apart must get
+# the same stack; a floor is a promise the index can break.
+
+attrs==26.1.0
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+referencing==0.37.0
+rpds-py==2026.6.3
+typing-extensions==4.16.0
+
+# NOT declared here, deliberately:
+#   tiktoken  — imported by control_plane/routing/token_meter.py inside a try/except with
+#               a word-proxy fallback. A genuine optional accelerator; the product counts
+#               tokens either way and reports which method it used.
+#   pytest    — test-only; stays in requirements-dev.txt.

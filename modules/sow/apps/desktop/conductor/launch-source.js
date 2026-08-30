@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * CONDUCTOR **launch-ticket** read-source (Phase 17A `.lease`).
  *
@@ -293,8 +294,8 @@ function isWellFormedStatus(s) {
  */
 function runEmitter(args, opts, wellFormed, what) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const timeoutMs = opts.timeoutMs || 25000;
   const full = [...pythonArgs, opts.script || EMITTER, ...args];
 
@@ -435,8 +436,8 @@ async function releaseConductorLeaseSession(sessionId, opts = {}) {
 function releaseConductorLeaseSessionSync(sessionId, opts = {}) {
   if (!sessionId) return { ok: false, released: false, error: "no session id" };
   const spawnSync = opts.spawnSync || realSpawnSync;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   try {
     const res = spawnSync(python, [...pythonArgs, EMITTER, "--release-session", String(sessionId)],
       { cwd: opts.cwd, timeout: opts.timeoutMs || 12000, encoding: "utf8" });

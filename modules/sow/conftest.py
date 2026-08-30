@@ -23,7 +23,20 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     focused = {Path(p).as_posix() for p in config.getini("phase19_focused_paths")}
     host_coupled = {Path(p).as_posix() for p in config.getini("phase19_host_coupled_paths")}
     for item in items:
-        relative = item.path.resolve().relative_to(ROOT).as_posix()
+        # EPC-01 P1-4. `relative_to` RAISES on a path outside ROOT, and pytest turns that
+        # into an INTERNALERROR that aborts the whole run. Invoked from modules/sow the set
+        # of collected items is always inside ROOT, so the bug was invisible here — but a
+        # run from the repository root also collects modules/debate, shell/ and dev/, and
+        # the first foreign item killed collection for everything. It reached recipients:
+        # `pytest` at the root of the extracted archive crashed instead of reporting.
+        #
+        # This conftest's job is to MARK the Phase 19 subsets, which are defined relative to
+        # this module. An item outside the module has no such marker by definition, so
+        # skipping it is the correct behaviour, not a workaround.
+        resolved = item.path.resolve()
+        if not resolved.is_relative_to(ROOT):
+            continue
+        relative = resolved.relative_to(ROOT).as_posix()
         if relative in focused:
             item.add_marker("phase19_focused")
         if relative in host_coupled:

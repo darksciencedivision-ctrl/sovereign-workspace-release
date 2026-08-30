@@ -1,2 +1,10 @@
-jsonschema>=3.2
+# SOW DEVELOPMENT dependencies.
+#
+# EPC-01 P0-2: the runtime closure now lives in requirements.txt and is included here, so
+# a development environment is the runtime environment plus test tooling — never a
+# different, accidentally-larger set. Before this split, jsonschema was declared ONLY
+# here, which is why nothing installed it for the twelve runtime modules that import it.
+
+-r requirements.txt
+
 pytest>=7

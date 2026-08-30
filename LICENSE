@@ -1,2 +1,134 @@
+SOVEREIGN WORKSPACE — SOFTWARE LICENCE AGREEMENT
+
 Copyright (c) 2026 Samuel Lawson / Dark Science Division. All rights reserved.
-Interim license record; canonical license text to be supplied by the operator before external distribution.
+
+================================================================================
+STATUS: PENDING COUNSEL SIGN-OFF
+================================================================================
+This text is complete and operative as written — it contains no blanks, no
+placeholders, and no clause deferred to a later document. It has NOT been
+reviewed by legal counsel. Before this software is distributed outside the
+copyright holder's control, counsel must review and the copyright holder must
+adopt this text or a replacement. Until that has happened, this notice remains.
+
+The notice is deliberately narrow: it records that review is outstanding. It
+does not suspend, weaken, or qualify any term below. Every term is in force.
+================================================================================
+
+1. DEFINITIONS
+
+   "Software" means the Sovereign Workspace program, including its shell, its
+   bundled modules (SOVEREIGN, Sovereign Orchestration Workspace, Debate Table,
+   Sovereign Distillery, Token Center), its documentation, and any update the
+   Licensor supplies under this Agreement.
+
+   "Licensor" means Samuel Lawson, trading as Dark Science Division.
+
+   "Licensee" means the individual or legal entity exercising rights under this
+   Agreement.
+
+   "Third-Party Components" means the software listed in the accompanying NOTICE
+   file, which is not licensed under this Agreement. See section 8.
+
+2. GRANT
+
+   Subject to the terms below and to payment of any applicable fee, the Licensor
+   grants the Licensee a non-exclusive, non-transferable, revocable licence to
+   install and use the Software on machines the Licensee owns or controls, for
+   the Licensee's own internal purposes.
+
+   The Software is designed and licensed for single-operator use on a local
+   workstation. It provides no authentication, no authorization, no role
+   separation, and no multi-user isolation, and it binds only to the loopback
+   interface. Any deployment that exposes it to more than one operator, or to a
+   network beyond the host machine, is outside the intended and licensed use and
+   is undertaken entirely at the Licensee's risk.
+
+3. RESERVATION OF RIGHTS
+
+   All rights not expressly granted are reserved. This Agreement conveys no
+   ownership. The Software is licensed, not sold.
+
+4. RESTRICTIONS
+
+   Except to the extent applicable law forbids such a restriction, the Licensee
+   shall not:
+
+   (a) distribute, sublicense, rent, lease, lend, or make the Software available
+       to any third party;
+   (b) modify, adapt, translate, or create derivative works of the Software;
+   (c) reverse engineer, decompile, or disassemble the Software, except to the
+       extent such activity is expressly permitted by applicable law
+       notwithstanding this limitation;
+   (d) remove, obscure, or alter any proprietary notice, licence text, or
+       attribution contained in or accompanying the Software, including the
+       NOTICE file;
+   (e) use the Software to provide a commercial service to third parties.
+
+   Nothing in this section restricts any right the Licensee holds in a
+   Third-Party Component under that component's own licence.
+
+5. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. THE LICENSOR
+   DOES NOT WARRANT THAT THE SOFTWARE WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE
+   OF HARMFUL COMPONENTS, OR THAT ANY DEFECT WILL BE CORRECTED.
+
+   The Software orchestrates language models, which produce probabilistic output.
+   The Licensor makes no representation as to the accuracy, reliability, or
+   fitness of any model output, and the Licensee is responsible for reviewing any
+   output before relying on it.
+
+6. LIMITATION OF LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSOR SHALL NOT BE
+   LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY
+   DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS, ARISING OUT
+   OF OR RELATING TO THIS AGREEMENT OR THE SOFTWARE, WHETHER IN CONTRACT, TORT,
+   OR OTHERWISE, AND WHETHER OR NOT THE LICENSOR HAS BEEN ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGES.
+
+   THE LICENSOR'S TOTAL AGGREGATE LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED
+   THE AMOUNT THE LICENSEE PAID FOR THE SOFTWARE IN THE TWELVE MONTHS PRECEDING
+   THE EVENT GIVING RISE TO THE CLAIM.
+
+   Nothing in this Agreement excludes or limits liability for death or personal
+   injury caused by negligence, for fraud or fraudulent misrepresentation, or for
+   any other liability that cannot lawfully be excluded or limited.
+
+7. TERM AND TERMINATION
+
+   This Agreement takes effect when the Licensee first installs or uses the
+   Software and continues until terminated. It terminates automatically if the
+   Licensee breaches any term. On termination the Licensee shall cease all use
+   and destroy all copies. Sections 3, 5, 6, 8, and 9 survive termination.
+
+8. THIRD-PARTY COMPONENTS
+
+   The Software incorporates Third-Party Components, each licensed by its own
+   authors under its own terms. Those terms govern those components and are not
+   superseded by this Agreement; where a Third-Party Component's licence grants
+   the Licensee rights broader than section 4 allows, that licence prevails as to
+   that component.
+
+   The accompanying NOTICE file lists every Third-Party Component and its
+   licence. It is generated from the release Software Bill of Materials. The
+   position taken on components carrying source-availability obligations is
+   recorded in docs/THIRD-PARTY-LICENCE-POSITION.md.
+
+9. GENERAL
+
+   This Agreement is the entire agreement between the parties as to the Software
+   and supersedes all prior understandings. If any provision is held
+   unenforceable, the remainder continues in force. A failure to enforce any
+   provision is not a waiver of it. This Agreement may be amended only in writing
+   signed by the Licensor.
+
+   The governing law and jurisdiction are to be fixed by the Licensor on counsel's
+   advice at the time of first distribution, and recorded here in place of this
+   paragraph.
+
+--------------------------------------------------------------------------------
+Contact: darksciencedivision@gmail.com

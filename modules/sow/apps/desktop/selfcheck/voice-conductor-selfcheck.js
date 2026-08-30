@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Phase 17C `.close` in-Electron receipt (D-P16-0 binding, per-track) — the leg the whole track is
  * named for: **the operator's speech reaches the LIVE conductor session and the conductor answers.**
@@ -257,7 +258,7 @@ function makeFixture(phrase, log) {
       return;
     }
     const { env } = childEnv({}, process.env);   // U136: even a local diagnostic child gets a scrubbed env
-    const child = spawn("py", ["-3.12", "tools/live/make_voice_fixture.py", FIXTURE_WAV, phrase],
+    const child = spawn(defaultPython(), [...defaultPythonArgs(), "tools/live/make_voice_fixture.py", FIXTURE_WAV, phrase],
       { cwd: REPO_ROOT, env });
     let out = "";
     let err = "";

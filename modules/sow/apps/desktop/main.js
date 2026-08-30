@@ -1,4 +1,5 @@
-﻿"use strict";
+"use strict";
+const { defaultPython, defaultPythonArgs } = require("./python-runtime");
 /**
  * Sovereign desktop shell — Electron main process (PRODUCT code, Phase 14A).
  *
@@ -441,7 +442,7 @@ function resolveGateway() {
     // where it is currently unenforced (invariant 1 — the app never self-authorizes; the
     // operator holds final authority). The bootstrap credential is a diagnostic loopback
     // channel only; ordinary node credentials are issued by Sovereign at spawn.
-    const proc = spawn("py", ["-3.12", "-m", "control_plane.ipc.run_gateway"], {
+    const proc = spawn(defaultPython(), [...defaultPythonArgs(), "-m", "control_plane.ipc.run_gateway"], {
       cwd: REPO_ROOT,
       env: { ...process.env, SOVEREIGN_IPC_NODE: NODE_ID, SOVEREIGN_IPC_ROLE: "shell", SOVEREIGN_IPC_PROJECT: "proj" },
     });

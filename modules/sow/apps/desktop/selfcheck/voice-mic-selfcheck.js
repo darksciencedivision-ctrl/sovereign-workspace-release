@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Phase 17C `.mic` in-Electron receipt (D-P16-0 binding, per-track) — real captured PCM through the
  * SHIPPED capture path, on this host, inside the packaged Electron runtime.
@@ -112,7 +113,7 @@ function makeFixture(log) {
     }
     // U136: even a local diagnostic child gets a credential-scrubbed environment.
     const { env } = childEnv({}, process.env);
-    const child = spawn("py", ["-3.12", "tools/live/make_voice_fixture.py", FIXTURE_WAV, PHRASE],
+    const child = spawn(defaultPython(), [...defaultPythonArgs(), "tools/live/make_voice_fixture.py", FIXTURE_WAV, PHRASE],
       { cwd: REPO_ROOT, env });
     let out = "";
     let err = "";

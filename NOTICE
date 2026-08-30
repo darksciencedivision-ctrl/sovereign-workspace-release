@@ -1,0 +1,347 @@
+THIRD-PARTY NOTICES
+========================================================================
+
+Sovereign Workspace incorporates the third-party components listed below.
+Each remains the property of its authors and is used under the licence named
+against it. This file is GENERATED from the release SBOM by
+tools/release/generate_notice.py — do not edit it by hand.
+
+Components: 304
+
+Licences represented:
+  MIT                                       201
+  Apache-2.0                                 31
+  BSD-3-Clause                               26
+  MPL-2.0                                    14  <- see docs/THIRD-PARTY-LICENCE-POSITION.md
+  ISC                                        11
+  BSD-2-Clause                                7
+  MIT-0                                       2
+  PSF-2.0                                     2
+  (MIT OR CC0-1.0)                            1
+  0BSD                                        1
+  Apache-2.0 AND MIT                          1
+  Apache-2.0 OR BSD-2-Clause                  1
+  BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0    1
+  BSD-3-Clause OR Apache-2.0                  1
+  BlueOak-1.0.0                               1
+  CC0-1.0                                     1
+  MPL-2.0 AND (Apache-2.0 OR MIT)             1  <- see docs/THIRD-PARTY-LICENCE-POSITION.md
+  MPL-2.0 AND MIT                             1  <- see docs/THIRD-PARTY-LICENCE-POSITION.md
+
+
+------------------------------------------------------------------------
+NPM COMPONENTS
+------------------------------------------------------------------------
+  @asamuzakjp/css-color 6.0.5 — MIT
+  @asamuzakjp/dom-selector 8.3.0 — MIT
+  @bramus/specificity 2.4.2 — MIT
+  @csstools/color-helpers 6.1.0 — MIT-0
+  @csstools/css-calc 3.3.0 — MIT
+  @csstools/css-color-parser 4.1.10 — MIT
+  @csstools/css-parser-algorithms 4.0.0 — MIT
+  @csstools/css-syntax-patches-for-csstree 1.1.7 — MIT-0
+  @csstools/css-tokenizer 4.0.0 — MIT
+  @electron-internal/extract-zip 1.0.5 — BSD-2-Clause
+  @electron/get 2.0.3 — MIT
+  @electron/get 5.1.0 — MIT
+  @emnapi/core 1.11.1 — MIT
+  @emnapi/core 2.0.0-alpha.3 — MIT
+  @emnapi/runtime 1.11.1 — MIT
+  @emnapi/runtime 2.0.0-alpha.3 — MIT
+  @emnapi/wasi-threads 1.2.2 — MIT
+  @emnapi/wasi-threads 2.0.1 — MIT
+  @exodus/bytes 1.15.1 — MIT
+  @jridgewell/sourcemap-codec 1.5.5 — MIT
+  @napi-rs/wasm-runtime 1.2.0 — MIT
+  @oxc-project/types 0.139.0 — MIT
+  @rolldown/binding-android-arm64 1.1.5 — MIT
+  @rolldown/binding-darwin-arm64 1.1.5 — MIT
+  @rolldown/binding-darwin-x64 1.1.5 — MIT
+  @rolldown/binding-freebsd-x64 1.1.5 — MIT
+  @rolldown/binding-linux-arm-gnueabihf 1.1.5 — MIT
+  @rolldown/binding-linux-arm64-gnu 1.1.5 — MIT
+  @rolldown/binding-linux-arm64-musl 1.1.5 — MIT
+  @rolldown/binding-linux-ppc64-gnu 1.1.5 — MIT
+  @rolldown/binding-linux-s390x-gnu 1.1.5 — MIT
+  @rolldown/binding-linux-x64-gnu 1.1.5 — MIT
+  @rolldown/binding-linux-x64-musl 1.1.5 — MIT
+  @rolldown/binding-openharmony-arm64 1.1.5 — MIT
+  @rolldown/binding-wasm32-wasi 1.1.5 — MIT
+  @rolldown/binding-win32-arm64-msvc 1.1.5 — MIT
+  @rolldown/binding-win32-x64-msvc 1.1.5 — MIT
+  @rolldown/pluginutils 1.0.1 — MIT
+  @sindresorhus/is 4.6.0 — MIT
+  @standard-schema/spec 1.1.0 — MIT
+  @szmarczak/http-timer 4.0.6 — MIT
+  @tybys/wasm-util 0.10.3 — MIT
+  @types/cacheable-request 6.0.3 — MIT
+  @types/chai 5.2.3 — MIT
+  @types/deep-eql 4.0.2 — MIT
+  @types/estree 1.0.9 — MIT
+  @types/http-cache-semantics 4.2.0 — MIT
+  @types/keyv 3.1.4 — MIT
+  @types/node 20.19.43 — MIT
+  @types/node 24.13.3 — MIT
+  @types/prop-types 15.7.15 — MIT
+  @types/react 18.3.31 — MIT
+  @types/react-dom 18.3.7 — MIT
+  @types/responselike 1.0.3 — MIT
+  @types/yauzl 2.10.3 — MIT
+  @vitejs/plugin-react 6.0.4 — MIT
+  @vitest/expect 4.1.10 — MIT
+  @vitest/mocker 4.1.10 — MIT
+  @vitest/pretty-format 4.1.10 — MIT
+  @vitest/runner 4.1.10 — MIT
+  @vitest/snapshot 4.1.10 — MIT
+  @vitest/spy 4.1.10 — MIT
+  @vitest/utils 4.1.10 — MIT
+  @xterm/addon-fit 0.10.0 — MIT
+  @xterm/xterm 5.5.0 — MIT
+  assertion-error 2.0.1 — MIT
+  bidi-js 1.0.3 — MIT
+  boolean 3.2.0 — MIT
+  buffer-crc32 0.2.13 — MIT
+  cacheable-lookup 5.0.4 — MIT
+  cacheable-request 7.0.4 — MIT
+  chai 6.2.2 — MIT
+  clone-response 1.0.3 — MIT
+  convert-source-map 2.0.0 — MIT
+  css-tree 3.2.1 — MIT
+  csstype 3.2.3 — MIT
+  data-urls 7.0.0 — MIT
+  debug 4.4.3 — MIT
+  decimal.js 10.6.0 — MIT
+  decompress-response 6.0.0 — MIT
+  defer-to-connect 2.0.1 — MIT
+  define-data-property 1.1.4 — MIT
+  define-properties 1.2.1 — MIT
+  detect-libc 2.1.2 — Apache-2.0
+  detect-node 2.1.0 — MIT
+  electron 31.7.7 — MIT
+  electron 43.4.1 — MIT
+  end-of-stream 1.4.5 — MIT
+  entities 8.0.0 — BSD-2-Clause
+  env-paths 2.2.1 — MIT
+  env-paths 3.0.0 — MIT
+  es-define-property 1.0.1 — MIT
+  es-errors 1.3.0 — MIT
+  es-module-lexer 2.3.1 — MIT
+  es6-error 4.1.1 — MIT
+  escape-string-regexp 4.0.0 — MIT
+  estree-walker 3.0.3 — MIT
+  expect-type 1.4.0 — Apache-2.0
+  extract-zip 2.0.1 — BSD-2-Clause
+  fd-slicer 1.1.0 — MIT
+  fdir 6.5.0 — MIT
+  fs-extra 8.1.0 — MIT
+  fsevents 2.3.3 — MIT
+  get-stream 5.2.0 — MIT
+  global-agent 3.0.0 — BSD-3-Clause
+  globalthis 1.0.4 — MIT
+  gopd 1.2.0 — MIT
+  got 11.8.6 — MIT
+  graceful-fs 4.2.11 — ISC
+  has-property-descriptors 1.0.2 — MIT
+  html-encoding-sniffer 6.0.0 — MIT
+  http-cache-semantics 4.2.0 — BSD-2-Clause
+  http2-wrapper 1.0.3 — MIT
+  is-potential-custom-element-name 1.0.1 — MIT
+  js-tokens 4.0.0 — MIT
+  jsdom 30.0.0 — MIT
+  json-buffer 3.0.1 — MIT
+  json-stringify-safe 5.0.1 — ISC
+  jsonfile 4.0.0 — MIT
+  keyv 4.5.4 — MIT
+  lightningcss 1.33.0 — MPL-2.0
+  lightningcss-android-arm64 1.33.0 — MPL-2.0
+  lightningcss-darwin-arm64 1.33.0 — MPL-2.0
+  lightningcss-darwin-x64 1.33.0 — MPL-2.0
+  lightningcss-freebsd-x64 1.33.0 — MPL-2.0
+  lightningcss-linux-arm-gnueabihf 1.33.0 — MPL-2.0
+  lightningcss-linux-arm64-gnu 1.33.0 — MPL-2.0
+  lightningcss-linux-arm64-musl 1.33.0 — MPL-2.0
+  lightningcss-linux-x64-gnu 1.33.0 — MPL-2.0
+  lightningcss-linux-x64-musl 1.33.0 — MPL-2.0
+  lightningcss-win32-arm64-msvc 1.33.0 — MPL-2.0
+  lightningcss-win32-x64-msvc 1.33.0 — MPL-2.0
+  loose-envify 1.4.0 — MIT
+  lowercase-keys 2.0.0 — MIT
+  lru-cache 11.5.2 — BlueOak-1.0.0
+  magic-string 0.30.21 — MIT
+  matcher 3.0.0 — MIT
+  mdn-data 2.27.1 — CC0-1.0
+  mimic-response 1.0.1 — MIT
+  mimic-response 3.1.0 — MIT
+  ms 2.1.3 — MIT
+  nanoid 3.3.16 — MIT
+  node-addon-api 7.1.1 — MIT
+  node-pty 1.1.0 — MIT
+  normalize-url 6.1.0 — MIT
+  object-keys 1.1.1 — MIT
+  obug 2.1.4 — MIT
+  once 1.4.0 — ISC
+  p-cancelable 2.1.1 — MIT
+  parse5 8.0.1 — MIT
+  pathe 2.0.3 — MIT
+  pend 1.2.0 — MIT
+  picocolors 1.1.1 — ISC
+  picomatch 4.0.5 — MIT
+  postcss 8.5.24 — MIT
+  progress 2.0.3 — MIT
+  pump 3.0.4 — MIT
+  punycode 2.3.1 — MIT
+  quick-lru 5.1.1 — MIT
+  react 18.3.1 — MIT
+  react-dom 18.3.1 — MIT
+  require-from-string 2.0.2 — MIT
+  resolve-alpn 1.2.1 — MIT
+  responselike 2.0.1 — MIT
+  roarr 2.15.4 — BSD-3-Clause
+  rolldown 1.1.5 — MIT
+  saxes 6.0.0 — ISC
+  scheduler 0.23.2 — MIT
+  semver 6.3.1 — ISC
+  semver 7.8.5 — ISC
+  semver-compare 1.0.0 — MIT
+  serialize-error 7.0.1 — MIT
+  siginfo 2.0.0 — ISC
+  source-map-js 1.2.1 — BSD-3-Clause
+  sprintf-js 1.1.3 — BSD-3-Clause
+  stackback 0.0.2 — MIT
+  std-env 4.2.0 — MIT
+  sumchecker 3.0.1 — Apache-2.0
+  symbol-tree 3.2.4 — MIT
+  tinybench 2.9.0 — MIT
+  tinyexec 1.2.4 — MIT
+  tinyglobby 0.2.17 — MIT
+  tinyrainbow 3.1.1 — MIT
+  tldts 7.4.9 — MIT
+  tldts-core 7.4.9 — MIT
+  tough-cookie 6.0.2 — BSD-3-Clause
+  tr46 6.0.0 — MIT
+  tslib 2.8.1 — 0BSD
+  type-fest 0.13.1 — (MIT OR CC0-1.0)
+  typescript 5.9.3 — Apache-2.0
+  undici 7.29.0 — MIT
+  undici 8.9.0 — MIT
+  undici-types 6.21.0 — MIT
+  undici-types 7.18.2 — MIT
+  universalify 0.1.2 — MIT
+  vite 8.1.5 — MIT
+  vitest 4.1.10 — MIT
+  w3c-xmlserializer 5.0.0 — MIT
+  webidl-conversions 8.0.1 — BSD-2-Clause
+  whatwg-mimetype 5.0.0 — MIT
+  whatwg-url 16.0.1 — MIT
+  whatwg-url 17.1.0 — MIT
+  why-is-node-running 2.3.0 — MIT
+  wrappy 1.0.2 — ISC
+  ws 8.21.1 — MIT
+  xml-name-validator 5.0.0 — Apache-2.0
+  xmlchars 2.2.0 — MIT
+  yauzl 2.10.0 — MIT
+
+------------------------------------------------------------------------
+PYPI COMPONENTS
+------------------------------------------------------------------------
+  aiohappyeyeballs 2.7.1 — PSF-2.0
+  aiohttp 3.14.3 — Apache-2.0 AND MIT
+  aiosignal 1.4.0 — Apache-2.0
+  annotated-doc 0.0.4 — MIT
+  annotated-doc 0.0.5 — MIT
+  annotated-types 0.7.0 — MIT   [licence read from Trove classifier]
+  annotated-types 0.8.0 — MIT
+  anyio 4.14.1 — MIT
+  anyio 4.14.2 — MIT
+  attrs 26.1.0 — MIT
+  bcrypt 5.0.0 — Apache-2.0
+  blinker 1.9.0 — MIT   [licence read from Trove classifier]
+  build 1.5.0 — MIT
+  certifi 2026.6.17 — MPL-2.0
+  certifi 2026.7.22 — MPL-2.0
+  charset-normalizer 3.5.1 — MIT
+  chromadb 1.5.9 — Apache-2.0   [licence read from Trove classifier]
+  click 8.4.2 — BSD-3-Clause
+  colorama 0.4.6 — BSD-3-Clause   [licence read from Trove classifier]
+  durationpy 0.10 — MIT
+  fastapi 0.139.0 — MIT
+  filelock 3.32.3 — MIT
+  flask 3.1.3 — BSD-3-Clause
+  flatbuffers 25.12.19 — Apache-2.0
+  frozenlist 1.8.0 — Apache-2.0
+  fsspec 2026.7.0 — BSD-3-Clause
+  googleapis-common-protos 1.75.1 — Apache-2.0
+  grpcio 1.83.0 — Apache-2.0
+  h11 0.16.0 — MIT
+  hf-xet 1.6.0 — Apache-2.0
+  httpcore 1.0.9 — BSD-3-Clause
+  httptools 0.8.0 — MIT
+  httpx 0.28.1 — BSD-3-Clause
+  huggingface-hub 1.28.0 — Apache-2.0
+  idna 3.18 — BSD-3-Clause
+  idna 3.19 — BSD-3-Clause
+  importlib-resources 7.1.0 — Apache-2.0
+  itsdangerous 2.2.0 — BSD-3-Clause   [licence read from Trove classifier]
+  jinja2 3.1.6 — BSD-3-Clause   [licence read from Trove classifier]
+  jsonschema 4.26.0 — MIT
+  jsonschema-specifications 2025.9.1 — MIT
+  kubernetes 36.0.3 — Apache-2.0
+  markdown-it-py 4.2.0 — MIT   [licence read from Trove classifier]
+  markupsafe 3.0.3 — BSD-3-Clause
+  mdurl 0.1.2 — MIT   [licence read from Trove classifier]
+  mmh3 5.2.1 — MIT
+  multidict 6.7.1 — Apache-2.0
+  numpy 2.5.1 — BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+  oauthlib 3.3.1 — BSD-3-Clause
+  onnxruntime 1.29.0 — MIT
+  opentelemetry-api 1.44.0 — Apache-2.0
+  opentelemetry-exporter-otlp-proto-common 1.44.0 — Apache-2.0
+  opentelemetry-exporter-otlp-proto-grpc 1.44.0 — Apache-2.0
+  opentelemetry-proto 1.44.0 — Apache-2.0
+  opentelemetry-sdk 1.44.0 — Apache-2.0
+  opentelemetry-semantic-conventions 0.65b0 — Apache-2.0
+  orjson 3.12.0 — MPL-2.0 AND (Apache-2.0 OR MIT)
+  overrides 7.7.0 — Apache-2.0
+  packaging 26.3 — Apache-2.0 OR BSD-2-Clause
+  propcache 0.5.2 — Apache-2.0
+  protobuf 7.36.0 — BSD-3-Clause
+  pybase64 1.5.0 — BSD-2-Clause
+  pydantic 2.13.4 — MIT
+  pydantic-core 2.46.4 — MIT
+  pydantic-settings 2.15.0 — MIT
+  pygments 2.21.0 — BSD-2-Clause
+  pypika 0.51.1 — Apache-2.0
+  pyproject-hooks 1.2.0 — MIT   [licence read from Trove classifier]
+  python-dateutil 2.9.0.post0 — BSD-3-Clause OR Apache-2.0   [licence read from Trove classifiers]
+  python-dotenv 1.2.2 — BSD-3-Clause
+  python-dotenv 1.2.3 — BSD-3-Clause
+  pyyaml 6.0.3 — MIT
+  referencing 0.37.0 — MIT
+  requests 2.34.2 — Apache-2.0
+  requests-oauthlib 2.0.0 — ISC
+  rich 15.0.0 — MIT
+  rpds-py 2026.6.3 — MIT
+  shellingham 1.5.4 — ISC
+  six 1.17.0 — MIT
+  starlette 1.3.1 — BSD-3-Clause
+  tenacity 9.1.4 — Apache-2.0
+  tokenizers 0.23.1 — Apache-2.0   [licence read from Trove classifier]
+  tqdm 4.70.0 — MPL-2.0 AND MIT
+  typer 0.27.1 — MIT
+  typing-extensions 4.16.0 — PSF-2.0
+  typing-inspection 0.4.2 — MIT
+  typing-inspection 0.4.4 — MIT
+  urllib3 2.7.0 — MIT
+  uvicorn 0.51.0 — BSD-3-Clause
+  uvicorn 0.52.4 — BSD-3-Clause
+  watchfiles 1.2.0 — MIT
+  websocket-client 1.9.0 — Apache-2.0
+  websockets 16.1 — BSD-3-Clause
+  websockets 17.0.1 — BSD-3-Clause
+  werkzeug 3.1.8 — BSD-3-Clause
+  yarl 1.24.5 — Apache-2.0
+
+========================================================================
+Full licence texts are distributed with each component in its own package
+metadata. Source for any component under a source-availability obligation is
+available from its upstream project; see docs/THIRD-PARTY-LICENCE-POSITION.md.

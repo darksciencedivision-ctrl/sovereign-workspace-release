@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Phase 17E — THE FULLY-LIVE ASSEMBLED RECEIPT (D-P16-0 binding, high-stakes gate).
  *
@@ -181,7 +182,7 @@ function makeFixture(phrase, log) {
       return;
     }
     const { env } = childEnv({}, process.env);   // U136: even a local diagnostic child gets a scrubbed env
-    const child = spawn("py", ["-3.12", "tools/live/make_voice_fixture.py", FIXTURE_WAV, phrase],
+    const child = spawn(defaultPython(), [...defaultPythonArgs(), "tools/live/make_voice_fixture.py", FIXTURE_WAV, phrase],
       { cwd: REPO_ROOT, env });
     let out = "";
     let err = "";

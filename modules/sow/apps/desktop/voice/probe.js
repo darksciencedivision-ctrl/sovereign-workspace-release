@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Non-blocking STT-engine probe — Phase 17C `.probe` (directive §16 track 17C; closes U74 / OP-11
  * finding F1).
@@ -104,8 +105,8 @@ class VoiceProbe {
   constructor(opts = {}) {
     this.cwd = opts.cwd;
     this._spawn = opts.spawn || realSpawn;
-    this.python = opts.python || "py";
-    this.pythonArgs = opts.pythonArgs || ["-3.12"];
+    this.python = opts.python || defaultPython();
+    this.pythonArgs = opts.pythonArgs || defaultPythonArgs();
     this.timeoutMs = Number.isFinite(opts.timeoutMs) && opts.timeoutMs > 0
       ? opts.timeoutMs
       : ceilingForEnv(opts.env || process.env);

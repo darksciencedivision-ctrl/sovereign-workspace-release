@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Conductor voice-IN read-source — Phase 16E `.engine` (closes the READ half of U67).
  *
@@ -168,8 +169,8 @@ function fetchConductorVoiceFeed(opts = {}) {
   }
   return runEmitter({
     spawn: opts.spawn || realSpawn,
-    python: opts.python || "py",
-    pythonArgs: opts.pythonArgs || ["-3.12"],
+    python: opts.python || defaultPython(),
+    pythonArgs: opts.pythonArgs || defaultPythonArgs(),
     cwd: opts.cwd,
     env: opts.childEnv,
     // Bounded, and DERIVED from the budgets Python will actually honour rather than wired in: the

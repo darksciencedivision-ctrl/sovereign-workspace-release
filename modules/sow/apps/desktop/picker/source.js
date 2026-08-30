@@ -1,4 +1,5 @@
 "use strict";
+const { defaultPython, defaultPythonArgs } = require("../python-runtime");
 /**
  * Per-pane model-picker data SOURCE (Phase 16B `.source`).
  *
@@ -51,7 +52,7 @@ function isWellFormedPicker(p) {
  * PickerSourceError on timeout / non-zero exit / non-JSON / malformed shape.
  * @param {object} opts
  * @param {function} [opts.spawn]    child_process.spawn (injected in tests)
- * @param {string}   [opts.python]   interpreter (default "py")
+ * @param {string}   [opts.python]   interpreter (default resolved by python-runtime.js)
  * @param {string[]} [opts.pythonArgs] leading args (default ["-3.12"])
  * @param {string}   opts.cwd        repo root (so the tool's sys.path/imports resolve)
  * @param {number}   [opts.timeoutMs] hard bound (default 20000)
@@ -105,8 +106,8 @@ async function fetchHostResidency(opts = {}) {
  * throws PickerSourceError on timeout / non-zero exit / non-JSON / malformed shape. */
 function runEnumerator(mode, opts, isWellFormed, malformedNote) {
   const spawn = opts.spawn || realSpawn;
-  const python = opts.python || "py";
-  const pythonArgs = opts.pythonArgs || ["-3.12"];
+  const python = opts.python || defaultPython();
+  const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const cwd = opts.cwd;
   const timeoutMs = opts.timeoutMs || 20000;
   const args = [...pythonArgs, "tools/live/enumerate_pane_picker.py", mode];

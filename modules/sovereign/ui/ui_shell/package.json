@@ -1,7 +1,7 @@
 {
   "name": "sovereign-ui",
   "private": true,
-  "version": "0.0.0-private",
+  "version": "3.1.2",
   "description": "SOVEREIGN canonical same-origin product client.",
   "type": "module",
   "scripts": {
