@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T19:07:20Z
+# utc: 2026-08-30T19:17:00Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 88
+# entries: 90
 960ccf0f1d86764a2b8012892b18ac0178e2c189854a70f0c5aaa258fb4f39dd  config/install.json
 90da913b313a573e1aa5dd7ab46ac57c8f1269049a326ee6c94d2d1c4814dd12  modules/debate.json
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json.pre-rebase
@@ -58,6 +58,7 @@ bb11f120e22c454a47078b727c91ea8901002d679e97962f57f5c8e768d5378e  tests/test_bro
 1ac8d0cb5ca434beb029bacd8ac49c5dfc3e611d125789f0f8fcb78202f6f6d5  tests/test_hardening.py
 97c1d14fc938b2d3d7071db6f846ca692ad260c2aee03387ecc90bbd5b378c5f  tests/test_incompatible_selection_refused.py
 dbcd7b80f40af30c099605a38d552b52bad0f3f2134474cec606c8ccb92be464  tests/test_ingestion_rejects.py
+fdacf051e2360866336058ae27cab07c38e39a3c15ef54809dc2695d6f2fa67d  tests/test_installer_honours_adr005.py
 bd9d8ed4df1398a3c952ccc3e34dce0b13459d496dc966a38bd203a640da936f  tests/test_legacy_alias_resolution.py
 f4ad1439b96bb813ad39dc894d8de7ad4ed511307705519b3fbb6a0c1af310af  tests/test_licence_is_complete.py
 98fcb137ae9e6c0e2379840654dcad8143e6df988394f4dcf13f3bf82fa7178c  tests/test_limitations_are_disclosed.py
@@ -67,6 +68,7 @@ e808cfb61174c36ebbfb58fb0bc2470c69771a24bd9a64c4911ee6aed9b51bb8  tests/test_new
 adae2c8870cacc48566eda8fcc0a49bc78bf21bc4eccdb8694c8adf67e383d92  tests/test_no_developer_paths_ship.py
 9a8e5d9113d37cba326228d277ebf8b8de48d6a67a81d55e379b796571223f26  tests/test_ollama_unsupported_honest.py
 7dcedf9db00aaaf4ce729d4363bea560b8a90b3b6b432c6d6290e0f694310355  tests/test_open_capability.py
+0c4f0d6985d6dd979f146f12583c9523fa018f671b2230cbfe1dce93f83a902e  tests/test_operator_documentation_exists.py
 4937463b90d503208a773967c93968e946b252b025819ced80138ed4ef79d754  tests/test_paths.py
 b39ba48b46919cb7a2d19b242245717afea5afb9a56dada6db620987eaa8ac74  tests/test_planner_never_evicts_generating.py
 8d6f9dc433a1c7b8997f9633f40d20f12fdeddb71959e05785683298dab4934c  tests/test_probe.py
