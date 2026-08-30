@@ -132,9 +132,13 @@ reads these paths at runtime, and an installation does not depend on them.
   decision registers. Cutting them would trade a disclosure for a broken verification path.
   The three cited by nothing were cut.
 - **`BUILD-DIRECTIVE-SWS-UI-001.md`** — the shell serves it as a documentation route and the
-  README links it, so removing it would replace a disclosure with a broken link. The builder
-  envelope forbids the builder editing it, so the change is the operator's to make.
-- **`docs/DECISIONS.md`** — read-and-hash-only for the builder, for the same reason.
+  README links it, so removing it would replace a disclosure with a broken link. The operator
+  has waived the restriction on editing it; it is still unedited, because the contract states
+  it is amended only by a versioned successor and never by a live-session instruction. That is
+  a rule the operator set for themselves and not one the builder may waive on their behalf.
+
+`docs/DECISIONS.md` was named here alongside it and is now fixed: the same waiver covered it,
+and the restriction on it was one the operator controls.
 
 **This set is pinned, not merely observed.**
 `shell/tests/test_developer_identifiers_are_bounded.py` fails if any file outside the

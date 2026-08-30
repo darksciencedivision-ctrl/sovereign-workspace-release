@@ -38,10 +38,10 @@ captures are recorded in `evidence/sow-git-before.txt` and `DISCOVERY.md`.
 ## SOVEREIGN and Debate Table live trees
 
 The operator states: no live trees for SOVEREIGN or Debate Table exist on this host.
-The sole source artifacts are the packaged zips in `D:\Product Software\`.
+The sole source artifacts are the packaged zips in the operator's source-archive directory.
 
 ## Distillery snapshot selection
 
 Exactly one snapshot folder matches: `SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e`.
-No ambiguity rule needed. The live tree at `D:\Sovereign Distillery\` is the canonical source
+No ambiguity rule needed. The operator's Distillery tree is the canonical source
 for file-driven status parsing.

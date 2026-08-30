@@ -25,9 +25,15 @@ What remains, and why it is not a bug that can be quietly closed:
     them would trade a disclosure for a broken verification path. The three cited by nothing
     were cut.
   * **`BUILD-DIRECTIVE-SWS-UI-001.md`** is served by the shell (`server.py` doc route) and
-    linked by README, so it cannot be cut, and the builder envelope forbids the builder
-    editing it. Parked for the operator.
-  * **`docs/DECISIONS.md`** is read-and-hash-only for the builder, for the same reason.
+    linked by README, so it cannot be cut. The operator granted a waiver for it (ENTRY 027),
+    and it is STILL not edited here: precedence rule 1 says the contract is "amended only by
+    a versioned successor the operator issues; never by chat", which names the mechanism, not
+    just the authority. Deciding a contract edit is too small to need the contract's own
+    amendment route is the first step of what that rule exists to prevent.
+
+`docs/DECISIONS.md` was on this list and is not any more. The same waiver covered it, the
+builder envelope's restriction on it ("read and hash only") is one the operator controls, and
+the two machine paths in it were replaced with a neutral form.
 
 So this test does not assert zero. It pins the set, so that the number can only go down
 without someone editing this file and saying why.
@@ -56,7 +62,9 @@ PATTERNS = {
 DISCLOSED = {
     # Served by the shell and linked by README; builder may not edit it. Parked.
     "BUILD-DIRECTIVE-SWS-UI-001.md": "parked: shell serves it, builder may not edit it",
-    "docs/DECISIONS.md": "parked: read-and-hash-only for the builder",
+    # docs/DECISIONS.md was here. The operator granted a waiver naming it (ENTRY 027) and the
+    # two machine paths were replaced with a neutral form, so it no longer needs disclosing.
+    # Removed deliberately rather than left to rot - see the stale-entry test below.
     # Release integrity records, generated from the tree they describe.
     "RELEASE-MANIFEST.json": "release integrity record",
     # Provenance: the path IS the record.
