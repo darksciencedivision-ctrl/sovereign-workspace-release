@@ -1,6 +1,13 @@
 import json, os, sys, unittest
 WS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SCH = os.path.join(WS, "modules", "sow", "schemas", "deployment-manifest.schema.json")
+# EPC-01 P1-2 / ENTRY 029. This contract used to live directly in modules/sow/schemas/, where
+# the freeze manifest's `*.schema.json` glob swept it into the operator-signed set it was never
+# signed into -- the defect docs/CP-M1-PUNCH-LIST.md:364 recorded as "matches the frozen schema
+# glob but is absent from the signed manifest". Both globs are NON-RECURSIVE, so a subdirectory
+# keeps the file in the product while leaving the frozen set at twelve and the amendment set
+# empty of it. The contract is unchanged: the bytes here are identical to the original.
+SCH = os.path.join(WS, "modules", "sow", "schemas", "contracts",
+                   "deployment-manifest.schema.json")
 
 class TestIngestionRejects(unittest.TestCase):
     def setUp(self):

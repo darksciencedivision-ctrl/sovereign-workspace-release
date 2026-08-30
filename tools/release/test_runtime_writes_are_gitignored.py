@@ -31,6 +31,7 @@ exactly the ones named below.
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -151,6 +152,62 @@ class RuntimeWritesLeaveTheTrackedTree(unittest.TestCase):
             "a declared runtime write names a path git is watching, so merely USING the "
             "product dirties the tree:\n  " + "\n  ".join(offenders)
         )
+
+    def test_a_rotated_log_generation_is_gitignored_too(self) -> None:
+        """EPC-01. `*.log` does not match `debate.log.1`.
+
+        Every rotating logger here writes generations as `<name>.log.1`, `.log.2` and so on.
+        `.gitignore` carried `*.log` and nothing else, so the live file was ignored and its
+        rotations were not - and this suite did not notice, because it only ever checked
+        declared runtime_writes paths, never the shapes a logger actually produces.
+
+        Found by running the product rather than by reading it: a test run rotated
+        modules/debate/logs/debate.log and left a 1,002,682-byte debate.log.1 staged for
+        commit. A rotated log is the same class of artifact as the live one.
+
+        Asked of `git check-ignore` rather than of the pattern text, so this tests the rule
+        that will actually apply at `git add` time.
+        """
+        candidates = [
+            "modules/debate/logs/debate.log",
+            "modules/debate/logs/debate.log.1",
+            "modules/debate/logs/debate.log.12",
+            "shell/logs/shell.log.3",
+            "modules/sow/logs/anything.log.5",
+        ]
+        # BYTES, not text=True. On Windows, Python translates "\n" in `input` to
+        # "\r\n", so git receives each path with a trailing CR, treats the CR as part of
+        # the FILENAME, and quotes the result. `*.log` then fails to match `debate.log<CR>`
+        # while `*.log.[0-9]*` still matches `debate.log.1<CR>` - a confidently wrong answer
+        # in BOTH directions. Measured, not guessed: that is what this test did on its
+        # first run, reporting three ignored paths as unignored.
+        result = subprocess.run(
+            ["git", "-C", WORKTREE_ROOT, "check-ignore", "--stdin"],
+            input="\n".join(candidates).encode("utf-8"),
+            capture_output=True, timeout=300,
+        )
+        ignored = {
+            line.strip().replace("\\", "/")
+            for line in result.stdout.decode("utf-8", "replace").splitlines()
+        }
+        missed = [c for c in candidates if c not in ignored]
+        self.assertEqual(
+            missed, [],
+            "these runtime log paths are NOT gitignored and would ship if one appeared:\n  "
+            + "\n  ".join(missed)
+        )
+
+    def test_no_rotated_log_is_currently_tracked(self) -> None:
+        """The ignore rule protects the future; this checks the present."""
+        tracked = subprocess.run(
+            ["git", "-C", WORKTREE_ROOT, "ls-files"],
+            capture_output=True, text=True, timeout=300,
+        ).stdout.splitlines()
+        offenders = [
+            path for path in tracked
+            if re.search(r"\.log(\.\d+)?$", path) and "/tests/" not in path
+        ]
+        self.assertEqual(offenders, [], f"log files are tracked in git: {offenders}")
 
     def test_no_adapter_declares_a_write_into_another_modules_state(self) -> None:
         """`${state_root}` is per module. A literal path naming a different module's state

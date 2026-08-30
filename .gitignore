@@ -42,7 +42,13 @@ desktop.ini
 *.sqlite3
 
 # --- logs (C-1b class; evidence-capture logs likewise untracked) ---
+# EPC-01. `*.log` alone is not enough: every rotating logger in this workspace writes
+# generations as `<name>.log.1`, `.log.2` and so on, and those match neither `*.log` nor any
+# other rule here. Found the hard way - modules/debate/logs/debate.log.1 (1,002,682 bytes of
+# runtime output) turned up staged for commit after a test run rotated it. A rotated log is
+# the same class of artifact as the live one and must not ship either.
 *.log
+*.log.[0-9]*
 
 # --- models / weights (never tracked) ---
 *.gguf
