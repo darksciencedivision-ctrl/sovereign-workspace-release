@@ -4,13 +4,13 @@ param(
     [string] $Commit = 'HEAD'
 )
 
-# Release artifact producer — SWS-REM-DIR-20260828 R2.
+# Release artifact producer - SWS-REM-DIR-20260828 R2.
 #
 # LOCAL-01 F-7 (OD-33). This script used to `git archive` the TWO composite archives and then
 # enumerate `Get-ChildItem *.zip` from the output directory, recording whatever it found as
 # authoritative. The six per-module archives were never cut by it. At the FIXUP-01 seal all six on
 # disk were stale leftovers from the PARENT commit, and without a manual re-cut they would have
-# shipped pre-fix bytes under correct-looking, internally consistent hashes — a worse failure than
+# shipped pre-fix bytes under correct-looking, internally consistent hashes - a worse failure than
 # the one X-1 fixed, because every number would have agreed with every other number and been wrong.
 #
 # The validator recorded this as its own defect: X-1 step 2 said "extend the producer so it
@@ -19,7 +19,7 @@ param(
 #
 # So: the artifact list is now the CUT LIST, not a directory listing, and a `.zip` in the output
 # directory that this run did not cut is a hard error rather than a silent authority. Both halves
-# matter — cutting everything closes the stale-bytes hole, and refusing strangers closes the hole
+# matter - cutting everything closes the stale-bytes hole, and refusing strangers closes the hole
 # where something else's output inherits this manifest's authority.
 
 $ErrorActionPreference = 'Stop'
@@ -48,7 +48,7 @@ if (-not $version) { throw 'VERSION.json does not contain a version' }
 # "Enumeration is explicit ... consumers must never infer paths by glob." Each per-module archive
 # takes its version from a NAMED file and field, so the name this script produces is derivable from
 # the commit rather than remembered from the last build. The version SOURCES differ per module
-# because the modules genuinely differ — that is recorded here rather than smoothed over.
+# because the modules genuinely differ - that is recorded here rather than smoothed over.
 
 function Get-JsonField {
     param([string] $RelativePath, [string] $Field)

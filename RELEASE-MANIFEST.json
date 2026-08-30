@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "ae4d9b7a568ea8fd284eda4d47c70995c09ae286fe80695a78161ade0b61efc5"
+      "sha256": "efdc9ac43e58a88735711d4c9ef0d4b91beebd3deee528df44f1c2dad76f6807"
     },
     {
       "path": "shell/config/install.json",
@@ -322,7 +322,7 @@
     },
     {
       "path": "tools/release/build_release.ps1",
-      "sha256": "eeecfdbb65980cf03cfe431fb6186eca2d23a765680dd1edbf06dbddc8940f33"
+      "sha256": "14221882b8ba8a0f3921283d8a5a4542a95919bd0b3bc5d8cea81d24669867f1"
     },
     {
       "path": "tools/release/fixture_allowlist.json",
@@ -338,7 +338,7 @@
     },
     {
       "path": "tools/release/install.ps1",
-      "sha256": "02e9dafef4c61251431f39d8eb9bd82c74fd90c05fc7db971f2c6fb871bae9ce"
+      "sha256": "ffe411fcb69da61c7d16e57231fab0b28b60d649002ad69b4f24ca8ba11ebc8d"
     },
     {
       "path": "tools/release/install_shortcut.ps1",
@@ -378,7 +378,7 @@
     },
     {
       "path": "tools/release/uninstall.ps1",
-      "sha256": "11c2cefa6c5891b7c784fe049901fb5404a66e2da856bebf25dd732759f72a5d"
+      "sha256": "863fefbe533e22e3fd0cd26507927ae4d88e11db2951f569f71b6f0f15990404"
     },
     {
       "path": "tools/release/verify_install.ps1",

@@ -611,6 +611,17 @@ class SemanticDeepExecutor:
         synthesizer_model: str = "deepseek-r1:8b",
         verifier_model: str = "granite4.2:8b",
         artifact_root: str | Path | None = None,
+        # EPC-01 P4-4. Roots an artifact_root may legitimately sit inside, beyond the product
+        # root. Defaults to nothing, so a caller that passes no trusted root gets exactly the
+        # behaviour this class always had.
+        #
+        # The containment check below re-derived trust from `root` alone. Once runtime state
+        # moved out of the install tree, `self.paths.evidence_dir` legitimately resolves under
+        # %LOCALAPPDATA% and the check refused it — even though `paths.resolve_evidence_dir`
+        # had ALREADY validated that exact path against the product root and the caller's
+        # approved roots. It was a second, weaker copy of a check that had already passed, and
+        # the weaker copy did not know about the second root.
+        trusted_roots: Sequence[str | Path] = (),
         evidence_builder: Any | None = None,
         base_options: Mapping[str, Any] | None = None,
         stage_options: Mapping[str, Mapping[str, Any]] | None = None,
@@ -649,10 +660,15 @@ class SemanticDeepExecutor:
             if artifact_root is not None
             else (self.root / "runtime" / "evidence" / "semantic_deep").resolve()
         )
-        try:
-            self.artifact_root.relative_to(self.root)
-        except ValueError as exc:
-            raise ValueError("artifact_root must resolve inside product root") from exc
+        _trusted = [self.root, *(Path(base).resolve() for base in trusted_roots)]
+        if not any(
+            self.artifact_root == base or base in self.artifact_root.parents
+            for base in _trusted
+        ):
+            raise ValueError(
+                "artifact_root must resolve inside the product root or a trusted root; "
+                f"{self.artifact_root} is inside none of {[str(b) for b in _trusted]}"
+            )
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
         defaults = {

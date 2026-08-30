@@ -24,7 +24,7 @@ DOCS = REPO_ROOT / "docs"
 REQUIRED = {
     "INSTALL.md": ("install.ps1", "verify_install.ps1", "uninstall.ps1"),
     "OPERATIONS.md": ("/v1/health", "/ready", "package_boundary_gate"),
-    "TROUBLESHOOTING.md": ("OLLAMA_MODELS", "P0-5", "degraded"),
+    "TROUBLESHOOTING.md": ("OLLAMA_MODELS", "degraded", "upgrade.ps1"),
     "SECURITY.md": ("loopback", "No authentication", "NOT tested"),
     "THREAT_MODEL.md": ("NOT IMPLEMENTED", "OUT OF SCOPE", "ENFORCED"),
 }
@@ -32,9 +32,20 @@ REQUIRED = {
 #: Defects an operator will meet in normal use. Each must be findable from the document a
 #: person would actually open, not only from LIMITATIONS.md.
 CROSS_REFERENCED_DEFECTS = {
-    "P0-5": ("TROUBLESHOOTING.md", "OPERATIONS.md", "INSTALL.md"),
-    "P1-1": ("TROUBLESHOOTING.md",),
+    # P0-5 (uninstall), P1-1 (upgrade) and P4-4 (state location) were listed here and are now
+    # CLOSED, so their ids no longer appear in the operator documentation — correctly, because
+    # a troubleshooting guide should not send a reader chasing a defect that no longer exists.
+    # This guard caught their removal and made it deliberate, which is what it is for.
     "P4-6": ("OPERATIONS.md", "THREAT_MODEL.md"),
+}
+
+#: Capabilities that replaced closed defects. An operator must be able to find these from the
+#: document they would actually open, for the same reason the defects had to be findable.
+CROSS_REFERENCED_CAPABILITIES = {
+    "upgrade.ps1": ("TROUBLESHOOTING.md", "INSTALL.md"),
+    "backup_state.ps1": ("TROUBLESHOOTING.md", "OPERATIONS.md", "INSTALL.md"),
+    "PurgeData": ("TROUBLESHOOTING.md", "INSTALL.md"),
+    "LOCALAPPDATA": ("OPERATIONS.md", "INSTALL.md", "THREAT_MODEL.md"),
 }
 
 
@@ -70,6 +81,25 @@ class OperatorDocumentationExists(unittest.TestCase):
             problems, [],
             "a defect an operator meets in normal use is documented in LIMITATIONS.md but "
             "not where they would actually look:\n  " + "\n  ".join(problems)
+        )
+
+    def test_lifecycle_capabilities_are_findable_where_an_operator_would_look(self) -> None:
+        """The counterpart to the defect check above. A capability an operator needs in a
+        crisis — how do I back this up, how do I roll back — must be in the document they
+        reach for, not only in a release note."""
+        problems = []
+        for capability, documents in CROSS_REFERENCED_CAPABILITIES.items():
+            for name in documents:
+                path = DOCS / name
+                if not path.is_file():
+                    problems.append(f"{name} is missing entirely")
+                    continue
+                if capability not in path.read_text(encoding="utf-8"):
+                    problems.append(f"{name} does not mention {capability}")
+        self.assertEqual(
+            problems, [],
+            "an operator cannot find a lifecycle capability from the document they would "
+            "actually open:\n  " + "\n  ".join(problems)
         )
 
     def test_no_operator_document_promises_a_support_channel(self) -> None:

@@ -251,6 +251,26 @@ def resolve_product_paths(
     create: bool = False,
 ) -> ProductPaths:
     product_root = resolve_root(root, start=start, env=env)
+
+    # EPC-01 P4-4. The workspace state root the SHELL declares is a caller-approved root,
+    # because the shell IS the caller.
+    #
+    # `SOVEREIGN_STATE_DIR` alone was never sufficient: `_resolve_override` refuses any state
+    # directory outside the install root and the caller's approved roots, and `approved_roots`
+    # is a Python parameter that a spawned process cannot be passed. So pointing the env var
+    # at %LOCALAPPDATA% produced "Runtime state directory is outside the install root and
+    # caller-approved roots" and the server would not start — which is the check doing exactly
+    # what it should, given it had not been told about the new root.
+    #
+    # The containment property is unchanged: state must still sit inside the install root or
+    # inside a root the caller named. What changes is that the caller can now name one across
+    # a process boundary. `SOVEREIGN_WORKSPACE_STATE` is set by the shell for every module it
+    # launches; nothing else sets it.
+    environment = os.environ if env is None else env
+    workspace_state = str(environment.get("SOVEREIGN_WORKSPACE_STATE", "")).strip()
+    if workspace_state:
+        approved_roots = [*approved_roots, workspace_state]
+
     state = resolve_state_dir(
         product_root,
         override=state_dir,

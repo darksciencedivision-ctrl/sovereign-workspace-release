@@ -5,8 +5,8 @@
   "state_class": "runnable",
   "root": "D:\\producttion software 2\\release-worktree\\modules\\sow",
   "runtime_writes": [
-    "${root}/apps/desktop/.recovery",
-    "${root}/.runtime/receipts"
+    "${state_root}/.recovery",
+    "${state_root}/receipts"
   ],
   "launch": {
     "cwd": "${root}/apps/desktop",
@@ -26,7 +26,8 @@
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
       "SOW_CONDUCTOR_AUTOLAUNCH": "0",
-      "SOW_OPERATOR_TEXT_DRIVER_PORT": "17890"
+      "SOW_OPERATOR_TEXT_DRIVER_PORT": "17890",
+      "SOVEREIGN_STORE_ROOT": "${state_root}/store"
     }
   },
   "readiness": {

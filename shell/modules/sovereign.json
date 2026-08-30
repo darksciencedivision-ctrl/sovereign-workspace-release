@@ -5,10 +5,10 @@
   "state_class": "runnable",
   "root": "D:\\producttion software 2\\release-worktree\\modules\\sovereign",
   "runtime_writes": [
-    "${root}/runtime",
-    "${root}/published",
-    "${root}/library/queues",
-    "${root}/logs"
+    "${state_root}/runtime",
+    "${state_root}/published",
+    "${state_root}/library/queues",
+    "${state_root}/logs"
   ],
   "launch": {
     "cwd": "${root}",
@@ -35,7 +35,9 @@
       "APPDATA"
     ],
     "env_set": {
-      "PYTHONDONTWRITEBYTECODE": "1"
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SOVEREIGN_STATE_DIR": "${state_root}/runtime",
+      "SOVEREIGN_EVIDENCE_DIR": "${state_root}/runtime/evidence"
     }
   },
   "readiness": {

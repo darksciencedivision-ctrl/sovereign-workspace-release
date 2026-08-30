@@ -112,12 +112,23 @@ reviews it. `LICENSE` §5 states this to the recipient.
 
 ### T11 — Runtime state is destroyed by ordinary lifecycle operations
 **B6.** An upgrade or uninstall deletes the operator's data.
-**Status: NOT IMPLEMENTED, and a known defect.** Runtime state lives inside the install root
-(P4-4). Uninstall refuses on any used installation (P0-5) and there is no upgrade path at all
-(P1-1), so the product currently has no safe lifecycle operation once it has been used. There
-is no backup or restore tooling (P4-5). This is the largest open risk to an operator's data
-and it is stated in `docs/LIMITATIONS.md`, `docs/OPERATIONS.md` and
-`docs/TROUBLESHOOTING.md`.
+**Status: ENFORCED.** This was the largest open risk in the previous revision of this document
+and it is now closed at the root: state lives **outside** the install tree, under
+`%LOCALAPPDATA%\SovereignWorkspace\<module-id>`, so replacing the installation cannot reach
+it. Four controls follow from that and each is proven by test:
+
+- A module may write only inside the install root **or inside its own state root**, decided by
+  canonical resolution. A declaration naming anywhere else — including another module's state
+  root — is refused as a configuration error. H-5 is extended to a second named root, not
+  relaxed.
+- Uninstall keeps state by default and names it; `-PurgeData` lists what it removes first.
+- Upgrade backs up state, then **moves** the outgoing installation aside rather than deleting
+  it. Nothing in the upgrade path deletes anything.
+- Restore verifies the archive against its sidecar before writing, and moves any existing
+  state aside rather than overwriting it.
+
+Residual: an installation created **before** this release still has state beside its code, and
+nothing migrates it automatically. Stated in `docs/LIMITATIONS.md`.
 
 ### T12 — A runtime action cannot be attributed after the fact
 **B1.** Something happened and there is no record of what or when.
@@ -135,7 +146,6 @@ Collected so they are countable rather than scattered:
 - **T1** authentication — OUT OF SCOPE by operator ruling
 - **T7** Python dependency scanning — **NOT IMPLEMENTED** (P2-1/P2-2)
 - **T10** model-output validation — **NOT IMPLEMENTED**, operator review is the control
-- **T11** safe lifecycle and backup — **NOT IMPLEMENTED** (P0-5, P1-1, P4-4, P4-5)
 - **T12** audit logging and observability — **NOT IMPLEMENTED** (P4-3, P4-6)
 
 No third-party security audit or penetration test has been performed on this release.

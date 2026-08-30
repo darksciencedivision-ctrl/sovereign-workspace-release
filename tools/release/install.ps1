@@ -118,7 +118,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Debate lock install failed' }
 
 Write-Output 'install: provisioning SOW Python from exact pinned runtime closure'
 # EPC-01 P0-2. This block did not exist. SOVEREIGN and Debate were provisioned; SOW was
-# not — while apps/desktop spawned `py -3.12` (the SYSTEM interpreter) for seventeen
+# not - while apps/desktop spawned `py -3.12` (the SYSTEM interpreter) for seventeen
 # entry points, twelve of whose modules import jsonschema. On a clean machine with
 # Python 3.12 and no jsonschema, the IPC gateway died on import at first launch.
 # apps/desktop/python-runtime.js resolves this venv when it exists and falls back to the
@@ -154,12 +154,12 @@ foreach ($nodeRoot in @(
 
 Write-Output 'install: provisioning SOW via install_sow.py (ADR-005 hash-verified Electron)'
 # EPC-01 P1-9. This installer previously ran a plain `npm ci` for modules\sow\apps\desktop and
-# never invoked install_sow.py at all — so Electron's postinstall ran and downloaded a ~100 MB
+# never invoked install_sow.py at all - so Electron's postinstall ran and downloaded a ~100 MB
 # binary from GitHub with NO hash verification.
 #
 # That contradicts the workspace's own architecture decision. ADR-005 records that this
 # workspace CHOOSES `--ignore-scripts` and that Electron is "provisioned by an explicit,
-# logged, hash-verified step — which is the whole point of this ADR", checking the zip's
+# logged, hash-verified step - which is the whole point of this ADR", checking the zip's
 # SHA-256 against the checksums.json shipped inside the npm package the lockfile pins. The
 # authoritative install path was quietly bypassing the one supply-chain control the project
 # wrote an ADR to establish.

@@ -5,7 +5,7 @@
   "state_class": "runnable",
   "root": "D:\\producttion software 2\\release-worktree\\modules\\tokencenter",
   "runtime_writes": [
-    "${root}/data"
+    "${state_root}/data"
   ],
   "launch": {
     "cwd": "${root}",
@@ -25,7 +25,8 @@
       "APPDATA"
     ],
     "env_set": {
-      "PYTHONDONTWRITEBYTECODE": "1"
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "TOKENCENTER_DATA_DIR": "${state_root}/data"
     }
   },
   "readiness": {

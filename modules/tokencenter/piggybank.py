@@ -23,7 +23,17 @@ from urllib.parse import parse_qs, urlparse
 
 APP_ROOT = Path(__file__).resolve().parent
 STATIC_ROOT = APP_ROOT / "static"
-DATA_ROOT = APP_ROOT / "data"
+
+# EPC-01 P4-4. The database lived at APP_ROOT/data, i.e. INSIDE the install tree. That is the
+# root cause of two lifecycle defects: uninstall compares the install tree against its manifest
+# and refuses once anything has been written (P0-5), and an upgrade cannot reuse a destination
+# holding live state (P1-1). State inside the thing being replaced cannot survive replacing it.
+#
+# TOKENCENTER_DATA_DIR is set by the shell from the module's state root under %LOCALAPPDATA%.
+# The APP_ROOT fallback is kept deliberately: running piggybank.py directly, outside the shell,
+# must still work exactly as it did, and an existing installation with data already beside the
+# code keeps reading it until the operator moves it.
+DATA_ROOT = Path(os.environ.get("TOKENCENTER_DATA_DIR", "").strip() or (APP_ROOT / "data"))
 DB_PATH = DATA_ROOT / "piggybank.sqlite"
 REFRESH_SECONDS = 300
 LOOKBACK_DAYS = 45

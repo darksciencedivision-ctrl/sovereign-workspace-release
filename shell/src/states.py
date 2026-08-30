@@ -196,6 +196,27 @@ class ModuleRunner:
         self.last_start = time.time()
         self._set(STARTING)
 
+        # EPC-01 P4-4. Create this module's declared write targets before spawning it.
+        #
+        # While runtime state lived inside the install root those directories already existed,
+        # because the installer had laid the tree down. Now that state lives under
+        # %LOCALAPPDATA% they do not exist on a first run, and a module that assumes its own
+        # directory would fail in a way that reads like a permissions problem.
+        #
+        # Only paths the adapter DECLARED are created, and compile_adapter has already refused
+        # any declaration that escapes both the install root and this module's state root — so
+        # this cannot create a directory somewhere a module never said it would write. A
+        # failure here is reported as a configuration failure rather than swallowed: a module
+        # that cannot have its state directory must not be started and then blamed for it.
+        try:
+            for target in self.adapter.get("runtime_writes", []):
+                directory = target if not os.path.splitext(target)[1] else os.path.dirname(target)
+                if directory:
+                    os.makedirs(directory, exist_ok=True)
+        except OSError as exc:
+            self._set(FAILED, "CONFIGURATION_FAILED: state directory")
+            return self.display, f"cannot create declared write target: {exc}"
+
         launch = self.adapter["launch"]
         env = build_env(self.adapter, env_overrides)
 

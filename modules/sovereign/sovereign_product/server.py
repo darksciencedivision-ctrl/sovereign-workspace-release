@@ -627,6 +627,11 @@ class ProductService:
             synthesizer_model=synthesizer,
             verifier_model=verifier,
             artifact_root=self.paths.evidence_dir / "semantic_deep",
+            # EPC-01 P4-4. The state directory is a trusted root: `resolve_state_dir` and
+            # `resolve_evidence_dir` already validated it against the product root and the
+            # caller's approved roots, so the executor is told about it rather than re-deriving
+            # a narrower answer from the product root alone.
+            trusted_roots=(self.paths.state_dir,),
             evidence_builder=self.evidence_builder,
             base_options=self._runtime_model_options(manifest),
         )

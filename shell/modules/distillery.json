@@ -5,7 +5,7 @@
   "state_class": "runnable",
   "root": "D:\\producttion software 2\\release-worktree\\modules\\distillery",
   "runtime_writes": [
-    "${root}/logs"
+    "${state_root}/logs"
   ],
   "launch": {
     "cwd": "${root}",

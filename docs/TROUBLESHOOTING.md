@@ -100,30 +100,45 @@ reaches a recipient, and none of it is a packaging defect.
 
 ---
 
-## Uninstall refuses to run
+## Uninstall
 
+```powershell
+.\tools\release\uninstall.ps1 -Dest "C:\SovereignWorkspace"
 ```
-Refusing uninstall because exact installed path set changed
-```
 
-**Known defect, P0-5.** Uninstall compares the whole install tree against its manifest and
-refuses if anything was added — and the product's own runtime state is an addition. It
-therefore works only on an installation that has never been used.
+Removes exactly the paths its manifest records, then **keeps your state** and says where it
+is. Add `-PurgeData` to remove the state root as well; it lists what it is about to delete
+before doing so.
 
-Until it is fixed: copy out anything you want to keep (see the state table in
-`docs/OPERATIONS.md`), then delete the install directory by hand.
+This used to refuse on any installation that had been used, because runtime state lived inside
+the install tree and counted as an unexpected addition. State now lives under
+`%LOCALAPPDATA%\SovereignWorkspace`, so the strict path-set check passes and stays strict.
 
 ---
 
 ## Upgrading
 
-There is no upgrade path in this release (**P1-1**). `install.ps1` refuses a non-empty
-destination by design, and uninstall is blocked by P0-5, so there is no supported route from
-one version to the next.
+```powershell
+.\tools\release\upgrade.ps1 -Dest "C:\SovereignWorkspace"
+```
 
-If you must move: back up the state directories, install the new version to a **different**
-destination, and copy state across by hand. Nothing validates that the state formats match —
-this is a release candidate and they may not.
+Verifies the incoming artifact against its sidecar **before touching anything**, backs up the
+state root, moves the outgoing installation aside rather than deleting it, installs, and
+verifies. Nothing is removed: rollback is moving the previous installation back over the
+destination.
+
+If it fails part-way, the message names the directory holding the previous installation.
+
+### Backing up state on its own
+
+```powershell
+.\tools\release\backup_state.ps1
+.\tools\release\restore_state.ps1 -Archive <path to the .zip>
+```
+
+The archive carries a SHA-256 sidecar, and restore refuses an archive whose sidecar does not
+match - before writing anything. Restoring over a state root that already holds files needs
+`-Force`, and even then the existing state is **moved aside, not deleted**.
 
 ---
 

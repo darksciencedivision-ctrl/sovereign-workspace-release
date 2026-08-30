@@ -1,10 +1,28 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [string] $Dest
+    [string] $Dest,
+
+    # EPC-01 P0-5. Uninstall used to compare the WHOLE install tree against the manifest and
+    # refuse if anything had been added - and the product's own runtime state was an addition,
+    # so uninstall worked only on an installation that had never been used. Relaxing the check
+    # would have been the wrong repair: line ~71's recursive delete would then have taken all
+    # operator data with no export and no prompt. Both branches were wrong.
+    #
+    # P4-4 moved runtime state out of the install root, so the strict path-set check can stay
+    # exactly as strict as it was. What remains is the operator's decision about the state
+    # that now lives elsewhere, and it is asked explicitly rather than assumed:
+    #
+    #   -KeepData   (default) the state root is left untouched
+    #   -PurgeData            the state root is removed as well, after being named
+    #
+    # Neither branch deletes anything the manifest does not record inside the install root.
+    [switch] $PurgeData,
+    [switch] $KeepData
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PurgeData -and $KeepData) { throw 'Specify at most one of -PurgeData and -KeepData' }
 $destRoot = [IO.Path]::GetFullPath($Dest).TrimEnd('\')
 $destPrefix = $destRoot + '\'
 if ($destRoot -eq [IO.Path]::GetPathRoot($destRoot)) { throw 'Refusing filesystem-root destination' }
@@ -81,3 +99,36 @@ foreach ($entry in $manifest.paths) {
 }
 if ($remaining) { throw "Uninstall manifest was not fully consumed: $($remaining -join ',')" }
 Write-Output (@{ removed_recorded_paths = @($manifest.paths).Count; remaining_recorded_paths = 0; claim = 'removed exactly the recorded paths' } | ConvertTo-Json -Compress)
+
+# --- EPC-01 P0-5: the operator's state, which no longer lives in the install root -----------
+#
+# P4-4 moved runtime state to %LOCALAPPDATA%\SovereignWorkspace\<module>. Removing the install
+# therefore does NOT remove the operator's work, which is the correct default - an uninstall
+# that silently destroys data the operator spent months producing is a worse failure than one
+# that refuses to run.
+#
+# The state root is NAMED either way. An operator who did not know it existed cannot be
+# expected to clean it up later, and an operator who asked for it gone must be able to see
+# exactly what went.
+$stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
+if (-not $stateRoot) {
+    $localAppData = $env:LOCALAPPDATA
+    if (-not $localAppData) { $localAppData = Join-Path $env:USERPROFILE 'AppData\Local' }
+    $stateRoot = Join-Path $localAppData 'SovereignWorkspace'
+}
+
+if (-not (Test-Path -LiteralPath $stateRoot)) {
+    Write-Output "uninstall: no operator state found at $stateRoot"
+}
+elseif ($PurgeData) {
+    $doomed = @(Get-ChildItem -LiteralPath $stateRoot -Force -ErrorAction SilentlyContinue)
+    Write-Output "uninstall: PURGING operator state at $stateRoot ($($doomed.Count) entries)"
+    foreach ($entry in $doomed) { Write-Output "  removing $($entry.Name)" }
+    Remove-Item -LiteralPath $stateRoot -Recurse -Force
+    Write-Output 'uninstall: operator state removed'
+}
+else {
+    Write-Output "uninstall: operator state KEPT at $stateRoot"
+    Write-Output '  It was not touched. Re-run with -PurgeData to remove it, or delete it by hand.'
+    Write-Output '  A later install of this product will find and reuse it.'
+}

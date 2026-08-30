@@ -264,19 +264,60 @@ def _check_placeholder_literals(obj: Any, path: str = "") -> None:
             _check_placeholder_literals(v, f"{path}[{i}]")
 
 
-def _resolve_var(value: str, root: str) -> str:
-    """Resolve ${root} in a string value. Any other ${...} raises error."""
+# EPC-01 P4-4. The workspace's per-operator state root.
+#
+# Runtime state used to live INSIDE the install root — `${root}/runtime`, `${root}/data` and
+# friends. That is the root cause of two further defects: uninstall compares the install tree
+# against its manifest and refuses once the product has written anything (P0-5), and there is
+# no upgrade path because a new install cannot reuse a destination that holds live state
+# (P1-1). State that lives inside the thing being replaced cannot survive replacing it.
+#
+# %LOCALAPPDATA% is the Windows convention for per-user application state and is already in
+# every adapter's `env_allowlist`, so a launched module can see it without widening what the
+# shell passes through.
+STATE_ROOT_ENV = "SOVEREIGN_WORKSPACE_STATE"
+STATE_ROOT_DIRNAME = "SovereignWorkspace"
+
+
+def workspace_state_root() -> str:
+    """The root under which every module's runtime state lives, POSIX-separated."""
+    override = os.environ.get(STATE_ROOT_ENV, "").strip()
+    if override:
+        base = override
+    else:
+        local = os.environ.get("LOCALAPPDATA", "").strip()
+        if not local:
+            # No %LOCALAPPDATA% (a service account, or a non-Windows test host): fall back to
+            # the user profile rather than inventing a drive path.
+            local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
+        base = os.path.join(local, STATE_ROOT_DIRNAME)
+    return os.path.abspath(base).replace("\\", "/")
+
+
+def module_state_root(module_id: str) -> str:
+    """This module's own state directory. One per module, never shared."""
+    return f"{workspace_state_root()}/{module_id}"
+
+
+def _resolve_var(value: str, root: str, state_root: str | None = None) -> str:
+    """Resolve ${root} and ${state_root}. Any other ${...} raises error."""
     def replacer(m):
         var = m.group(1)
         if var == "root":
             return root
+        if var == "state_root":
+            if state_root is None:
+                raise AdapterError(
+                    "${state_root} is not available here; it may only be used in "
+                    "runtime_writes and launch.env_set")
+            return state_root
         raise AdapterError(f"Unknown variable: ${{{var}}}")
     return _VAR_PATTERN.sub(replacer, value)
 
 
-def _resolve_path(path: str, root: str) -> str:
+def _resolve_path(path: str, root: str, state_root: str | None = None) -> str:
     """Resolve and canonicalize a path."""
-    resolved = _resolve_var(path, root)
+    resolved = _resolve_var(path, root, state_root)
     resolved = resolved.replace("\\", "/")
     # Canonicalize
     try:
@@ -311,13 +352,34 @@ def compile_adapter(adapter: dict) -> dict:
     compiled = dict(adapter)
     compiled["root"] = _resolve_path(root, root)
 
+    # EPC-01 P4-4. Each module's state root, resolved before runtime_writes so a declaration
+    # may name it. One directory per module — never shared, so one module cannot reach
+    # another's state through a path it declares.
+    compiled["state_root"] = module_state_root(compiled["id"])
+
     if adapter.get("runtime_writes"):
-        compiled["runtime_writes"] = [_resolve_path(w, compiled["root"]) for w in adapter["runtime_writes"]]
-        # H-5: every declared write target must be inside the compiled root, by canonical
-        # resolution. A junction or ".." that escapes the root is a CONFIG_ERROR, not a warning.
+        compiled["runtime_writes"] = [
+            _resolve_path(w, compiled["root"], compiled["state_root"])
+            for w in adapter["runtime_writes"]
+        ]
+        # H-5 EXTENDED, deliberately and narrowly. Every declared write target must be inside
+        # the compiled root OR inside THIS module's own state root, by canonical resolution. A
+        # junction or ".." that escapes both is a CONFIG_ERROR, not a warning.
+        #
+        # The invariant H-5 protects is "a module writes only where it declared it would, and
+        # the declaration cannot be widened by a symlink". Admitting a second, named,
+        # per-module root does not weaken that: it is still two exact locations resolved
+        # canonically, and a path escaping both is still refused. What it removes is the
+        # accidental coupling that forced runtime state to live inside the install tree — the
+        # coupling that makes uninstall (P0-5) and upgrade (P1-1) impossible.
         for w in compiled["runtime_writes"]:
-            if not is_contained(compiled["root"], w):
-                raise AdapterError(f"runtime_writes path escapes root (H-5): {w}")
+            if is_contained(compiled["root"], w):
+                continue
+            if is_contained(compiled["state_root"], w):
+                continue
+            raise AdapterError(
+                f"runtime_writes path escapes both the install root and this module's state "
+                f"root (H-5): {w}")
     else:
         compiled["runtime_writes"] = []
 
@@ -342,7 +404,15 @@ def compile_adapter(adapter: dict) -> dict:
                 raise AdapterError(f"argv[0] contains forbidden launcher: {f}")
 
         launch["env_allowlist"] = adapter["launch"].get("env_allowlist", ["SYSTEMROOT", "PATH", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"])
-        launch["env_set"] = dict(adapter["launch"].get("env_set", {}))
+        launch["env_set"] = {
+            key: _resolve_var(value, compiled["root"], compiled["state_root"])
+            for key, value in dict(adapter["launch"].get("env_set", {})).items()
+        }
+
+        # EPC-01 P4-4. Every module is told where its state root is, whether or not its
+        # adapter names it. A module that does not read the variable is unaffected; a module
+        # that does no longer depends on the shell's author having remembered to declare it.
+        launch["env_set"].setdefault(STATE_ROOT_ENV, compiled["state_root"])
 
         compiled["launch"] = launch
 

@@ -104,9 +104,27 @@ See `docs/THIRD-PARTY-LICENCE-POSITION.md` for the third-party position.
 
 ---
 
-## Uninstall does not work on a used installation
+## Lifecycle: resolved in this release
 
-`tools/release/uninstall.ps1` compares the whole install tree against its manifest and refuses
-if anything was added — which includes the runtime state the product itself writes. It
-therefore succeeds only on an installation that has never been used. This is a real defect,
-tracked as P0-5, and the fix depends on moving runtime state out of the install root.
+Four limitations previously listed here are closed. They are recorded rather than deleted, so
+a reader holding an older copy can tell what changed and why.
+
+- **Runtime state no longer lives inside the install root.** Each module writes under
+  `%LOCALAPPDATA%/SovereignWorkspace/<module-id>` — one directory per module, never shared.
+  That relocation is what made the three below possible; state inside the thing being replaced
+  cannot survive replacing it.
+- **Uninstall works on an installation that has been used.** It removes exactly the paths its
+  manifest records, then names the operator's state and *keeps it by default*. `-PurgeData`
+  removes it as well, after listing what goes.
+- **An upgrade path exists.** `tools/release/upgrade.ps1` verifies the incoming artifact
+  against its sidecar before touching anything, backs up the state root, moves the outgoing
+  installation aside rather than deleting it, installs, verifies, and leaves both the previous
+  installation and the state backup in place. Rollback is moving the previous installation
+  back.
+- **Backup and restore exist.** `backup_state.ps1` and `restore_state.ps1` produce and consume
+  one archive with a SHA-256 sidecar. Restore verifies before writing anything, refuses an
+  archive whose sidecar does not match, and never deletes the state it replaces.
+
+What has *not* changed: an existing installation created before this release still has its
+state beside the code. Nothing migrates it automatically. Copy it into the new state root, or
+start fresh.

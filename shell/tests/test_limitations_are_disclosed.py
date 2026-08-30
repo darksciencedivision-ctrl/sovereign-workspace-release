@@ -36,7 +36,17 @@ REQUIRED_DISCLOSURES = [
     ("Nineteen of twenty-nine gates have never been reviewed", "CANDIDATE"),
     ("Verification not performed", "clean-room install"),
     ("The licence is not final", "PENDING COUNSEL SIGN-OFF"),
-    ("Uninstall does not work on a used installation", "never been used"),
+]
+
+#: Limitations that were CLOSED, and whose closure must stay recorded.
+#:
+#: When P4-4 moved runtime state out of the install root, three further limitations became
+#: false — uninstall on a used installation, the missing upgrade path, and the absence of
+#: backup tooling. Deleting their entries above was correct; deleting the record of WHY would
+#: leave a reader of an older copy unable to tell what changed. So a closed limitation moves
+#: from the absence list to this one and is asserted just as strictly.
+RESOLVED_DISCLOSURES = [
+    ("Lifecycle: resolved in this release", "state inside the thing being replaced"),
 ]
 
 
@@ -64,6 +74,22 @@ class LimitationsAreDisclosed(unittest.TestCase):
             "REMOVED — the capability now exists — delete its entry from REQUIRED_DISCLOSURES "
             "in the same change, so the removal is a decision somebody made rather than a "
             "disclosure that quietly went away:\n  " + "\n  ".join(missing)
+        )
+
+    def test_a_closed_limitation_keeps_its_record_of_closure(self) -> None:
+        """A limitation that stops being true must not simply vanish. A reader holding an
+        older copy has to be able to tell what changed, and the next person to wonder why the
+        lifecycle works now deserves the answer in the same document."""
+        missing = []
+        for heading, phrase in RESOLVED_DISCLOSURES:
+            if not re.search(r"^#{2,4}\s+" + re.escape(heading) + r"\s*$",
+                             self.text, re.MULTILINE):
+                missing.append(f"heading {heading!r}")
+            elif phrase.lower() not in self.flat:
+                missing.append(f"heading {heading!r} no longer explains {phrase!r}")
+        self.assertEqual(
+            missing, [],
+            "the record of a CLOSED limitation was removed:\n  " + "\n  ".join(missing)
         )
 
     def test_the_single_operator_ruling_is_stated_as_a_decision_not_a_defect(self) -> None:

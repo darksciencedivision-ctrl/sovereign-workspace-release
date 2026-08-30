@@ -108,17 +108,36 @@ not an error.
 
 ---
 
+## Upgrade
+
+```powershell
+.\tools\release\upgrade.ps1 -Dest "C:\SovereignWorkspace"
+```
+
+Verifies the incoming artifact against its sidecar before touching anything, backs up your
+state, moves the outgoing installation aside rather than deleting it, installs the new
+version, and verifies it. **Nothing is removed** — rollback is moving the previous
+installation back.
+
 ## Remove
 
 ```powershell
 .\tools\release\uninstall.ps1 -Dest "C:\SovereignWorkspace"
 ```
 
-> **Known limitation.** Uninstall compares the whole install tree against its manifest and
-> refuses if anything was added — which includes the runtime state the product itself writes.
-> It therefore succeeds only on an installation that has never been used. Tracked as P0-5 in
-> `docs/LIMITATIONS.md`. Until that is fixed, removing a used installation means deleting the
-> directory by hand, after taking anything you want to keep out of it.
+Removes exactly the paths its manifest records. **Your state is kept by default** and its
+location is printed; add `-PurgeData` to remove it as well, which lists what it deletes first.
+
+## Your state
+
+Runtime state lives under `%LOCALAPPDATA%\SovereignWorkspace\<module-id>`, outside the install
+root, so it survives uninstall and upgrade. Back it up on its own with:
+
+```powershell
+.\tools\release\backup_state.ps1
+```
+
+See `docs/OPERATIONS.md` for what each module keeps there.
 
 ---
 

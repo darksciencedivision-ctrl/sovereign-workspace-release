@@ -63,22 +63,38 @@ Invoke-RestMethod http://127.0.0.1:11434/api/tags | Select-Object -ExpandPropert
 
 ## Where state lives
 
-> **Read this before upgrading or removing anything.** In this release runtime state lives
-> **inside the install root**, not in `%LOCALAPPDATA%`. That is tracked as P4-4 and it is why
-> uninstall does not work on a used installation (P0-5).
+Runtime state lives **outside the install root**, under
+`%LOCALAPPDATA%\SovereignWorkspace\<module-id>` — one directory per module, never shared.
 
-| Module | Writes to |
-|---|---|
-| SOVEREIGN | `runtime\`, `published\`, `library\queues\`, `logs\` |
-| SOW | `apps\desktop\.recovery\`, `.runtime\receipts\` |
-| Debate | `config.json` |
-| Distillery | `logs\` |
-| Token Center | `data\` |
+| Module | State directory | Holds |
+|---|---|---|
+| SOVEREIGN | `SovereignWorkspace\sovereign` | `runtime\`, `published\`, `library\queues\`, `logs\` |
+| SOW | `SovereignWorkspace\sow` | `.recovery\`, `receipts\`, `store\` |
+| Debate | `SovereignWorkspace\debate` | `logs\` |
+| Distillery | `SovereignWorkspace\distillery` | `logs\` |
+| Token Center | `SovereignWorkspace\tokencenter` | `data\` (the SQLite database) |
 
-All paths are relative to that module's directory under the install root.
+Each module is told where its own state root is through `SOVEREIGN_WORKSPACE_STATE`, and the
+shell creates the declared directories before launching it. A module may write only inside the
+install root or inside **its own** state root; a declaration naming anywhere else is refused
+as a configuration error, so one module cannot reach another's state.
 
-**There is no backup or restore tooling.** Copy those directories somewhere else before any
-upgrade or reinstall. Nothing will do it for you and nothing will warn you.
+**One exception, stated because it is one:** the Debate Table's `config.json` still lives
+beside its code. It is a seeded document the application rewrites in place rather than pure
+runtime state, so relocating it requires the installer to place a copy in the state root
+first. It is the only declared write still inside the install tree.
+
+### Backing it up
+
+```powershell
+.\tools\release\backup_state.ps1
+```
+
+Writes one archive with a SHA-256 sidecar and prints both paths. Restore with
+`restore_state.ps1 -Archive <path>`, which verifies the sidecar before writing anything and
+never deletes the state it replaces.
+
+`upgrade.ps1` takes a state backup automatically before it does anything else.
 
 ---
 
