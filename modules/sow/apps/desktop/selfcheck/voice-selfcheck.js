@@ -38,11 +38,10 @@
  * voice feed runs the bridge mock-first (§2.2/§2.4). NO TTS (I-V2/D-VOICE-02) — the result carries none.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE16E_REAL_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE16E_REAL_SELFCHECK.json");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

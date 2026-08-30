@@ -46,13 +46,14 @@
  * validator can reproduce.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 const { spawn } = require("child_process");
 const { decodeWav } = require("../voice/wav");
 const { childEnv } = require("../voice/env-scrub");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
-const RECEIPT_PATH = path.resolve(REPO_ROOT, "docs", "evidence", "receipts", "PHASE17C_MIC_SELFCHECK.json");
+const RECEIPT_PATH = receiptPath("PHASE17C_MIC_SELFCHECK.json");
 const FIXTURE_WAV = path.resolve(REPO_ROOT, "tools", "live", "_voice_fixture_selfcheck.wav");
 const CAPTURE_DIR = path.resolve(__dirname, "..", ".voice-captures");
 

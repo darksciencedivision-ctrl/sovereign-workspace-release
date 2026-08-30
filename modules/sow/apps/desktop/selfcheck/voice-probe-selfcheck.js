@@ -33,13 +33,12 @@
  * §2.4): the probe runs `wsl.exe` locally. NO TTS (I-V2/D-VOICE-02) — nothing here speaks.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 const { spawn } = require("child_process");
 const { childEnv } = require("../voice/env-scrub");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17C_VOICE_PROBE_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17C_VOICE_PROBE_SELFCHECK.json");
 
 // The chrome read must be fast enough that a blocking implementation cannot hide inside it. The probe's
 // own budget is 90 s; a `voice:state` that awaited it would take seconds, not milliseconds.

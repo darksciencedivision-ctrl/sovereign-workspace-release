@@ -31,11 +31,10 @@
  * tore its MCP server down); it only inspects the sourced governed record.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE16C_DISPATCH_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE16C_DISPATCH_SELFCHECK.json");
 const FEED_SCHEMA = "conductor_dispatch_feed@1.0";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

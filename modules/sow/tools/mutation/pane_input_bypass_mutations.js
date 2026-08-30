@@ -240,8 +240,11 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // Also re-read for the option-C startup change (the conductor session is deferred to the
 // operator's first message); it touches neither the pane:input handler nor the
 // before-input-event disarm path, and the harness was re-run again after it.
-// Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript-labels edit)
-const PINNED_BASELINE = "BB350F209F1CEDA8E84820535813D8025C976095332A6AAA6482926EB4E2003D";
+// Also re-read for F-6 (the readiness receipt moves to the gitignored .runtime lane); it
+// touches neither the pane:input handler nor the before-input-event disarm path.
+// Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript labels),
+// BB350F20... (option-C deferred startup)
+const PINNED_BASELINE = "5415369797D8CC7E8C11307DEE173A1DAB20A00CDBC025EC5BBDB10C6E179641";
 
 let lockFd;
 try {

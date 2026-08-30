@@ -34,6 +34,7 @@
  * of that argv is `.pty`; the type→answer round trip is `.roundtrip`.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
 const {
@@ -41,9 +42,7 @@ const {
   BANNED_FLAGS, LAUNCH_TICKET_SCHEMA,
 } = require("../conductor/launch-source");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17A_LAUNCH_TICKET_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17A_LAUNCH_TICKET_SELFCHECK.json");
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 
 // SCRATCH ledger (`SOW_TERMINAL_LEASE_LEDGER`), never the operator's real one. A lease is keyed to

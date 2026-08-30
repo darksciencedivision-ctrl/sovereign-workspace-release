@@ -35,14 +35,13 @@
  * ledger stays scratch because it is authority over the operator's own terminals.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
 const { fetchLeaseStatus } = require("../conductor/launch-source");
 const { buildRoundTripProbe, probeIsFalsifiable, answerObserved, promptEchoed } = require("../conductor/roundtrip-probe");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17A_ROUNDTRIP_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17A_ROUNDTRIP_SELFCHECK.json");
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 const SCRATCH_LEDGER = path.join(REPO_ROOT, ".sovereign_store", "leases", `selfcheck-17art-${process.pid}.json`);
 

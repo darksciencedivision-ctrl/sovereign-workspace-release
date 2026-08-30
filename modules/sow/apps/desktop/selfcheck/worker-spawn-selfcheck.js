@@ -40,14 +40,13 @@
  * idle one alike rather than whatever the daemon happens to be serving.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
 const { fetchPickerModel, fetchHostResidency } = require("../picker/source");
 const { fetchLeaseStatus } = require("../conductor/launch-source");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17B_SPAWN_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17B_SPAWN_SELFCHECK.json");
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 const SCRATCH_LEDGER = path.join(REPO_ROOT, ".sovereign_store", "leases", `selfcheck-17bspawn-${process.pid}.json`);
 /** The OPERATOR's real durable-terminal ledger — read only, to prove this check never touched it. */

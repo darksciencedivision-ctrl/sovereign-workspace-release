@@ -2950,7 +2950,14 @@ app.whenReady().then(async () => {
   if (!process.env.SHELL_SELFCHECK) {
     try {
       const fs = require("fs");
-      const receiptDir = path.join(__dirname, "..", "..", "docs", "evidence", "receipts");
+      // LOCAL-01 F-6 (OD-34 / N-29). This receipt is written on EVERY normal launch, so writing
+      // it into the git-tracked `docs/evidence/receipts` meant that simply USING the product
+      // dirtied the release candidate — and it is what made this run's own BOOT find a dirty
+      // tree, as FIXUP-01's did before it. The N-16 remedy: the gitignored `.runtime/` lane,
+      // which is also a rejected runtime lane in package_boundary_gate.py, so this file can
+      // neither be committed nor packaged. `shell/modules/sow.json` readiness.path and
+      // runtime_writes move with it (S-4).
+      const receiptDir = path.join(__dirname, "..", "..", ".runtime", "receipts");
       fs.mkdirSync(receiptDir, { recursive: true });
       fs.writeFileSync(path.join(receiptDir, "SHELL-LIVE-READY.json"),
         JSON.stringify({ ok: true, pid: process.pid, bootedAt: new Date().toISOString() }, null, 2));

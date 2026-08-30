@@ -62,6 +62,7 @@
  * now a kill-line control character and nothing that could become the operator's next prompt.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 const { spawn, spawnSync } = require("child_process");
 
@@ -77,7 +78,7 @@ const {
 } = require("../voice/spoken-probe");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
-const RECEIPT_PATH = path.resolve(REPO_ROOT, "docs", "evidence", "receipts", "PHASE17C_CLOSE_SELFCHECK.json");
+const RECEIPT_PATH = receiptPath("PHASE17C_CLOSE_SELFCHECK.json");
 const FIXTURE_WAV = path.resolve(REPO_ROOT, "tools", "live", "_voice_fixture_close.wav");
 const CAPTURE_DIR = path.resolve(__dirname, "..", ".voice-captures");
 const SCRATCH_LEDGER = path.join(REPO_ROOT, ".sovereign_store", "leases", `selfcheck-17cc-${process.pid}.json`);

@@ -30,11 +30,10 @@
  * emitters only fold a recorded file (no MCP server, no flow — D-LOOP-1 by construction).
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17D_APPROVALS_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17D_APPROVALS_SELFCHECK.json");
 // The scripted stand-in ref whose transcript ("spawn worker", conf 0.9) leads with a PROTECTED verb,
 // so the real bridge proposes it and the real broker queues it instead of delivering it as chat. A
 // stand-in, not real PCM: this check is about the DRAWER, and the real-microphone path has its own

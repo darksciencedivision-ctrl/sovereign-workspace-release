@@ -31,11 +31,10 @@
  * tore its terminal down); it only inspects the sourced governed record.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE16C_SPAWN_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE16C_SPAWN_SELFCHECK.json");
 const FEED_SCHEMA = "conductor_spawn_feed@1.0";
 const BANNED_FLAGS = ["-p", "--output-format", "json"];
 

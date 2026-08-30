@@ -6,7 +6,7 @@
   "root": "D:\\producttion software 2\\release-worktree\\modules\\sow",
   "runtime_writes": [
     "${root}/apps/desktop/.recovery",
-    "${root}/docs/evidence/receipts"
+    "${root}/.runtime/receipts"
   ],
   "launch": {
     "cwd": "${root}/apps/desktop",
@@ -31,7 +31,7 @@
   },
   "readiness": {
     "kind": "receipt_file",
-    "path": "${root}/docs/evidence/receipts/SHELL-LIVE-READY.json",
+    "path": "${root}/.runtime/receipts/SHELL-LIVE-READY.json",
     "timeout_s": 90,
     "poll_ms": 1000
   },

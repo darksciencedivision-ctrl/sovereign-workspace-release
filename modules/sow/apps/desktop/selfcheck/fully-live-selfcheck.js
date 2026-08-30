@@ -37,6 +37,7 @@
  * anything.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -55,7 +56,7 @@ const {
 } = require("./fully-live-verdict");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
-const RECEIPT_PATH = path.resolve(REPO_ROOT, "docs", "evidence", "receipts", "PHASE17E_FULLY_LIVE_SELFCHECK.json");
+const RECEIPT_PATH = receiptPath("PHASE17E_FULLY_LIVE_SELFCHECK.json");
 const FIXTURE_WAV = path.resolve(REPO_ROOT, "tools", "live", "_voice_fixture_fully_live.wav");
 const CAPTURE_DIR = path.resolve(__dirname, "..", ".voice-captures");
 const SCRATCH_LEDGER = path.join(REPO_ROOT, ".sovereign_store", "leases", `selfcheck-17e-${process.pid}.json`);

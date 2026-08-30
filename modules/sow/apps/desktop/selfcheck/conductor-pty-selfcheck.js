@@ -35,14 +35,13 @@
  * terminal the operator's own running conductor holds.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
 const { fetchLeaseStatus } = require("../conductor/launch-source");
 const { fetchStatusBarModelFromGovernor } = require("../statusbar/governor-source");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17A_PTY_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17A_PTY_SELFCHECK.json");
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 const SCRATCH_LEDGER = path.join(REPO_ROOT, ".sovereign_store", "leases", `selfcheck-17apty-${process.pid}.json`);
 

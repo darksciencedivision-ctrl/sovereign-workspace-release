@@ -24,11 +24,10 @@
  * live exchange, and touches no credential.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17D_CLOSE_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17D_CLOSE_SELFCHECK.json");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

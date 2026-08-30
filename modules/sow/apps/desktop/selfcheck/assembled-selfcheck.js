@@ -33,11 +33,10 @@
  * D-LOOP-1) and exits with this receipt's pass/fail code.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE16F_ASSEMBLED_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE16F_ASSEMBLED_SELFCHECK.json");
 const DISPATCH_SCHEMA = "conductor_dispatch_feed@1.0";
 const CONDUCTOR_PROBE = "SOVEREIGN_CONDUCTOR_INPUT_16F";
 

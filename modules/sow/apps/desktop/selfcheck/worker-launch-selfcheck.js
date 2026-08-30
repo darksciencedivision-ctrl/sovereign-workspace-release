@@ -31,6 +31,7 @@
  * The ConPTY launch of these argvs is 17B `.spawn`.
  */
 const fs = require("fs");
+const { receiptPath } = require("./receipt-path");
 const path = require("path");
 
 const { fetchPickerModel, fetchHostResidency } = require("../picker/source");
@@ -39,9 +40,7 @@ const {
 } = require("../picker/launch-source");
 const { fetchLeaseStatus } = require("../conductor/launch-source");
 
-const RECEIPT_PATH = path.resolve(
-  __dirname, "..", "..", "..", "docs", "evidence", "receipts", "PHASE17B_TICKET_SELFCHECK.json"
-);
+const RECEIPT_PATH = receiptPath("PHASE17B_TICKET_SELFCHECK.json");
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 
 // The ONLY node_state an AUTHORIZATION may report: no process exists yet and the same ticket says
