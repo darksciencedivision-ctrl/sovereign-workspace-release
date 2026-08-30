@@ -94,6 +94,28 @@ the script, if the boundary gate stops scanning the distribution, if the lane's 
 becomes shallow, or if the script acquires a non-ASCII byte — which PowerShell 5.1 reads as
 ANSI in a BOM-less file, turning one character into a parse failure at a misleading line.
 
+### What the suite reports today
+
+Measured on the whole-product run, not estimated: **3,822 passed, 8 failed**, 4 skipped, with
+461 subtests passing. The Node side is 1,109 tests (SOW desktop) and 26 (SOVEREIGN UI), plus a
+clean TypeScript build. All seven release gates and the boundary gate pass.
+
+The eight failures are known and attributed:
+
+- **Seven belong to the frozen-schema item (P1-2)**, which is parked pending an operator
+  ruling id. They were reproduced at the seal this work started from, in an isolated clone,
+  with identical counts — they are not a regression from this work.
+- **One is an open cross-run interference** in the Debate module's hostile end-to-end suite.
+  It passes 9 of 9 on its own and 185 of 185 with its whole module, and fails only in the
+  whole-product run. Four candidate causes were tested and ruled out: the state root, the
+  repository-root `conftest.py` PYTHONPATH, a port collision with the smoke suite, and a
+  shared state-root configuration. **The cause is not known**, and it is recorded that way
+  rather than attributed to something plausible.
+
+So the lane is red on its first run. That is the correct report of this tree rather than a
+problem with the lane: a suite tuned green by excluding its own failures would be worth
+nothing, and seven of the eight are waiting on a decision that is not the builder's to make.
+
 ## What has not been done
 
 Stated so that absence is not mistaken for success:

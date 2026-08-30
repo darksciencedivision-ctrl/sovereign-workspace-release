@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T22:19:57Z
+# utc: 2026-08-30T22:39:01Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
