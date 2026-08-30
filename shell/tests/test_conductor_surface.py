@@ -50,8 +50,19 @@ class TestConductorSurface(unittest.TestCase):
         self.assertRegex(self.renderer, r'turn\.utc')
 
     def test_main_guards_and_failure_class(self):
+        # LOCAL-01 F-3. This sliced a fixed 2400-character window, and the handler outgrew it when
+        # option C (ENTRY 017 / OD-32) added the deferred spawn: the Conductor's session is now born
+        # on the operator's FIRST MESSAGE, so `handleOperatorText` legitimately got longer.
+        #
+        # The window is replaced by the function's ACTUAL extent, which is stricter in the direction
+        # that matters: a fixed character count can run PAST the end of the handler, so an assertion
+        # below could have been satisfied by code that is not in it. Bounding on the closing brace at
+        # column 0 means every guard asserted here must be inside the handler itself, and the test no
+        # longer breaks whenever the function changes length.
         i = self.main.index('"conductor:operator-text"')
-        block = self.main[i: i + 2400]
+        body_at = self.main.index("async function handleOperatorText", i)
+        end = self.main.index("\n}\n", body_at)
+        block = self.main[i:end]
         self.assertIn("__sweep", block)
         self.assertIn("empty-directive", block)
         self.assertIn("directive-too-long", block)
