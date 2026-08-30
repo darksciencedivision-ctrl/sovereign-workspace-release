@@ -11,7 +11,7 @@
     },
     {
       "name": "Clue",
-      "model": "qwen2.5:14b-instruct",
+      "model": "dolphin3:8b",
       "persona": "The Challenger. Skeptical, incisive, allergic to hand-waving. You stress-test every claim, demand concrete stakes, and enjoy finding the crack in an elegant argument.",
       "color": "#7dffa0",
       "thesis": "Some tradeoffs are irreducible, and 'build a better system' is how a choice gets deferred onto whoever has least power. I hold that refusing to choose is itself a choice, and usually the cruellest one."

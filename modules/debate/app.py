@@ -962,17 +962,71 @@ async def ollama_chat(
         return clean("".join(public_parts))
 
 
-async def installed_models() -> list[str]:
+#: The operator's LOCAL MODEL CEILING (OPERATOR-INSTRUCTIONS.log ENTRY 017): "We do not wanna use
+#: anything above eight billion parameters in our local library." Expressed as the 8B NAMEPLATE
+#: class, so the model the operator named to prove the system with - qwen3:8b, whose true count is
+#: 8.2B - is admitted while the 9B class and upward is not.
+#:
+#: COUPLED VALUE (S-4). The same rule is implemented for the SOW shell in
+#: `modules/sow/adapters/local/model_ceiling.py`. It is duplicated rather than imported because
+#: Debate and SOW are separate products with separate install provenance and separate virtualenvs -
+#: a cross-module import would tie Debate's startup to SOW's package tree. If the operator moves the
+#: ceiling, BOTH sites move together, and this comment is the pointer to the other one.
+CEILING_NAMEPLATE_B = 8
+_CEILING_TRUE_PARAMS = 9.0e9
+
+_PARAM_SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12, "": 1.0}
+
+
+def parse_parameter_count(raw) -> float | None:
+    """`"8.2B"` -> 8.2e9. None when unreadable - never 0, which would sail under the ceiling."""
+    if not isinstance(raw, str):
+        return None
+    match = re.match(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMBT])?\s*$", raw.strip(), re.I)
+    if not match:
+        return None
+    value = float(match.group(1)) * _PARAM_SUFFIX[(match.group(2) or "").upper()]
+    return value if value > 0 else None
+
+
+def ceiling_verdict(record: dict) -> dict:
+    """Admit or refuse ONE `/api/tags` row against the operator's ceiling, with the reason.
+
+    A refused seat is REPORTED, never silently dropped: `/ready` renders it so the operator can see
+    which seat cannot run and why, which is the honest-degradation rule (S-19) applied to a debate
+    table. Never raises - this feeds a readiness endpoint.
+    """
+    details = record.get("details") or {}
+    shown = details.get("parameter_size")
+    params = parse_parameter_count(shown)
+    name = record.get("name") or "(unnamed)"
+    if params is None:
+        return {"within_ceiling": False, "parameter_size": shown,
+                "reason": f"{name} reports no readable parameter count, so it cannot be shown to be "
+                          f"within the operator's {CEILING_NAMEPLATE_B}B ceiling (fail closed)"}
+    if params >= _CEILING_TRUE_PARAMS:
+        return {"within_ceiling": False, "parameter_size": shown,
+                "reason": f"{name} has {shown} parameters, above the operator's "
+                          f"{CEILING_NAMEPLATE_B}B ceiling (ENTRY 017) - this host's GPU carries "
+                          f"8 GB of VRAM and a larger model straddles it. Installed and kept, but "
+                          f"not usable as a debate seat in this build"}
+    return {"within_ceiling": True, "parameter_size": shown, "reason": None}
+
+
+async def installed_model_records() -> dict[str, dict]:
+    """`{model name: /api/tags row}` - the rows carry the parameter counts the ceiling needs."""
     async with _acquire_client(MODELS_HTTP_TIMEOUT) as client:
         response = await client.get(f"{OLLAMA}/api/tags")
         response.raise_for_status()
-    return sorted(
-        {
-            item["name"]
-            for item in response.json().get("models", [])
-            if item.get("name")
-        }
-    )
+    return {
+        item["name"]: item
+        for item in response.json().get("models", [])
+        if item.get("name")
+    }
+
+
+async def installed_models() -> list[str]:
+    return sorted(await installed_model_records())
 
 
 def public_seats() -> list[dict]:
@@ -2030,27 +2084,41 @@ async def health():
 async def ready():
     """Dependency readiness (P1). Never exposes prompts or interjections."""
     try:
-        models = await installed_models()
+        records = await installed_model_records()
+        models = sorted(records)
         reachable = True
         error_type = None
     except Exception as exc:
         reachable = False
         error_type = type(exc).__name__
+        records = {}
         models = []
 
     seat_rows = []
     for seat in SEATS:
         caps = mcap.registry._cache.get(seat["model"])
+        installed = (seat["model"] in models) if reachable else False
+        # The operator's 8B ceiling, per seat, REPORTED rather than silently applied (S-19 /
+        # ENTRY 017). A seat configured above the ceiling is a real state this table can be in, and
+        # the operator has to be able to see which seat it is and why it cannot run - the same rule
+        # the SOW picker follows when it greys a model instead of hiding it.
+        verdict = (ceiling_verdict(records[seat["model"]])
+                   if installed else {"within_ceiling": None, "parameter_size": None,
+                                      "reason": None})
         seat_rows.append(
             {
                 "name": seat["name"],
                 "model": seat["model"],
-                "installed": (seat["model"] in models) if reachable else False,
+                "installed": installed,
                 "context_window": caps.context_window if caps else None,
                 "qualification": caps.qualification if caps else None,
+                "parameter_size": verdict["parameter_size"],
+                "within_ceiling": verdict["within_ceiling"],
+                "ceiling_reason": verdict["reason"],
             }
         )
     missing = [row["model"] for row in seat_rows if not row["installed"]]
+    over_ceiling = [row["model"] for row in seat_rows if row["within_ceiling"] is False]
     extractor_row = None
     if CONFIG.get("insight_panel") and CONFIG.get("extractor_model"):
         extractor_model = CONFIG["extractor_model"]
@@ -2061,7 +2129,10 @@ async def ready():
 
     if not reachable:
         status = "unavailable"
-    elif missing:
+    elif missing or over_ceiling:
+        # An over-ceiling seat degrades the table exactly as a missing one does: in both cases a
+        # configured seat cannot take its turn, and reporting "ready" would be the silent-absence
+        # defect wearing a green badge.
         status = "degraded"
     else:
         status = "ready"
@@ -2075,6 +2146,11 @@ async def ready():
         },
         "seats": seat_rows,
         "missing_models": sorted(set(missing)),
+        "over_ceiling_models": sorted(set(over_ceiling)),
+        "local_model_ceiling": {
+            "nameplate_b": CEILING_NAMEPLATE_B,
+            "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",
+        },
         "orchestrator": {
             "state": state.status,
             "paused": bool(state.paused),
