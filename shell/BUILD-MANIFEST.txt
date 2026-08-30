@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T21:39:22Z
+# utc: 2026-08-30T22:19:57Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 98
+# entries: 99
 dacd46cc21ec9e0bb2d50f0f45582629126026241b37899f3e4c73d88874facf  config/install.json
 8532f40e1dd974fe7be91cb72154eceaf7694897d59784552dfd07ccc524f05b  modules/debate.json
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json.pre-rebase
@@ -52,6 +52,7 @@ b6bed87ad338bdaec1906244ec3c1464718fb3951a9acc54ff0224158699ef5c  tests/fixtures
 667f033afe871010e62d02f2845360e2a549045cb37f4d57c903b9dd4fc22180  tests/test_archive_content_hash.py
 05e74f39cdbf8142d9ec56793ac171d6d4b97ded6a7a3c4caa979f5466f694d8  tests/test_archive_ships_only_operator_docs.py
 bb11f120e22c454a47078b727c91ea8901002d679e97962f57f5c8e768d5378e  tests/test_browser_handle_map.py
+9d9d981c85a33f97040e10a4917d289568ff3a9a766e9ad4624b54a7bb3f5574  tests/test_ci_lane_runs_what_it_claims.py
 361be7858da033409b6406b6eb8b667ef32789cd1f986bdbcb0ffb661f8ddf37  tests/test_cold_start.py
 9217b8122c6e7eaefee69f701b1f337d0b926e076acd385223a810b273135c32  tests/test_conductor_surface.py
 415901edc17656c639501f219938f01975877ad34b29c453bdbe84d1e8f95d71  tests/test_developer_identifiers_are_bounded.py

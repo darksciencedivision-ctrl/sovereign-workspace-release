@@ -55,9 +55,44 @@ substantially better covered — the SOW module ships 333 Python source files wi
 All counts in this section are taken from the distributed archive itself, not
 from the working repository, so they describe what a recipient receives.
 
-A whole-repository `pytest` invocation is not currently possible: a `conftest.py`
-in the SOW module raises an internal error during collection. Per-module runs
-work.
+A whole-repository `pytest` invocation works and is the invocation that matters.
+It previously raised an internal error during collection from a `conftest.py` in
+the SOW module; with that fixed, collection from the repository root went from
+392 tests and 119 errors to 3,721 tests and none.
+
+Run both. They are not equivalent, and the difference is not incidental: twenty
+defects existed **only** in the combined run, because that is the only invocation
+where the modules share a process and a `PYTHONPATH`. A per-module suite that
+passes is evidence about that module, not about the product.
+
+
+## The verification suite
+
+Everything that verifies this release lives in one script, `tools/ci/run_ci.ps1`, and the
+CI lane invokes that script rather than repeating its steps. That arrangement is the point:
+a workflow carrying its own list of checks drifts from what anyone runs locally, and the
+drift is discovered when the lane goes green on a tree that is broken.
+
+```powershell
+.\tools\ci\run_ci.ps1                    # everything that does not mutate the machine
+.\tools\ci\run_ci.ps1 -IncludeCleanRoom  # adds the V-1 clean-room install and verify
+```
+
+The stages, in the order they run: the seven release gates, the boundary gate against the
+distribution, the whole-product `pytest` from the repository root, the two Node suites and
+the UI typecheck, and the clean-room install.
+
+Two properties are deliberate. **No stage stops the run** — a failure is recorded and the
+remaining stages still execute, because the first failure is rarely the only one worth
+seeing. And **a skipped stage is reported**, under a `SKIPPED-WITH-RECORD` heading naming
+what did not run and why; a suite that quietly does less than it claims is worse than one
+that does less loudly.
+
+`shell/tests/test_ci_lane_runs_what_it_claims.py` holds the wiring in place: it fails if
+the workflow starts calling gates directly instead of through the script, if a gate leaves
+the script, if the boundary gate stops scanning the distribution, if the lane's checkout
+becomes shallow, or if the script acquires a non-ASCII byte — which PowerShell 5.1 reads as
+ANSI in a BOM-less file, turning one character into a parse failure at a misleading line.
 
 ## What has not been done
 
@@ -65,8 +100,10 @@ Stated so that absence is not mistaken for success:
 
 - No clean-room installation has been performed from this archive.
 - The release producer has never been run.
-- No continuous-integration lane exists. The release tooling is Windows-only by
-  construction, so any future lane requires Windows runners.
+- No lane has ever RUN. The lane now exists — `.github/workflows/windows.yml`,
+  invoking `tools/ci/run_ci.ps1` — and the script has been executed locally, which
+  is what makes it a lane rather than a declaration. It has not yet run on a
+  hosted Windows runner, so nothing here claims it has.
 - No independent or third-party audit has been performed.
 
 ## Why the ledger itself does not ship

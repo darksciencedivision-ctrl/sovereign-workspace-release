@@ -1,0 +1,90 @@
+# EPC-01 P1-6 - the Windows verification lane.
+#
+# This file deliberately contains almost no logic. Everything it checks lives in
+# tools/ci/run_ci.ps1, so the lane and a developer run THE SAME script. A workflow that
+# inlines its own list of steps drifts from what anyone runs locally, and the drift is
+# discovered when the lane goes green on a tree that is broken.
+#
+# The product is Windows-only (docs/LIMITATIONS.md), and several of its guarantees are
+# Windows-specific - Job Object containment, ConPTY, canonical path resolution through
+# GetFinalPathNameByHandleW. A Linux runner could not exercise any of them, so there is no
+# cross-platform matrix here and its absence is a decision rather than an omission.
+
+name: windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      clean_room:
+        description: "Run the clean-room install (V-1)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The boundary gate and the developer-identifier guard read `git archive HEAD`,
+          # and package_boundary_gate --from-commit needs real history rather than a graft.
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Python dependencies from the locks
+        # From the lock files, never from a resolver. The SBOM is generated from these same
+        # files, so a lane that resolved freshly would be testing a different dependency set
+        # than the one the release describes.
+        run: |
+          py -3.12 -m pip install --upgrade pip
+          py -3.12 -m pip install -r modules/sow/requirements.txt
+          py -3.12 -m pip install -r modules/sow/requirements-dev.txt
+
+      - name: Provision the Node trees
+        # ADR-005: lifecycle scripts are blocked by default. `npm ci` honours package-lock
+        # exactly, which is what check_node_advisories is then auditing.
+        run: |
+          npm ci --prefix modules/sow/apps/desktop
+          npm ci --prefix modules/sovereign/ui/ui_shell
+
+      - name: Run the verification suite
+        shell: pwsh
+        run: |
+          $cleanRoom = '${{ github.event_name }}' -ne 'workflow_dispatch' -or `
+                       '${{ inputs.clean_room }}' -eq 'true'
+          if ($cleanRoom) {
+            ./tools/ci/run_ci.ps1 -IncludeCleanRoom
+          } else {
+            ./tools/ci/run_ci.ps1
+          }
+
+      - name: Upload the run record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-run-record
+          path: |
+            shell/BUILD-MANIFEST.txt
+            test-run.txt
+          if-no-files-found: ignore
