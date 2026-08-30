@@ -258,10 +258,23 @@ def test_reasoning_filter_and_empty_response_retry(running_stack):
         assert httpx.post(f"{BASE_URL}/api/pause").status_code == 200
         assert httpx.post(f"{mock_url}/control/stream_mode/reasoning").status_code == 200
         assert httpx.post(f"{BASE_URL}/api/resume").status_code == 200
+        # EPC-01 Batch 3. This waited for the FIRST turn_end after resume and asserted the
+        # reasoning-mode marker on it. That is a race the product wins correctly and the test
+        # lost: a stream-mode switch applies to the NEXT turn, so a turn already in flight when
+        # `/api/pause` landed completes under the OLD mode and emits its substantive-token-NN
+        # content. The assertion then read that turn's text and failed, in a way that looked
+        # like the reasoning filter was broken when it was not.
+        #
+        # Waiting for the turn that actually carries the marker keeps every assertion below
+        # exactly as strict — if the filter ever leaks, or the marker never arrives at all,
+        # this still fails, now by timeout rather than by reading the wrong turn.
         _end, reasoning_events = receive_until(
             ws,
-            lambda event, _seen: event["type"] == "turn_end",
-            timeout=15,
+            lambda event, seen: event["type"] == "turn_end" and any(
+                "Public answer after hidden reasoning." in item.get("text", "")
+                for item in seen
+            ),
+            timeout=30,
         )
         visible = "".join(
             event.get("text", "")

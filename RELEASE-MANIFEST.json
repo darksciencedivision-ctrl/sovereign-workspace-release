@@ -154,7 +154,7 @@
   "identity_documents": [
     {
       "path": "LICENSE",
-      "sha256": "d9e01b4a6cd78d0d72d820e3f14b0401216473e8341f56618af2f09104ef9718"
+      "sha256": "85a9d10dc39e5a47b8657a83b5ab8a2c0a5ff627a4d445e8fc9fb740797c1a28"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -198,7 +198,7 @@
     },
     {
       "path": "LICENSE",
-      "sha256": "d9e01b4a6cd78d0d72d820e3f14b0401216473e8341f56618af2f09104ef9718"
+      "sha256": "85a9d10dc39e5a47b8657a83b5ab8a2c0a5ff627a4d445e8fc9fb740797c1a28"
     },
     {
       "path": "RELEASE-MANIFEST.json.pre-CONVERGE01",
@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "9b0760e262f5fcb05cbf725c4b181083157bda8951710f772d0415f570ba448a"
+      "sha256": "1129e82691954086f4c2c58b0b5e3c654cf7c6bb784a2c076cb592ecbb2e2a01"
     },
     {
       "path": "shell/config/install.json",
@@ -338,7 +338,7 @@
     },
     {
       "path": "tools/release/install.ps1",
-      "sha256": "70db8b7782d32b7284ee9047fa4bc830528a3f3d7fc0466acd72426ad2f42fe1"
+      "sha256": "e8e96dc99a1b9bf7b82a1038e11834d3d9fcbed3b2353ae26a0841602745c784"
     },
     {
       "path": "tools/release/install_shortcut.ps1",
@@ -350,11 +350,11 @@
     },
     {
       "path": "tools/release/rebase_adapters.py",
-      "sha256": "17bf435e42a7665d8bb822eaa47eb215f4a33137416efd5245415eb9c9da7518"
+      "sha256": "1cd893b9e87fd71855eac900004ced34c46c9598fac5059358e4073fb883626f"
     },
     {
       "path": "tools/release/release_manifest_check.py",
-      "sha256": "a421e539d75c649b8f83e38a4d8ca06a27246ac90e58868e6530af5d27e21648"
+      "sha256": "c11e942a4e03ccf583329b0d3b261e2ad0b4b116ecc1dfbf01a7647e2102e6ec"
     },
     {
       "path": "tools/release/test_generate_release_identity.py",
@@ -370,7 +370,7 @@
     },
     {
       "path": "tools/release/test_rebase_adapters.py",
-      "sha256": "cb3baa4ff5d0d1e32f0052ae947ac5c66f502b242d0fa0995706fdb905277da3"
+      "sha256": "511fd15640e2823275e15d69d318cbbf2952e83f78e88b4c461575550cf6a995"
     },
     {
       "path": "tools/release/test_release_manifest_check.py",
@@ -384,5 +384,29 @@
       "path": "tools/release/verify_install.ps1",
       "sha256": "957023c59fced9ae332f8afc5c91979447c52e64ec3e2882cf8de23587e20a2d"
     }
-  ]
+  ],
+  "out_of_archive_references": {
+    "_note": "EPC-01 P2-4. Paths this manifest names that DO NOT resolve inside the distributed archive. Before this block, four such paths were indistinguishable from typos: a consumer following them found nothing and had no way to tell an intentional out-of-archive reference from a broken one. release_manifest_check now fails on any unresolved path that is not declared here with a reason.",
+    "references": [
+      {
+        "path": "release-artifacts/release-build-manifest.json",
+        "named_at": "$.release_archive_hash_authority",
+        "reason": "Build output, gitignored by construction. It carries the hashes of the release artifacts INCLUDING the archive itself, so it cannot live inside the archive without being self-referential (CLOSEOUT-01 A-1). It ships beside the artifacts, not within them.",
+        "obtainable_from": "the release-artifacts directory produced by build_release.ps1"
+      },
+      {
+        "path": "modules/distillery/dist/",
+        "named_at": "$.modules.distillery.artifacts[*].path",
+        "reason": "Built Python wheels, gitignored. The archive ships distillery SOURCE; the wheels are produced from it and are enumerated here for hash provenance of the built artifacts, not as archive members.",
+        "obtainable_from": "built from modules/distillery via its pyproject.toml"
+      },
+      {
+        "path": "bundles/PHASE0/WORKTREE-RECIPE.md",
+        "named_at": "$.candidate.construction_recipe",
+        "reason": "DOES NOT EXIST, and never did — measured: no commit in this repository has ever added it, and bundles/ is not present in the worktree. The field was a forward reference to a document that was never written. It is declared here rather than silently deleted so the gap stays visible: the construction record that DOES exist is the operator's custody folder outside this repository, and a recipe that reproduces the worktree from a commit has still not been written.",
+        "obtainable_from": "NOTHING — this is an open gap, not an external artifact",
+        "open_gap": true
+      }
+    ]
+  }
 }

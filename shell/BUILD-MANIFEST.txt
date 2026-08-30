@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T17:53:13Z
+# utc: 2026-08-30T18:07:22Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 82
+# entries: 84
 960ccf0f1d86764a2b8012892b18ac0178e2c189854a70f0c5aaa258fb4f39dd  config/install.json
 90da913b313a573e1aa5dd7ab46ac57c8f1269049a326ee6c94d2d1c4814dd12  modules/debate.json
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json.pre-rebase
@@ -77,6 +77,7 @@ caf397f78c36e0c7fec0597fce59f7e344e9752ee93ab2241a96956e43112697  tests/test_ren
 e1fb590327e0fceb9228b7c23ff0406a6d91c9d203baea91907779f3c443d2f8  tests/test_router_no_unrequested_transition.py
 a829ebe603c03a7ad5897384710a9b0f346b441e1778f5dc4abcef416aadea2a  tests/test_selection_flow.py
 b826bc5acde98f8e20f8f8deb15cf17f09995a23f26321e213e275e38132bd77  tests/test_shell.py
+c4ee9a0140863ff527aa9fb16789834c5f39c131f038ebfb573ca398560ab367  tests/test_shipped_versions_are_real.py
 478a2a3eef118fe348cc575bcecd631cba5b5a770a400b1d720086b817a5a505  tests/test_start_invokes_no_pipeline.py
 8969c5f72679b490d2a1fbe8c5475c0c49060d8e9314ecad785e96a2c57e2519  tests/test_start_worker_failure.py
 8ec6436ecf85ba0fee8d23852f1fa1d75b609e1092919e16a0ce2995e87bcb01  tests/test_startup_evidence.py
@@ -84,5 +85,6 @@ b826bc5acde98f8e20f8f8deb15cf17f09995a23f26321e213e275e38132bd77  tests/test_she
 0b7055a5e637431c53fda6d6ffe69422812b6ef14f7dddaa095ffeec2ffeea62  tests/test_supervisor.py
 0ae202e78566a3d5bf8c42cf8e5c64ec171be3d5e5201eeb8cff09ade6669dd2  tests/test_tokencenter_embed.py
 be5a2770621789436105092416323bc44cb8f1222e8525d182a6a27360d0ba84  tests/test_tokencenter_loopback_and_csrf.py
+bce115f412ff281b0fa3bcd23dd66c7401f4b91792ad31f85ba1e753b0eabe69  tests/test_whole_product_collection.py
 26619ca2f60bb614c32a06b31c8089b4a6e5874c30d84906f6ed3b58c7b72757  tests/test_zz_evidence.py
 422630f419fd5ce0d90e8be4bd2a22023734a21ae86764577fd08eef5605e86a  tools/install_sow.py

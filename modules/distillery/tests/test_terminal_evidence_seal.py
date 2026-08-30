@@ -182,6 +182,26 @@ class ManifestCertificationTests(unittest.TestCase):
 
         measured = self.manifest["test_matrix"]["measured_at_commit"]
         self.assertTrue(HEX40.match(measured))
+
+        # EPC-01 P2-10. This test is structurally unsatisfiable in the CONSOLIDATED
+        # repository. `measured_at_commit` names a commit in Distillery's OWN upstream
+        # history; this module was vendored into the workspace, so that history is not here
+        # and `git merge-base` exits 128 with "not a valid object name" — a failure about
+        # where the module lives, not about the code the test covers.
+        #
+        # The skip is CONDITIONAL on the object actually being absent, deliberately: if the
+        # history is ever grafted in, or the module returns to its own repository, this test
+        # revives by itself and goes on certifying the range. An unconditional skip would
+        # retire a real check permanently in exchange for a green suite today.
+        known = self._locus_git("cat-file", "-e", f"{measured}^{{commit}}")
+        if known.returncode != 0:
+            raise unittest.SkipTest(
+                f"regression locus {measured} is not an object in this repository. "
+                f"Distillery is vendored into the Sovereign Workspace and its upstream "
+                f"history was not carried across, so the certified range cannot be walked "
+                f"from here. This test revives automatically if the history is restored."
+            )
+
         ancestor = self._locus_git("merge-base", "--is-ancestor", measured, "HEAD")
         self.assertEqual(ancestor.returncode, 0, f"{measured} is not an ancestor-or-self of HEAD")
         delta = self._locus_git("diff", "--name-only", f"{measured}..HEAD").stdout.splitlines()

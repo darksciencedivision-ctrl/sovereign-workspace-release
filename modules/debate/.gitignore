@@ -1,0 +1,12 @@
+
+# EPC-01 P3-1 — scratch directories the suite builds under tests/ (the app resolves paths
+# relative to its config file, so these deliberately live beside the tests rather than in
+# tmp_path). tests/conftest.py sweeps them at session end; this is the backstop for a run
+# that is hard-killed before the sweeper runs.
+tests/.r*
+tests/.smoke-*
+tests/.soak-*
+tests/.qualification-*
+tests/.hostile-*
+tests/.v1-unit-*
+tests/.v1-1-unit-*

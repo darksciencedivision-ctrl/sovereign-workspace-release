@@ -75,11 +75,32 @@ def test_health_schema_and_liveness(client):
     assert body["version"]
 
 
-def test_ready_when_all_models_present(hr_app, monkeypatch, client):
-    async def models():
-        return ["mock-a:latest", "mock-b:latest"]
+# EPC-01 P1-3. These three tests patched `installed_models`, and `/ready` has not called that
+# function since it was refactored to use `installed_model_records()` (app.py:2087) — the rows
+# carry the parameter counts the 8B ceiling needs, which a list of names cannot supply. The
+# patch therefore stopped intercepting silently: every one of these tests reached the REAL
+# ollama on the host and failed with ConnectError/"unavailable" instead of the asserted values,
+# in a way that reads like an environment problem rather than lost coverage.
+#
+# The endpoint was never broken — live, it answers 200 "ready" with both seats installed. What
+# was broken is that ready / degraded / unavailable had no test holding them apart. They patch
+# the seam the handler actually calls now, and `_records()` builds rows in the shape
+# `/api/tags` returns so the ceiling logic runs for real rather than being bypassed.
 
-    monkeypatch.setattr(hr_app, "installed_models", models)
+
+def _records(*names, parameter_size="8B"):
+    """`/api/tags`-shaped rows, the shape `installed_model_records()` returns."""
+    return {
+        name: {"name": name, "details": {"parameter_size": parameter_size}}
+        for name in names
+    }
+
+
+def test_ready_when_all_models_present(hr_app, monkeypatch, client):
+    async def records():
+        return _records("mock-a:latest", "mock-b:latest")
+
+    monkeypatch.setattr(hr_app, "installed_model_records", records)
     response = client.get("/ready")
     assert response.status_code == 200
     body = response.json()
@@ -95,7 +116,7 @@ def test_ready_unreachable_returns_503(hr_app, monkeypatch, client):
     async def broken():
         raise RuntimeError("connection refused")
 
-    monkeypatch.setattr(hr_app, "installed_models", broken)
+    monkeypatch.setattr(hr_app, "installed_model_records", broken)
     response = client.get("/ready")
     assert response.status_code == 503
     body = response.json()
@@ -106,15 +127,37 @@ def test_ready_unreachable_returns_503(hr_app, monkeypatch, client):
 
 def test_ready_missing_model_degraded_503(hr_app, monkeypatch, client):
     async def partial():
-        return ["mock-a:latest"]
+        return _records("mock-a:latest")
 
-    monkeypatch.setattr(hr_app, "installed_models", partial)
+    monkeypatch.setattr(hr_app, "installed_model_records", partial)
     response = client.get("/ready")
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "degraded"
     assert body["missing_models"] == ["mock-b:latest"]
     assert body["seats"][1]["installed"] is False
+
+
+def test_ready_over_ceiling_seat_degrades_just_like_a_missing_one(hr_app, monkeypatch, client):
+    """The third way this endpoint can be not-ready, and it had no test at all.
+
+    A seat that IS installed but sits above the operator's 8B ceiling cannot take its turn, so
+    reporting "ready" would be the silent-absence defect wearing a green badge (app.py:2130).
+    This distinguishes degraded-by-ceiling from degraded-by-absence: `missing_models` stays
+    empty while the status still drops."""
+    async def oversized():
+        return _records("mock-a:latest", "mock-b:latest", parameter_size="70B")
+
+    monkeypatch.setattr(hr_app, "installed_model_records", oversized)
+    response = client.get("/ready")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["missing_models"] == [], "the seats are installed; only the ceiling refuses them"
+    assert all(row["installed"] for row in body["seats"])
+    assert all(row["within_ceiling"] is False for row in body["seats"])
+    assert all(row["ceiling_reason"] for row in body["seats"]), \
+        "an over-ceiling seat must say WHY it cannot run, not merely that it cannot"
 
 
 def test_ready_leaks_no_prompt_or_interjection_content(hr_app, monkeypatch, client):

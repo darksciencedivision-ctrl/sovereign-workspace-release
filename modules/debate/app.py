@@ -809,7 +809,18 @@ async def ollama_chat(
     metrics: dict | None = None,
     transport: httpx.BaseTransport | None = None,
 ) -> str:
-    started_at = time.monotonic()
+    # EPC-01 P1-3 follow-on — MEASURING clock.
+    #
+    # These durations were read from `time.monotonic()`, whose resolution on Windows is 15.625 ms
+    # (measured: two back-to-back reads differ by exactly 0.0). Any model response faster than one
+    # clock tick therefore produced `duration_seconds == 0.0`, and the guard
+    # `if isinstance(eval_count, ...) and duration:` treated that as falsy — so `tokens_per_second`
+    # was silently never emitted. The metric did not go wrong; it vanished, which is worse, because
+    # cost accounting downstream saw an absent key rather than a bad number.
+    #
+    # `perf_counter()` is monotonic too and resolves to 1e-07 s here. Deadline and uptime sites are
+    # deliberately left on `monotonic()` — 15.6 ms means nothing to a timeout or an uptime counter.
+    started_at = time.perf_counter()
     if metrics is not None:
         metrics.update(
             {
@@ -912,7 +923,7 @@ async def ollama_chat(
                 thinking = message.get("thinking", "")
                 if metrics is not None:
                     if metrics["first_raw_seconds"] is None and (raw or thinking):
-                        metrics["first_raw_seconds"] = time.monotonic() - started_at
+                        metrics["first_raw_seconds"] = time.perf_counter() - started_at
                     if thinking or re.search(
                         r"<(?:think|analysis|reasoning)>", raw, re.I
                     ):
@@ -924,7 +935,7 @@ async def ollama_chat(
                         metrics is not None
                         and metrics["first_public_seconds"] is None
                     ):
-                        metrics["first_public_seconds"] = time.monotonic() - started_at
+                        metrics["first_public_seconds"] = time.perf_counter() - started_at
                     public_parts.append(public)
                     await on_public(public)
                 if data.get("done"):
@@ -942,13 +953,13 @@ async def ollama_chat(
                             and metrics["first_public_seconds"] is None
                         ):
                             metrics["first_public_seconds"] = (
-                                time.monotonic() - started_at
+                                time.perf_counter() - started_at
                             )
                         public_parts.append(tail)
                         await on_public(tail)
                     break
         if metrics is not None:
-            metrics["duration_seconds"] = time.monotonic() - started_at
+            metrics["duration_seconds"] = time.perf_counter() - started_at
             metrics["done_seen"] = done_seen
             eval_count = metrics.get("eval_count")
             duration = metrics.get("duration_seconds")
@@ -1642,13 +1653,13 @@ async def run_turn(seat: dict, turn_number: int):
         buffer = SentenceBuffer(guard)
         emitted_sentences: list[str] = []
         spoke = False
-        attempt_started = time.monotonic()
+        attempt_started = time.perf_counter()
 
         async def emit_sentence(sentence: str):
             emitted_sentences.append(sentence)
             if one_attempt["first_sentence_seconds"] is None:
                 one_attempt["first_sentence_seconds"] = (
-                    time.monotonic() - attempt_started
+                    time.perf_counter() - attempt_started
                 )
             await hub.send({"type": "token", "seat": seat["name"], "text": sentence})
 

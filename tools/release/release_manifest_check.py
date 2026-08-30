@@ -88,9 +88,67 @@ def _hash_bearing_objects(node, jsonpath: str = "$"):
             yield from _hash_bearing_objects(value, f"{jsonpath}[{index}]")
 
 
+#: EPC-01 P2-4. Keys whose VALUE is a repository-relative path. Before this check, four such
+#: paths did not resolve and nothing noticed — including the manifest's own declared
+#: `release_archive_hash_authority`. A consumer following one found nothing and had no way to
+#: tell an intentional out-of-archive reference from a broken one.
+_PATHISH_KEYS = ("release_archive_hash_authority", "construction_recipe")
+
+
+def _declared_out_of_archive(manifest: dict) -> dict:
+    """path prefix -> reason, from the manifest's own out_of_archive_references block."""
+    block = manifest.get("out_of_archive_references") or {}
+    out = {}
+    for entry in block.get("references") or []:
+        path = entry.get("path")
+        reason = entry.get("reason")
+        if isinstance(path, str) and isinstance(reason, str) and reason.strip():
+            out[path.replace("\\", "/").rstrip("/")] = reason
+    return out
+
+
+def _check_path_references(root: str, manifest: dict, problems: list) -> None:
+    declared = _declared_out_of_archive(manifest)
+
+    def resolved_or_declared(value: str, where: str) -> None:
+        normalized = value.replace("\\", "/")
+        if os.path.exists(os.path.join(root, normalized)):
+            return
+        for prefix, _reason in declared.items():
+            if normalized == prefix or normalized.startswith(prefix + "/"):
+                return
+        problems.append(
+            f"path_references: {where} names {value!r}, which does not resolve in the archive "
+            f"and is not declared in out_of_archive_references with a reason"
+        )
+
+    def walk(node, where: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in _PATHISH_KEYS and isinstance(value, str) and value:
+                    resolved_or_declared(value, f"{where}.{key}")
+                walk(value, f"{where}.{key}")
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, f"{where}[{index}]")
+
+    walk(manifest, "$")
+
+    # A declaration that no longer names anything is rot: it would let a genuinely broken path
+    # be introduced later under cover of a stale exemption.
+    for prefix in declared:
+        used = json.dumps(manifest).replace("\\\\", "/")
+        if prefix not in used:
+            problems.append(
+                f"out_of_archive_references: {prefix!r} is declared but nothing in the "
+                f"manifest names it — remove the stale exemption"
+            )
+
+
 def check(root: str, manifest: dict) -> list:
     problems = []
     verified: set = set()
+    _check_path_references(root, manifest, problems)
     modules = manifest.get("modules", {})
     if not modules:
         problems.append("manifest enumerates no modules")

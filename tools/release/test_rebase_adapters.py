@@ -88,7 +88,11 @@ class RebaseAdaptersTests(unittest.TestCase):
         self.assertEqual(self._run().returncode, 0)
         result = self._run()
         self.assertEqual(result.returncode, 0)
-        self.assertEqual(result.stdout, "NO-OP\n")
+        # EPC-01 P1-8: run() now also rebases modules/sow/.codex/config.toml, so it reports a
+        # second line. These fixtures build a minimal tree with no .codex, hence the
+        # SKIPPED-WITH-RECORD. The adapter half of the contract is unchanged and still exact.
+        self.assertEqual(result.stdout.splitlines()[0], "NO-OP")
+        self.assertIn("SKIPPED-WITH-RECORD codex", result.stdout)
 
     def test_refusal_makes_no_writes(self) -> None:
         (self.modules_root / "modules/distillery/serve.py").unlink()
@@ -113,7 +117,9 @@ class RebaseAdaptersTests(unittest.TestCase):
         second = self._run()
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertIn("SKIPPED-WITH-RECORD llamacpp", second.stdout)
-        self.assertTrue(second.stdout.endswith("NO-OP\n"))
+        # EPC-01 P1-8: the codex verdict follows the adapter verdict, so NO-OP is no longer last.
+        self.assertIn("NO-OP\n", second.stdout)
+        self.assertIn("SKIPPED-WITH-RECORD codex", second.stdout)
 
     def test_placeholder_interpreter_is_rewritten_unconditionally(self) -> None:
         """CLOSEOUT-01 X-4 (N-18). argv[0] at an interpreter pointer is the

@@ -5,11 +5,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 
 OLD_ROOT = "D:/Product Software/Production Workspace"
+
+#: EPC-01 P1-8. `modules/sow/.codex/config.toml` pins the MCP server's working directory to an
+#: ABSOLUTE path, deliberately: `-m mcp_server.sovereign_tools` resolves only from the tree, and
+#: codex-cli was measured dropping the registration entirely when launched from anywhere else,
+#: so a relative value would resolve against whatever directory codex itself started in.
+#:
+#: That design is right; its VALUE was stale. It still named the upstream tree SOW was vendored
+#: out of — a directory that exists on no machine, including the one that built this. The file
+#: SHIPS, so every recipient received the same dead path. Rebasing it here puts it under the
+#: same install-time discipline as the shell adapters, instead of resting on nobody moving the
+#: repository.
+CODEX_REGISTRATION = "modules/sow/.codex/config.toml"
+_CODEX_CWD = re.compile(r'^(cwd\s*=\s*")([^"]*)(")\s*$', re.MULTILINE)
 INVENTORY = {
     "debate.json": ("/root",),
     "distillery.json": ("/root", "/launch/argv/0", "/launch/argv/1"),
@@ -82,6 +96,36 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--dry-run", action="store_true")
     return parser
+
+
+def rebase_codex_registration(root: Path, dry_run: bool = False) -> int:
+    """Point the sovereign MCP registration at THIS installation's SOW module."""
+    config = root / CODEX_REGISTRATION
+    if not config.is_file():
+        print(f"SKIPPED-WITH-RECORD codex: {CODEX_REGISTRATION} is not present")
+        return 0
+    text = config.read_text(encoding="utf-8")
+    match = _CODEX_CWD.search(text)
+    if not match:
+        print(f"ERROR: {CODEX_REGISTRATION} declares no cwd pin", file=sys.stderr)
+        return 2
+    target = (root / "modules" / "sow").resolve().as_posix()
+    old = match.group(2)
+    if old == target:
+        print("codex/config.toml cwd: NO-OP")
+        return 0
+    print(f"codex/config.toml cwd: {old!r} -> {target!r}")
+    if dry_run:
+        return 0
+    backup = config.parent / (config.name + ".pre-rebase")
+    if not backup.exists():
+        shutil.copyfile(config, backup)
+    config.write_text(
+        _CODEX_CWD.sub(lambda m: m.group(1) + target + m.group(3), text, count=1),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return 0
 
 
 def run(root: Path, dry_run: bool = False) -> int:
@@ -157,12 +201,12 @@ def run(root: Path, dry_run: bool = False) -> int:
     ]
     if not active_changes:
         print("NO-OP")
-        return 0
+        return rebase_codex_registration(root, dry_run)
 
     for name, pointer, old, new in active_changes:
         print(f"{name}{pointer}: {old!r} -> {new!r}")
     if dry_run:
-        return 0
+        return rebase_codex_registration(root, dry_run)
 
     touched = {name for name, _, _, _ in active_changes}
     for name in sorted(touched):
@@ -174,7 +218,7 @@ def run(root: Path, dry_run: bool = False) -> int:
             if changed_name == name:
                 _set(documents[name], pointer, new)
         source.write_text(json.dumps(documents[name], indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
-    return 0
+    return rebase_codex_registration(root, dry_run)
 
 
 def main(argv: list[str] | None = None) -> int:

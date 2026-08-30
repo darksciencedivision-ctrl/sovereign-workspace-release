@@ -55,9 +55,36 @@ def test_the_repo_root_is_resolved_from_the_file_not_the_cwd(monkeypatch, tmp_pa
     assert mod.ROOT == REPO_ROOT
 
 
+#: The evaluation replays unit 19.2's before/after by `git show`-ing the commit BEFORE that
+#: work landed. SOW was vendored into the Sovereign Workspace and its upstream history was not
+#: carried across, so that object does not exist here and the tool exits 128.
+_BASE_COMMIT = "b529314"
+
+
+def _base_commit_is_present() -> bool:
+    proc = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{_BASE_COMMIT}^{{commit}}"],
+        capture_output=True, text=True, check=False)
+    return proc.returncode == 0
+
+
 def test_the_evaluation_still_runs_when_invoked_from_a_foreign_cwd(tmp_path):
     """POSITIVE control - the repair may not silence the instrument. Run the script for real
-    from OUTSIDE the repository: it must reproduce its recorded verdict matrix."""
+    from OUTSIDE the repository: it must reproduce its recorded verdict matrix.
+
+    EPC-01 P2-10. Structurally unsatisfiable in the consolidated repository — see
+    `_BASE_COMMIT`. The skip is CONDITIONAL on the object being genuinely absent, so the
+    control revives by itself if the history is ever grafted in or the module returns to its
+    own repository. An unconditional skip would retire a positive control permanently in
+    exchange for a green suite today, which is exactly the silencing this test guards against.
+    """
+    if not _base_commit_is_present():
+        pytest.skip(
+            f"the evaluation replays from {_BASE_COMMIT}, which is not an object in this "
+            f"repository: SOW is vendored into the Sovereign Workspace and its upstream "
+            f"history was not carried across. The control cannot run from here, and revives "
+            f"automatically if the history is restored."
+        )
     proc = subprocess.run(
         [sys.executable, str(TOOL)],
         capture_output=True, text=True, cwd=str(tmp_path), timeout=180, check=False)
