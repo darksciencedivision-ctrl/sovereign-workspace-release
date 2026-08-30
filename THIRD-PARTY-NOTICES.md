@@ -1,6 +1,6 @@
 # Third-party notices
 
-Generated from retained dependency locks and C2 metadata snapshots at 2026-08-29T19:06:14Z.
+Generated from retained dependency locks and C2 metadata snapshots at 2026-08-30T03:04:06Z.
 This inventory is a candidate record, not legal advice. UNKNOWN entries require canonical notice review before external distribution.
 SOW and Distillery Python closures are absent/partial and are named limitations; they are not silently inferred here.
 

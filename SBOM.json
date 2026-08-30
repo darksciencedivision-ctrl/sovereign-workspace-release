@@ -9806,7 +9806,7 @@
       "properties": [
         {
           "name": "sovereign:source-commit",
-          "value": "be8dcb004b91c3d2ff2986f69a400b9317d36115"
+          "value": "d9c74096d048460cbacfad1c380ccb060021116b"
         },
         {
           "name": "sovereign:c2-python-audit",
@@ -9824,9 +9824,9 @@
       "type": "application",
       "version": "1.0.0-rc.1"
     },
-    "timestamp": "2026-08-29T19:06:14Z"
+    "timestamp": "2026-08-30T03:04:06Z"
   },
-  "serialNumber": "urn:uuid:c33eeafa-3fe8-7a49-3851-50fc9f49235e",
+  "serialNumber": "urn:uuid:3e4ad5c8-1c58-d0c2-e412-705204b41226",
   "specVersion": "1.6",
   "version": 1
 }

@@ -1,14 +1,14 @@
 {
   "module": "distillery",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-08-29T19:06:14Z",
+  "generated_utc": "2026-08-30T03:04:07Z",
   "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "worktree": "D:/producttion software 2/release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "be8dcb004b91c3d2ff2986f69a400b9317d36115"
+    "worktree_commit_at_generation": "d9c74096d048460cbacfad1c380ccb060021116b"
   },
   "source_kind": "candidate_tree_module",
   "source_sha256": "1efcf7c0d1caf96eed79caf4dcd50e0ebfa4d01451e3636ff88b3b5742f6fc4b",
