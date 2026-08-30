@@ -44,3 +44,38 @@ evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
 # that does end in `.pre-add08`.
 *.pre-add08 export-ignore
 *.pre-add08.json export-ignore
+
+# X-4 (OD-35) — THE DEVELOPMENT RECORD DOES NOT SHIP. Operator decision,
+# 2026-08-30, taken on the STATE-OF-SYSTEM/PUNCH-LIST V6 measurements of
+# ENTRY 020. The root evidence/ and dev/ trees are 1931 tracked files at the
+# seal and roughly 76% of the archive's bytes. Cutting them from the
+# distribution:
+#   - removes evidence/cpm1/before-b/modules/sow/config/live_operation.json,
+#     the POPULATED authorization switch of N-40. That file's own _comment
+#     asserts "This file is gitignored (never committed): a fresh clone stays
+#     DENIED-by-absence" — an assertion this repository falsifies, because the
+#     file was committed as a checkpoint snapshot. Removing it from the archive
+#     makes the assertion true again for a recipient.
+#   - removes the developer username and the personal directory tree from the
+#     103 and 255 files respectively that carry them.
+# History stays tracked; only `git archive` output changes. Nothing in the
+# product reads either tree — verified before excluding, over all 1154 tracked
+# code files outside them: every runtime path reference is to
+# `docs/evidence/...` under modules/sow, which is a DIFFERENT tree and is not
+# matched here.
+#
+# ANCHORING IS LOAD-BEARING. A gitattributes pattern containing no slash is
+# matched at every directory depth, so a bare `evidence` would also take
+# docs/evidence/ (1 file) and modules/sow/docs/evidence/ (250 files) — the
+# receipt tree that ~40 product source files cite by path. The leading slash
+# anchors each rule to this file's directory, the repository root. As with X-2,
+# both forms are required: the `/**` form excludes the CONTENTS, the bare
+# directory form excludes the directory ENTRY itself.
+#
+# X-2's two evidence/cpm1/before-b/... rules above are now redundant — this
+# rule subsumes them. They are left in place rather than deleted so that the
+# X-2 record stays legible on its own terms.
+/evidence export-ignore
+/evidence/** export-ignore
+/dev export-ignore
+/dev/** export-ignore
