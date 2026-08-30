@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "0f6a7f4640de4a36fa5b5a245ab737d41733018103eb712b18a2e1c9929b99da"
+      "sha256": "266e677b33ef912b5ac1bda202c2406d4124504c837e226b2b549b31bf1aeb4a"
     },
     {
       "path": "shell/config/install.json",
@@ -338,7 +338,7 @@
     },
     {
       "path": "tools/release/install.ps1",
-      "sha256": "e8e96dc99a1b9bf7b82a1038e11834d3d9fcbed3b2353ae26a0841602745c784"
+      "sha256": "02e9dafef4c61251431f39d8eb9bd82c74fd90c05fc7db971f2c6fb871bae9ce"
     },
     {
       "path": "tools/release/install_shortcut.ps1",

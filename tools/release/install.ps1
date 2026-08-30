@@ -141,8 +141,7 @@ try {
 finally { Pop-Location }
 
 foreach ($nodeRoot in @(
-    (Join-Path $destRoot 'modules\sovereign\ui\ui_shell'),
-    (Join-Path $destRoot 'modules\sow\apps\desktop')
+    (Join-Path $destRoot 'modules\sovereign\ui\ui_shell')
 )) {
     Write-Output "install: npm ci $nodeRoot"
     Push-Location $nodeRoot
@@ -152,6 +151,24 @@ foreach ($nodeRoot in @(
     }
     finally { Pop-Location }
 }
+
+Write-Output 'install: provisioning SOW via install_sow.py (ADR-005 hash-verified Electron)'
+# EPC-01 P1-9. This installer previously ran a plain `npm ci` for modules\sow\apps\desktop and
+# never invoked install_sow.py at all — so Electron's postinstall ran and downloaded a ~100 MB
+# binary from GitHub with NO hash verification.
+#
+# That contradicts the workspace's own architecture decision. ADR-005 records that this
+# workspace CHOOSES `--ignore-scripts` and that Electron is "provisioned by an explicit,
+# logged, hash-verified step — which is the whole point of this ADR", checking the zip's
+# SHA-256 against the checksums.json shipped inside the npm package the lockfile pins. The
+# authoritative install path was quietly bypassing the one supply-chain control the project
+# wrote an ADR to establish.
+#
+# install_sow.py performs `npm ci --ignore-scripts` itself as its step 3, so this REPLACES the
+# npm ci above for that root rather than adding to it. It resolves its own paths from
+# __file__, logs every step, and exits non-zero on any mismatch.
+& $sovereignPython -B (Join-Path $destRoot 'shell\tools\install_sow.py')
+if ($LASTEXITCODE -ne 0) { throw 'SOW provisioning failed (install_sow.py)' }
 
 & $sovereignPython -B (Join-Path $destRoot 'tools\release\rebase_adapters.py') --root $destRoot
 if ($LASTEXITCODE -ne 0) { throw 'Installed adapter rebase failed' }

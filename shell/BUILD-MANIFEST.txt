@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T18:51:24Z
+# utc: 2026-08-30T19:07:20Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
-# entries: 87
+# entries: 88
 960ccf0f1d86764a2b8012892b18ac0178e2c189854a70f0c5aaa258fb4f39dd  config/install.json
 90da913b313a573e1aa5dd7ab46ac57c8f1269049a326ee6c94d2d1c4814dd12  modules/debate.json
 5f57918f7785e25282a276d27569f602812eb74b857ba4e27107f44f67c4537e  modules/debate.json.pre-rebase
@@ -48,6 +48,7 @@ b52e0ed2664d2a20a4d6153191fe1e453cc63a75a29438bd50d47e27a186fbef  tests/fixtures
 b6bed87ad338bdaec1906244ec3c1464718fb3951a9acc54ff0224158699ef5c  tests/fixtures/fixture_sleeper.py
 93aa061962f8f67fd9e3ed57647fbd5bc4951bd8f04356d360186ff992837e93  tests/fixtures/fixture_tree.py
 211480a44c665082a6da1e6c263e57787cf4154b0e4e4ea5401061741c49a011  tests/test_absent_runtime_is_declared_honestly.py
+05e74f39cdbf8142d9ec56793ac171d6d4b97ded6a7a3c4caa979f5466f694d8  tests/test_archive_ships_only_operator_docs.py
 bb11f120e22c454a47078b727c91ea8901002d679e97962f57f5c8e768d5378e  tests/test_browser_handle_map.py
 361be7858da033409b6406b6eb8b667ef32789cd1f986bdbcb0ffb661f8ddf37  tests/test_cold_start.py
 9217b8122c6e7eaefee69f701b1f337d0b926e076acd385223a810b273135c32  tests/test_conductor_surface.py
