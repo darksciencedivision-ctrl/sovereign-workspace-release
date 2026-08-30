@@ -54,6 +54,33 @@ const _no = (written, reason, extra) => ({ written, submitted: false, reason, ..
  * model, not the permission mode). What this predicate buys is that accepting that chrome is
  * conditioned on a live supervisor-owned restriction, re-read at the moment of the write.
  */
+/**
+ * A LOCAL conductor's non-executing boundary (LOCAL-01 F-3).
+ *
+ * WHY THIS IS NOT A WEAKENING, argued rather than asserted, because this is a security guard.
+ * `supervisorEnforcedBoundary` below asks ONE question: is this conductor prevented from EXECUTING
+ * something in response to text this shell types into it (invariants 25/29)? For an agentic CLI the
+ * only honest answer is a supervisor-process broker that can deny tool use for the turn - the hook
+ * boundary. `ollama run <tag>` is a chat REPL with NO tool-call protocol at all: there is nothing
+ * it can invoke, so the property that broker enforces for Claude holds here by CONSTRUCTION.
+ *
+ * That claim is not taken on trust from this predicate. The same boundary is verified in the launch
+ * ticket by `launch-source.isWellFormedLocalBoundary`, which re-derives it FROM THE ARGV: the
+ * command must be exactly `<resolved binary> run <registered model id>` - three arguments, no
+ * flags, no trailing prompt. A ticket carrying any extra argument never reaches this path.
+ *
+ * The frontier path is untouched: a Claude conductor with no bound broker is refused exactly as
+ * before, and this predicate can never be satisfied by a frontier ticket, whose boundary carries a
+ * different schema.
+ */
+function localNonExecutingBoundary(boundary) {
+  return Boolean(boundary && boundary.schema === "conductor_local_boundary@1.0"
+    && boundary.supervisor_owned === true
+    && boundary.tool_surface === "none"
+    && boundary.automatic_approval === false
+    && boundary.unrestricted_tools === false);
+}
+
 function supervisorEnforcedBoundary(boundary) {
   return Boolean(boundary && boundary.schema === "voice_turn_boundary@1.0"
     && boundary.supervisor_owned === true && boundary.non_executing_voice_turns === true
@@ -107,7 +134,7 @@ async function deliverChat(text, io) {
   // Electron main's authenticated authority service is listening; the pinned hook is transport.
   const readBoundary = () => (io.authorityBoundary ? io.authorityBoundary() : null);
   const boundary = readBoundary();
-  if (!supervisorEnforcedBoundary(boundary)) {
+  if (!supervisorEnforcedBoundary(boundary) && !localNonExecutingBoundary(boundary)) {
     return _no(false, "direct voice chat is disabled: no non-executing boundary with supervisor-process "
       + "enforcement is bound to this conductor (invariants 25/29)");
   }
@@ -129,7 +156,8 @@ async function deliverChat(text, io) {
   // RE-READ here rather than assumed from guard 1 (U179): the authority service can stop between the
   // two, and a manual-mode pane with no live restriction is precisely what pane-state refuses.
   const state = paneAcceptsTypedText(io.emittedAll(),
-    { supervisorBoundary: supervisorEnforcedBoundary(readBoundary()) });
+    { supervisorBoundary: supervisorEnforcedBoundary(readBoundary())
+        || localNonExecutingBoundary(readBoundary()) });
   const pane_state = { accepting: state.accepting, state: state.state, evidence: state.evidence };
   if (!state.accepting) return _no(false, state.reason, { flattened, pane_state });
 

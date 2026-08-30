@@ -19,6 +19,10 @@ from adapters.frontier.codex import (
     is_credential_env_key as is_codex_credential,
     resolve_codex_model_ref,
 )
+from adapters.local.ollama_session import (
+    OLLAMA_LOCAL_ADAPTER,
+    build_interactive_ollama_command,
+)
 from node_runtime.supervisor.codex_spawn import capability_for_codex
 from node_runtime.supervisor.frontier_spawn import capability_for_claude_code
 
@@ -53,6 +57,52 @@ def _codex_command(executable: str, model: str | None, workspace: str) -> list[s
     ]
 
 
+def _ollama_command(executable: str, model: str | None, _workspace: str) -> list[str]:
+    """`ollama run <tag>` — an interactive local conductor session.
+
+    No workspace argument: `ollama run` takes none, and the conductor's workspace binding is carried
+    by the descriptor and the ConPTY's cwd rather than by argv. No prompt argument either — a
+    trailing positional would make it one-shot, and the conductor pane is a session the operator
+    types into.
+    """
+    if not model or not model.strip():
+        raise ConductorProviderUnavailable(
+            "a local conductor session needs a model tag — `ollama run` has no default model to "
+            "fall back to, so there is nothing honest to launch (fail closed)")
+    return build_interactive_ollama_command(executable, model=model)
+
+
+def _resolve_local_model(requested: str | None) -> tuple[str | None, str]:
+    """A local tag is carried VERBATIM and is never defaulted.
+
+    The frontier resolvers may return `None` to mean "use the CLI's own default model, and RECORD
+    that fallback". `ollama run` has no such default — it is `ollama run <tag>` or nothing — so a
+    missing tag is an error here rather than a silently different model. This is the same honesty
+    rule (§11 15B, never silent) reaching the opposite conclusion because the runtime differs.
+    """
+    tag = (requested or "").strip()
+    if not tag:
+        return None, ("no local model tag requested — `ollama run` has no default model, so nothing "
+                      "can be launched (fail closed)")
+    return tag, f"local model {tag!r} (an `ollama list` tag on this host)"
+
+
+def capability_for_ollama_local() -> Any:
+    """The conductor-seat capability for a local model.
+
+    Deliberately the mirror image of `ConductorAdapter.capability()`'s frontier declaration: a local
+    conductor is offline-eligible, needs no network, runs a local runtime, and is NOT
+    subscription-backed. `node_class` stays `conductor` — the seat is the role, not the vendor.
+    """
+    from adapters.base.contract import AdapterCapability  # noqa: PLC0415
+
+    return AdapterCapability(
+        adapter=OLLAMA_LOCAL_ADAPTER, node_class="conductor", locality="local",
+        offline_profile_eligible=True, requires_network=False, local_runtime=True,
+        capabilities=("reasoning", "synthesis"), subscription_backed=False,
+    )
+
+
 _COMMANDS: dict[str, ConductorProviderCommands] = {
     CLAUDE_CODE_ADAPTER: ConductorProviderCommands(
         adapter_id=CLAUDE_CODE_ADAPTER,
@@ -69,6 +119,17 @@ _COMMANDS: dict[str, ConductorProviderCommands] = {
         capability=lambda: capability_for_codex("reasoning"),
         resolve_model=resolve_codex_model_ref,
         build_command=_codex_command,
+    ),
+    # LOCAL-01 F-3 / ENTRY 018. The conductor seat is AGNOSTIC: this table held exactly two
+    # frontier adapters, so `commands_for('ollama_local')` raised and no local model could ever
+    # back the conductor. That was the hardcode D-3 identified.
+    OLLAMA_LOCAL_ADAPTER: ConductorProviderCommands(
+        adapter_id=OLLAMA_LOCAL_ADAPTER,
+        executable_name="ollama",
+        resolve_executable=detect.ollama_executable,
+        capability=capability_for_ollama_local,
+        resolve_model=_resolve_local_model,
+        build_command=_ollama_command,
     ),
 }
 

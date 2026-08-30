@@ -72,6 +72,14 @@ const {
 const INPUT_MARKERS = [
   /\bplan mode on\b/i,
   /\bmanual mode on\b/i,
+  // LOCAL-01 F-3 - the local `ollama run` REPL's input chrome. The two markers above are the
+  // Claude TUI's, so a LOCAL conductor pane showed "no input-box chrome this shell
+  // recognises" and every message to it was refused: the fail-closed rule was right and the
+  // vocabulary was simply missing a runtime. This stays POSITIVE EVIDENCE, which is the rule
+  // that matters - the second form must be the very END of the visible text, so a `>>>`
+  // printed inside a model's answer is not mistaken for a waiting prompt.
+  />>> Send a message \(\/\? for help\)/i,
+  />>>\s*$/,
 ];
 
 //: STATUS NOTICES the vendor paints alongside the input box. They carry no affordance — nothing is

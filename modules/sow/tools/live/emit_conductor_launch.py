@@ -73,6 +73,7 @@ from control_plane.conductor.registry import (  # noqa: E402
     ConductorDescriptor,
     load_runtime_conductor_descriptor,
 )
+from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
 from adapters.frontier.claude_model_probe import (  # noqa: E402
     ModelProbeLedger,
     resolve_launch_model,
@@ -124,6 +125,10 @@ LEASE_STATUS_SCHEMA = "terminal_lease_status@1.0"
 # ticket and the 16C spawn feed describe the SAME node, not two conductors.
 CONDUCTOR_NODE_ID = "conductor-pane-1"
 CONDUCTOR_PERMISSION_PROFILE = "pp-conductor-pane"
+#: The authority boundary a LOCAL conductor carries. A distinct schema, not a reused one: the
+#: codex-shaped boundary asserts argv flags an `ollama run` session does not have.
+LOCAL_BOUNDARY_SCHEMA = "conductor_local_boundary@1.0"
+
 #: U76: the ONE spelling every product path counts this subscription under (the status-bar feed
 #: derives its ref from the same function), so a held terminal is visible in the always-on n/2 bar.
 CONDUCTOR_SUBSCRIPTION_REF = canonical_subscription_ref(CLAUDE_CODE_ADAPTER)
@@ -183,6 +188,31 @@ def _apply_permission_profile(provider: str, argv: list[str], permission_profile
     if provider == CLAUDE_CODE_ADAPTER:
         profile = build_conductor_permission_profile(permission_profile_id)
         return [*argv, "--settings", profile.settings_json], dict(profile.boundary)
+    if provider == OLLAMA_LOCAL_ADAPTER:
+        # A LOCAL session gets its OWN boundary, because the codex-shaped one below would be a
+        # fabricated claim (LOCAL-01 F-3). `ollama run <tag>` is a chat REPL: it has no tool-call
+        # protocol, no sandbox flag and no approval policy, so reporting `sandbox: "read-only",
+        # approval_policy: "untrusted"` for it would describe flags that are not in the argv and
+        # controls the runtime does not implement — the "enabled control that does nothing" S-19
+        # forbids, in a security field where a false claim is worst.
+        #
+        # The honest containment statement is stronger than a flag: the session has NO tool surface
+        # at all, so there is nothing to approve or restrict. What contains it is the shell's
+        # supervised spawn (workspace-bound cwd, credential-scrubbed env, SessionManager lifecycle),
+        # and the verifier re-derives the argv shape rather than trusting this text.
+        return list(argv), {
+            "schema": LOCAL_BOUNDARY_SCHEMA,
+            "provider": provider,
+            "permission_profile_id": permission_profile_id,
+            "supervisor_owned": True,
+            "tool_surface": "none",
+            "automatic_approval": False,
+            "unrestricted_tools": False,
+            "note": ("`ollama run <tag>` is an interactive chat REPL with no tool-call protocol: "
+                     "there is no sandbox flag to set and no approval policy to apply, because "
+                     "there is nothing the model can invoke. Containment is the shell's supervised "
+                     "spawn (workspace-bound cwd, scrubbed env, SessionManager lifecycle)."),
+        }
     # Codex command construction already pins read-only + attended/untrusted approval.  Do not
     # fabricate Claude hooks for a provider that does not implement that hook protocol.
     return list(argv), {
@@ -296,10 +326,17 @@ def build_conductor_launch_ticket(
     # detected up front rather than being back-filled after a successful spawn: a refusal raised by
     # a LATER gate (I-X3) would otherwise report "CLI missing" when the CLI was found — an honest-
     # looking record that misdiagnoses the refusal for the operator.
-    gates = {"live_operation_authorized": auth.is_provider_live(provider),
-             "operator_terms_confirmed": bool(operator_terms_confirmed),
+    # LOCAL-01 F-3. A LOCAL conductor answers to a different governor (see
+    # `conductor_pane_spawn._spawn_local_conductor_pane`), so two of these gates are not merely
+    # unsatisfied - they are NOT APPLICABLE, and recording them as `False` would tell the
+    # operator his local session was refused authorization it never needed. `None` is this
+    # ticket's existing spelling for "no verdict", and `locality` says which chain ran.
+    is_local = provider == OLLAMA_LOCAL_ADAPTER
+    gates = {"live_operation_authorized": None if is_local else auth.is_provider_live(provider),
+             "operator_terms_confirmed": None if is_local else bool(operator_terms_confirmed),
              "cli_present": bool(resolved_executable) if cli_present is None else bool(cli_present),
-             "ix3_counted": False}
+             "ix3_counted": False,
+             "locality": "local" if is_local else "frontier"}
 
     # The `--model` slug the host CLI actually ACCEPTS, read OFFLINE from the probe ledger
     # (`tools/live/probe_conductor_model.py` spends the live call; this emitter never does — the
@@ -327,12 +364,16 @@ def build_conductor_launch_ticket(
     try:
         # (a) the live gate FIRST — an unauthorized config has allowance 0, which is not a number the
         # governor can be seeded with; refusing here keeps the reason precise instead of a ValueError.
-        auth.assert_provider_live(provider)
-        allowance = auth.terminals_for(provider)
+        if not is_local:
+            auth.assert_provider_live(provider)
+        allowance = 0 if is_local else auth.terminals_for(provider)
         # (b) project the DURABLE live leases into this process's governor, so the gate chain below
         # sees terminals held by the shell / other tools. This is the cross-process half of I-X3.
-        seeded = led.seed_governor(gov, subscription_ref=subscription_ref,
-                                   provider=provider, allowance=allowance)
+        # A local conductor holds no subscription, so there is no durable ledger to project and
+        # no terminal to count against an allowance that does not exist (invariant 19).
+        seeded = ({} if is_local else
+                  led.seed_governor(gov, subscription_ref=subscription_ref,
+                                    provider=provider, allowance=allowance))
         # (c) the identical governed spawn 16C gated — every gate, no launcher (the ConPTY drive is
         # the shell's, and it is authorized by this ticket, not performed here).
         session = spawn_conductor_pane(
@@ -347,10 +388,11 @@ def build_conductor_launch_ticket(
         launch_argv, authority_boundary = _apply_permission_profile(
             provider, session.launch["argv"], permission_profile_id)
         # (d) the DURABLE lease — the count that will outlive this process, owned by the shell.
-        lease = led.acquire(subscription_ref=subscription_ref, provider=provider,
-                            node_id=node_id, allowance=allowance, holder_pid=int(holder_pid),
-                            purpose=CONDUCTOR_LEASE_PURPOSE, session_id=str(session_id or ""))
-        gates["ix3_counted"] = True
+        lease = (None if is_local else
+                 led.acquire(subscription_ref=subscription_ref, provider=provider,
+                             node_id=node_id, allowance=allowance, holder_pid=int(holder_pid),
+                             purpose=CONDUCTOR_LEASE_PURPOSE, session_id=str(session_id or "")))
+        gates["ix3_counted"] = not is_local
         ticket = {
             "schema": LAUNCH_TICKET_SCHEMA,
             "authorized": True,
@@ -434,14 +476,18 @@ def build_conductor_launch_ticket(
                          "are enforced by the shell's supervised spawn. OS job-object containment "
                          "remains the Node Runtime's U25 boundary."),
             },
-            "lease": {
+            # A LOCAL conductor holds NO durable terminal, so there is no lease to describe and
+            # nothing to hand back. `null` is the honest shape: a zero-count lease object would
+            # put an I-X3 badge on a session that consumes no subscription (invariant 19), and
+            # `release_with: null` says plainly that this ticket owns nothing to release.
+            "lease": (None if lease is None else {
                 **lease.as_dict(),
                 "durable": True,
                 "in_use": led.in_use(subscription_ref),
                 "allowance": allowance,
                 "seeded_from_ledger": [ln.node_id for ln in seeded],
-            },
-            "release_with": ["--release-lease", lease.lease_id],
+            }),
+            "release_with": (None if lease is None else ["--release-lease", lease.lease_id]),
             # the emitter's OWN in-process count is released below (D-LOOP-1); the durable lease is
             # the deliberate survivor and is named right above.
             "governor_released": False,

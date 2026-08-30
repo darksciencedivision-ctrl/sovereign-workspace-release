@@ -323,6 +323,31 @@ test("live: the real emitter issues a governed ticket (or an honest refusal) and
     assert.equal(t.lease, null);
     return;
   }
+  // LOCAL-01 F-3. A LOCAL conductor is an AUTHORIZED ticket that holds no durable terminal, so it
+  // reaches neither branch below: the refusal branch above (it is not refused) nor the frontier
+  // assertions (there is no lease to count or release). Its contract is the mirror image and is
+  // asserted as such — the absence of a lease is the property, not a gap in the test.
+  //
+  // Before this run every authorized outcome on this host was frontier, and with
+  // `live_operation.json` absent the emitter always refused, so this test only ever exercised the
+  // refusal branch. It is now reachable in three states and says so.
+  if (t.conductor_descriptor && t.conductor_descriptor.locality === "local") {
+    assert.equal(t.lease, null, "a local conductor holds no durable I-X3 terminal (invariant 19)");
+    assert.equal(t.release_with, null, "there is nothing to hand back");
+    assert.equal(t.identity.subscription_ref, "", "a local pane claims no subscription");
+    assert.equal(t.chrome.subscription, null);
+    assert.equal(t.launch.one_shot, false);
+    assert.equal(t.launch.interactive, true);
+    assert.equal(t.gates.ix3_counted, false);
+    assert.equal(t.gates.locality, "local");
+    assert.equal(t.gates.live_operation_authorized, null,
+      "the live gate is NOT APPLICABLE to a local model — not merely unsatisfied");
+    assert.deepEqual(t.launch.argv.slice(1), ["run", t.conductor_descriptor.model_id],
+      "an interactive `ollama run <tag>` and nothing else");
+    assert.equal(t.authority_boundary.schema, "conductor_local_boundary@1.0");
+    assert.equal(t.authority_boundary.tool_surface, "none");
+    return;
+  }
   try {
     assert.equal(t.conductor_descriptor.provider_id, "openai_codex_cli");
     assert.equal(t.conductor_descriptor.model_id, "gpt-5.6-sol");

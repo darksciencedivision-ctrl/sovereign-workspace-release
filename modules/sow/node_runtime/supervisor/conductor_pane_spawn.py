@@ -13,14 +13,26 @@ path exactly like a live worker) and differing only in what it builds:
     fallback), `attended` mode (the operator types into it);
   * the Resume→Select succession affordance reachable from that chrome (invariant 28 / OP-8 §13.7).
 
-Order of gates (all must pass; any failure ⇒ no conductor pane):
-  1. `ProfileLoader.assert_startup([claude_code cap], live_auth)` — roster eligibility AND the
+TWO GOVERNORS, chosen by LOCALITY (LOCAL-01 F-3, ENTRY 018 — "the conductor seat is agnostic").
+The seat is a ROLE; what governs it depends on what backs it, exactly as `worker_pane_spawn` has
+split since 17B.
+
+FRONTIER conductor — order of gates (all must pass; any failure ⇒ no conductor pane):
+  1. `ProfileLoader.assert_startup([provider cap], live_auth)` — roster eligibility AND the
      LIVE_OPERATION_AUTHORIZED gate (keyed on the PROVIDER capability, never on the selection label).
-  2. `LiveAuthorization.assert_provider_live("claude_code")` — the primary live gate re-asserted.
+  2. `LiveAuthorization.assert_provider_live(provider)` — the primary live gate re-asserted.
   3. R8 §6 operator live-terms confirmation — `[OPERATOR]`-flagged; unmet ⇒ fail-closed refusal.
-  4. `claude` CLI present on the host (real launch only; a mock launcher injects its own session).
+  4. the provider CLI present on the host (real launch only; a mock launcher injects its own session).
   5. I-X3: register the authorized allowance, then acquire this pane's ONE subscription terminal;
      release on any construction failure so the count never wedges.
+
+LOCAL conductor (`_spawn_local_conductor_pane`) — a local model costs nothing, holds no credential
+and consumes no subscription terminal, so gates 1–3 and 5 ask questions it cannot answer. Running
+them refuses it with a message about SPEND AUTHORIZATION, which is what S-20 forbids: local is never
+gated behind a frontier switch. What still applies is identity (invariant 2/29), the DEPLOYMENT
+PROFILE (`check_eligible` — a locality question, invariant 20), a RESOLVED runtime binary, and the
+credential scrub. It holds no I-X3 count and its `teardown` releases none. See that function's
+docstring for the one gate it does NOT apply and the finding that records it (N-33).
 
 Honesty (invariant 3, §6/§10.4): the badge shows the operator SELECTION label ("fable-5"); the
 EXECUTING checkpoint stays unverified until a live reply reports one (`bind_conductor_selection`). This
@@ -163,6 +175,102 @@ def _subscription_view(governor: SubscriptionGovernor, ref: str,
             "allowance": status.get("allowance", live_auth.terminals_for(provider))}
 
 
+def _spawn_local_conductor_pane(
+    *,
+    desc: ConductorDescriptor,
+    provider_commands: Any,
+    node_id: str,
+    permission_profile_id: str,
+    selection: ConductorSelection,
+    model: str | None,
+    cli_present: bool | None,
+    launcher: Callable[..., Any] | None,
+    profile_loader: Any,
+) -> ConductorPaneSession:
+    """The governed conductor pane for a LOCAL model (LOCAL-01 F-3).
+
+    What still applies, because it is about identity and construction rather than spend:
+      * the descriptor must be a registered conductor-capable combination (the caller checked);
+      * the node identity and the supervisor-issued permission profile (invariant 2/29);
+      * the runtime must actually be launchable — a resolved `ollama` binary, not a bare name that
+        the shell would PATH-search after the gate ran (the `binary_unresolved` lesson);
+      * the credential scrub still runs. A local model needs no credential, which is exactly why the
+        scrub matters here: the child must not inherit the operator's frontier keys just because
+        nothing in this path would use them.
+
+    What does NOT apply, and why each one is absent rather than quietly skipped:
+      * no `LIVE_OPERATION_AUTHORIZED` gate and no `assert_provider_live` — there is no spend to
+        authorize, and `live_operation.json` stays absent (S-18/OD-31);
+      * no R8 §6 live-terms confirmation — it confirms the operator accepts BILLING terms;
+      * no I-X3 subscription terminal — a local model has no subscription (invariant 19), and
+        `desc.subscription_ref` is empty for exactly that reason. `teardown` therefore releases
+        nothing, which is correct rather than a missing step.
+
+    STATED LIMITATION, so the receipt cannot be read as more than it is: the VRAM residency
+    admission that `worker_pane_spawn._authorize_local` applies is NOT applied here — this module
+    holds no ResidencyPlanner. The operator's 8B ceiling is what bounds a conductor selection today
+    (the largest admitted model is ~5.1 GB against this host's 8151 MiB). A conductor pane can
+    therefore be admitted where a worker pane for the same model would be refused on residency. That
+    asymmetry is real, is not closed here, and is reported (LOCAL-01 N-33).
+    """
+    cap = provider_commands.capability()
+    # The DEPLOYMENT-PROFILE gate still applies, and is kept deliberately. It asks a question
+    # about LOCALITY (invariant 20, air-gap honesty), not about spend: `check_eligible` is the
+    # half of `assert_startup` that has nothing to do with `LIVE_OPERATION_AUTHORIZED`. A local
+    # model passes it on every profile including the air-gapped one, which is the point - it is
+    # asserted rather than assumed, so a future adapter that claims `locality: local` while
+    # requiring the network is still refused here.
+    if profile_loader is not None:
+        profile_loader.check_eligible(cap)
+    resolved_executable = provider_commands.resolve_executable()
+    present = bool(resolved_executable) if cli_present is None else cli_present
+    if not present:
+        raise ConductorProviderUnavailable(
+            "the local `ollama` runtime is not on this host's PATH — cannot open a local conductor "
+            "pane (fail closed)")
+    if launcher is None and not resolved_executable:
+        raise ConductorProviderUnavailable(
+            "the local `ollama` runtime did not resolve to a real binary — refusing to hand a bare "
+            "name to the ConPTY, which would decide what runs after the gate ran (fail closed)")
+
+    requested = model if model is not None else desc.model_id
+    binding = bind_conductor_selection(
+        selection, requested_model=requested, model_available=True,
+        resolver=provider_commands.resolve_model)
+    resolved_slug = binding.resolved_slug
+    exe = resolved_executable or provider_commands.executable_name
+    argv = provider_commands.build_command(exe, resolved_slug, desc.workspace)
+    env = scrubbed_environment()
+
+    handle = launcher(argv=argv, env=env, node_id=node_id) if launcher is not None else None
+    launched = handle is not None
+    chrome = ConductorPaneChrome(
+        provider=desc.provider_id, adapter=desc.adapter_id,
+        model_label=desc.display_name, model_slug=resolved_slug,
+        model_verified=binding.executing_verified, is_fallback=binding.is_fallback,
+        node_id=node_id, node_state=("ready" if launched else "awaiting_live_conductor"),
+        # None, not a zero-count view: a local pane holds no subscription, and rendering
+        # "0/0 terminals" would put a governed-resource badge on a resource that does not exist.
+        subscription=None,
+        succession=conductor_succession_affordance(selection),
+        locality="local")
+    launch = {
+        "argv": argv,
+        "interactive": True,
+        "one_shot": False,
+        "env_credential_scrubbed": True,
+        "launched": launched,
+        "subscription_governed": False,
+        "note": ("interactive `ollama run` session for the operator's live CONDUCTOR chat pane; no "
+                 "subscription and no credential is involved (invariant 19). VRAM residency "
+                 "admission is NOT applied to a conductor pane — the operator's 8B ceiling is what "
+                 "bounds this selection (LOCAL-01 N-33)."),
+    }
+    return ConductorPaneSession(
+        chrome=chrome, launch=launch, selection_record=binding.as_record(),
+        handle=handle, launched=launched, _release=None)
+
+
 def spawn_conductor_pane(
     *,
     mcp_client: Any,
@@ -212,6 +320,25 @@ def spawn_conductor_pane(
     if not permission_profile_id:
         raise ConductorPaneRefused(
             "conductor pane has no supervisor-issued permission profile — no naked session (inv 2/29)")
+
+    # ---- LOCAL conductor: a different governor, deliberately (LOCAL-01 F-3, ENTRY 018) ----------
+    # The conductor seat is AGNOSTIC. Everything below this branch is the FRONTIER gate chain — the
+    # LIVE_OPERATION_AUTHORIZED gate, the per-provider live gate, the R8 §6 spend-terms confirmation
+    # and the I-X3 subscription count — and not one of those is a question a local model can answer:
+    # it costs nothing, holds no credential and consumes no subscription terminal. Routing a local
+    # conductor through them refuses it with a message about SPEND AUTHORIZATION, which is exactly
+    # what S-20 forbids ("local is never gated behind a frontier switch"). Measured at the parent
+    # seal, `assert_provider_live('ollama_local')` did precisely that (LOCAL-01 D-4).
+    #
+    # `worker_pane_spawn` has had this branch since 17B — it splits on the adapter BEFORE any
+    # frontier gate and never touches `live_auth`. This is that same split, arriving at the
+    # conductor, which is the whole of the defect ENTRY 018 ruled must be corrected in this run.
+    if desc.locality == "local":
+        return _spawn_local_conductor_pane(
+            desc=desc, provider_commands=provider_commands, node_id=node_id,
+            permission_profile_id=permission_profile_id, selection=selection, model=model,
+            cli_present=cli_present, launcher=launcher, profile_loader=profile_loader)
+
     if not subscription_ref:
         raise ConductorPaneRefused(
             "conductor pane has no subscription_ref — refuse an uncounted terminal (I-X3, fail closed)")

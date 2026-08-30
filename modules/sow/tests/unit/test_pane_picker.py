@@ -99,8 +99,15 @@ def test_local_models_enumerated_with_residency_state() -> None:
     assert by["qwen2.5-coder:7b"]["model_slug"] == "qwen2.5-coder:7b"
     # roles are the coarse worker menu, UNIFORM for every local model — no capability is inferred
     # from the model name (I-SC1); real fit is descriptor-resolved at `.spawn`.
+    # LOCAL-01 F-3 (ENTRY 018): "conductor" joins that menu. The operator ruled the conductor
+    # seat AGNOSTIC - "It needs to have the local library anyways. It's not frontier only."
+    # A local model carrying only worker roles is refused by `selectConductorFromPicker`
+    # before the operator's choice is even considered, which is how the Conductor stayed
+    # frontier-only. The uniformity this test guards is intact: every model the ceiling
+    # admits gets the SAME three roles, and nothing is inferred from any model's name.
     for o in local:
-        assert o["roles"] == ["reasoning", "coding"]
+        assert o["roles"] == ["reasoning", "coding", "conductor"]
+        assert o["conductor_capable"] is True and o["registered"] is True
 
 
 def test_local_model_without_residency_reads_not_loaded() -> None:

@@ -470,7 +470,19 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
             # coarse worker-role menu, uniform for every local model — the model's real fit for a
             # role is resolved by its capability descriptor at `.spawn`, NEVER inferred from its
             # name (I-SC1; spec-audit MINOR-1).
-            "roles": list(_LOCAL_ROLES),
+            #
+            # LOCAL-01 F-3 / ENTRY 018: "conductor" joins that menu for a model the ceiling ADMITS.
+            # The conductor seat is a role, not a vendor, and `selectConductorFromPicker` admits an
+            # option only when it is available AND registered AND conductor_capable AND carries the
+            # conductor role — local options carried none of those three, so every local model was
+            # refused as a conductor before the operator's choice was even considered. A model that
+            # is greyed cannot be a conductor either, which is why this keys on the same reason.
+            "roles": list(_LOCAL_ROLES) + (["conductor"] if reason_for(name) is None else []),
+            # "registered" for a LOCAL model means installed on this host and inside the operator's
+            # ceiling — there is no vendor list to be on. `control_plane.conductor.registry` derives
+            # its local rows from these same ceiling verdicts, so the two agree by construction.
+            "registered": True,
+            "conductor_capable": reason_for(name) is None,
             # `residency is None` means there is NO residency view (no planner was built): every
             # model reads UNKNOWN. Only when a planner DID report is an absent name honestly
             # not_loaded — the planner enumerates everything it knows, so absent means absent from

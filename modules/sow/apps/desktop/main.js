@@ -1569,10 +1569,36 @@ async function handleOperatorText(payload) {
   if (p.__sweep) return { ok: true, swept: true, delivered: false };
   if (!text) throw new Error("empty-directive");
   if (text.length > 4000) throw new Error("directive-too-long");
+  // WHOSE conductor is answering, read from the descriptor the shell actually resolved rather than
+  // from a literal (LOCAL-01 F-3). These two fields were hardcoded to `openai_codex_cli` /
+  // `gpt-5.6-sol`, so every transcript turn claimed a frontier provider no matter what was really
+  // backing the pane — and under OD-31 that provider cannot even be authorized. A transcript that
+  // names the wrong model is the drift U65 closed for the badge, reappearing one surface over.
+  const cdesc = conductorDescriptor() || {};
+  const turnProvider = cdesc.provider_id || null;
+  const turnModel = cdesc.model_id || null;
   const outTurn = { utc: new Date().toISOString(), dir: "out", text,
-                    provider: "openai_codex_cli", model: "gpt-5.6-sol",
+                    provider: turnProvider, model: turnModel,
                     delivered: false, submitted: false, reason: "" };
   pushTranscriptTurn(outTurn);
+
+  // OPTION C, the operator's ruling (ENTRY 017 / OD-32): the Conductor launches, accepts typing,
+  // and SPAWNS NOTHING until a model is selected and a message is sent. This is that deferred
+  // spawn, and it is the quota protection that replaces H-10 — the session is born here, on the
+  // operator's first message, rather than at startup. `launchConductorSession` is itself
+  // fail-closed and refuses when a session is already running, so this cannot double-spawn.
+  const conductorAlive = conductorLaunch.state === "running"
+    && manager && manager.registry.has(conductorPaneId);
+  if (!conductorAlive) {
+    log(`conductor: no live session — launching on the operator's first message (option C)`);
+    const born = await launchConductorSession({ reason: "operator sent a message (option C deferred spawn)" });
+    if (!born || born.launched !== true) {
+      outTurn.reason = `the conductor session could not be started: ${(born && born.reason) || "fail-closed"}`;
+      outTurn.error = "CONDUCTOR_COMMUNICATION_FAILED";
+      pushTranscriptTurn({ utc: new Date().toISOString(), dir: "sys", text: outTurn.reason });
+      return { ok: false, turn: outTurn };
+    }
+  }
   const fromPos = paneStreamPosition(conductorPaneId);
   let res;
   try {
@@ -1603,8 +1629,8 @@ async function handleOperatorText(payload) {
     await new Promise((r) => setTimeout(r, 250));
   }
   const inTurn = { utc: new Date().toISOString(), dir: "in",
-                   text: last.slice(-4000), provider: "openai_codex_cli",
-                   model: "gpt-5.6-sol" };
+                   text: last.slice(-4000), provider: turnProvider,
+                   model: turnModel };
   pushTranscriptTurn(inTurn);
   return { ok: true, turn: outTurn, responseChars: inTurn.text.length };
 }
@@ -2939,9 +2965,26 @@ app.whenReady().then(async () => {
   // itself re-checks and fails closed), it consumes exactly one governed I-X3 terminal, and it is
   // skipped during a self-check run (which drives the launch explicitly) or when the operator sets
   // SOW_CONDUCTOR_AUTOLAUNCH=0. A failure here never wedges startup — the pane stays honestly dark.
-  if (!process.env.SHELL_SELFCHECK && process.env.SOW_CONDUCTOR_AUTOLAUNCH !== "0") {
-    try { await launchConductorSession({ reason: "conductor-first startup" }); }
+  // OPTION C, ruled by the operator (ENTRY 017 / OD-32): the Conductor "launches, accepts the
+  // operator's typing, and spawns nothing until he selects a model and sends something."
+  //
+  // So the default is now DEFERRED, not auto-launched. The pane, its chrome and its typing surface
+  // all come up; the model SESSION is born on the operator's first message
+  // (`handleOperatorText`), or when he presses the explicit "▶ live" control. Auto-launching at
+  // startup spent a governed session on every app open, before anyone had asked for anything —
+  // which is precisely what H-10 existed to stop, and LOCAL-01 D-4 measured H-10 as redundant
+  // because the live gate already fails closed upstream. The deferred spawn is the protection that
+  // replaces it, and it protects local attention as well as frontier quota: opening the shell no
+  // longer loads a model into 8 GB of VRAM unasked.
+  //
+  // `SOW_CONDUCTOR_AUTOLAUNCH=1` is an explicit opt-in for anyone who wants the old behaviour; "0"
+  // keeps its meaning (never launch), so the guard `sow.json` sets is unchanged and still honoured.
+  if (!process.env.SHELL_SELFCHECK && process.env.SOW_CONDUCTOR_AUTOLAUNCH === "1") {
+    try { await launchConductorSession({ reason: "conductor-first startup (SOW_CONDUCTOR_AUTOLAUNCH=1)" }); }
     catch (e) { log(`conductor: auto-launch failed (fail-closed, pane 1 un-launched): ${e && e.message}`); }
+  } else if (!process.env.SHELL_SELFCHECK) {
+    log("conductor: session deferred (option C) — nothing spawns until a model is selected and a "
+      + "message is sent");
   }
   // In-Electron pane-I/O self-check (D-P16-0 binding): when SHELL_SELFCHECK is set, drive the REAL
   // renderer+PTY path inside this packaged runtime — spawn a supervised pane, assert its banner

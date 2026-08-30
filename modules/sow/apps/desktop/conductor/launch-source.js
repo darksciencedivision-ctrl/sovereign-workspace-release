@@ -124,6 +124,28 @@ function isWellFormedVoiceBoundary(t, launch, identity) {
   return true;
 }
 
+/**
+ * A LOCAL conductor's boundary (LOCAL-01 F-3). Its containment claim is the ABSENCE of a tool
+ * surface, so this verifies that absence in the argv rather than trusting the emitter's prose: the
+ * command must be EXACTLY `<resolved ollama binary> run <the registered model id>` and nothing
+ * else. A third positional would make it a one-shot prompt; any flag at all would mean the emitter
+ * is passing something this boundary does not describe.
+ */
+function isWellFormedLocalBoundary(t, launch, identity) {
+  const b = t.authority_boundary;
+  const d = t.conductor_descriptor;
+  if (b.schema !== "conductor_local_boundary@1.0"
+      || b.provider !== d.adapter_id || b.permission_profile_id !== identity.permission_profile_id
+      || b.supervisor_owned !== true || b.tool_surface !== "none"
+      || b.automatic_approval !== false || b.unrestricted_tools !== false) return false;
+  if (d.locality !== "local") return false;
+  const args = launch.argv || [];
+  if (args.length !== 3) return false;
+  if (args[0] !== launch.executable) return false;
+  if (args[1] !== "run" || args[2] !== d.model_id) return false;
+  return !args.some((a) => String(a).startsWith("-"));
+}
+
 function isWellFormedFlagBoundary(t, launch, identity) {
   const b = t.authority_boundary;
   const d = t.conductor_descriptor;
@@ -143,6 +165,11 @@ function isWellFormedFlagBoundary(t, launch, identity) {
 const AUTHORITY_BOUNDARY_PROFILES = Object.freeze({
   [VOICE_BOUNDARY_SCHEMA]: isWellFormedVoiceBoundary,
   "conductor_permission_boundary@1.0": isWellFormedFlagBoundary,
+  // LOCAL-01 F-3. A local session carries its own boundary because the flag boundary above
+  // asserts `--sandbox read-only --ask-for-approval untrusted -m <model>` in the argv, and
+  // `ollama run <tag>` has none of them. Reusing it would have forced the emitter to claim
+  // controls the runtime does not implement.
+  "conductor_local_boundary@1.0": isWellFormedLocalBoundary,
 });
 
 function isWellFormedAuthorityBoundary(t, launch, identity) {
@@ -220,12 +247,24 @@ function isWellFormedTicket(t) {
   // The session key the terminal is counted under (U75). Without it the shell cannot tell whether
   // the ticket it is holding authorizes the session it is about to spawn.
   if (typeof id.session_id !== "string" || !id.session_id) return false;
+  // LOCAL-01 F-3. A LOCAL conductor holds NO subscription terminal (invariant 19), so it
+  // carries no durable lease — and requiring one would refuse the ticket for lacking an I-X3
+  // count it must never take. The check is INVERTED rather than skipped: a local ticket that
+  // DID carry a lease, or claimed a subscription, would be counting a terminal nobody pays
+  // for, and is refused just as firmly.
+  const isLocal = !!t.chrome && typeof t.chrome === "object" && t.chrome.locality === "local";
   const lease = t.lease;
-  if (!lease || typeof lease !== "object") return false;
-  if (typeof lease.lease_id !== "string" || !lease.lease_id) return false;
-  if (lease.durable !== true) return false;
-  if (lease.session_id !== id.session_id) return false;
-  if (!Number.isFinite(lease.in_use) || lease.in_use < 1) return false;
+  if (isLocal) {
+    if (lease !== null && lease !== undefined) return false;
+    if (id.subscription_ref) return false;
+    if (t.chrome.subscription !== null && t.chrome.subscription !== undefined) return false;
+  } else {
+    if (!lease || typeof lease !== "object") return false;
+    if (typeof lease.lease_id !== "string" || !lease.lease_id) return false;
+    if (lease.durable !== true) return false;
+    if (lease.session_id !== id.session_id) return false;
+    if (!Number.isFinite(lease.in_use) || lease.in_use < 1) return false;
+  }
   return !!t.chrome && typeof t.chrome === "object";
 }
 

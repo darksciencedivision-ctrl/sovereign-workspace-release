@@ -82,9 +82,14 @@ def test_authorized_ticket_is_interactive_and_gated(tmp_path):
     assert launch["argv"][0] == "claude"
     assert launch["interactive"] is True and launch["one_shot"] is False
     assert "-p" not in launch["argv"] and "--output-format" not in launch["argv"]
+    # `locality` is new in LOCAL-01 F-3 and says WHICH gate chain ran. The conductor seat is
+    # agnostic (ENTRY 018), so a ticket must state whether it was gated as a subscription-backed
+    # frontier session or as a local one that authorizes no spend — otherwise the four verdicts
+    # below are unreadable, because two of them are "not applicable" on the local path rather
+    # than "false". The frontier verdicts themselves are unchanged, which is the point.
     assert t["gates"] == {
         "live_operation_authorized": True, "operator_terms_confirmed": True,
-        "cli_present": True, "ix3_counted": True}
+        "cli_present": True, "ix3_counted": True, "locality": "frontier"}
     # the governed identity the session must be spawned UNDER — the shell cannot invent it
     assert t["identity"]["node_id"] == CONDUCTOR_NODE_ID
     assert t["identity"]["permission_profile_id"]

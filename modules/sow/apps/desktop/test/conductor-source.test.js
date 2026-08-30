@@ -174,9 +174,22 @@ test("live: the real --emit-conductor-selection emitter yields the operator sele
     { provider_id: "claude_code", model_id: "opus-4.8", display_name: "Claude Opus 4.8" },
   ];
   const d = feed.conductor_descriptor;
-  const registered = REGISTERED.find(
-    (r) => r.provider_id === d.provider_id && r.model_id === d.model_id);
+  // LOCAL-01 F-3 (ENTRY 018): the conductor seat is AGNOSTIC, so the registered set is no longer
+  // three frontier literals — it is those PLUS one row per local model the operator's 8B ceiling
+  // admits on this host. Those rows cannot be written down here: which models exist is a property
+  // of the operator's disk, which is exactly the host-conditional trap this block was rewritten to
+  // escape. So a local pair is admitted by its SHAPE (locality local, display name = the `ollama
+  // list` tag the registry uses, no subscription), and the internal-agreement assertions below are
+  // unchanged and still do the real work. A drifting emitter still fails.
+  const isLocal = d.locality === "local";
+  const registered = isLocal
+    ? { provider_id: d.provider_id, model_id: d.model_id, display_name: d.model_id }
+    : REGISTERED.find((r) => r.provider_id === d.provider_id && r.model_id === d.model_id);
   assert.ok(registered, `emitted conductor ${d.provider_id}/${d.model_id} is not a registered pair`);
+  if (isLocal) {
+    assert.equal(d.provider_id, "ollama_local");
+    assert.equal(d.subscription_ref, "", "a local conductor holds no subscription (invariant 19)");
+  }
   assert.equal(d.display_name, registered.display_name);
   assert.equal(d.role, "conductor");
   assert.equal(d.conductor_capable, true);

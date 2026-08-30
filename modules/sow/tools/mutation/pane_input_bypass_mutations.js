@@ -230,7 +230,18 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // Re-pinned for CONVERGE-01 OP-3. The cap edit and recovered pane-id high-water mark are outside
 // pane:input. The close handler additionally forgets a closed EMPTY container, without adding a
 // release sink or changing any target anchor. Every mutation is re-run against these exact bytes.
-const PINNED_BASELINE = "A390F892CB9168F8C982AC2C5458F2B5D8DF6BC7EF5F1FDCA941FD41EB0618FE";
+// LOCAL-01 F-3 re-pin. `main.js` changed in `handleOperatorText` only: the transcript turns now
+// take their provider/model from the resolved conductor descriptor instead of two hardcoded
+// frontier literals, and the operator's first message triggers the deferred (option C) launch.
+// RE-READ against the new file rather than re-hashed, as this file requires: none of the five
+// anchors these mutations splice on (IN_HANDLER, HANDLER_TOP, AFTER_RESUME, BEFORE_INPUT,
+// REAL_DISARM) lies in the edited region, each still occurs exactly once, and the full harness
+// was re-run against this baseline with every mutation still CAUGHT.
+// Also re-read for the option-C startup change (the conductor session is deferred to the
+// operator's first message); it touches neither the pane:input handler nor the
+// before-input-event disarm path, and the harness was re-run again after it.
+// Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript-labels edit)
+const PINNED_BASELINE = "BB350F209F1CEDA8E84820535813D8025C976095332A6AAA6482926EB4E2003D";
 
 let lockFd;
 try {
