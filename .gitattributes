@@ -107,3 +107,16 @@ docs/EXPORT-* export-ignore
 docs/CLAUDE-* export-ignore
 tools-operator export-ignore
 tools-operator/** export-ignore
+
+# X-5 continued. The guard for X-5 immediately found what the prefix patterns above missed:
+# docs/ has SUBDIRECTORIES, and `docs/CP-*` does not reach into them.
+#
+# docs/audit/ is ten build-programme audit records (oracle classification, gate evidence,
+# ledger integrity, not-run causes, backfill, envelope, adversarial sample, the CP-M1 punch
+# list, AUDIT-01 and SYSTEM-REVIEW). docs/evidence/spa/ is one discovery report from the SPA
+# work and carries the developer username. Neither is referenced by any product file
+# (measured across shell/, modules/ and tools/), and both are the build's record of itself.
+docs/audit export-ignore
+docs/audit/** export-ignore
+docs/evidence export-ignore
+docs/evidence/** export-ignore
