@@ -32,10 +32,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tarfile
+import tempfile
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -270,7 +275,18 @@ def scan_tree(root: str, quarantine_lanes: tuple, allowlist: dict,
             # The gate's own allow-list configuration is hash-governed
             # version-controlled input; its declared reason strings may quote
             # synthetic fixture values by design. Never content-scan it.
-            if allowlist_abs is not None and full == allowlist_abs:
+            #
+            # EPC-01 P2-9: the absolute-path comparison alone was not enough. When the gate
+            # scans an EXPORTED archive (--from-commit) the file sits at
+            # <tempdir>/tools/release/fixture_allowlist.json while allowlist_abs still points
+            # into the repository, so the two never matched and the gate reported its OWN
+            # allow-list as a credential hit. Matching the trailing relative path as well
+            # makes the exclusion hold wherever the scanned tree happens to live.
+            if allowlist_abs is not None and (
+                full == allowlist_abs
+                or _posix(rel).endswith("/" + os.path.basename(allowlist_abs))
+                or _posix(rel) == os.path.basename(allowlist_abs)
+            ):
                 continue
 
             hits = scan_content(full, fn)
@@ -292,8 +308,19 @@ def main(argv=None) -> int:
         description="Allow-list-oriented package boundary gate (C-1 closure).")
     ap.add_argument("--root", default=".",
                     help="tree root to scan (default: current directory)")
+    ap.add_argument("--from-commit", default=None, metavar="REV",
+                    help="EPC-01 P2-9: export `git archive REV` to a temporary directory and "
+                         "scan THAT instead of --root. This is what the gate should almost "
+                         "always do: the boundary being policed is the DISTRIBUTION's, and a "
+                         "working tree additionally holds .venv, node_modules, .pytest_cache "
+                         "and build output no recipient ever sees. Scanning the tree reported "
+                         "20,093 violations where the archive has none.")
     ap.add_argument("--allowlist", default=None,
-                    help="declared-fixture allow-list JSON (value-based)")
+                    help="declared-fixture allow-list JSON (value-based). Defaults to "
+                         "tools/release/fixture_allowlist.json beside this script when it "
+                         "exists — it shipped as the answer to the declared-fixture problem "
+                         "and was then never passed, so the gate reported its own fixtures "
+                         "as credential hits.")
     ap.add_argument("--quarantine-lane", action="append", default=None,
                     help="quarantined-historical lane prefix (repeatable); "
                          "default: evidence/ and dev/")
@@ -304,19 +331,46 @@ def main(argv=None) -> int:
         else DEFAULT_QUARANTINE_LANES
     lanes = tuple(l if l.endswith("/") else l + "/" for l in lanes)
 
+    allowlist_path = args.allowlist
+    if allowlist_path is None:
+        beside = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              "fixture_allowlist.json")
+        if os.path.isfile(beside):
+            allowlist_path = beside
+
     try:
-        allowlist = load_allowlist(args.allowlist)
+        allowlist = load_allowlist(allowlist_path)
     except AllowlistError as exc:
         print(f"package_boundary_gate: CONFIG ERROR: {exc}", file=sys.stderr)
         return 2
 
-    if not os.path.isdir(args.root):
-        print(f"package_boundary_gate: no such directory: {args.root}",
+    scan_root, exported = args.root, None
+    if args.from_commit:
+        exported = tempfile.mkdtemp(prefix="pbg-archive-")
+        proc = subprocess.run(
+            ["git", "-C", os.path.abspath(args.root), "archive", "--format=tar",
+             args.from_commit],
+            capture_output=True, check=False)
+        if proc.returncode != 0:
+            shutil.rmtree(exported, ignore_errors=True)
+            print(f"package_boundary_gate: git archive {args.from_commit} failed: "
+                  f"{proc.stderr.decode('utf-8', 'replace')[:200]}", file=sys.stderr)
+            return 2
+        with tarfile.open(fileobj=io.BytesIO(proc.stdout)) as tar:
+            tar.extractall(exported)
+        scan_root = exported
+
+    if not os.path.isdir(scan_root):
+        print(f"package_boundary_gate: no such directory: {scan_root}",
               file=sys.stderr)
         return 2
 
-    result = scan_tree(args.root, lanes, allowlist,
-                       allowlist_source_path=args.allowlist)
+    try:
+        result = scan_tree(scan_root, lanes, allowlist,
+                           allowlist_source_path=allowlist_path)
+    finally:
+        if exported:
+            shutil.rmtree(exported, ignore_errors=True)
     failed = bool(result["violations"]) or bool(result["credential_hits"])
     report = {
         "gate": "package_boundary_gate",
