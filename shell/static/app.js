@@ -457,6 +457,19 @@
         const frame = make("iframe", "tokencenter-frame");
         frame.title = "Sovereign Token Center";
         frame.loading = "lazy";
+        /* N-21b, resolved: the attribute is KEPT, with both tokens, deliberately.
+           Token Center needs `allow-scripts` (its dashboard is script-rendered) and
+           `allow-same-origin` (its own CSP is `default-src 'self'` and it fetches
+           `/api/summary`; under an opaque origin both of those fail). The console warns that
+           the pair "can escape its sandboxing" - that warning describes a frame which is
+           same-origin with its EMBEDDER and can therefore reach out and delete its own sandbox
+           attribute. This frame is 127.0.0.1:8765 inside a 127.0.0.1:5180 document:
+           `allow-same-origin` grants it its OWN origin, not the shell's, so it cannot script
+           the shell and the escape the warning describes is unreachable here.
+           What the sandbox still denies is real, and is why it stays: form submission, popups,
+           top-level navigation, downloads, modals and pointer-lock. Dropping the attribute -
+           the other option the directive allowed - would surrender all six for no gain.
+           Pinned by shell/tests/test_tokencenter_embed.py. */
         frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
         frame.hidden = true;
 
@@ -566,6 +579,7 @@
     embed.frame.removeAttribute("src");
     const meta = STATE_META[rec.state] || STATE_META.NOT_STARTED;
     embed.fallbackStatus.textContent = "Token Center is " + meta.label.toLowerCase() + ".";
+    embed.fallbackStart.textContent = "Start Token Center";
     embed.fallbackStart.disabled = ACTION_STATES.start.indexOf(rec.state || "NOT_STARTED") === -1;
   }
 
