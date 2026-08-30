@@ -596,14 +596,20 @@ class SemanticDeepExecutor:
         root: str | Path,
         client: OllamaClient,
         *,
+        # LOCAL-01 F-5. These DEFAULTS named two models above the operator's 8B ceiling, and
+        # ENTRY 017 forbids a model above it being "used, selected, DEFAULTED TO or pulled". The
+        # manifest path always passes explicit values, so the old defaults were unreachable in
+        # practice - which is exactly why they could sit there being wrong. They now mirror
+        # SYSTEM_MANIFEST.json's assignments, so a caller that omits them gets the same slate the
+        # product is configured with rather than a silently larger one.
         member_models: Sequence[str] = (
-            "qwen2.5:14b-instruct",
-            "qwen3:14b",
+            "qwen3:8b",
+            "deepseek-r1:8b",
             "dolphin3:8b",
         ),
         critic_model: str = "dolphin3:8b",
-        synthesizer_model: str = "qwen3:14b",
-        verifier_model: str = "qwen3:8b",
+        synthesizer_model: str = "deepseek-r1:8b",
+        verifier_model: str = "granite4.2:8b",
         artifact_root: str | Path | None = None,
         evidence_builder: Any | None = None,
         base_options: Mapping[str, Any] | None = None,
@@ -675,7 +681,7 @@ class SemanticDeepExecutor:
             _validate_options(merged)
             if not stage:
                 raise ValueError("stage option keys must be nonempty")
-        configured_thinking: dict[str, bool | None] = {"qwen3:14b": False}
+        configured_thinking: dict[str, bool | None] = {"qwen3:8b": False}
         configured_thinking.update(dict(think_by_model or {}))
         self.think_by_model: dict[str, bool | None] = {}
         for model, think in configured_thinking.items():
@@ -684,7 +690,7 @@ class SemanticDeepExecutor:
             if think is not None and type(think) is not bool:
                 raise ValueError("think_by_model values must be boolean or None")
             self.think_by_model[model.strip()] = think
-        configured_minimums = {"qwen3:14b": 1024}
+        configured_minimums = {"qwen3:8b": 1024}
         configured_minimums.update(dict(minimum_num_predict_by_model or {}))
         self.minimum_num_predict_by_model: dict[str, int] = {}
         for model, minimum in configured_minimums.items():

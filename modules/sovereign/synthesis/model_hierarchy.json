@@ -4,14 +4,14 @@
   "reconciliation_note": "B2-6 (M-5/M-6, SWS-REM-DIR-20260828 R2): king_synthesizer.model reconciled to SYSTEM_MANIFEST.json MODELS.SYNTHESIZER. synth_king.py uses the hierarchy value first (king_cfg.get('model', args.model_synth)) with the manifest SYNTHESIZER only as fallback, so the previous value silently overrode the package-level synthesis assignment. All other hierarchy roles have no SYSTEM_MANIFEST counterpart and are unchanged.",
   "king_synthesizer": {
     "role": "KING_SYNTHESIZER",
-    "model": "qwen3.8:27b",
+    "model": "deepseek-r1:8b",
     "channel": "canonical",
     "priority": 1
   },
   "alpha_wing": [
     {
       "role": "ALPHA_ADVOCATE",
-      "model": "qwen2.5:14b-instruct",
+      "model": "granite4.2:8b",
       "stance": "Construct the strongest evidence-backed case."
     },
     {
@@ -23,7 +23,7 @@
   "beta_wing": [
     {
       "role": "BETA_ADVOCATE",
-      "model": "qwen3:14b",
+      "model": "deepseek-r1:8b",
       "stance": "Develop an alternative, grounded line of reasoning."
     },
     {
@@ -35,17 +35,17 @@
   "wing_reconciliation": {
     "alpha": {
       "role": "ALPHA_RECONCILER",
-      "model": "qwen2.5:14b-instruct"
+      "model": "granite4.2:8b"
     },
     "beta": {
       "role": "BETA_RECONCILER",
-      "model": "qwen3:14b"
+      "model": "qwen3:8b"
     }
   },
   "cross_channel": {
     "critique": {
       "role": "CROSS_CRITIC",
-      "model": "qwen3:8b"
+      "model": "dolphin3:8b"
     },
     "cross_exam": {
       "role": "CROSS_EXAMINER",
@@ -55,15 +55,15 @@
   "clu_roles": {
     "analyzer": {
       "role": "CLU_ANALYZER",
-      "model": "qwen2.5:14b-instruct"
+      "model": "granite4.2:8b"
     },
     "architect": {
       "role": "CLU_ARCHITECT",
-      "model": "qwen3:14b"
+      "model": "qwen3:8b"
     },
     "coder": {
       "role": "CLU_CODER",
-      "model": "qwen3:14b"
+      "model": "qwen3:8b"
     },
     "tester": {
       "role": "CLU_TESTER",
@@ -75,7 +75,7 @@
     },
     "benchmark": {
       "role": "CLU_BENCHMARK",
-      "model": "qwen2.5:14b-instruct"
+      "model": "granite4.2:8b"
     },
     "promoter": {
       "role": "CLU_PROMOTER",

@@ -14,10 +14,10 @@ This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It
 
 These are the package's current defaults, not permanently hard-coded architectural model choices:
 
-- Primary reasoner: `qwen3:14b`
-- Adversarial challenger: `ornith:9b`
-- Critic: `qwen3:8b`
-- Synthesizer: `qwen3.8:27b`
+- Primary reasoner: `qwen3:8b`
+- Adversarial challenger: `granite4.2:8b`
+- Critic: `dolphin3:8b`
+- Synthesizer: `deepseek-r1:8b`
 - Embedding model: `nomic-embed-text:latest`
 
 Model weights are not included. Before startup, install the exact current default tags in the local Ollama service. Startup currently checks all five assignments. Supported generation roles remain replaceable through SOVEREIGN's existing Models assignment mechanism; the selected tags must be installed in Ollama. The embedding assignment remains configuration-controlled in `SYSTEM_MANIFEST.json`.

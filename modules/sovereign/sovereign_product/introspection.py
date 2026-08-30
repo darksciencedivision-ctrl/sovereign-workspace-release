@@ -154,6 +154,76 @@ def _model_names(payload: Mapping[str, Any]) -> list[str]:
     return sorted(names)
 
 
+#: The operator's LOCAL MODEL CEILING (OPERATOR-INSTRUCTIONS.log ENTRY 017), as the 8B NAMEPLATE
+#: class so `qwen3:8b` (true count 8.2B) is admitted.
+#:
+#: COUPLED VALUE (S-4). The same rule is implemented in `modules/sow/adapters/local/model_ceiling.py`
+#: and `modules/debate/app.py`. It is duplicated rather than imported because these are three
+#: separate products with separate install provenance and separate virtualenvs; a cross-module
+#: import would tie one product's startup to another's package tree. All THREE move together, and
+#: each names the others. That a policy the operator set now lives in three files is itself worth
+#: his attention - recorded as LOCAL-01 N-37.
+LOCAL_MODEL_CEILING_NAMEPLATE_B = 8
+_CEILING_TRUE_PARAMS = 9.0e9
+_PARAM_SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12, "": 1.0}
+_PARAM_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMBT])?\s*$", re.I)
+
+
+def _parse_parameter_count(raw: Any) -> float | None:
+    """`"8.2B"` -> 8.2e9. None when unreadable - never 0, which would sail under the ceiling."""
+    if not isinstance(raw, str):
+        return None
+    match = _PARAM_RE.match(raw.strip())
+    if not match:
+        return None
+    value = float(match.group(1)) * _PARAM_SUFFIX[(match.group(2) or "").upper()]
+    return value if value > 0 else None
+
+
+def _model_parameter_sizes(payload: Mapping[str, Any]) -> dict[str, str]:
+    """`{model name: the daemon's own parameter-size string}` from an `/api/tags` payload.
+
+    `_model_names` deliberately discards everything but the name; the ceiling needs one more field,
+    and reading it from the SAME payload keeps this to one enumeration rather than a second probe
+    (directive F-5: "sourced from the same enumeration rather than a second one")."""
+    sizes: dict[str, str] = {}
+    raw_models = payload.get("models")
+    if not isinstance(raw_models, Sequence) or isinstance(raw_models, (str, bytes)):
+        return sizes
+    for item in raw_models:
+        if not isinstance(item, Mapping):
+            continue
+        name = item.get("name") or item.get("model")
+        details = item.get("details")
+        if isinstance(name, str) and name.strip() and isinstance(details, Mapping):
+            shown = details.get("parameter_size")
+            if isinstance(shown, str) and shown.strip():
+                sizes[name.strip()] = shown.strip()
+    return sizes
+
+
+def _ceiling_state(name: str, parameter_size: str | None) -> dict[str, Any]:
+    """One model's ceiling verdict, with the sentence the operator reads when it is refused.
+
+    A model over the ceiling stays LISTED and is marked - ENTRY 017 requires it be "excluded from
+    selection with a stated reason, not silently hidden" (S-19)."""
+    if parameter_size is None:
+        return {"parameter_size": None, "within_ceiling": None, "ceiling_reason": None}
+    params = _parse_parameter_count(parameter_size)
+    if params is None:
+        return {"parameter_size": parameter_size, "within_ceiling": False,
+                "ceiling_reason": f"{name} reports an unreadable parameter count, so it cannot be "
+                                  f"shown to be within the operator's "
+                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (fail closed)"}
+    if params >= _CEILING_TRUE_PARAMS:
+        return {"parameter_size": parameter_size, "within_ceiling": False,
+                "ceiling_reason": f"{name} has {parameter_size} parameters, above the operator's "
+                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (ENTRY 017) - this "
+                                  f"host's GPU carries 8 GB of VRAM. Installed and kept, but not "
+                                  f"assignable to a SOVEREIGN role in this build"}
+    return {"parameter_size": parameter_size, "within_ceiling": True, "ceiling_reason": None}
+
+
 def _probe_ollama(
     base_url: str | None,
     *,
@@ -216,10 +286,16 @@ def _probe_ollama(
 
     getter = http_get or _default_http_get
 
+    parameter_sizes: dict[str, str] = {}
+
     def probe(path: str) -> tuple[list[str] | None, str | None]:
         try:
             response = getter(trusted_base + path, float(timeout))
-            return _model_names(_coerce_http_json(response)), None
+            payload = _coerce_http_json(response)
+            if path == "/api/tags":
+                # ONE enumeration, read twice from the same payload - never a second probe.
+                parameter_sizes.update(_model_parameter_sizes(payload))
+            return _model_names(payload), None
         except Exception as exc:  # network and injected probe failures are state, not crashes
             return None, type(exc).__name__
 
@@ -236,9 +312,19 @@ def _probe_ollama(
             "loaded": None if loaded is None else model in loaded_set,
             # Ollama exposes residency through /api/ps, not request activity.
             "currently_running": None,
+            # The operator's 8B ceiling, per model (ENTRY 017 / S-19). Every installed model stays
+            # LISTED; one above the ceiling is marked and carries the reason, so the operator can
+            # see which of his models SOVEREIGN will not assign to a role, and why.
+            **_ceiling_state(model, parameter_sizes.get(model)),
         }
         for model in all_names
     ]
+    over_ceiling = sorted(
+        state["name"] for state in model_states if state["within_ceiling"] is False)
+    configured_over_ceiling = sorted(
+        state["name"] for state in model_states
+        if state["within_ceiling"] is False and state["configured"]
+    )
     if installed is None and loaded is None:
         probe_status = "offline"
     elif installed is None or loaded is None:
@@ -259,6 +345,15 @@ def _probe_ollama(
         "loaded_models": loaded,
         "currently_running_models": None,
         "model_states": model_states,
+        "local_model_ceiling": {
+            "nameplate_b": LOCAL_MODEL_CEILING_NAMEPLATE_B,
+            "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",
+            "over_ceiling_models": over_ceiling,
+            # A ROLE assigned to a model above the ceiling is the state that matters: SOVEREIGN
+            # would be configured to run something this host cannot serve within the operator's
+            # rule. Reported separately from the library-wide list so it cannot be lost in it.
+            "configured_over_ceiling": configured_over_ceiling,
+        },
         "activity_observable": False,
         "activity_note": (
             "/api/tags means installed; /api/ps means loaded/resident. "
