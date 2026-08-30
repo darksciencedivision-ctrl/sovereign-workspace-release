@@ -358,7 +358,7 @@ class TestRenderProofs(unittest.TestCase):
     def test_rendered_dom(self):
         edge = self._edge_path()
         prof = tempfile.mkdtemp(prefix="sws-h17-")
-        lines = [header("H-17 - rendered DOM of / (headless Edge) shows the five cards, "
+        lines = [header("H-17 - rendered DOM of / (headless Edge) shows every loaded module, "
                         "their action rows, and the runnable Distillery controls")]
         proc, port, nonce = start_shell()
         url = "http://127.0.0.1:{}/".format(port)
@@ -378,7 +378,15 @@ class TestRenderProofs(unittest.TestCase):
             cards = _CardDOM()
             cards.feed(dom)
             lines.append("card order      : {}".format(cards.order))
-            self.assertEqual(cards.order, ["sovereign", "sow", "tokencenter", "debate", "distillery"])
+            # FIXUP-01 F-2 (N-22). This assertion previously pinned FIVE cards, which is what let
+            # llamacpp exist in the backend and be absent from the operator's screen without any
+            # gate noticing. The curated five keep their contract order; every further adapter the
+            # shell loads is appended by ensureServerModules(). Changed under the authority of the
+            # FIXUP-01 directive F-2, which requires llamacpp to be visible (S-14).
+            self.assertEqual(cards.order[:5],
+                             ["sovereign", "sow", "tokencenter", "debate", "distillery"])
+            self.assertIn("llamacpp", cards.order,
+                          "the optional llamacpp adapter is loaded by the shell but has no card")
 
             expected_actions = {"start", "stop", "restart", "open", "test", "logs"}
             for mid in cards.order:
@@ -401,6 +409,16 @@ class TestRenderProofs(unittest.TestCase):
                              dist.get("open"), dist.get("test")))
             lines.append("distillery Logs enabled: {}".format(not dist.get("logs", False)))
 
+            llama = {a: d for a, d in cards.buttons.get("llamacpp", [])}
+            for act in ("start", "test", "restart"):
+                self.assertTrue(llama.get(act, False),
+                                "llamacpp {} is enabled although its runtime is not "
+                                "installed".format(act))
+            self.assertFalse(llama.get("logs", True), "llamacpp Logs must stay reachable")
+            lines.append("llamacpp (optional, runtime absent) start/test/restart disabled: "
+                         "{} {} {}".format(llama.get("start"), llama.get("test"),
+                                           llama.get("restart")))
+
             shot_dir = os.path.join(WORKSPACE, "evidence", "gate5", "screenshots")
             os.makedirs(shot_dir, exist_ok=True)
             shot = os.path.join(shot_dir, "shell-grid-rendered.png")
@@ -419,7 +437,8 @@ class TestRenderProofs(unittest.TestCase):
 
             lines.append("")
             lines.append("edge binary: {}".format(edge))
-            lines.append("RESULT: five cards in order, six-action rows per contract "
+            lines.append("RESULT: curated cards in contract order plus every further loaded "
+                         "adapter, six-action rows per contract "
                          "section 7.3(2), Distillery STOPPED controls are state-correct, PNG differs from "
                          "the blank render.")
             write_artifact("h17-dom.txt", "\n".join(lines) + "\n")

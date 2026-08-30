@@ -28,7 +28,11 @@
   const LOG_REFRESH_MS = 2000;
   const TOKEN_CENTER_URL = "http://127.0.0.1:8765/";
 
-  // Fixed card order, per spec.
+  /* Curated card order and copy for the modules the contract names (SWS-UI-001 v1.2 7.3).
+     N-22: this is the ORDER and the COPY, it is no longer the SET. Any adapter the shell loads
+     that is not named here is appended at first poll by ensureServerModules() using the server's
+     own display_name/description, so a module can never again exist in the backend and be absent
+     from the operator's screen. */
   const MODULES = [
     {
       id: "sovereign",
@@ -385,7 +389,32 @@
   }
 
   function buildCards() {
-    for (const mod of MODULES) {
+    for (const mod of MODULES) buildCard(mod);
+  }
+
+  /* N-22: adopt any module the shell reports that the curated list does not name. The card is
+     built from the server's own metadata, so an adapter the backend loaded is always visible -
+     the operator cannot act on a module they cannot see. */
+  function ensureServerModules(states) {
+    let added = false;
+    for (const entry of states) {
+      const id = entry[0];
+      const record = entry[1] || {};
+      if (moduleById(id)) continue;
+      MODULES.push({
+        id: id,
+        name: firstString(record.display_name, id),
+        description: firstString(record.description, "Adapter loaded by the shell."),
+        discovered: true,
+      });
+      buildCard(MODULES[MODULES.length - 1]);
+      added = true;
+    }
+    return added;
+  }
+
+  function buildCard(mod) {
+    {
       const card = make("article", "module-card");
       card.dataset.module = mod.id;
 
@@ -523,13 +552,21 @@
     const meta = STATE_META[state] || { cls: "badge-muted", label: state || "Unknown" };
     refs.badge.className = "badge " + meta.cls;
 
-    const reasonText = firstString(record.reason_code, record.reason, record.detail);
+    let reasonText = firstString(record.reason_code, record.reason, record.detail);
+    /* N-22/OBS-2: an optional runtime that ships in no archive has a valid adapter and no binary.
+       It must read as present-and-unavailable, naming the path the operator has to supply -
+       never as absent, and never as a module that merely failed. */
+    if (record.runtime_present === false && !reasonText) {
+      reasonText = "Runtime not installed: " + firstString(record.runtime_path, "path not declared");
+    }
     if ((state === "FAILED" || state === "CONFIG_ERROR") && reasonText) {
       refs.stateText.textContent = meta.label + ": " + reasonText;
       refs.reason.textContent = "";
     } else {
       refs.stateText.textContent = meta.label;
-      refs.reason.textContent = state === "READY" || state === "NOT_STARTED" ? "" : reasonText;
+      const hideReason = (state === "READY" || state === "NOT_STARTED")
+        && record.runtime_present !== false;
+      refs.reason.textContent = hideReason ? "" : reasonText;
     }
 
     refs.lastCheck.textContent = formatTime(
@@ -596,7 +633,8 @@
     const refs = cards.get(id);
     if (!refs) return;
     const mod = moduleById(id);
-    const st = (moduleState.get(id) || {}).state || "NOT_STARTED";
+    const rec = moduleState.get(id) || {};
+    const st = rec.state || "NOT_STARTED";
 
     for (const entry of Object.entries(refs.buttons)) {
       const action = entry[0];
@@ -606,6 +644,10 @@
 
       if (action === "logs") {
         enabled = true;
+      } else if (rec.runtime_present === false && action !== "open") {
+        // Nothing can be launched without the binary; say which one is missing.
+        enabled = false;
+        tip = "Runtime not installed: " + firstString(rec.runtime_path, "path not declared");
       } else if (mod && mod.noRuntime) {
         enabled = false;
         tip = DISTILLERY_TOOLTIP;
@@ -687,6 +729,7 @@
     try {
       const payload = await apiGet("/api/state");
       const states = normalizeState(payload);
+      ensureServerModules(states);
       for (const mod of MODULES) {
         const record = states.get(mod.id);
         if (record) applyModuleState(mod.id, record);

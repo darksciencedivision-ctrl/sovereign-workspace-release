@@ -334,6 +334,8 @@ class ModuleRunner:
         """(allowed, http_status, message) — Start is refused in EXTERNAL and while occupied."""
         if self.adapter.get("state_class") == "not_started":
             return False, 400, "Module has no runtime"
+        if not self.runtime_present:
+            return False, 400, f"Runtime not installed: {self.runtime_path}"
         if "error" in self.adapter:
             return False, 400, f"Adapter error: {self.adapter.get('reason')}"
         if self.state == EXTERNAL:
@@ -343,6 +345,24 @@ class ModuleRunner:
         if self.state not in (STOPPED, FAILED):
             return False, 400, f"Cannot start from state {self.display}"
         return True, 200, ""
+
+    @property
+    def runtime_path(self) -> str:
+        """argv[0] of the launch command - the executable this module needs on disk.
+
+        N-22/OBS-2: an optional runtime that ships in no archive (llama.cpp, R2 s3) has a real
+        adapter and no binary. The operator has to be able to see WHICH path is missing, so the
+        path is reported rather than merely the fact of absence.
+        """
+        argv = (self.adapter.get("launch") or {}).get("argv") or []
+        return argv[0] if argv else ""
+
+    @property
+    def runtime_present(self) -> bool:
+        """True when the launch executable exists. Unknown (no argv) counts as present, so a
+        module without a launch block is never mislabelled as uninstalled."""
+        path = self.runtime_path
+        return True if not path else os.path.exists(path)
 
     def can_open(self) -> bool:
         """Open is enabled in READY and EXTERNAL (§7.3 item 2)."""
@@ -361,4 +381,6 @@ class ModuleRunner:
             "port": "",
             "url": self.adapter.get("open", {}).get("url", ""),
             "can_open": self.can_open(),
+            "runtime_present": self.runtime_present,
+            "runtime_path": self.runtime_path,
         }
