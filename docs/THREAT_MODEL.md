@@ -135,10 +135,22 @@ nothing migrates it automatically. Stated in `docs/LIMITATIONS.md`.
 
 ### T12 — A runtime action cannot be attributed after the fact
 **B1.** Something happened and there is no record of what or when.
-**Status: NOT IMPLEMENTED.** There is no security audit log, and observability is thin: four
-files use `logging`, most diagnostic output is `print()` to a console, with no levels, no
-rotation and no configured destination (P4-6). Once a service's stdout is gone, so is the
-record.
+**Status: PARTIAL.** There is still **no security audit log** - no record of who did what,
+which is the half of T12 that P4-3 covers and which is out of scope for a single-operator
+release by operator ruling.
+
+Observability itself is no longer thin (P4-6). Every module's output is persisted to its own
+file under the per-module state root, rotating at 2 MB with five generations kept; the shell's
+own records are levelled and configurable through `SOVEREIGN_LOG_LEVEL`. A service's stdout
+disappearing no longer takes the record with it.
+
+One security property is worth stating explicitly, because the obvious implementation would
+have broken it: persistence is attached inside the buffer that already redacts, **after**
+`redact()` runs. Tapping the supervisor's raw output pipe would have been simpler and would
+have written unredacted credentials to disk. There is no second, unredacted copy.
+
+What is still absent: the modules emit unstructured text, so severity filtering within a
+module's log is not possible.
 
 ---
 
@@ -147,8 +159,8 @@ record.
 Collected so they are countable rather than scattered:
 
 - **T1** authentication — OUT OF SCOPE by operator ruling
-- **T7** Python dependency scanning — **NOT IMPLEMENTED** (P2-1/P2-2)
+- **T7** Python dependency scanning — **NOT IMPLEMENTED**; the SBOM is now valid scanner input (P2-1/P2-2/P2-3), but no scanner consumes it
 - **T10** model-output validation — **NOT IMPLEMENTED**, operator review is the control
-- **T12** audit logging and observability — **NOT IMPLEMENTED** (P4-3, P4-6)
+- **T12** security audit logging — **NOT IMPLEMENTED** (P4-3); observability itself is implemented (P4-6)
 
 No third-party security audit or penetration test has been performed on this release.

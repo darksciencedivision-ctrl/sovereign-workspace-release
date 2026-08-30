@@ -22,11 +22,21 @@ def _strip_controls(text: str) -> str:
 class LogRing:
     """Thread-safe ring buffer for process output lines."""
 
-    def __init__(self, max_lines: int = 2000, max_line_len: int = 4096, max_read: int = 65536):
+    def __init__(self, max_lines: int = 2000, max_line_len: int = 4096, max_read: int = 65536,
+                 sink=None):
+        """`sink` is an optional object with `write_line(str)`.
+
+        EPC-01 P4-6. Persistence is attached HERE rather than at the supervisor's pipe, and
+        the placement is the security property: by the time a line reaches the sink it has
+        already been through `redact()` and the control-character strip. A second path to
+        disk that tapped the raw pipe would turn an in-memory safeguard into a file full of
+        whatever the module printed.
+        """
         self._max_lines = max_lines
         self._max_line_len = max_line_len
         self._max_read = max_read
         self._lines: list[str] = []
+        self._sink = sink
         self._lock = threading.Lock()
 
     def write(self, data: bytes, runtime=None, model_id=None, artifact_id=None,
@@ -57,6 +67,10 @@ class LogRing:
                 self._lines.append(line)
                 if len(self._lines) > self._max_lines:
                     self._lines = self._lines[-self._max_lines:]
+            # Outside the lock: the sink does file I/O, and holding the ring's lock across it
+            # would let a slow disk stall the reader that serves /api/logs.
+            if self._sink is not None:
+                self._sink.write_line(line)
 
     def read(self) -> str:
         """Return recent log lines as a string."""

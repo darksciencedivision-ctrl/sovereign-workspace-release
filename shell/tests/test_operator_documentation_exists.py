@@ -32,11 +32,16 @@ REQUIRED = {
 #: Defects an operator will meet in normal use. Each must be findable from the document a
 #: person would actually open, not only from LIMITATIONS.md.
 CROSS_REFERENCED_DEFECTS = {
-    # P0-5 (uninstall), P1-1 (upgrade) and P4-4 (state location) were listed here and are now
-    # CLOSED, so their ids no longer appear in the operator documentation — correctly, because
-    # a troubleshooting guide should not send a reader chasing a defect that no longer exists.
-    # This guard caught their removal and made it deliberate, which is what it is for.
-    "P4-6": ("OPERATIONS.md", "THREAT_MODEL.md"),
+    # P0-5 (uninstall), P1-1 (upgrade), P4-4 (state location) and now P4-6 (observability)
+    # were listed here and are CLOSED, so their ids no longer appear in the operator
+    # documentation — correctly, because a troubleshooting guide should not send a reader
+    # chasing a defect that no longer exists. This guard caught each removal and made it
+    # deliberate, which is what it is for.
+    #
+    # The map being empty is not a hole in the coverage: it means every defect an operator
+    # meets in normal use has been fixed rather than documented. What replaced each one is
+    # asserted below, which is the stronger check — a closed defect whose replacement an
+    # operator cannot find has not really been closed.
 }
 
 #: Capabilities that replaced closed defects. An operator must be able to find these from the
@@ -46,6 +51,11 @@ CROSS_REFERENCED_CAPABILITIES = {
     "backup_state.ps1": ("TROUBLESHOOTING.md", "OPERATIONS.md", "INSTALL.md"),
     "PurgeData": ("TROUBLESHOOTING.md", "INSTALL.md"),
     "LOCALAPPDATA": ("OPERATIONS.md", "INSTALL.md", "THREAT_MODEL.md"),
+    # P4-6's replacement. An operator who wants more detail out of the shell, or who wants to
+    # know where a module's output went after the console closed, must find it in the document
+    # they would actually open.
+    "SOVEREIGN_LOG_LEVEL": ("OPERATIONS.md",),
+    "logs": ("OPERATIONS.md", "TROUBLESHOOTING.md"),
 }
 
 

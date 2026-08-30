@@ -105,13 +105,37 @@ never deletes the state it replaces.
 
 ## Logs
 
-Logging is thin in this release and you should know that going in: four files use Python's
-`logging` module and most diagnostic output is `print()` to the process's stdout. There is no
-structured logging, no log levels you can configure, no rotation, and no single destination.
-Tracked as P4-6.
+Every module's output is captured and **persisted**, one log per module, outside the install
+root:
 
-In practice this means: **run the services where you can see their console output**, and
-capture it when reproducing a problem. Once a service's stdout is gone, so is the record.
+```
+%LOCALAPPDATA%\SovereignWorkspace\<module>\logs\<module>.log
+%LOCALAPPDATA%\SovereignWorkspace\shell\logs\shell.log
+```
+
+Each rotates at 2 MB and keeps five generations, so one chatty module cannot fill a disk;
+the ceiling is 10 MB per module. The live file always holds the most recent output.
+
+**Module output is redacted before it is written.** The persistence point is inside the same
+buffer that serves `/api/logs`, after redaction has run - so a secret the API hides is not
+sitting in the file in the clear. There is no second, unredacted copy anywhere.
+
+Set the shell's own verbosity with `SOVEREIGN_LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`,
+`ERROR`); it defaults to `INFO`, and a name it does not recognise falls back to `INFO` with a
+warning rather than failing to start. The shell logs to its file and to stderr together.
+
+```powershell
+$env:SOVEREIGN_LOG_LEVEL = 'DEBUG'
+Get-Content "$env:LOCALAPPDATA\SovereignWorkspace\shell\logs\shell.log" -Tail 50 -Wait
+```
+
+If the log directory cannot be written, the shell still starts and still logs to the console -
+losing the record is a degradation, not an outage - and says so in a warning.
+
+What is still missing, so the absence is not read as completeness: the modules themselves
+write unstructured text rather than levelled or structured records, so what lands in a
+module's log is whatever that module chose to print. Filtering by severity within a module's
+log is not possible. The shell's own records are levelled; its modules' are not.
 
 The install itself is the exception — `install_sow.py` logs every step to a file and exits
 non-zero on any mismatch, so a failed install leaves a readable trail.

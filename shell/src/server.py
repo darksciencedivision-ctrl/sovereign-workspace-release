@@ -19,6 +19,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from shell.src.adapter import is_contained, load_all_adapters
 from shell.src.supervisor import JobSupervisor, focus_window_for_pids, job_pids
 from shell.src.logring import LogRing
+from shell.src.logs import get_logger, module_sink
+from shell.src.adapter import workspace_state_root
 from shell.src.csrf import get_csrf
 from shell.src.probe import run_preflight
 from shell.src.distillery import get_distillery_status
@@ -400,7 +402,7 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
 
         ring = self.log_rings.get(module_id)
         if ring is None:
-            ring = LogRing()
+            ring = LogRing(sink=module_sink(module_id))
             self.log_rings[module_id] = ring
         ring.clear()
 
@@ -497,7 +499,8 @@ def main(argv=None):
     log_rings = {}
     states = {}
     for mid, adapter in adapters.items():
-        ring = LogRing() if adapter.get("state_class") == "runnable" else None
+        ring = (LogRing(sink=module_sink(mid))
+                if adapter.get("state_class") == "runnable" else None)
         if ring is not None:
             log_rings[mid] = ring
         states[mid] = ModuleRunner(mid, adapter, supervisor, ring)
@@ -511,13 +514,16 @@ def main(argv=None):
     threading.Thread(target=_poll_loop, daemon=True).start()
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ShellAPIHandler)
-    print(f"SWS Shell listening on http://127.0.0.1:{server.server_port}")
-    print(f"Modules loaded: {list(states.keys())}")
+    log = get_logger()
+    log.info("shell listening on http://127.0.0.1:%s", server.server_port)
+    log.info("modules loaded: %s", ", ".join(sorted(states.keys())))
+    log.info("module output is persisted under %s/<module>/logs",
+             workspace_state_root())
     sys.stdout.flush()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nShutting down...")
+        get_logger().info("shutting down on interrupt")
     finally:
         # H-9: only Job-owned processes are stopped. EXTERNAL instances are never touched.
         supervisor.close()
