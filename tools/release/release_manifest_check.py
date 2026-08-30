@@ -36,6 +36,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -48,8 +49,40 @@ def sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
+#: EPC-01. Lines that record WHEN an artifact was generated rather than WHAT it contains.
+#: `shell/BUILD-MANIFEST.txt` opens with `# utc: <ISO8601>`, which the evidence convention
+#: requires, and the shell suite regenerates the file on every run. Its 87 content hashes were
+#: byte-identical across regenerations while the whole-file hash changed every time — so a
+#: whole-file pin on it could never hold, and went stale the moment anyone ran the tests.
+#: Skipping the artifact would have removed a real check. Hashing it WITHOUT its generation
+#: stamp keeps every content guarantee and drops only the part that is guaranteed to move.
+_GENERATION_STAMP = re.compile(rb"^#\s*utc:\s*\S+\s*$", re.IGNORECASE)
+
+
+def sha256_file_content(path: str) -> str:
+    """SHA-256 of a text artifact with its generation-stamp lines removed."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for line in f:
+            if _GENERATION_STAMP.match(line.rstrip(b"\r\n") + b""):
+                continue
+            h.update(line)
+    return h.hexdigest()
+
+
+def _posix_rel(p: str) -> str:
+    return p.replace("\\", "/")
+
+
+def _generated_artifacts(manifest: dict) -> set:
+    """Paths declared as carrying a generation stamp, hashed content-only."""
+    declared = manifest.get("generated_artifacts") or {}
+    paths = declared.get("paths") if isinstance(declared, dict) else declared
+    return {p.replace("\\", "/") for p in (paths or []) if isinstance(p, str)}
+
+
 def _verify_hashed_items(root: str, items, label: str, problems: list,
-                         verified: set) -> None:
+                         verified: set, generated: set | None = None) -> None:
     """Verify each ``path``+``sha256`` item and mark it as actually checked.
 
     Membership in ``verified`` is recorded by object identity so the S-15 sweep
@@ -69,10 +102,11 @@ def _verify_hashed_items(root: str, items, label: str, problems: list,
         if not os.path.isfile(full):
             problems.append(f"{label}: file missing at {p}")
             continue
-        got = sha256_file(full)
+        stamped = bool(generated) and _posix_rel(p) in generated
+        got = sha256_file_content(full) if stamped else sha256_file(full)
         if got != want:
             problems.append(
-                f"{label}: hash mismatch at {p} "
+                f"{label}: {'content ' if stamped else ''}hash mismatch at {p} "
                 f"(enumerated {want}, measured {got})")
 
 
@@ -207,6 +241,8 @@ def check(root: str, manifest: dict) -> list:
                     f"{name}: record source_sha256 {actual_src} != manifest "
                     f"source identity {expected_src}")
 
+    generated = _generated_artifacts(manifest)
+
     for item in manifest.get("batch_files", []):
         path = item.get("path")
         expected = item.get("sha256")
@@ -218,15 +254,16 @@ def check(root: str, manifest: dict) -> list:
         if not os.path.isfile(full):
             problems.append(f"batch_files: file missing at {path}")
             continue
-        actual = sha256_file(full)
+        stamped = _posix_rel(path) in generated
+        actual = sha256_file_content(full) if stamped else sha256_file(full)
         if actual != expected:
             problems.append(
-                f"batch_files: hash mismatch at {path} "
+                f"batch_files: {'content ' if stamped else ''}hash mismatch at {path} "
                 f"(enumerated {expected}, measured {actual})")
 
     for section in ("identity_documents", "ui_assets"):
         _verify_hashed_items(root, manifest.get(section, []), section,
-                             problems, verified)
+                             problems, verified, generated)
 
     # S-15 sweep: nothing carrying path+sha256 may go unverified.
     for jsonpath, obj in _hash_bearing_objects(manifest):

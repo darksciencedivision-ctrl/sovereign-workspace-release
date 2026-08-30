@@ -79,3 +79,31 @@ evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
 /evidence/** export-ignore
 /dev export-ignore
 /dev/** export-ignore
+
+# X-5 (EPC-01 P3-3) — THE WORKSHOP'S PAPERWORK DOES NOT SHIP EITHER.
+#
+# OD-35 removed evidence/ and dev/ from the distribution. It did not touch docs/, which ships
+# 90 markdown files of which 58 are internal build directives, review pastes, resume pastes,
+# conflict audits and stop reports — the same class of artifact, in a directory OD-35 did not
+# reach. A recipient opening docs/ should find the documents written FOR them, not the running
+# commentary of the build that produced their copy.
+#
+# tools-operator/ goes with them and for the same reason: its six Start-OpenCode-*.ps1 files
+# are build-harness launchers, they are the only things that reference the cut documents, and
+# no product file references THEM (measured across shell/, modules/ and tools/).
+#
+# What deliberately stays: every ADR, DECISIONS.md, DISCOVERY.md, THEME-BASELINE*, the
+# SWS-UI-001 addenda, RELEASE-ASSURANCE.md, LIMITATIONS.md, SUPPORT-POLICY.md and
+# THIRD-PARTY-LICENCE-POSITION.md. The README links four of those, and a recipient needs the
+# architecture decisions to understand what they are running.
+#
+# History stays tracked; only `git archive` output changes.
+docs/CP-* export-ignore
+docs/REM-0* export-ignore
+docs/REVIEW-* export-ignore
+docs/STOP-* export-ignore
+docs/OX-* export-ignore
+docs/EXPORT-* export-ignore
+docs/CLAUDE-* export-ignore
+tools-operator export-ignore
+tools-operator/** export-ignore

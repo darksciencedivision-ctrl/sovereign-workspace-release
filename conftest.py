@@ -25,6 +25,7 @@ continues to use `modules/sow/pytest.ini` and never sees this file.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -41,12 +42,35 @@ MODULE_ROOTS = [
     ROOT / "modules" / "tokencenter",
 ]
 
+_ON_PATH = []
 for path in reversed(MODULE_ROOTS):
     if path.is_dir():
         text = str(path)
         if text in sys.path:
             sys.path.remove(text)
         sys.path.insert(0, text)
+        _ON_PATH.insert(0, text)
+
+
+# EPC-01. sys.path reaches THIS process. It does not reach the subprocesses the tests spawn,
+# and several suites spawn one deliberately: debate drives `app.py` through `runpy` in a child
+# to prove a bad config is rejected at startup, and distillery shells out to its own CLI.
+#
+# Run from modules/debate, the child inherits a cwd that is already the module root and
+# `from debate import ...` resolves by accident of where it was launched. Run from the
+# repository root — the whole-product invocation V-5 exists to make possible — the child's cwd
+# is the repository and the import fails, so THIRTEEN debate tests and TWO distillery tests
+# failed only in the combined run and passed in isolation. That is precisely the class of
+# defect a whole-product run is for, and it would have been invisible without one.
+#
+# Exporting PYTHONPATH puts the same roots in front of every child. Any value already set is
+# preserved and appended after, so a caller's own PYTHONPATH is never discarded.
+_existing = os.environ.get("PYTHONPATH", "")
+_wanted = os.pathsep.join(_ON_PATH)
+if _wanted and _wanted not in _existing:
+    os.environ["PYTHONPATH"] = (
+        _wanted + (os.pathsep + _existing if _existing else "")
+    )
 
 
 # Bind the ambiguous top-level name `tests` DETERMINISTICALLY, before collection starts.

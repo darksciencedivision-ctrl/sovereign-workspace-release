@@ -24,6 +24,17 @@ _spec = importlib.util.spec_from_file_location("sow_tests_live_call_guard", _gua
 if _spec is None or _spec.loader is None:  # pragma: no cover - a missing guard is fatal
     raise ImportError(f"the live-call guard is missing from {_guard_path}")
 _live_call_guard = importlib.util.module_from_spec(_spec)
+# Register it under the canonical dotted name as well, BEFORE executing it.
+#
+# EPC-01. Loading by path alone created a second, distinct module object: this conftest
+# raised `sow_tests_live_call_guard.LiveProviderCallInTests` while
+# tests/unit/test_no_live_provider_calls_in_suite.py catches
+# `tests.live_call_guard.LiveProviderCallInTests`. Same file, two classes, so
+# `pytest.raises` did not match and three POSITIVE CONTROLS on the live-spend guard failed —
+# only in a whole-product run, where both names get used. A guard whose control cannot fire is
+# a guard nobody is checking, which is the one thing this file exists to prevent.
+sys.modules.setdefault("sow_tests_live_call_guard", _live_call_guard)
+sys.modules.setdefault("tests.live_call_guard", _live_call_guard)
 _spec.loader.exec_module(_live_call_guard)
 install_live_call_guard = _live_call_guard.install
 

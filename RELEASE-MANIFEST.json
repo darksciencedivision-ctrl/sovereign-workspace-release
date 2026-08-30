@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "b6b84aaa7fe96b9a60b7800b5fe1ef1932d6bd92f9692e63606dada34d1a67d4"
+      "sha256": "0f6a7f4640de4a36fa5b5a245ab737d41733018103eb712b18a2e1c9929b99da"
     },
     {
       "path": "shell/config/install.json",
@@ -354,7 +354,7 @@
     },
     {
       "path": "tools/release/release_manifest_check.py",
-      "sha256": "c11e942a4e03ccf583329b0d3b261e2ad0b4b116ecc1dfbf01a7647e2102e6ec"
+      "sha256": "53f41913e0ad9ebe39611d91ccb760b7a5ee24bd84390176e92cd932ca58b39a"
     },
     {
       "path": "tools/release/test_generate_release_identity.py",
@@ -407,6 +407,12 @@
         "obtainable_from": "NOTHING — this is an open gap, not an external artifact",
         "open_gap": true
       }
+    ]
+  },
+  "generated_artifacts": {
+    "_note": "EPC-01. Artifacts that SHIP but carry a generation timestamp, so their whole-file hash necessarily changes on every regeneration while their content does not. shell/BUILD-MANIFEST.txt opens with `# utc: <ISO8601>` (required by the evidence convention) and the shell suite regenerates it on every run — measured: two consecutive regenerations differed in that ONE line and in nothing else, while the whole-file hash moved both times. A whole-file pin on such a file can never hold. release_manifest_check hashes these WITHOUT their `# utc:` lines, so every content guarantee is kept and only the part guaranteed to move is dropped.",
+    "paths": [
+      "shell/BUILD-MANIFEST.txt"
     ]
   }
 }
