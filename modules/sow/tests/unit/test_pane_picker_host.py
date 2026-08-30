@@ -65,8 +65,26 @@ def test_local_options_mirror_the_live_ollama_enumeration_exactly() -> None:
     # every local option is credential-free and carries a residency state string (invariant 22)
     for o in picker["options"]:
         if o["provider"] == "ollama_local":
-            assert o["available"] is True and o["subscription_backed"] is False
+            assert o["subscription_backed"] is False
             assert isinstance(o["residency"], str) and o["residency"]
+
+    # LOCAL-01 F-1 (ENTRY 017). `available` was asserted True for EVERY enumerated local model.
+    # That was the defective contract: measured live at the parent seal, this host offered
+    # `deepseek-r1:70b` as available and then refused it at `vram_admission` after the operator
+    # chose it (S-17), and offered `phi4:14b` — 14.7B on an 8 GB card — as fully launchable.
+    # The contract is now the stronger one: availability agrees with the operator's ceiling, and
+    # nothing is greyed without a sentence saying why (S-19). Still no fabrication and no
+    # omission — the label set above is unchanged and every installed model is still listed.
+    ceiling = meta["local_ceiling"]
+    admitted = set(ceiling["admitted"])
+    excluded = ceiling["excluded"]
+    assert admitted.isdisjoint(excluded), "a model cannot be both admitted and excluded"
+    assert admitted | set(excluded) == enumerated, "every enumerated model must be classified"
+    for o in picker["options"]:
+        if o["provider"] == "ollama_local":
+            assert o["available"] is (o["label"] in admitted)
+            if not o["available"]:
+                assert o["unavailable_reason"], f"{o['label']} greyed with no stated reason"
 
 
 def test_emit_picker_prints_only_the_picker_json(capsys) -> None:

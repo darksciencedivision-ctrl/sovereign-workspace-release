@@ -46,6 +46,11 @@ from adapters.frontier.provider_cli_common import (
     AUTH_UNVERIFIED,
     ProviderCliProbe,
 )
+from adapters.local.model_ceiling import (
+    CEILING_NAMEPLATE_B,
+    classify_local_models,
+    reasons_by_name,
+)
 from control_plane.nodes.pane_picker import ProviderCliInventory, build_pane_picker
 from control_plane.profiles.live_authorization import (
     LiveAuthorizationError,
@@ -415,7 +420,14 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
     """
     live = load_live_authorization()
     codex = probe_codex()
-    ollama_models = detect.ollama_models()
+    # ONE enumeration, classified ONCE (S-20). The records carry each model's parameter count,
+    # capability list and on-disk size, which is what the operator's 8B ceiling needs to refuse a
+    # model *and say why*. Every other local surface — the Conductor, Debate, SOVEREIGN — reads the
+    # same `adapters.local.model_ceiling` verdicts rather than re-deriving a second, drifting set.
+    ollama_records = detect.ollama_model_records()
+    ceiling_verdicts = classify_local_models(ollama_records)
+    ollama_models = [v.name for v in ceiling_verdicts]
+    ceiling_reasons = reasons_by_name(ceiling_verdicts)
     planner, residency, prov = _host_residency()
     budget = _budget_from(prov)
     claude_present = detect.claude_code_available()
@@ -434,6 +446,10 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         # binary, every local pane is refused — so every local option is greyed with that reason
         # instead of being offered as launchable.
         local_unavailable_reason=local_admission_reason(budget, ollama_runtime),
+        # The operator's 8B ceiling (ENTRY 017), per model, with the sentence the operator
+        # reads when a model is refused. Over-ceiling models stay VISIBLE and greyed - they
+        # are "excluded from selection with a stated reason, not silently hidden".
+        local_ceiling_reasons=ceiling_reasons,
         # OP-12: the option set for these two IS their own `models` listing — enumerated here on the
         # real host, never composed. An absent, stale-version or signed-out CLI yields zero options
         # with the reason attached to the group (operator directive §8/§14).
@@ -448,6 +464,13 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         GROK_ADAPTER + "_probe": grok_probe.as_dict(),
         ANTIGRAVITY_ADAPTER + "_probe": antigravity_probe.as_dict(),
         "ollama_enumerated": ollama_models,
+        "local_ceiling": {
+            "nameplate_b": CEILING_NAMEPLATE_B,
+            "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",
+            "classified": len(ceiling_verdicts),
+            "admitted": [v.name for v in ceiling_verdicts if v.admitted],
+            "excluded": {v.name: v.reason for v in ceiling_verdicts if not v.admitted},
+        },
         "residency_snapshot": planner.snapshot() if planner else None,
         "residency_budget": budget,
         "residency_provenance": prov,

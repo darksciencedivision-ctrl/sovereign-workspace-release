@@ -422,10 +422,20 @@ def _local_group_reason(ollama_models: list[str],
 
 
 def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
-                   unavailable_reason: str | None = None) -> list[dict[str, Any]]:
+                   unavailable_reason: str | None = None,
+                   ceiling_reasons: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """One option per live-enumerated Ollama model, annotated with its residency state. Local
     models carry no credential (§2.4) so they are always OFFERED; an empty enumeration yields an
     empty list (recorded as count 0 — never a fabricated model).
+
+    `ceiling_reasons` is `{model tag: why it is refused}` from the ONE ceiling authority
+    (`adapters.local.model_ceiling`) — the operator's 8B rule (ENTRY 017), plus the models that are
+    not local weights at all (Ollama Cloud pointers) and the ones that cannot hold a conversation
+    (embedding models). A named model is rendered **greyed with that exact sentence, never
+    removed**: ENTRY 017 requires an over-ceiling model be "excluded from selection with a stated
+    reason, not silently hidden", and S-17 forbids the converse defect this closes — the picker
+    used to offer `deepseek-r1:70b` as `available: true` and let the VRAM gate refuse it only after
+    the operator clicked, which is a rendered control that is not a performable action.
 
     `unavailable_reason` greys them out. Local availability is not a credential question (there is
     no credential), but 17B promoted the residency planner from a display chip into an
@@ -435,6 +445,12 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
     this module's own stated contract — it was simply never extended to the condition 17B
     introduced."""
     options: list[dict[str, Any]] = []
+    ceiling_reasons = ceiling_reasons or {}
+
+    def reason_for(name: str) -> str | None:
+        """The ONE sentence this option is greyed with, or None when it is offered."""
+        return unavailable_reason or ceiling_reasons.get(name)
+
     # Deterministic order, de-duplicated while preserving first-seen — the enumeration is the
     # operator's real `ollama list`, but a duplicate name must not double an option.
     seen: set[str] = set()
@@ -461,10 +477,15 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
             # VRAM. Collapsing the two states told the operator that a model the daemon is
             # actively serving was not loaded (gate-validator FAIL-1).
             "residency": UNKNOWN if residency is None else residency.get(name, NOT_LOADED),
-            # No CREDENTIAL gate for a detected local model — but the VRAM admission gate can still
-            # cover none of them (see the docstring). Fail closed to greyed-with-reason.
-            "available": unavailable_reason is None,
-            "unavailable_reason": unavailable_reason,
+            # No CREDENTIAL gate for a detected local model — but TWO other gates can still refuse
+            # it, and they are different facts, so they are resolved in a stated order:
+            #   1. the host-wide VRAM admission gate (`unavailable_reason`) greys EVERY local
+            #      option — nothing can run, so the model's own size is not the operator's problem;
+            #   2. otherwise the operator's 8B ceiling (`ceiling_reasons`), which is per-model.
+            # Fail closed to greyed-with-reason in both cases; never removed (S-19, ENTRY 017:
+            # "excluded from selection with a stated reason, not silently hidden").
+            "available": reason_for(name) is None,
+            "unavailable_reason": reason_for(name),
             "note": "local model enumerated live from the Ollama daemon (§2.4, no credential)",
         })
     return sorted(options, key=lambda o: o["label"])
@@ -479,6 +500,7 @@ def build_pane_picker(
     codex_available: bool = False,
     codex_authenticated: bool = False,
     local_unavailable_reason: str | None = None,
+    local_ceiling_reasons: dict[str, str] | None = None,
     grok: ProviderCliInventory | None = None,
     antigravity: ProviderCliInventory | None = None,
 ) -> dict[str, Any]:
@@ -521,7 +543,8 @@ def build_pane_picker(
                              codex_authenticated=codex_authenticated)
     grok_options, grok_reason = _op12_options(GROK_ADAPTER, live, grok)
     antigravity_options, antigravity_reason = _op12_options(ANTIGRAVITY_ADAPTER, live, antigravity)
-    local = _local_options(ollama_models, residency, local_unavailable_reason)
+    local = _local_options(ollama_models, residency, local_unavailable_reason,
+                           local_ceiling_reasons)
 
     # Groups come from the ONE provider table, so `registered_providers()` cannot claim a provider
     # this list does not render (or vice versa).

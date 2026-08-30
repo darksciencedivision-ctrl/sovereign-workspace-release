@@ -5,6 +5,7 @@ mock stands in; the decision is recorded in evidence, never hidden.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import urllib.error
 import urllib.request
@@ -20,6 +21,44 @@ def ollama_available(timeout: float = 3.0) -> bool:
         return False
 
 
+#: What a LOCAL Ollama tag may look like. Distinct from `MODEL_SLUG_RE`, deliberately — see
+#: `ollama_model_records`. Adds `/` (the namespace separator in `sam860/dolphin3-llama3.2:3b`) and
+#: `_` (present in `hf.co/bartowski/THUDM_GLM-4-32B-0414-GGUF:Q4_K_M`), and is longer because a
+#: namespaced tag is. It still refuses whitespace, shell metacharacters, and a leading `-`, which
+#: is the property that matters: this string ends up as an argv element in `ollama run <tag>`.
+OLLAMA_TAG_RE = re.compile(r"^[A-Za-z0-9][\w.:@/-]{1,120}$")
+
+
+def ollama_model_records(timeout: float = 3.0) -> list[dict]:
+    """The daemon's FULL `/api/tags` rows, validated. Never raises (W-36).
+
+    `ollama_models` returns names only, which is all its callers ever needed. The operator's 8B
+    ceiling (ENTRY 017) needs each model's parameter count, capability list and on-disk size to
+    decide admission and to say WHY when it refuses — and `/api/tags` already carries all three
+    (`details.parameter_size`, `capabilities`, `size`). Reading them here keeps
+    `adapters.local.model_ceiling` a pure function over records and keeps HTTP in the one module
+    that owns host detection.
+
+    Rows are returned verbatim apart from the name validation below; classification is not this
+    module's decision.
+    """
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        entries = data.get("models", []) if isinstance(data, dict) else []
+        rows = []
+        for m in entries:
+            if not isinstance(m, dict):
+                continue
+            name = m.get("name")
+            if isinstance(name, str) and OLLAMA_TAG_RE.match(name):
+                rows.append(m)
+        return rows
+    except (urllib.error.URLError, OSError, json.JSONDecodeError,
+            KeyError, TypeError, AttributeError):
+        return []
+
+
 def ollama_models(timeout: float = 3.0) -> list[str]:
     """Model names the local daemon reports, VALIDATED. Never raises (W-36).
 
@@ -30,29 +69,29 @@ def ollama_models(timeout: float = 3.0) -> list[str]:
       object at all (`AttributeError` from `.get`) raised straight past the handler. A detection
       helper answering "is a local backend available" must not be able to take its caller down.
     * whatever names it returned travelled on unvalidated, and a model name eventually reaches a
-      `--model` argument. `MODEL_SLUG_RE` is the project's existing answer to what a model name may
-      look like and was simply not applied — so a name carrying a flag, whitespace or a shell
-      metacharacter was passed along verbatim.
+      `--model` argument, so the shape of the name is checked before it travels.
 
-    The import is local, matching `grok_executable` above: this module sits BELOW the adapter
-    package in the import order, and one shared rule is worth the local import — a private regex
-    here would fork a decision the project already made, and the two copies would drift.
+    WHY NOT `MODEL_SLUG_RE` (LOCAL-01 D-5). It used to apply that regex, and doing so silently
+    dropped **7 of this host's 60 installed models** — every namespaced tag, because
+    `^[A-Za-z0-9][A-Za-z0-9._:@\\-]{1,80}$` admits neither `/` nor `_`. One of the seven,
+    `sam860/dolphin3-llama3.2:3b`, is a 3.2B model well inside the operator's ceiling that the
+    picker could never offer, and nothing anywhere reported the loss — the silent absence S-19
+    forbids.
+
+    `MODEL_SLUG_RE` is a **prose defence**: it exists so that parsing a frontier CLI's free TEXT
+    output cannot turn a stray `Traceback` or a help sentence into a model id (its own comment says
+    so, and W-44/W-45 record exactly that failure for `agy`). Ollama answers in **structured JSON**
+    where `name` is a declared field, so there is no prose to defend against, and the property that
+    actually matters — this string becomes an argv element — is preserved by `OLLAMA_TAG_RE`, which
+    still refuses whitespace, metacharacters and a leading `-`. Sharing the frontier regex here was
+    not one decision serving two callers; it was a text-parsing rule imposed on a JSON field, and
+    it cost the operator seven models.
 
     Scope, not overstated: the daemon is on loopback, so this is not a remote attacker. It closes a
     malformed or upgraded daemon crashing the caller, and an unconstrained string moving toward an
     argv. The separate "no argv builder validates a `--model` value" surface is W-51.
     """
-    from adapters.frontier.provider_cli_common import MODEL_SLUG_RE  # noqa: PLC0415
-
-    try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
-        entries = data.get("models", []) if isinstance(data, dict) else []
-        names = [m.get("name") for m in entries if isinstance(m, dict)]
-        return [n for n in names if isinstance(n, str) and MODEL_SLUG_RE.match(n)]
-    except (urllib.error.URLError, OSError, json.JSONDecodeError,
-            KeyError, TypeError, AttributeError):
-        return []
+    return [m["name"] for m in ollama_model_records(timeout=timeout)]
 
 
 def opencode_available() -> bool:

@@ -27,6 +27,20 @@ from tools.live import enumerate_pane_picker as epp
 MB = 1024 * 1024
 
 
+def _records(tags):
+    """The `/api/tags` ROWS the ceiling classifier reads (LOCAL-01 F-1).
+
+    These fixtures have always meant "an 8B-class model of this footprint" — the names say `a:8b`.
+    Now that `enumerate_pane_picker` classifies the enumeration against the operator's ceiling
+    before rendering it, the fixture has to carry the two fields that decision needs
+    (`details.parameter_size` and `capabilities`) or every fixture model would be refused for
+    having an unreadable size. Nothing about what these tests assert changes: the models stay
+    inside the ceiling, so the VRAM-admission behaviour under test is what still decides them."""
+    return [{"name": n, "size": mb * MB, "capabilities": ["completion"],
+             "details": {"parameter_size": "8B", "family": "test", "quantization_level": "Q4_K_M"}}
+            for n, mb in sorted(tags.items())]
+
+
 def _daemon(tags, running=None, tags_payload=None):
     running = running or {}
 
@@ -57,6 +71,7 @@ def _host_picker(monkeypatch: pytest.MonkeyPatch, tags, running=None, tags_paylo
     monkeypatch.setattr(epp, "_daemon_json", _daemon(tags, running, tags_payload))
     monkeypatch.setattr(epp, "load_live_authorization", _live)
     monkeypatch.setattr(epp.detect, "ollama_models", lambda: sorted(tags))
+    monkeypatch.setattr(epp.detect, "ollama_model_records", lambda: _records(tags))
     monkeypatch.setattr(epp.detect, "claude_code_available", lambda: False)
     # the LAUNCHABLE binary, deliberately independent of the daemon the list came from
     monkeypatch.setattr(epp.detect, "ollama_executable", lambda: runtime)
@@ -229,6 +244,7 @@ def test_the_emit_residency_mode_reports_the_budget_and_snapshot(
     monkeypatch.setattr(epp, "_daemon_json", _daemon({"a:8b": 4000}, {"a:8b": 4000}))
     monkeypatch.setattr(epp, "load_live_authorization", _live)
     monkeypatch.setattr(epp.detect, "ollama_models", lambda: ["a:8b"])
+    monkeypatch.setattr(epp.detect, "ollama_model_records", lambda: _records({"a:8b": 4000}))
     monkeypatch.setattr(epp.detect, "claude_code_available", lambda: False)
     monkeypatch.setattr(epp, "probe_codex", lambda: type("P", (), {"present": False,
                                                                    "authenticated": False})())
