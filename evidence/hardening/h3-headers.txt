@@ -1,18 +1,18 @@
-# utc: 2026-08-27T05:04:01Z
+# utc: 2026-08-30T20:59:58Z
 # producer: claude-code REM-01
 # proof: H-3 - required security headers on every response
 
-### curl.exe -si http://127.0.0.1:56155/
+### curl.exe -si http://127.0.0.1:58953/
 HTTP/1.1 200 OK
-Server: BaseHTTP/0.6 Python/3.14.6
-Date: Thu, 27 Aug 2026 05:04:01 GMT
+Server: BaseHTTP/0.6 Python/3.12.10
+Date: Sun, 30 Aug 2026 20:59:58 GMT
 Content-Type: text/html; charset=utf-8
-Content-Length: 3217
+Content-Length: 3727
 X-Content-Type-Options: nosniff
 Referrer-Policy: no-referrer
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 Cache-Control: no-store
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-src http://127.0.0.1:8765; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
 
 <!doctype html>
 <html lang="en">
@@ -20,7 +20,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <meta name="csrf-nonce" content="6e0c0caee37fee8675362c9a557c73d245c6788439251ffb98134dd43f577d52">
+  <meta name="csrf-nonce" content="0ff3f6ea2aab0a2bf8221cab780315684b28d2d71de33f56c803f4f67161995b">
   <title>Sovereign Workspace Shell</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/app.js" defer></script>
@@ -28,14 +28,23 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 <body>
   <div class="shell">
 
-    <!-- Header bar: SWS version, build ID, host, clock, document links -->
+    <!-- Branded identity rail + breadcrumb bar, matching the approved shell capture. -->
     <header class="header">
-      <div class="header-brand">
+      <div class="identity-brand" aria-label="Sovereign Workspace Systems Control">
+        <img class="brand-mark" src="/static/brand-mark.svg" alt="">
+        <div class="brand-copy">
+          <span class="brand-title">SOVEREIGN WORKSPACE</span>
+          <span class="brand-subtitle">SYSTEMS CONTROL</span>
+        </div>
+      </div>
+      <div class="header-bar">
+      <div class="header-brand" aria-label="Workspace build identity">
         <span class="header-title">SWS</span>
-        <span class="header-ver" id="shell-version">v â€”</span>
-        <span class="header-sep" aria-hidden="true">Â·</span>
+        <span class="header-sep" aria-hidden="true">â€º</span>
+        <span class="header-ver" id="shell-version">SWS-UI-001 v1.2</span>
+        <span class="header-sep" aria-hidden="true">â€º</span>
         <span class="header-build" id="shell-build">build â€”</span>
-        <span class="header-sep" aria-hidden="true">Â·</span>
+        <span class="header-sep" aria-hidden="true">â€º</span>
         <span class="header-host" id="shell-host">host â€”</span>
       </div>
       <div class="header-right">
@@ -45,6 +54,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
           <a class="header-link" id="link-directive" href="/doc/directive">directive</a>
         </nav>
         <time class="header-clock" id="shell-clock">--:--:--</time>
+      </div>
       </div>
     </header>
 
@@ -88,30 +98,30 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 </body>
 </html>
 
-### curl.exe -si http://127.0.0.1:56155/api/state
+### curl.exe -si http://127.0.0.1:58953/api/state
 HTTP/1.1 200 OK
-Server: BaseHTTP/0.6 Python/3.14.6
-Date: Thu, 27 Aug 2026 05:04:01 GMT
+Server: BaseHTTP/0.6 Python/3.12.10
+Date: Sun, 30 Aug 2026 20:59:58 GMT
 Content-Type: application/json
-Content-Length: 1915
+Content-Length: 3125
 X-Content-Type-Options: nosniff
 Referrer-Policy: no-referrer
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 Cache-Control: no-store
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-src http://127.0.0.1:8765; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
 
-{"modules": {"debate": {"id": "debate", "display_name": "Debate Table", "description": "Multi-model debate table (FastAPI, :8700)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "http://127.0.0.1:8700/", "can_open": false}, "distillery": {"id": "distillery", "display_name": "Sovereign Distillery", "description": "Distillery runtime console \u2014 health only, no compute on open", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "http://127.0.0.1:5184/console", "can_open": false}, "llamacpp": {"id": "llamacpp", "display_name": "llama.cpp (candidate)", "description": "Pinned llama.cpp router on 5183. Not production default.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "", "can_open": false}, "sovereign": {"id": "sovereign", "display_name": "SOVEREIGN", "description": "Operator product service and UI (Flask, :5175)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "http://127.0.0.1:5175/", "can_open": false}, "sow": {"id": "sow", "display_name": "Multi-Model Terminal", "description": "Sovereign Orchestration Workspace (Electron + xterm.js)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "", "can_open": false}, "tokencenter": {"id": "tokencenter", "display_name": "Token Center", "description": "Read-only local usage telemetry. No credentials.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-27T05:03:59Z", "port": "", "url": "http://127.0.0.1:8765/", "can_open": false}}}
-### curl.exe -si http://127.0.0.1:56155/static/app.css
+{"modules": {"debate": {"id": "debate", "display_name": "Debate Table", "description": "Multi-model debate table (FastAPI, :8700)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "http://127.0.0.1:8700/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/debate/.venv/Scripts/python.exe"}, "distillery": {"id": "distillery", "display_name": "Sovereign Distillery", "description": "Distillery runtime console \u2014 health only, no compute on open", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "http://127.0.0.1:5184/console", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"}, "llamacpp": {"id": "llamacpp", "display_name": "llama.cpp (candidate)", "description": "Pinned llama.cpp router on 5183. Not production default. The paths below are a NEUTRAL PLACEHOLDER, not a real location: the llama.cpp runtime and models ship in no release archive (R2 s3), so no real path exists on any machine. llamacpp is the declared optional adapter and is skipped by the installer; supply a real runtime location before enabling it.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "", "can_open": false, "open_kind": "none", "runtime_present": false, "runtime_path": "C:/sovereign-workspace/optional-runtimes/llama.cpp/current/llama-server.exe"}, "sovereign": {"id": "sovereign", "display_name": "SOVEREIGN", "description": "Operator product service and UI (Flask, :5175)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "http://127.0.0.1:5175/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/sovereign/.venv/Scripts/python.exe"}, "sow": {"id": "sow", "display_name": "Multi-Model Terminal", "description": "Sovereign Orchestration Workspace (Electron + xterm.js)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "", "can_open": false, "open_kind": "focus_window", "runtime_present": true, "runtime_path": "D:/producttion software 2/release-worktree/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe"}, "tokencenter": {"id": "tokencenter", "display_name": "Token Center", "description": "Read-only local usage telemetry. No credentials.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-08-30T20:59:57Z", "port": "", "url": "http://127.0.0.1:8765/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:\\Users\\Sslaw\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"}}}
+### curl.exe -si http://127.0.0.1:58953/static/app.css
 HTTP/1.1 200 OK
-Server: BaseHTTP/0.6 Python/3.14.6
-Date: Thu, 27 Aug 2026 05:04:01 GMT
+Server: BaseHTTP/0.6 Python/3.12.10
+Date: Sun, 30 Aug 2026 20:59:58 GMT
 Content-Type: text/css
-Content-Length: 8933
+Content-Length: 12165
 X-Content-Type-Options: nosniff
 Referrer-Policy: no-referrer
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 Cache-Control: no-store
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-src http://127.0.0.1:8765; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
 
 /* ============================================================
    Sovereign Workspace Shell â€” app.css (SWS-UI-001 v1.2)
@@ -143,6 +153,8 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
   --radius: 6px;
   --font: ui-monospace, monospace;
   --mono: "Cascadia Code", Consolas, monospace;
+  --panel-alpha: rgba(21, 27, 40, 0.90);
+  --sidebar-alpha: rgba(13, 18, 28, 0.88);
 }
 
 @media (prefers-color-scheme: light) {
@@ -159,6 +171,8 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
     --ok: #2f7a49;
     --warning: #8a6008;
     --danger: #c8394f;
+    --panel-alpha: #ffffff;
+    --sidebar-alpha: #eceef1;
   }
 }
 
@@ -177,37 +191,90 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: url("/static/workspace-bg-v2.png");
+  background-position: right center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* ---------- layout ---------- */
 
 .shell {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  width: 100%;
+  max-width: 1496px;
+  margin: 0;
+  padding: 20px 24px 0;
+  display: grid;
+  grid-template-columns: 267px minmax(0, 1fr);
+  gap: 16px 28px;
 }
 
 /* ---------- header ---------- */
 
 .header {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 267px minmax(0, 1fr);
+  gap: 28px;
+  align-items: stretch;
+  height: 39px;
+}
+
+.identity-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 39px;
+  height: 39px;
+  padding-right: 24px;
+  border-right: 1px solid var(--border);
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.brand-subtitle {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  background: var(--sidebar);
+  background: var(--sidebar-alpha);
   border: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  min-height: 39px;
+  height: 39px;
+  padding: 8px 16px;
 }
 
 .header-brand {
@@ -277,7 +344,8 @@ body {
 /* ---------- collapsible panels ---------- */
 
 .panel {
-  background: var(--panel);
+  grid-column: 2;
+  background: var(--panel-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -286,7 +354,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   user-select: none;
 }
@@ -321,7 +389,7 @@ body {
 .preflight-grid {
   list-style: none;
   margin: 0;
-  padding: 4px 16px 16px;
+  padding: 2px 16px 12px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 8px 16px;
@@ -336,7 +404,7 @@ body {
 
 .preflight-label {
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -369,7 +437,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -386,27 +454,82 @@ body {
 /* ---------- module grid & cards ---------- */
 
 .module-grid {
+  grid-column: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px 16px;
 }
 .module-card[data-module="tokencenter"] {
   grid-column: 1 / -1;
+  min-height: 560px;
+}
+
+.tokencenter-embed {
+  min-height: 390px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tokencenter-frame {
+  display: block;
+  width: 100%;
+  height: min(64vh, 620px);
+  min-height: 390px;
+  border: 0;
+  background: var(--bg);
+}
+
+.tokencenter-fallback {
+  min-height: 390px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.tokencenter-fallback-status {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.tokencenter-frame[hidden],
+.tokencenter-fallback[hidden] {
+  display: none;
 }
 
 .module-card {
-  background: var(--panel);
+  background: var(--panel-alpha);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.module-card[data-module="distillery"] {
+  gap: 5px;
+}
+
+.module-card[data-module="distillery"] .module-desc {
+  line-height: 1.2;
+}
+
+.module-card[data-module="distillery"] .module-meta,
+.module-card[data-module="distillery"] .meta-row,
+.module-card[data-module="distillery"] .distillery-links,
+.module-card[data-module="distillery"] .distillery-note {
+  font-size: 9.5px;
+  line-height: 11.5px;
 }
 
 .module-name {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -414,7 +537,7 @@ body {
 .module-desc {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .state-line {
@@ -433,7 +556,7 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .meta-row {
@@ -501,21 +624,30 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .btn {
   appearance: none;
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--bg);
+  background: transparent;
+  color: var(--text-muted);
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 5px 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--text);
 }
 
 .btn:hover:not(:disabled) {
@@ -548,7 +680,15 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 16px 12px;
+  padding: 2px 16px 8px;
+}
+
+.log-panel {
+  margin-top: -4px;
+}
+
+.log-panel .panel-summary {
+  padding-block: 8px;
 }
 
 .log-status {
@@ -559,7 +699,7 @@ body {
 
 .log-output {
   margin: 0;
-  background: var(--panel);
+  background: var(--panel-alpha);
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
@@ -576,6 +716,7 @@ body {
 /* ---------- footer & misc ---------- */
 
 .footer {
+  grid-column: 2;
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -603,12 +744,58 @@ body {
 
 /* ---------- responsive ---------- */
 
+@media (min-width: 2800px) {
+  body {
+    background-size: auto 100%;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1500px) {
+  .module-card[data-module="distillery"] {
+    gap: 4px;
+    padding-block: 12px;
+  }
+
+  .module-card[data-module="distillery"] .module-meta,
+  .module-card[data-module="distillery"] .meta-row,
+  .module-card[data-module="distillery"] .distillery-links,
+  .module-card[data-module="distillery"] .distillery-note {
+    font-size: 9px;
+    line-height: 10px;
+  }
+}
+
 @media (max-width: 720px) {
+  body {
+    background-position: 35% bottom;
+  }
+
+  .shell {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .identity-brand {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .panel,
+  .module-grid,
+  .footer {
+    grid-column: 1;
+  }
+
   .module-grid {
     grid-template-columns: 1fr;
   }
 
-  .header {
+  .header-bar {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;

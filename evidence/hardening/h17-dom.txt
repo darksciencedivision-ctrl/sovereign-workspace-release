@@ -1,19 +1,22 @@
-# utc: 2026-08-26T01:20:26Z
+# utc: 2026-08-30T20:58:00Z
 # producer: ox-alpha THEME01
-# proof: H-17 - rendered DOM of / (headless Edge) shows the four cards, their action rows, and the disabled Distillery controls
+# proof: H-17 - rendered DOM of / (headless Edge) shows every loaded module, their action rows, and the runnable Distillery controls
 
-command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-13fq2cky --virtual-time-budget=8000 --dump-dom http://127.0.0.1:58518/
-card order      : ['sovereign', 'sow', 'debate', 'distillery']
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-rychgs1l --virtual-time-budget=8000 --dump-dom http://127.0.0.1:59850/
+card order      : ['sovereign', 'sow', 'tokencenter', 'debate', 'distillery', 'llamacpp']
 sovereign  buttons: 6 (logs, open, restart, start, stop, test)
 sow        buttons: 6 (logs, open, restart, start, stop, test)
+tokencenter buttons: 6 (logs, restart, start, start, stop, test)
 debate     buttons: 6 (logs, open, restart, start, stop, test)
 distillery buttons: 6 (logs, open, restart, start, stop, test)
-distillery Start/Stop/Open/Test disabled: True True True True
+llamacpp   buttons: 6 (logs, open, restart, start, stop, test)
+distillery STOPPED action state start/stop/restart/open/test: False True True True False
 distillery Logs enabled: True
+llamacpp (optional, runtime absent) start/test/restart disabled: True True True
 
-command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-13fq2cky --virtual-time-budget=8000 "--screenshot=D:\Product Software\Production Workspace\evidence\gate5\screenshots\shell-grid-rendered.png" http://127.0.0.1:58518/
-rendered png sha256: a4aebaaf0a14c9f86532cdd2411a2bd41c7275b329a8f48434d3d327db533ab5
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-rychgs1l --virtual-time-budget=8000 "--screenshot=D:\producttion software 2\release-worktree\evidence\gate5\screenshots\shell-grid-rendered.png" http://127.0.0.1:59850/
+rendered png sha256: 24f38469d73a6900ccb814be3e61421c91f41efd379a716f5b51e49c9b440aaa
 blank render sha256: f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271
 
 edge binary: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
-RESULT: four cards in order, six-action rows per contract section 7.3(2), Distillery controls disabled, PNG differs from the blank render.
+RESULT: curated cards in contract order plus every further loaded adapter, six-action rows per contract section 7.3(2), Distillery STOPPED controls are state-correct, PNG differs from the blank render.

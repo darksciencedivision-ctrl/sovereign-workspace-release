@@ -43,6 +43,23 @@ $versionDoc = Get-Content -Raw -LiteralPath (Join-Path $workspaceRoot 'VERSION.j
 $version = [string]$versionDoc.version
 if (-not $version) { throw 'VERSION.json does not contain a version' }
 
+# --- the attribution files must describe THIS tree before anything is cut ----------------------
+# EPC-01 P2-1/P2-2/P2-3. SBOM.json is generated from the six lock files and NOTICE from the SBOM.
+# Both ship. If a lock has moved since either was generated, the release would carry an
+# attribution set describing a different dependency tree than the one inside the archives -- and
+# the numbers would all agree with each other while being wrong, which is the failure mode this
+# whole script exists to prevent. Checked here, before the first archive is cut, so the build
+# fails without leaving half a release behind.
+foreach ($generator in @('generate_sbom.py', 'generate_notice.py')) {
+    $tool = Join-Path $PSScriptRoot $generator
+    & py -3.12 $tool --check
+    if ($LASTEXITCODE -ne 0) {
+        throw ("$generator --check failed: the shipped attribution files are out of date with " +
+               "their sources. Re-run tools/release/generate_sbom.py then generate_notice.py, " +
+               "re-sync RELEASE-MANIFEST.json, and commit before building a release.")
+    }
+}
+
 # --- the eight artifacts, enumerated EXPLICITLY -------------------------------------------------
 # Never by glob. `module_source_registry.json`'s own policy states the rule for this program:
 # "Enumeration is explicit ... consumers must never infer paths by glob." Each per-module archive

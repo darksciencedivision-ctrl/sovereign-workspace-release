@@ -142,6 +142,26 @@ py -3.12 tools\release\check_node_advisories.py
 py -3.12 tools\release\package_boundary_gate.py --from-commit HEAD
 ```
 
+### Attribution files
+
+`SBOM.json` is generated from the six lock files, and `NOTICE` from the SBOM. Neither is
+edited by hand. `build_release.ps1` checks both before it cuts a single archive and fails the
+build if either has drifted from its sources.
+
+```powershell
+py -3.12 tools\release\generate_sbom.py      # then always:
+py -3.12 tools\release\generate_notice.py
+```
+
+Run them in that order after any dependency change, then re-sync `RELEASE-MANIFEST.json`.
+`--check` on either reports drift without writing anything.
+
+The SBOM records each lock file's path and SHA-256, so its provenance is checkable rather
+than asserted. It is generated from locks and not from this machine's virtual environments,
+which matters for more than tidiness: the previous version listed 62 packages the product does
+not contain, and an over-reporting SBOM produces vulnerability findings against software that
+is not there.
+
 `check_node_advisories` runs `npm audit` against both Node dependency trees with a threshold
 of zero. `package_boundary_gate --from-commit` scans the **distribution**, not the working
 tree — a working tree also holds `.venv`, `node_modules` and caches that no recipient receives,

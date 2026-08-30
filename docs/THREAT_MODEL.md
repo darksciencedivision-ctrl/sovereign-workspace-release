@@ -84,9 +84,12 @@ and let Electron's postinstall download it unchecked; that is fixed and
 **B3.** A component with a published advisory reaches a recipient.
 **Status: PARTIAL.** The **Node** side is ENFORCED: `check_node_advisories.py` is a release
 gate running `npm audit` against both trees with a threshold of zero. The **Python** side is
-**NOT IMPLEMENTED** — the SBOM is generated from the build machine's virtual environments and
-its own metadata marks Python coverage `partial-parked` and `missing-parked`, so it cannot be
-used for scanning. Tracked as P2-1/P2-2.
+**NOT IMPLEMENTED**, and the reason has narrowed. The SBOM used to be the blocker — generated
+from the build machine's virtual environments, marking its own Python coverage partial, and
+listing 62 packages the product does not contain. It is now generated from the six lock files
+(P2-1/P2-2/P2-3), declares complete coverage, and is valid scanner input. **No scanner
+consumes it.** A published advisory against a pinned Python dependency would not stop a
+release. Closing this needs an advisory gate on the Python side, not a better SBOM.
 
 ### T8 — A test or code path spends provider quota
 **B5.** A run makes a billable frontier call without the operator authorizing it.

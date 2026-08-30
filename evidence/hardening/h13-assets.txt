@@ -1,14 +1,17 @@
-# utc: 2026-08-27T05:04:27Z
+# utc: 2026-08-30T20:57:55Z
 # producer: ox-alpha THEME01
 # proof: H-13 - every first-party URL referenced by served HTML/CSS/JS resolves with zero 4xx/5xx
 
 /static/app.css            -> HTTP 200 text/css
 /static/app.js             -> HTTP 200 application/javascript
+/static/brand-mark.svg     -> HTTP 200 image/svg+xml
 /doc/discovery             -> HTTP 200 text/markdown; charset=utf-8
 /doc/theme-baseline        -> HTTP 200 text/markdown; charset=utf-8
 /doc/directive             -> HTTP 200 text/markdown; charset=utf-8
+/static/workspace-bg-v2.png -> HTTP 200 application/octet-stream
 /api/preflight             -> HTTP 200 application/json
 /api/state                 -> HTTP 200 application/json
+/api/open                  -> HTTP 404 application/json
 /api/start                 -> HTTP 404 application/json
 /api/stop                  -> HTTP 404 application/json
 /api/restart               -> HTTP 404 application/json
@@ -17,5 +20,5 @@
 /api/distillery            -> HTTP 200 application/json
 /api/logs/                 -> HTTP 200 application/json
 
-checked: 14 first-party URLs; errors: none; relative asset references: none; POST-only action routes pinned at HTTP 404 on GET per H-2: ['/api/restart', '/api/start', '/api/startup-test', '/api/stop']
+checked: 17 first-party URLs; errors: none; relative asset references: none; POST-only action routes pinned at HTTP 404 on GET per H-2: ['/api/open', '/api/restart', '/api/start', '/api/startup-test', '/api/stop']
 asset content-types: app.css=text/css, app.js=application/javascript

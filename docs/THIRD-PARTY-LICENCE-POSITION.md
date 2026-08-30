@@ -1,20 +1,31 @@
 # Third-party licence position
 
-**Scope.** The 304 third-party library components listed in `NOTICE`.
-**Generated basis.** `NOTICE` is produced from `SBOM.json` by
-`tools/release/generate_notice.py`; this document records the *positions* that file cannot
+**Scope.** The 240 third-party library components listed in `NOTICE`.
+**Generated basis.** `SBOM.json` is produced from the six lock files by
+`tools/release/generate_sbom.py`, and `NOTICE` from the SBOM by
+`tools/release/generate_notice.py`; this document records the *positions* neither file can
 express. **Status: pending counsel sign-off**, in step with `LICENSE`.
 
 ---
 
 ## What the audit found
 
-Every one of the 304 library components carries a licence declaration. That was not
-obvious from the raw SBOM, and the earlier figure of "173 components without a licence"
-was a miscount worth correcting: all 173 of those are `file`-type entries — individual
-files from the build machine's virtual environments, not packages — and they carry no
-licence because a file is not a licensable component. They disappear when the SBOM is
-regenerated from lock files rather than from `.venv` (tracked as P2-1).
+**The SBOM has since been regenerated from lock files (P2-1/P2-2/P2-3), and the numbers here
+are from that version.** 240 components, every one carrying a licence declaration, zero
+unresolved. The scope of each — `required` for what the product installs, `optional` for
+build- and test-time — comes from the locks themselves rather than from anyone's assertion.
+
+Two corrections to earlier revisions of this document are recorded rather than quietly
+edited:
+
+- The figure of "173 components without a licence" was a miscount. All 173 were `file`-type
+  entries — individual files from the build machine's virtual environments, not packages —
+  and carried no licence because a file is not a licensable component. They are gone.
+- The old SBOM listed **62 packages the product does not contain**. Measured: they are absent
+  from every lock file *and* absent from `node_modules` on disk. They were transitive
+  dependencies of `@electron/get@2.0.3`, which the lock replaced with `5.1.0` — the old SBOM
+  carried both versions and the stale one's dependency tree. For a vulnerability scanner that
+  is worse than a gap: it produces findings against software that is not there.
 
 Ten components declared `UNKNOWN`. None were guessed. Each was resolved by reading the
 installed distribution's own metadata, and the NOTICE records which field it came from:
@@ -73,10 +84,14 @@ changes, or forked. Three consequences follow:
    would then have to be made available under MPL-2.0. Any change to a vendored copy of
    these components must return to this document first.
 
-`lightningcss` is additionally a **build-time** dependency reached through the Vite
-toolchain; it is not part of the running product. That narrows the exposure further but is
-not the basis of the position above — the unmodified-use argument stands on its own for all
-sixteen.
+`lightningcss` and its eleven platform binaries are additionally **build-time only**, and that
+is now a fact carried by the SBOM rather than a claim in this document: all twelve are scoped
+`optional`, derived from the `dev` flag in `package-lock.json`. They are reached through the
+Vite toolchain and are not part of the running product. `certifi`, `orjson` and `tqdm` are
+scoped `required`.
+
+That narrows the exposure further but is not the basis of the position above — the
+unmodified-use argument stands on its own for all sixteen.
 
 ---
 
@@ -104,8 +119,7 @@ Stated so the absence is not read as completion:
 - **Counsel has not reviewed `LICENSE`, this document, or the NOTICE.** Nothing here is
   legal advice, and the analysis above is an engineering reading of licence text.
 - **Governing law and jurisdiction are unfixed** in `LICENSE` §9 pending that review.
-- **The SBOM itself is still generated from the build machine's virtual environments**
-  (P2-1). Its component *list* is trustworthy for attribution; its file entries are not
-  meaningful and its Python coverage is marked partial in its own metadata. Regenerating it
-  from locks may add components, and the NOTICE must be regenerated with it —
-  `generate_notice.py --check` fails the build if the two drift apart.
+- **The SBOM is now generated from lock files** (P2-1/P2-2/P2-3) by
+  `tools/release/generate_sbom.py`, which records each lock's path and SHA-256 so its
+  provenance is checkable rather than asserted. `--check` on either generator fails the build
+  if the SBOM or the NOTICE drifts from its sources.

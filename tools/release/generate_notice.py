@@ -41,10 +41,15 @@ SPELLINGS = {
     "apache license version 2.0": "Apache-2.0",
     "apache license, version 2.0": "Apache-2.0",
     "apache software license": "Apache-2.0",
+    "mozilla public license 2.0 (mpl 2.0)": "MPL-2.0",
+    "mozilla public license 2.0": "MPL-2.0",
+    "the unlicense (unlicense)": "Unlicense",
+    "python software foundation license": "PSF-2.0",
     "mit license": "MIT",
     "bsd license": "BSD-3-Clause",
     "3-clause bsd license": "BSD-3-Clause",
     "isc license": "ISC",
+    "isc license (iscl)": "ISC",
 }
 
 #: Values that are technically present but say nothing useful. `python-dateutil` declares

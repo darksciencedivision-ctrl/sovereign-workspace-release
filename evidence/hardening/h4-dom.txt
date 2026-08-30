@@ -1,4 +1,4 @@
-# utc: 2026-08-27T05:04:06Z
+# utc: 2026-08-30T21:00:03Z
 # producer: claude-code REM-01
 # proof: H-4 - no dangerous DOM sinks; logs rendered as text
 
@@ -6,8 +6,8 @@
 ## 1. Static scan of shell/static/*.js
 
 files scanned: app.js
-  app.js       922 lines  sha256=487c67606aadc8f50fda7786d6d8492e475da1b3da855822ea733f6e7e839f3a
-total lines scanned: 922
+  app.js       1053 lines  sha256=7a2da7ee2a6d550d946bdc5c0cdf37036f98917cd241e44aaaa1033186d4a912
+total lines scanned: 1053
 
 pattern                 hits
   innerHTML              0
@@ -24,7 +24,7 @@ allowlisted exceptions: none - the allowlist is empty
 inline <script> blocks     : 0 (only <script src="app.js" defer>)
 inline on* handlers        : 0
 inline <style> blocks      : 0
-sha256                     : cfa71fe7d55735a0937bf6611b15190a38e1ecab314d20f2c9158638163fc623
+sha256                     : 71e5b816b1196b7c2790d1fafbef472120aa5834c3d3dda9e25da82f3d30dba1
 
 ## 3. <script> log-line round trip through /api/logs
 
@@ -46,8 +46,9 @@ test_dynamic_text_uses_textcontent (shell.tests.test_frontend.TestFrontendStatic
 test_no_dangerous_dom_sinks (shell.tests.test_frontend.TestFrontendStatic.test_no_dangerous_dom_sinks) ... ok
 test_no_inline_script_or_handlers (shell.tests.test_frontend.TestFrontendStatic.test_no_inline_script_or_handlers)
 CSP is script-src 'self'; inline script or an on* attribute would break it. ... ok
+test_tokencenter_is_embedded_with_a_stopped_fallback (shell.tests.test_frontend.TestFrontendStatic.test_tokencenter_is_embedded_with_a_stopped_fallback) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.534s
+Ran 6 tests in 0.540s
 
 OK

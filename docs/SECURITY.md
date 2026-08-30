@@ -110,10 +110,12 @@ Named so absence is not read as assurance:
 - **No third-party security audit or penetration test.**
 - **No clean-room install on a bare machine** — the install path is exercised against a fresh
   destination on a developer host only.
-- **The SBOM cannot be used for Python vulnerability scanning.** It is generated from the
-  build machine's virtual environments and its own metadata marks Python coverage
-  `partial-parked` and `missing-parked`. Tracked as P2-1/P2-2. `npm audit` covers the Node
-  side properly; the Python side has no equivalent in this release.
+- **No Python vulnerability scanning runs.** The SBOM is no longer the obstacle: it is
+  generated from the six lock files, declares complete coverage on both language sides, and
+  is valid input to a scanner (P2-1/P2-2/P2-3). What is missing is the scanner. `npm audit`
+  runs as a release gate with a threshold of zero; there is no `pip-audit` equivalent wired
+  into the build, so a published advisory against a pinned Python dependency would not stop
+  a release.
 - **Nineteen of twenty-nine assurance gates have never been reviewed by anyone**
   (`docs/RELEASE-ASSURANCE.md`).
 

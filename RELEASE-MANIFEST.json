@@ -166,7 +166,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "aad902eb16381855f66cc13d50068867a07b757b60d5e621c4c945a19c246d4d"
+      "sha256": "3ab40eca45fda7c8ff74bb447076eba30f5215b69aef1ba3cfbeb7948e65de40"
     }
   ],
   "ui_assets": [
@@ -206,7 +206,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "aad902eb16381855f66cc13d50068867a07b757b60d5e621c4c945a19c246d4d"
+      "sha256": "3ab40eca45fda7c8ff74bb447076eba30f5215b69aef1ba3cfbeb7948e65de40"
     },
     {
       "path": "SBOM.json.pre-CONVERGE01",
@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "efdc9ac43e58a88735711d4c9ef0d4b91beebd3deee528df44f1c2dad76f6807"
+      "sha256": "a499dbd3c37c44516d377b4a7365c34a624f01e9e6f3a315d32d99463f3ed895"
     },
     {
       "path": "shell/config/install.json",
@@ -322,7 +322,7 @@
     },
     {
       "path": "tools/release/build_release.ps1",
-      "sha256": "14221882b8ba8a0f3921283d8a5a4542a95919bd0b3bc5d8cea81d24669867f1"
+      "sha256": "2e39c9d3fa185e9bbf3d9b72e0d2beda590ed7fea293b7f8fc73daab6a31f1db"
     },
     {
       "path": "tools/release/fixture_allowlist.json",
