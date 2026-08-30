@@ -9,5 +9,7 @@
   "copy_only_edits": [
     "bind pinned to 127.0.0.1",
     "POST /api/refresh Origin/Host/CSRF guard"
-  ]
+  ],
+  "source_sha256": "ad81cc050f69c4231182ab76852014800aef641ecebeeb8b4ad0002588d4431b",
+  "source_sha256_basis": "archive-stable candidate content digest: SHA-256 over the sorted '<sha256>  <relpath>' lines of the 20 git-tracked files under modules/tokencenter/, excluding this record itself (self-reference). Same method and same code path as the debate/distillery/sow records (tools/release/generate_module_provenance.py:content_digest); computed for LOCAL-01 F-8 so the registry's tokencenter entry could be filled from its own record (OD-27). Every other field of this record is the original copy-time record, unchanged."
 }
