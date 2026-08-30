@@ -22,7 +22,7 @@ from pathlib import Path
 # unset variable is reported as unconfigured rather than guessed at, and there is nothing
 # machine-specific left in this file. `docs/OPERATIONS.md` documents the variables.
 DISTILLERY_ROOT_ENV = "SOVEREIGN_DISTILLERY_ROOT"
-PRODUCT_SOFTWARE_ENV = "SOVEREIGN_DISTILLERY_SNAPSHOT_ROOT"
+SNAPSHOT_ROOT_ENV = "SOVEREIGN_DISTILLERY_SNAPSHOT_ROOT"
 
 
 def _distillery_root() -> str:
@@ -42,7 +42,7 @@ def _open_questions_path() -> str:
 
 def _snapshot_root() -> str:
     """The tree searched for SOVEREIGN_DISTILLERY_ENTERPRISE_* snapshots."""
-    return os.environ.get(PRODUCT_SOFTWARE_ENV, "").strip().replace("\\", "/").rstrip("/")
+    return os.environ.get(SNAPSHOT_ROOT_ENV, "").strip().replace("\\", "/").rstrip("/")
 
 
 #: Returned wherever a source tree has not been configured. Distinct from CONFIG_ERROR, which
@@ -127,7 +127,7 @@ def _find_snapshot() -> dict:
     """Find SOVEREIGN_DISTILLERY_ENTERPRISE_* folders in the configured snapshot root."""
     root = _snapshot_root()
     if not root:
-        return {"error": NOT_CONFIGURED, "reason": f"{PRODUCT_SOFTWARE_ENV} is not set"}
+        return {"error": NOT_CONFIGURED, "reason": f"{SNAPSHOT_ROOT_ENV} is not set"}
     matches = []
     try:
         for entry in os.listdir(root):

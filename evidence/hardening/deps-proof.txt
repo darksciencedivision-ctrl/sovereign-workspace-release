@@ -1,4 +1,4 @@
-# utc: 2026-08-30T21:14:27Z
+# utc: 2026-08-30T21:28:39Z
 # producer: claude-code REM-01
 # proof: H-11 - shell has zero third-party runtime dependencies (HC-8)
 
@@ -53,17 +53,17 @@ Both isolated forms below were run instead. Each keeps -I or -E together with -S
 site-packages, user site and PYTHONPATH are all out of play; shell/src/__main__.py
 derives the workspace root from __file__ and inserts it explicitly.
 
-### form A: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -I -S -B D:\producttion software 2\release-worktree\shell\src\__main__.py --port 55779 --selftest
+### form A: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -I -S -B D:\producttion software 2\release-worktree\shell\src\__main__.py --port 54529 --selftest
 exit code: 0
-    SELFTEST: listening on http://127.0.0.1:55779
+    SELFTEST: listening on http://127.0.0.1:54529
     SELFTEST: GET / -> 200, 3727 bytes
     SELFTEST: sys.modules with a __file__ checked: 124
     SELFTEST: modules originating in site-packages: 0
     SELFTEST: PASS - served one request, zero site-packages modules
 
-### form B: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -E -S -B -m shell.src --port 55781 --selftest
+### form B: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -E -S -B -m shell.src --port 54531 --selftest
 exit code: 0
-    SELFTEST: listening on http://127.0.0.1:55781
+    SELFTEST: listening on http://127.0.0.1:54531
     SELFTEST: GET / -> 200, 3727 bytes
     SELFTEST: sys.modules with a __file__ checked: 132
     SELFTEST: modules originating in site-packages: 0

@@ -23,7 +23,7 @@ npm's own configuration on this host.
 FACT[host] `npm config get foreground-scripts` → `false`.
 FACT[host] Two `npm-cli.js` entry points exist, and **they are different npm versions**:
 `D:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js` (56 bytes) reports `11.13.0`, while
-`C:\Users\Sslaw\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js` (54 bytes) is the one the
+`C:\Users\%USERNAME%\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js` (54 bytes) is the one the
 bare `npm` shim on PATH resolves to and reports `11.17.0`. `shell/tools/install_sow.py` computes
 the first — the one under the resolved `node.exe` directory — because R2-2 specifies
 `<node dir>\node_modules\npm\bin\npm-cli.js`.
@@ -65,16 +65,16 @@ FACT[modules/sow/apps/desktop/node_modules/electron/dist/electron.exe]
 size `180849664` bytes,
 sha256 `1fa93c3471c11dc8128998c662c705104e4528b98901b61c8a25216acda424c5`.
 
-FACT[C:\Users\Sslaw\AppData\Local\electron\Cache] Three cache entries exist. The one matching the
+FACT[C:\Users\%USERNAME%\AppData\Local\electron\Cache] Three cache entries exist. The one matching the
 installed version is
-`C:\Users\Sslaw\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\electron-v31.7.7-win32-x64.zip`,
+`C:\Users\%USERNAME%\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\electron-v31.7.7-win32-x64.zip`,
 size `110740332` bytes,
 sha256 `e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f`.
 (The other two entries are v40.10.2 and v40.10.6, unrelated to this module.)
 
 FACT — the zip hash is corroborated by **two independent records**, neither written by this builder:
 
-1. `C:\Users\Sslaw\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\SHASUMS256.txt`
+1. `C:\Users\%USERNAME%\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\SHASUMS256.txt`
    line: `e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f *electron-v31.7.7-win32-x64.zip`
 2. `modules/sow/apps/desktop/node_modules/electron/checksums.json`, shipped inside the npm
    registry tarball, key `electron-v31.7.7-win32-x64.zip` →
@@ -166,7 +166,7 @@ than the working tree — exactly REVIEW-BUILD-01 B-4.
 - `modules/sow/INSTALL-PROVENANCE.json` — carries `electron_zip_sha256`
   (`e91986dd243d55947e6c5d3fad21795562ec21fa0eec5e95f7e28c830571467f`) and the `electron.exe` hash.
 - `modules/sow/apps/desktop/node_modules/electron/checksums.json` — vendor-shipped expected hash.
-- `C:\Users\Sslaw\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\SHASUMS256.txt`
+- `C:\Users\%USERNAME%\AppData\Local\electron\Cache\c94f2fc32e1fb05767f75322ea533eeb9828155f017ec184140930a3ec825e81\SHASUMS256.txt`
   — upstream release manifest, second corroboration.
 
 ### Result of the run this ADR documents
@@ -189,3 +189,14 @@ outside §0.1(8). Recorded here as a finding for the operator, not acted on.
 Reversible: yes — deleting `modules/sow/apps/desktop/node_modules/` and re-running
 `py -3.12 shell\tools\install_sow.py` restores the same state; the cached zip and its expected
 hash are both outside this decision's control.
+
+---
+
+## Note on the paths quoted above
+
+EPC-01 P3-2. The FACT citations in this ADR quote per-user Windows locations under
+`C:\Users\<account>\AppData\`. The build operator's account name has been replaced with
+`%USERNAME%` throughout. This is a generalisation, not a redaction: every path named is
+the same location for whoever is reading it, and the observation each FACT records is
+unchanged. The account name identified the machine that made the observation and formed
+no part of the observation itself.

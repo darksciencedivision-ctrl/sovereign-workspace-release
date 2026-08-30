@@ -104,6 +104,45 @@ See `docs/THIRD-PARTY-LICENCE-POSITION.md` for the third-party position.
 
 ---
 
+## The archive names the machine that built it, in places
+
+The distribution carries the build operator's account name and directory layout in a small,
+enumerated set of files. This is disclosure, not a functional defect: nothing in the product
+reads these paths at runtime, and an installation does not depend on them.
+
+**What was fixed rather than disclosed.** The identifiers that mattered are gone:
+
+| Was | Now |
+|---|---|
+| `shell/config/install.json` held the build tree and the build operator's `python.exe` | a template carrying `<set-by-installer>` |
+| all five module adapters held an absolute `root` into the build tree | `${install_root}`, resolved from where the shell actually is |
+| distillery and tokencenter pinned that interpreter as `argv[0]` | `${python312}`, the interpreter the shell is running under |
+| `shell/src/distillery.py` hardcoded two of the operator's directories in product code | environment variables with no default |
+| `SBOM.json` recorded absolute build-host paths as licence provenance | repository-relative |
+| the agent envelopes and three `Start-*.ps1` launchers shipped | excluded from the archive |
+
+**What remains, and why each cannot simply be deleted.**
+
+- **Provenance records** — `INSTALL-PROVENANCE.json` for each module, `DISCOVERY.md`, the
+  SWS-UI-001 addenda. These record where each vendored module *came from*. The path is the
+  content; scrubbing it would not remove information, it would make the record false.
+- **Module evidence trees** — `modules/*/docs/evidence`, `modules/*/runs`. Twenty-five of the
+  twenty-eight files carrying an identifier are cited by something you may run:
+  `test_evidence_receipts.py`, `run_phase19_gate.py`, the desktop selfcheck scripts, the
+  decision registers. Cutting them would trade a disclosure for a broken verification path.
+  The three cited by nothing were cut.
+- **`BUILD-DIRECTIVE-SWS-UI-001.md`** — the shell serves it as a documentation route and the
+  README links it, so removing it would replace a disclosure with a broken link. The builder
+  envelope forbids the builder editing it, so the change is the operator's to make.
+- **`docs/DECISIONS.md`** — read-and-hash-only for the builder, for the same reason.
+
+**This set is pinned, not merely observed.**
+`shell/tests/test_developer_identifiers_are_bounded.py` fails if any file outside the
+disclosed list acquires an identifier, if the repaired files regress, if the build harness
+starts shipping again, or if a disclosed entry stops needing disclosure. It was proven by
+reintroducing all three defect classes in an isolated clone and confirming each was caught.
+The number can go down without editing that file. It cannot go up.
+
 ## Lifecycle: resolved in this release
 
 Four limitations previously listed here are closed. They are recorded rather than deleted, so

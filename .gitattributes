@@ -120,3 +120,50 @@ docs/audit export-ignore
 docs/audit/** export-ignore
 docs/evidence export-ignore
 docs/evidence/** export-ignore
+
+# X-6 (EPC-01 P3-2) - THE BUILD HARNESS AT THE ROOT DOES NOT SHIP EITHER.
+#
+# X-5 cut tools-operator/ because "its six Start-OpenCode-*.ps1 files are build-harness
+# launchers". Three files of exactly that class sit at the repository root and were missed,
+# along with the two agent envelopes that govern how this repository is built. They are the
+# running instructions for the builder, not documentation for a recipient, and between them
+# they carry the developer username and the build tree's absolute path into every archive.
+#
+# Measured before excluding, across shell/src, shell/tests, tools/ and README.md: no product
+# file references AGENTS.md or CLAUDE.md, and Start-OpenCode.ps1's only reference in the whole
+# repository is inside docs/SOVEREIGN_CANONICAL_HANDOFF_20260827.md, which this same block
+# excludes.
+#
+# NOT excluded, deliberately: BUILD-DIRECTIVE-SWS-UI-001.md. The shell SERVES it
+# (shell/src/server.py:40, the "directive" doc route) and README.md links it, so cutting it
+# would replace a disclosure with a broken route. It carries the build tree's name seven
+# times and the builder envelope forbids the builder editing it, so the fix is the operator's
+# to make. Recorded in release-planning/bundles/EPC01/PARKED-P3-2-build-directive.md rather
+# than left as a silent exception.
+#
+# History stays tracked; only `git archive` output changes.
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/Start-Loop-Resume.ps1 export-ignore
+/Start-OpenCode.ps1 export-ignore
+/Start-OpenCode-FullAccess.ps1 export-ignore
+
+# X-6 continued - three docs/ build records the X-5 prefix patterns did not reach.
+# GATE5-REPORT is a gate evaluation, MASTER-RUN-ORDER is a build sequencing plan, and
+# SOVEREIGN_CANONICAL_HANDOFF is a reviewer handoff carrying an unresolved findings table.
+# None is referenced by any product file. All three are the build's record of itself, which
+# is the line X-5 drew.
+docs/GATE5-REPORT.md export-ignore
+docs/MASTER-RUN-ORDER-* export-ignore
+docs/SOVEREIGN_CANONICAL_HANDOFF_* export-ignore
+
+# X-6 continued - three development-record files that NOTHING cites.
+#
+# The rest of modules/sow/docs/evidence stays, and that is a measured decision rather than
+# deference to X-4: of the 28 flagged files in the module evidence trees, 25 are cited by
+# something a recipient runs - test_evidence_receipts.py, run_phase19_gate.py, the desktop
+# selfcheck scripts, the decision and unresolved-issue registers. Cutting those would trade a
+# disclosure for a broken verification path. These three are cited by nothing at all.
+modules/sow/docs/evidence/live/PHASE17E_RERUN1_RED_20260731T1506Z.json export-ignore
+modules/sow/docs/evidence/receipts/PHASE18A_RUNNER_STATUS_R3.txt export-ignore
+modules/distillery/runs/release-baseline/W1_EXPORT_BATTERY.json export-ignore

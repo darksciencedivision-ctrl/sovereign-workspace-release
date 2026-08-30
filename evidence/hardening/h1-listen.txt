@@ -1,11 +1,11 @@
-# utc: 2026-08-30T21:14:30Z
+# utc: 2026-08-30T21:28:42Z
 # producer: claude-code REM-01
 # proof: H-1 - shell binds 127.0.0.1 only
-# command: Get-NetTCPConnection -State Listen -LocalPort 55783
+# command: Get-NetTCPConnection -State Listen -LocalPort 54534
 
 
 LocalAddress LocalPort  State OwningProcess
 ------------ ---------  ----- -------------
-127.0.0.1        55783 Listen         29476
+127.0.0.1        54534 Listen          7520
 
 
