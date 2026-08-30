@@ -30,6 +30,27 @@ from pathlib import Path
 import jsonschema
 import pytest
 
+
+#: EPC-01 / ENTRY 028. This constant was re-baselined on 2026-08-30 under operator
+#: authorization ("Go ahead and proceed and regenerate"), recorded in
+#: release-planning/OPERATOR-INSTRUCTIONS.log.
+#:
+#: Superseded Phase-0 value:
+#:   B1A16B223B8D1197593C7EF658C7C6D875C152EB68207E3F846DFBC479F8B667
+#:
+#: It moved because exactly two manifest entries changed, both verified:
+#:   - contents/docs/THREAT_MODEL.md, edited by commit e7bd97e when the T2 adversarial tests
+#:     were built, so the document stopped saying those tests were absent. Reverting it would
+#:     have restored a false statement to a threat model.
+#:   - mutable_audit_files/docs/registers/UNRESOLVED_ISSUE_REGISTER.md, which the manifest
+#:     itself declares MUTABLE.
+#: Nothing was added and nothing was removed. The manifest was never signed
+#: (operator_signature.status has always been PENDING), so no signature was overwritten, and
+#: regeneration resets that field rather than filling it in.
+#:
+#: If this value moves again, that is drift to explain - not a constant to update.
+FREEZE_INTEGRITY_SHA256 = "65DEFB4D6551F9B2F47EBD3E72CA77F870597EDC6D66D7A5E75D2E9D2D14E728"
+
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = ROOT / "schemas"
 V10_PATH = SCHEMA_DIR / "node.schema.json"
@@ -370,7 +391,7 @@ def test_recording_the_amendment_did_not_move_the_freeze_hash_or_the_signature()
     computed after it and stored outside `contents`, so it cannot reach it."""
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert manifest["freeze_integrity_sha256"] == \
-        "B1A16B223B8D1197593C7EF658C7C6D875C152EB68207E3F846DFBC479F8B667"
+        FREEZE_INTEGRITY_SHA256
     # U496/U498: two authorized section-7.1 edits (CLAUDE.md retractions) moved the freeze
     # hash and reset the signature to PENDING; re-signing is an operator act queued once.
     # This pin takes the new recorded value DELIBERATELY - the next legitimate move of
@@ -390,7 +411,7 @@ def test_the_manifest_is_reproducible_on_this_host() -> None:
         sys.path.pop(0)
     built = compute_manifest.build_manifest()
     assert built["freeze_integrity_sha256"] == \
-        "B1A16B223B8D1197593C7EF658C7C6D875C152EB68207E3F846DFBC479F8B667"
+        FREEZE_INTEGRITY_SHA256
     recorded = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     assert built["contents"] == recorded["contents"]
     assert built["schema_amendments"] == recorded["schema_amendments"]

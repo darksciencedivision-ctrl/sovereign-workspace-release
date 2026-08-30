@@ -163,10 +163,10 @@
         "sha256": "297968DB3BA7B645CF57D63C21284019AF114A4642CE948FD6AC4462E8C6424E"
       },
       {
-        "bytes": 9241,
+        "bytes": 9373,
         "encoding": "utf-8",
         "path": "docs/THREAT_MODEL.md",
-        "sha256": "7E4E8D933A9A7AEB49122770F15CBCDA3BC8362C7D7CDE17A8A6287E7F6158C1"
+        "sha256": "2C30957BA38CE9CB33BF5139892B4DD0C18A9B8D65E328732041766EA5212D31"
       },
       {
         "bytes": 2130,
@@ -281,8 +281,8 @@
     "since": "2026-07-16"
   },
   "directive_version": "v2.4",
-  "freeze_integrity_sha256": "B1A16B223B8D1197593C7EF658C7C6D875C152EB68207E3F846DFBC479F8B667",
-  "generated_ts": "2026-08-23T21:26:05+00:00",
+  "freeze_integrity_sha256": "65DEFB4D6551F9B2F47EBD3E72CA77F870597EDC6D66D7A5E75D2E9D2D14E728",
+  "generated_ts": "2026-08-30T23:12:29+00:00",
   "generator": "tools/manifest/compute_manifest.py",
   "manifest": "PHASE0_FREEZE_MANIFEST",
   "manifest_version": "1.0",
@@ -1138,10 +1138,10 @@
         "sha256": "27B479592AAD6032A3F2AC7E1A03DA83FF77B28B4A46E6D94CAAD185167F878B"
       },
       {
-        "bytes": 957674,
+        "bytes": 1041977,
         "encoding": "utf-8",
         "path": "docs/registers/UNRESOLVED_ISSUE_REGISTER.md",
-        "sha256": "6F4797FB676D5059F75CD1BF0658A8A5D50D0C191C2B41C2DBDCA1C92D0456E5"
+        "sha256": "9EFD08A56616FE75F21353B962C19FCD063284D42B00F2E47D10B1FD72D91658"
       }
     ],
     "status_docs": [
