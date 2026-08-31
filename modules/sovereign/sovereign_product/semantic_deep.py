@@ -347,14 +347,30 @@ def _validate_session_id(session_id: str) -> str:
     return session_id
 
 
-def _safe_relative(path: Path, root: Path) -> str:
+def _safe_relative(path: Path, root: Path | Sequence[Path]) -> str:
+    """An artifact path expressed relative to whichever trusted root contains it.
+
+    EPC-02. `root` was a single Path - the install root - and every artifact reference in the
+    DEEP pipeline went through here. EPC-01 P4-4 moved runtime state OUT of the install root,
+    so once the run directory itself was fixed, the very next write failed on this instead:
+    "artifact path escaped product root: D:/...state.../semantic_deep/.../request.json".
+
+    That was the FOURTH site of one regression, found one at a time by running the product.
+    Accepting a sequence fixes the class rather than the instance: the containment property is
+    unchanged - an artifact must still sit inside a root the caller named - and only the
+    number of named roots grew.
+    """
     resolved = path.resolve()
-    try:
-        return resolved.relative_to(root.resolve()).as_posix()
-    except ValueError as exc:
-        raise SemanticDeepError(
-            f"artifact path escaped product root: {resolved}"
-        ) from exc
+    bases = [root] if isinstance(root, Path) else list(root)
+    for base in bases:
+        try:
+            return resolved.relative_to(Path(base).resolve()).as_posix()
+        except ValueError:
+            continue
+    raise SemanticDeepError(
+        f"artifact path escaped every trusted root: {resolved} is inside none of "
+        f"{[str(b) for b in bases]}"
+    )
 
 
 def _response_dict(response: Any) -> dict[str, Any]:
@@ -703,7 +719,31 @@ class SemanticDeepExecutor:
             _validate_options(merged)
             if not stage:
                 raise ValueError("stage option keys must be nonempty")
-        configured_thinking: dict[str, bool | None] = {"qwen3:8b": False}
+        # EPC-02, ENTRY 034 (tuning). This was `{"qwen3:8b": False}` - written for the one
+        # model somebody had tested, and never extended. Every OTHER reasoning model on the
+        # slate kept thinking enabled, spent its token budget on hidden reasoning, and
+        # returned a truncated visible answer. The pipeline then correctly refused to
+        # synthesise from it: "member_2 returned a truncated visible answer
+        # (done_reason=length)". Six minutes of four-model deliberation, discarded, every run.
+        #
+        # Measured directly on this host: deepseek-r1:8b produced 2,985 characters of
+        # `thinking` before its visible answer and hit done_reason=length at a 700-token cap.
+        #
+        # The DEEP pipeline needs a COMPLETE VISIBLE answer from every member - a member's
+        # private reasoning is not what the critic and synthesiser read. So thinking is off by
+        # default for the models known to do it, and the floor on visible tokens is raised to
+        # match. An explicit think_by_model from the caller still wins; this only changes the
+        # default from "one model handled" to "the models we know need handling".
+        #
+        # No guard is relaxed by this. The honesty check that rejected these runs is
+        # untouched; it is given a valid answer to judge instead of a truncated one.
+        configured_thinking: dict[str, bool | None] = {
+            "qwen3:8b": False,
+            "deepseek-r1:8b": False,
+            "deepseek-r1:latest": False,
+            "qwen3:14b": False,
+            "qwen3:32b": False,
+        }
         configured_thinking.update(dict(think_by_model or {}))
         self.think_by_model: dict[str, bool | None] = {}
         for model, think in configured_thinking.items():
@@ -712,7 +752,11 @@ class SemanticDeepExecutor:
             if think is not None and type(think) is not bool:
                 raise ValueError("think_by_model values must be boolean or None")
             self.think_by_model[model.strip()] = think
-        configured_minimums = {"qwen3:8b": 1024}
+        configured_minimums = {"qwen3:8b": 1024,
+            "deepseek-r1:8b": 1024,
+            "deepseek-r1:latest": 1024,
+            "dolphin3:8b": 1024,
+            "granite4.2:8b": 1024}
         configured_minimums.update(dict(minimum_num_predict_by_model or {}))
         self.minimum_num_predict_by_model: dict[str, int] = {}
         for model, minimum in configured_minimums.items():
@@ -1080,6 +1124,10 @@ class SemanticDeepExecutor:
     def active_sessions(self) -> tuple[str, ...]:
         with self._lock:
             return tuple(sorted(self._active))
+
+    def _artifact_roots(self) -> tuple[Path, ...]:
+        """Every root an artifact of this run may legitimately sit inside."""
+        return tuple(getattr(self, "_trusted_roots", None) or (self.root,))
 
     def _create_run_directory(
         self,
@@ -2011,14 +2059,14 @@ class SemanticDeepExecutor:
                 "completed_at": completed_at,
                 "latency_seconds": max(0.0, self._monotonic() - started),
                 "artifacts": {
-                    "prompt": _safe_relative(prompt_path, self.root),
-                    "output": _safe_relative(output_path, self.root),
+                    "prompt": _safe_relative(prompt_path, self._artifact_roots()),
+                    "output": _safe_relative(output_path, self._artifact_roots()),
                 },
             }
         )
         _atomic_json(record_path, record)
         context.artifacts[f"turn_{turn_number:02d}"] = _safe_relative(
-            record_path, self.root
+            record_path, self._artifact_roots()
         )
         context.turns.append(record)
         self._emit(
@@ -2082,10 +2130,10 @@ class SemanticDeepExecutor:
         result_path = run_dir / "result.json"
         context.artifacts.update(
             {
-                "request": _safe_relative(request_path, self.root),
-                "evidence": _safe_relative(evidence_path, self.root),
-                "transcript": _safe_relative(transcript_path, self.root),
-                "result": _safe_relative(result_path, self.root),
+                "request": _safe_relative(request_path, self._artifact_roots()),
+                "evidence": _safe_relative(evidence_path, self._artifact_roots()),
+                "transcript": _safe_relative(transcript_path, self._artifact_roots()),
+                "result": _safe_relative(result_path, self._artifact_roots()),
             }
         )
         model_provenance_failure: str | None = None
@@ -2272,7 +2320,7 @@ class SemanticDeepExecutor:
                 )
                 _atomic_json(critique_path, critique_record)
                 context.artifacts["critique"] = _safe_relative(
-                    critique_path, self.root
+                    critique_path, self._artifact_roots()
                 )
 
                 synthesis_prompt = self.build_synthesis_prompt(
@@ -2336,7 +2384,7 @@ class SemanticDeepExecutor:
                 )
                 _atomic_json(verification_path, verification_record)
                 context.artifacts["verification_1"] = _safe_relative(
-                    verification_path, self.root
+                    verification_path, self._artifact_roots()
                 )
                 final_verdict = verdict
 
@@ -2414,7 +2462,7 @@ class SemanticDeepExecutor:
                     )
                     _atomic_json(verification_path, verification_record)
                     context.artifacts["verification_2"] = _safe_relative(
-                        verification_path, self.root
+                        verification_path, self._artifact_roots()
                     )
                     final_verdict = verdict
                 if not final_verdict["accept"] or local_issues:
@@ -2460,16 +2508,16 @@ class SemanticDeepExecutor:
                         "model_provenance": model_provenance,
                         "accepted_at": self._now(),
                         "accepted_text_artifact": _safe_relative(
-                            accepted_text_path, self.root
+                            accepted_text_path, self._artifact_roots()
                         ),
                     }
                 )
                 _atomic_json(accepted_path, accepted_record)
                 context.artifacts["accepted"] = _safe_relative(
-                    accepted_path, self.root
+                    accepted_path, self._artifact_roots()
                 )
                 context.artifacts["accepted_text"] = _safe_relative(
-                    accepted_text_path, self.root
+                    accepted_text_path, self._artifact_roots()
                 )
                 final_answer = candidate
                 status = ExecutionStatus.ACCEPTED

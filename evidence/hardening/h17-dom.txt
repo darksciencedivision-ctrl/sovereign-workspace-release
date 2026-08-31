@@ -1,8 +1,8 @@
-# utc: 2026-08-31T03:35:50Z
+# utc: 2026-08-31T04:19:46Z
 # producer: ox-alpha THEME01
 # proof: H-17 - rendered DOM of / (headless Edge) shows every loaded module, their action rows, and the runnable Distillery controls
 
-command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-5er0ac81 --virtual-time-budget=8000 --dump-dom http://127.0.0.1:58107/
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-2syter3x --virtual-time-budget=8000 --dump-dom http://127.0.0.1:57771/
 card order      : ['sovereign', 'sow', 'tokencenter', 'debate', 'distillery', 'llamacpp']
 sovereign  buttons: 6 (logs, open, restart, start, stop, test)
 sow        buttons: 6 (logs, open, restart, start, stop, test)
@@ -14,8 +14,8 @@ distillery STOPPED action state start/stop/restart/open/test: False True True Tr
 distillery Logs enabled: True
 llamacpp (optional, runtime absent) start/test/restart disabled: True True True
 
-command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-5er0ac81 --virtual-time-budget=8000 "--screenshot=D:\producttion software 2\release-worktree\evidence\gate5\screenshots\shell-grid-rendered.png" http://127.0.0.1:58107/
-rendered png sha256: 5a4f6108058cde0c7de324e10e0ee0634b78d1ee565eeaf81722395f3ceaf72d
+command: "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new --disable-gpu --no-first-run --user-data-dir=C:\Users\Sslaw\AppData\Local\Temp\sws-h17-2syter3x --virtual-time-budget=8000 "--screenshot=D:\producttion software 2\release-worktree\evidence\gate5\screenshots\shell-grid-rendered.png" http://127.0.0.1:57771/
+rendered png sha256: 72505d23f14de49bf2675878639bd5a7615b13c041bb6ce3354e98304cadb7ab
 blank render sha256: f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271
 
 edge binary: C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe
