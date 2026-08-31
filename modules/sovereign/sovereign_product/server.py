@@ -1805,6 +1805,35 @@ class ProductService:
                 + ", ".join(missing)
             )
 
+        # EPC-02 dyno. "Installed" is not the same as "runs here". The operator's library
+        # holds Ollama Cloud POINTERS - rows that appear in `ollama list`, pass the check
+        # above, and execute on someone else's hardware. Selecting one leaves this host, which
+        # is provider spend and a mandatory STOP.
+        #
+        # Measured before this guard existed: glm-5.2:cloud was accepted into the CRITIC slot
+        # while the very state read below already marked it within_ceiling: False. The verdict
+        # was computed and then ignored.
+        #
+        # This refusal is deliberately NOT the ceiling check. A model over the size ceiling is
+        # slow and is the operator's call; a model that runs remotely is a bill, and stays
+        # refused however wide the ceiling is set.
+        model_states = ollama.get("model_states") if isinstance(ollama, Mapping) else None
+        remote = {}
+        if isinstance(model_states, list):
+            for entry in model_states:
+                if not isinstance(entry, Mapping) or not entry.get("runs_remotely"):
+                    continue
+                name = str(entry.get("name") or "")
+                if name:
+                    remote[name] = str(entry.get("ceiling_reason") or
+                                       "holds no local weights; runs remotely")
+        offending = sorted(set(updates.values()) & set(remote))
+        if offending:
+            raise ValueError(
+                "model assignment rejected; these models do not run on this machine: "
+                + "; ".join(f"{name} - {remote[name]}" for name in offending)
+            )
+
         with self._configuration_lock:
             manifest = self._manifest()
             models = manifest.get("MODELS")

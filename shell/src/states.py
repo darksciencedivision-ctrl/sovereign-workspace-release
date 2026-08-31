@@ -246,11 +246,19 @@ class ModuleRunner:
             ph = self.supervisor.spawn(self.id, launch["argv"], launch["cwd"], env,
                                        log_ring=self.log_ring)
         except SupervisorError as e:
+            # EPC-02 dyno. The supervisor's message carries the ACTUAL cause - the Windows
+            # error code from CreateProcess, a missing executable, a pipe failure. Collapsing
+            # every one of them into "spawn failed" left the operator, and this builder, with
+            # a FAILED badge and nothing to act on. The detail was already being returned to
+            # the caller and thrown away by the async start path, so it never reached anyone.
+            detail = str(e).strip()
             reason = ("PROCESS_START_FAILED: JOB_ASSIGN failed"
-                      if "JOB_ASSIGN" in str(e)
+                      if "JOB_ASSIGN" in detail
                       else "PROCESS_START_FAILED: spawn failed")
+            if detail and "JOB_ASSIGN" not in detail:
+                reason = f"{reason} ({detail[:200]})"
             self._set(FAILED, reason)
-            return self.display, str(e)
+            return self.display, detail
 
         cfg = readiness_override or self.adapter["readiness"]
         ready, _lat, err = self._readiness(cfg, ph, since)

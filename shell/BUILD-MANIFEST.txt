@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-31T01:18:46Z
+# utc: 2026-08-31T01:37:55Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
@@ -28,7 +28,7 @@ a76de2eb73b7c65667340859aa4675ba93614a152651bfd7cb82fbaf05925e9d  src/probe.py
 b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6  src/redact.py
 03439fe511f6dbb41fe83f0fb4afff9bc936a86ded8fb34184fbd084dffa458a  src/server.py
 9c05df805cfc9f18a1c353b189f96e335713970b6119176ee510fa00d79a52f3  src/startup_test.py
-f0cf8bc409445581f1dae53199470a717c5d6b3c200ed2a8b2a082fbfbf80e6f  src/states.py
+bb119dab0f305ddac33d33fad8c94243feeb96608710fcd2e378e4c3f4a9d9d1  src/states.py
 acb266cf0c2461df0a1419e5ebc828a627be910a9b884fa0c70b706623c7f214  src/supervisor.py
 b2407edea75851f7fc7893ef150c7cf94902f5af9e62594ca2b4794e548eb9b3  static/app.css
 674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390  static/app.js

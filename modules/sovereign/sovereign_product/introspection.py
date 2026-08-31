@@ -164,6 +164,18 @@ def _model_names(payload: Mapping[str, Any]) -> list[str]:
 #: each names the others. That a policy the operator set now lives in three files is itself worth
 #: his attention - recorded as LOCAL-01 N-37.
 LOCAL_MODEL_CEILING_NAMEPLATE_B = 8
+
+#: Below this, an /api/tags row carries no weights on this disk: it is an Ollama Cloud pointer
+#: (a few hundred bytes) or a model whose blobs are absent. Selecting one sends inference OFF
+#: THIS HOST, which is provider spend and a mandatory STOP.
+#:
+#: This is checked BEFORE and INDEPENDENTLY OF the parameter ceiling, and the independence is
+#: the whole point. Before this, the two cloud entries in the operator's library were refused
+#: only because they report 756B and 1.65T parameters - so the moment the ceiling is widened
+#: for the operator, as EPC-02 B-2 did in SOW and as the operator asked for, they would have
+#: become selectable. A size ceiling is a performance rule; this is a spend rule; collapsing
+#: one into the other is how a widened ceiling turns into a bill.
+_MIN_LOCAL_WEIGHTS_BYTES = 64 * 1024 * 1024
 _CEILING_TRUE_PARAMS = 9.0e9
 _PARAM_SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12, "": 1.0}
 _PARAM_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMBT])?\s*$", re.I)
@@ -202,26 +214,63 @@ def _model_parameter_sizes(payload: Mapping[str, Any]) -> dict[str, str]:
     return sizes
 
 
-def _ceiling_state(name: str, parameter_size: str | None) -> dict[str, Any]:
+def _model_disk_sizes(payload: Mapping[str, Any]) -> dict[str, int]:
+    """`{model name: bytes on disk}` from the SAME `/api/tags` payload the names came from.
+
+    One enumeration, not a second probe (directive F-5). The size is what separates a real
+    local model from a pointer to a remote one.
+    """
+    sizes: dict[str, int] = {}
+    raw_models = payload.get("models")
+    if not isinstance(raw_models, Sequence) or isinstance(raw_models, (str, bytes)):
+        return sizes
+    for item in raw_models:
+        if not isinstance(item, Mapping):
+            continue
+        name = item.get("name") or item.get("model")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        try:
+            sizes[name.strip()] = int(item.get("size") or 0)
+        except (TypeError, ValueError):
+            continue
+    return sizes
+
+
+def _ceiling_state(name: str, parameter_size: str | None,
+                   size_bytes: int | None = None) -> dict[str, Any]:
     """One model's ceiling verdict, with the sentence the operator reads when it is refused.
 
     A model over the ceiling stays LISTED and is marked - ENTRY 017 requires it be "excluded from
     selection with a stated reason, not silently hidden" (S-19)."""
+    # Check 0, before anything about size: does this row carry weights on this disk?
+    if size_bytes is not None and size_bytes < _MIN_LOCAL_WEIGHTS_BYTES:
+        return {"parameter_size": parameter_size, "within_ceiling": False,
+                "runs_remotely": True,
+                "ceiling_reason": f"{name} holds no model weights on this machine "
+                                  f"({size_bytes} bytes on disk). It is a pointer to a model "
+                                  f"that runs remotely, so selecting it would leave this host "
+                                  f"- that is provider spend, which the operator has not "
+                                  f"authorized. Never assignable, at any ceiling."}
     if parameter_size is None:
-        return {"parameter_size": None, "within_ceiling": None, "ceiling_reason": None}
+        return {"parameter_size": None, "within_ceiling": None, "ceiling_reason": None,
+                "runs_remotely": False}
     params = _parse_parameter_count(parameter_size)
     if params is None:
         return {"parameter_size": parameter_size, "within_ceiling": False,
+                "runs_remotely": False,
                 "ceiling_reason": f"{name} reports an unreadable parameter count, so it cannot be "
                                   f"shown to be within the operator's "
                                   f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (fail closed)"}
     if params >= _CEILING_TRUE_PARAMS:
         return {"parameter_size": parameter_size, "within_ceiling": False,
+                "runs_remotely": False,
                 "ceiling_reason": f"{name} has {parameter_size} parameters, above the operator's "
                                   f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (ENTRY 017) - this "
                                   f"host's GPU carries 8 GB of VRAM. Installed and kept, but not "
                                   f"assignable to a SOVEREIGN role in this build"}
-    return {"parameter_size": parameter_size, "within_ceiling": True, "ceiling_reason": None}
+    return {"parameter_size": parameter_size, "within_ceiling": True,
+            "ceiling_reason": None, "runs_remotely": False}
 
 
 def _probe_ollama(
@@ -287,6 +336,7 @@ def _probe_ollama(
     getter = http_get or _default_http_get
 
     parameter_sizes: dict[str, str] = {}
+    disk_sizes: dict[str, int] = {}
 
     def probe(path: str) -> tuple[list[str] | None, str | None]:
         try:
@@ -295,6 +345,7 @@ def _probe_ollama(
             if path == "/api/tags":
                 # ONE enumeration, read twice from the same payload - never a second probe.
                 parameter_sizes.update(_model_parameter_sizes(payload))
+                disk_sizes.update(_model_disk_sizes(payload))
             return _model_names(payload), None
         except Exception as exc:  # network and injected probe failures are state, not crashes
             return None, type(exc).__name__
@@ -315,7 +366,8 @@ def _probe_ollama(
             # The operator's 8B ceiling, per model (ENTRY 017 / S-19). Every installed model stays
             # LISTED; one above the ceiling is marked and carries the reason, so the operator can
             # see which of his models SOVEREIGN will not assign to a role, and why.
-            **_ceiling_state(model, parameter_sizes.get(model)),
+            **_ceiling_state(model, parameter_sizes.get(model),
+                             disk_sizes.get(model)),
         }
         for model in all_names
     ]
