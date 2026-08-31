@@ -39,6 +39,8 @@ place an auditor would look for it.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import errno
 import json
 import os
@@ -113,17 +115,95 @@ _LOCK_WAIT_SECONDS = 0.1
 
 #: Per provider, derived from the adapter that would run — never re-declared here. A hand-copied
 #: capability list is exactly the drift `adapter_version_map()` exists to prevent one level up.
+#: EPC-02 / U313(A). What a LOCAL pane can be asked to do. Deliberately narrower than the
+#: frontier descriptors beside it: no `tool_use` requirement, because most models at or under
+#: 4B on the operator's host report `completion` only, and a descriptor that demanded tools
+#: would silently exclude the very panes this wiring exists to register. `min_context` is set
+#: to what an 8 GB card can actually hold (EPC-02 sized num_ctx to 20,480 from measured VRAM),
+#: not to a model card's maximum.
+OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS: list[dict[str, Any]] = [
+    # `local_only`, not "local": the node@1.1 schema enumerates
+    # ['any', 'local_only', 'frontier_ok'] and refused the record outright. Caught by the
+    # end-to-end demonstration - the schema is the authority on its own vocabulary, and
+    # "local" was my guess at it.
+    {"capability": "reasoning", "requirements": {"structured_output": False,
+                                                 "min_context": 8192,
+                                                 "locality": "local_only"}},
+]
+
+from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
+
 _PROVIDER_FACTS: dict[str, tuple[str, list[dict[str, Any]]]] = {
     GROK_ADAPTER: (GrokCliBackend.node_class, GROK_REASONING_CAPABILITY_DESCRIPTORS),
     ANTIGRAVITY_ADAPTER: (AntigravityCliBackend.node_class,
                           ANTIGRAVITY_REASONING_CAPABILITY_DESCRIPTORS),
+    # U313 said: "Invariant 2 says every terminal is a Sovereign node", and then only two
+    # frontier providers were wired. A local pane held a terminal and wrote no record, so the
+    # node registry stayed empty and a conductor asking who is up got nothing — measured on the
+    # operator's host: 154 node events, grok_build 22, google_antigravity 20, everything else 0.
+    OLLAMA_LOCAL_ADAPTER: ("worker_reasoning", OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS),
 }
+
+#: Adapters governed by VRAM RESIDENCY rather than by a subscription. Their records name a
+#: ResidencyPlanner decision; they hold no lease because there is no subscription to count them
+#: against, and inventing one would put a lease id on a terminal nobody counted - exactly what
+#: the subscription fence exists to make unrepresentable.
+RESIDENCY_GOVERNED_ADAPTERS: frozenset[str] = frozenset({OLLAMA_LOCAL_ADAPTER})
 
 #: The providers this module can build a record for, DERIVED from the facts table above rather than
 #: re-listed. Callers that must decide "is this a session I should register?" before building
 #: anything read this — a second literal elsewhere is how a provider ends up in one list and not the
 #: other, which reads as "deliberately not registered" and is really a typo (the U254 shape).
 REGISTRABLE_PROVIDERS: frozenset[str] = frozenset(_PROVIDER_FACTS)
+
+
+GATE_UNRESERVED_RESIDENCY = "unreserved_residency"
+
+
+def _require_residency(residency: Any, *, session_id: str, model: Any) -> dict[str, Any]:
+    """The LOCAL analogue of the subscription fence, and it is not a weaker one.
+
+    A frontier record names the subscription its terminal was counted against. A local pane has
+    no subscription to name — `adapters/local/ollama_session` states it outright: "a local model
+    involves NO subscription and NO credential... the governance that applies is VRAM residency
+    (invariant 22)". So the local record names the ResidencyPlanner decision that admitted it.
+
+    The same property is preserved: a node record names the counted resource it was admitted
+    under, and a record whose count nobody can find is refused. What changes is WHICH resource,
+    because for a local pane the honest answer is VRAM, not a subscription.
+
+    A synthetic lease was considered and rejected. It would have satisfied the existing fence
+    while putting a lease id onto a terminal that was never counted against any subscription —
+    the precise claim that fence exists to make unrepresentable.
+    """
+    scheduled = None
+    reserved_model = None
+    if isinstance(residency, Mapping):
+        scheduled = residency.get("scheduled")
+        reserved_model = residency.get("model")
+    elif residency is not None:
+        scheduled = getattr(residency, "scheduled", None)
+        reserved_model = getattr(residency, "model", None)
+
+    if scheduled is not True:
+        raise ProviderNodeRegistrationRefused(
+            f"the local pane session carries no VRAM residency reservation (session "
+            f"{session_id!r}, scheduled={scheduled!r}) — a local node record names the "
+            f"ResidencyPlanner decision it was admitted under, and a pane the planner never "
+            f"scheduled has no honest record (fail closed)",
+            gate=GATE_UNRESERVED_RESIDENCY)
+
+    if model and reserved_model and str(reserved_model).strip() != str(model).strip():
+        raise ProviderNodeRegistrationRefused(
+            f"the residency reservation is for {reserved_model!r} but the pane runs "
+            f"{model!r} — a record must name the reservation that admitted THIS model, not "
+            f"another one that happened to be scheduled (fail closed)",
+            gate=GATE_UNRESERVED_RESIDENCY)
+
+    return {"governed_by": "vram_residency",
+            "model": str(reserved_model or model or ""),
+            "status": (residency.get("status") if isinstance(residency, Mapping)
+                       else getattr(residency, "status", None))}
 
 
 class ProviderNodeRegistrationRefused(Exception):
@@ -253,7 +333,18 @@ def build_pane_node_record(session: Any, *, session_id: str, incarnation: int = 
         # The slug in the argv, or `null` for the recorded CLI-default fallback — the same fact the
         # chrome badges, so the record and the badge cannot disagree.
         "model_ref": slug if isinstance(slug, str) and slug.strip() else None,
-        "locality": "frontier",
+        # EPC-02 / U313(A). READ from the chrome, not asserted. This was the literal "frontier",
+        # which was true while only grok and google_antigravity could register. A local pane
+        # would have written `locality: "frontier"` and a null subscription_ref onto an
+        # APPEND-ONLY log that can never be corrected - a record claiming the wrong governance
+        # class, which is worse than the missing record it replaced. The schema permits
+        # ["local", "frontier"] and the chrome already carries which one this pane is.
+        "locality": ("local"
+                     if str(getattr(chrome, "locality", "")).strip().lower() == "local"
+                     else "frontier"),
+        # None for a local pane, and that is the honest value: it holds no subscription, so
+        # there is no reference to name. What governs it is the residency reservation the fence
+        # above verified, and inventing a ref here would be the synthetic lease by another route.
         "subscription_ref": subscription.get("ref"),
         "capabilities": capabilities,
         "workspace": {"type": "dir", "path": workspace},
@@ -553,7 +644,8 @@ class ProviderNodeRegistrar:
             adapter_schema_version=admitted, validated_against=validated, record=record)
 
     def register_pane_session(self, session: Any, *, session_id: str,
-                              lease_id: str) -> ProviderNodeRegistration:
+                              lease_id: str = "",
+                              residency: Any = None) -> ProviderNodeRegistration:
         """Register a governed OP-12 worker PANE as a Sovereign node. Raises rather than returning
         a failure — an unregistered session must not proceed as if it were governed.
 
@@ -587,8 +679,27 @@ class ProviderNodeRegistrar:
         # by `build_pane_node_record` with `GATE_RECORD_INVALID`, so the two refusals stay
         # distinguishable ("you hold no terminal" and "this record cannot be traced" are different
         # facts, and a receipt asserting one must not be satisfiable by the other).
-        if not (getattr(session, "subscription_governed", False) is True
-                and str(lease_id or "").strip()):
+        # EPC-02 / U313(A). Fence 2 asks the same question of every pane - "name the counted
+        # resource you were admitted under" - and takes the honest answer for the pane's kind.
+        # A local pane has no subscription to name, so it names its VRAM residency reservation
+        # instead. Frontier panes are untouched: same fence, same wording, same gate.
+        residency_record = None
+        if getattr(getattr(session, "chrome", None), "adapter", None) in RESIDENCY_GOVERNED_ADAPTERS:
+            # The AUTHORIZATION already carries it. `WorkerPaneSession.residency_decision` is
+            # documented as "the residency decision for a local model (None for frontier)", so
+            # the fence reads the authorizer's own record rather than a caller's copy - the
+            # same reason `permission_profile_id` lives on the session and not the selection.
+            # An explicit argument still wins, for a caller that has a fresher decision.
+            residency_record = _require_residency(
+                residency if residency is not None else getattr(session, "residency_decision", None),
+                session_id=session_id,
+                # `model_slug` is the chrome's field name - the argv slug the pane actually
+                # runs. Reading a non-existent `model` returned None, which silently
+                # disabled the model-match check: a reservation for ANOTHER model would
+                # have passed. Caught by the end-to-end demonstration, not by the units.
+                model=getattr(getattr(session, "chrome", None), "model_slug", None))
+        elif not (getattr(session, "subscription_governed", False) is True
+                  and str(lease_id or "").strip()):
             raise ProviderNodeRegistrationRefused(
                 f"the worker pane session carries no I-X3 terminal (lease {lease_id!r}, session "
                 f"{session_id!r}, subscription_governed="
