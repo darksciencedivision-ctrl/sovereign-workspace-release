@@ -702,7 +702,12 @@ class TestEveryPayloadNamesTheLogItIsAbout:
 
 class TestTheLocalPaneBranch:
     """MEDIUM-5 both reviewers found: the test named for this rule exercised the FRONTIER path, and
-    the local branch's own no-record reason had no coverage anywhere."""
+    the local branch's own no-record reason had no coverage anywhere.
+
+    EPC-03 D-1: that no-record reason is gone. The local branch now calls the registrar, so
+    this class asserts the CURRENT contract - a local pane is a Sovereign node named by its
+    residency reservation. The claude_code / codex siblings above still assert no-record,
+    because those adapters remain genuinely unwired (U313's other owed leg)."""
 
     def test_a_local_pane_holds_no_terminal_and_gets_no_node_record(self, tmp_path: Path) -> None:
         from scheduler.residency_planner.residency_planner import ResidencyPlanner
@@ -719,12 +724,32 @@ class TestTheLocalPaneBranch:
                     residency_planner=planner, ollama_present=True,
                     residency_budget={"vram_budget_mb": 12288, "budget_source": "(test)",
                                       "estimate": True, "established": True})
+        # EPC-03 D-1. This asserted the OPPOSITE contract - that a local pane gets no node
+        # record - and it was right about the code while the code was wrong about the design.
+        # Invariant 2: "every terminal is a Sovereign node". U313 records the two-provider
+        # wiring as the GAP, not the intent. So a local pane now registers, and what it names
+        # is its ResidencyPlanner reservation rather than a subscription it does not hold.
+        #
+        # Inverted under an explicit operator decision (ENTRY 036), not because the code
+        # started failing it. The distinction matters: a test changed to match broken code is
+        # how a guard is disarmed, and this file is where that would show.
         assert t["authorized"] is True
         assert t["subscription_governed"] is False
-        assert t["lease"] is None
-        assert t["node_registration"]["registered"] is False
-        assert "LOCAL pane" in t["node_registration"]["reason"]
-        assert not (tmp_path / "nodes" / "node_events.jsonl").exists()
+        assert t["lease"] is None, "a local pane still holds NO subscription terminal"
+        assert t["node_registration"]["registered"] is True
+        assert t["node_registration"]["node_key"]
+        assert t["node_registration"]["schema_version"] == "node@1.1"
+        # The row is real and on disk, and it describes a LOCAL node.
+        log = tmp_path / "nodes" / "node_events.jsonl"
+        assert log.exists(), "a registered local pane must leave a durable row"
+        rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+        assert len(rows) == 1
+        record = rows[0]["data"]["node_record"]
+        assert record["class"] == "worker_reasoning", "node class must never be null"
+        assert record["locality"] == "local", "a local pane must not be recorded as frontier"
+        assert record["subscription_ref"] is None, "it holds no subscription to name"
+        assert rows[0]["data"]["lease_id"] == "", "no synthetic lease"
 
 
 class TestTheCliContract:

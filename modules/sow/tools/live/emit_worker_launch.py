@@ -755,11 +755,23 @@ def build_worker_launch_ticket(
                 ollama_present=gates["local_runtime_present"], shell_env_names=shell_env_names)
             gates["residency_scheduled"] = bool((session.residency_decision or {}).get("scheduled"))
             lease_view = None
-            node_registration = _no_pane_node_record(
-                "a LOCAL pane holds no subscription terminal and no frontier node record is "
-                "written for it here: this wiring covers the two OP-12 frontier providers, whose "
-                "supervised panes are the sessions directive §17.2(1) requires to be registered "
-                "Sovereign nodes (invariant 19 — a local node is governed by VRAM residency)")
+            # EPC-02 / U313(A). This was a HARDCODED no-record result: the local branch never
+            # called the registrar at all, so adding `ollama_local` to REGISTRABLE_PROVIDERS
+            # could not take effect here — the path never asked. That is the second literal the
+            # comment beside REGISTRABLE_PROVIDERS warns about ("how a provider ends up in one
+            # list and not the other, which reads as 'deliberately not registered' and is really
+            # a typo — the U254 shape"), and it read as a deliberate design statement while
+            # being the reason invariant 2 was unmet for every local terminal.
+            #
+            # The registrar is now called exactly as the frontier branch calls it. What differs
+            # is the resource named, and it is named honestly: NO lease is passed, because a
+            # local pane holds no subscription terminal and a synthetic lease id would assert a
+            # count nobody took. Fence 2 reads `session.residency_decision` — the SAME decision
+            # `residency_scheduled` was computed from one line above, not a second planner call —
+            # and refuses a pane the planner never scheduled.
+            node_registration = _register_pane_node(
+                registrar, session, session_id=str(session_id or ""), lease_id="",
+                adapter_id=adapter_id)
 
         ticket: dict[str, Any] = {
             "schema": WORKER_TICKET_SCHEMA,
