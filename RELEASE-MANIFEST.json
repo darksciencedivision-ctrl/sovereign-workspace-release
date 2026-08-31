@@ -162,7 +162,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "58b57aad0f051643f970a220358125dff27cae2d5cfde0a7e798a2746c568704"
+      "sha256": "47ecc1d2739b6768ce168f9181a690c45247c30206f345d3fa2871ae87636c84"
     },
     {
       "path": "SBOM.json",
@@ -226,7 +226,7 @@
     },
     {
       "path": "VERSION.json",
-      "sha256": "58b57aad0f051643f970a220358125dff27cae2d5cfde0a7e798a2746c568704"
+      "sha256": "47ecc1d2739b6768ce168f9181a690c45247c30206f345d3fa2871ae87636c84"
     },
     {
       "path": "VERSION.json.pre-CONVERGE01",

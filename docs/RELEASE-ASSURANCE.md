@@ -1,6 +1,6 @@
 # Release assurance status
 
-**Directive:** SWS-UI-001 · **Gate ledger version:** 1.2 · **Statement date:** 2026-08-30
+**Directive:** SWS-UI-001 · **Gate ledger version:** 1.2 · **Statement date:** 2026-08-31
 
 This document states what has and has not been reviewed in this release. It is
 derived from the programme's gate ledger, which is a build-control instrument and
@@ -96,37 +96,62 @@ ANSI in a BOM-less file, turning one character into a parse failure at a mislead
 
 ### What the suite reports today
 
-Measured on the whole-product run, not estimated: **3,822 passed, 8 failed**, 4 skipped, with
-461 subtests passing. The Node side is 1,109 tests (SOW desktop) and 26 (SOVEREIGN UI), plus a
-clean TypeScript build. All seven release gates and the boundary gate pass.
+Measured on the whole-product run at commit `0e2530a`, not estimated: **4,000 passed, 1 failed**,
+4 skipped, with 461 subtests passing, in 16 minutes 55 seconds. The Node side is 1,132 tests
+(SOW desktop) and 26 (SOVEREIGN UI), plus a clean TypeScript build. All seven release gates and
+the boundary gate pass. Thirteen lane stages: ten passed, one failed, two skipped (the clean-room
+install and verify, which are opt-in because they mutate the machine).
 
-The eight failures are known and attributed:
+The previous statement of this section recorded 3,822 passed and 8 failed. Both numbers moved,
+for two different reasons, and the difference is worth stating rather than leaving as a better
+number nobody explained:
 
-- **Seven belong to the frozen-schema item (P1-2)**, which is parked pending an operator
-  ruling id. They were reproduced at the seal this work started from, in an isolated clone,
-  with identical counts — they are not a regression from this work.
-- **One is an open cross-run interference** in the Debate module's hostile end-to-end suite.
-  It passes 9 of 9 on its own and 185 of 185 with its whole module, and fails only in the
-  whole-product run. Four candidate causes were tested and ruled out: the state root, the
-  repository-root `conftest.py` PYTHONPATH, a port collision with the smoke suite, and a
-  shared state-root configuration. **The cause is not known**, and it is recorded that way
-  rather than attributed to something plausible.
+- **The seven frozen-schema failures are gone** because the operator decided the item. ENTRY 027
+  deleted the thirteenth schema and applied one waiver, which closed P1-2. They were never fixed
+  by a code change and are not evidence about the code.
+- **The test count rose by ~180** because the EPC-02 and EPC-03 work added tests, not because
+  anything was re-counted.
 
-So the lane is red on its first run. That is the correct report of this tree rather than a
-problem with the lane: a suite tuned green by excluding its own failures would be worth
-nothing, and seven of the eight are waiting on a decision that is not the builder's to make.
+The one remaining failure is the **open cross-run interference** in the Debate module's hostile
+end-to-end suite (`test_short_interjection_does_not_suppress_speech`). It passes 9 of 9 on its own
+and 185 of 185 with its whole module, and fails only in the whole-product run. Four candidate
+causes were tested and ruled out: the state root, the repository-root `conftest.py` PYTHONPATH, a
+port collision with the smoke suite, and a shared state-root configuration. **The cause is not
+known**, and it is recorded that way rather than attributed to something plausible.
+
+One property of it is newly measured and sharpens the description: it is **intermittent**. Two
+whole-product runs were made on this tree within the hour. It did not fire in the first and did
+fire in the second, which rules out "deterministic in the combined run" — the phrasing this
+document previously used — and points at ordering or timing rather than at a fixed collision.
+That is a narrower unknown than before, and still an unknown.
+
+So the lane is red. That is the correct report of this tree rather than a problem with the lane: a
+suite tuned green by excluding its own failures would be worth nothing.
 
 ## What has not been done
 
 Stated so that absence is not mistaken for success:
 
-- No clean-room installation has been performed from this archive.
-- The release producer has never been run.
-- No lane has ever RUN. The lane now exists — `.github/workflows/windows.yml`,
-  invoking `tools/ci/run_ci.ps1` — and the script has been executed locally, which
-  is what makes it a lane rather than a declaration. It has not yet run on a
-  hosted Windows runner, so nothing here claims it has.
+- No clean-room installation has been performed from this archive. The lane's clean-room
+  stages are opt-in (`-IncludeCleanRoom`) and were SKIPPED on the runs behind this
+  statement; they are reported under the lane's own `SKIPPED-WITH-RECORD` heading, and
+  this run does not vouch for them.
+- The lane has still never run on a hosted Windows runner. It exists
+  (`.github/workflows/windows.yml`, invoking `tools/ci/run_ci.ps1`) and has been executed
+  locally end to end, which is what makes it a lane rather than a declaration — but
+  nothing here claims a hosted run.
 - No independent or third-party audit has been performed.
+- **19 of the 29 gates have still never been evaluated by any reviewer.** No amount of
+  passing tests changes that number, and it is the one that decides whether this release is
+  ratified.
+
+### What HAS now been done, that this section previously said had not
+
+- **The release producer has been run.** `tools/release/build_release.ps1` cut all eight
+  archives from the seal commit and recorded them in
+  `release-artifacts/release-build-manifest.json`. The previous statement's "the release
+  producer has never been run" is superseded by that fact rather than deleted from the
+  record.
 
 ## Why the ledger itself does not ship
 
