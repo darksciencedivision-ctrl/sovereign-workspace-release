@@ -5,8 +5,10 @@ invoked — `git grep terminal/test` across package.json, tools/ and .github/
 returns nothing. It ran only when somebody typed the command by hand, which means
 it was evidence nobody collected.
 
-MEASURED, and the measurement governs: **15 files, 222 tests**. The directive says
-14 files; that number is stale and is not preserved here.
+MEASURED, and the measurement governs. At W-27 that was **15 files, 222 tests**;
+the directive said 14, which was stale then and is staler now. The current measured
+figures live on `EXPECTED_FILES` and `EXPECTED_TEST_COUNT` below, each carrying the
+provenance of when it was last re-taken and why.
 
 WHY THE FILE LIST IS EXPLICIT. A glob is what let this suite drift out of view in
 the first place: `node --test "terminal/test/*.test.js"` silently covers whatever
@@ -29,6 +31,7 @@ TERMINAL_TESTS = REPO / "terminal" / "test"
 #: The complete measured set. Pinned, not globbed — see the module docstring.
 EXPECTED_FILES = (
     "approval-drawer.test.js",
+    "conductor-dispatch-pane-presence.test.js",
     "conductor-dispatch.test.js",
     "conductor-pane.test.js",
     "inspector-derive.test.js",
@@ -64,7 +67,12 @@ EXPECTED_FILES = (
 #: Measured before re-pinning: `node --test test/*.test.js` reports 225 tests, 225 pass,
 #: 0 fail, 0 SKIPPED — the zero matters, because a skip reports as `ok` and would otherwise
 #: let a silently-disabled test hide inside a rising number.
-EXPECTED_TEST_COUNT = 225
+#:
+#: EPC-03 L3-5 (2026-08-31): re-taken to 232, and this time IN THE SAME COMMIT as the tests that
+#: moved it, which is what the paragraph above has been asking for through four instances.
+#: `terminal/test/conductor-dispatch-pane-presence.test.js` adds 7 tests covering the DISPATCH
+#: line's new pane-presence clause. Measured: 232 tests, 232 pass, 0 fail, 0 SKIPPED.
+EXPECTED_TEST_COUNT = 232
 
 _SUMMARY = re.compile(r"^[\sℹ#]*\s*(tests|pass|fail|skipped)\s+(\d+)\s*$", re.MULTILINE)
 
@@ -83,7 +91,8 @@ def test_the_pinned_file_list_is_exactly_what_is_on_disk() -> None:
     assert on_disk == tuple(sorted(EXPECTED_FILES)), (
         f"terminal/test/ has drifted from the pinned set.\n"
         f"  on disk : {on_disk}\n  pinned  : {tuple(sorted(EXPECTED_FILES))}")
-    assert len(EXPECTED_FILES) == 15, "the measured count is 15 files, not the directive's 14"
+    assert len(EXPECTED_FILES) == 16, (
+        "16 files as of EPC-03 L3-5; the directive's 14 and W-27's 15 are both stale")
 
 
 def test_the_complete_terminal_suite_runs_and_every_test_passes() -> None:

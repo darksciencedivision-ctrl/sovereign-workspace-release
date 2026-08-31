@@ -40,12 +40,18 @@ from control_plane.orchestration.live_flow import (
     WorkerHandle,
     derive_worker_legs,
 )
+from control_plane.orchestration.node_log_reader import pane_records_as_objects
 from control_plane.orchestration.pane_presence import (
+    live_pane_ids,
     presence_feed,
     presence_from_records,
 )
 from mcp_server.protocol import McpClient
 from mcp_server.server import MCPServer
+
+#: This module lives at `modules/sow/control_plane/orchestration/`, so the module root - which is
+#: what `default_node_event_log_path` expects, and what the live emitters pass it - is three up.
+ROOT = Path(__file__).resolve().parents[2]
 
 #: Pinned so the shell source validates the shape it parses (a drifted producer is refused).
 CONDUCTOR_DISPATCH_FEED_SCHEMA = "conductor_dispatch_feed@1.0"
@@ -270,6 +276,51 @@ def undispatched_feed(reason: str, *, objective: str | None = None,
     }
 
 
+def registered_pane_records(log_path: Any = None) -> list:
+    """The panes the durable node registry currently knows about.
+
+    EPC-03 L3-5. `pane_presence` shipped able to fold a registry and was never handed one: every
+    caller left `pane_records` at its `()` default, so the operator's conductor surface reported
+    `panes_present: []` on a host with panes open. Presence was not wrong; nothing looked.
+
+    This reads the operator's REAL node log, read-only, and never constructs an
+    `AppendOnlyEventLog` - see `node_log_reader` for why a second opener is not survivable here.
+
+    It is called from the I/O BOUNDARY (`run_governed_dispatch`), never from `fold_dispatch_feed`,
+    which is pure by contract so the fold stays unit-testable without a host. A registry fault
+    costs the operator his presence line, not his dispatch, so this never raises.
+    """
+    try:
+        from node_runtime.supervisor.provider_node_registration import (  # noqa: PLC0415
+            default_node_event_log_path,
+        )
+        path = log_path or default_node_event_log_path(ROOT)
+        return pane_records_as_objects(path)
+    except Exception:  # noqa: BLE001 - a display path must not raise
+        return []
+
+
+def resolve_worker_ids(pane_records: Any, pinned: Sequence[str] | None) -> tuple[str, ...]:
+    """Which ids this dispatch addresses: the operator's LIVE panes when he has any.
+
+    EPC-03 L3-5. `DEFAULT_WORKER_IDS` is untouched and stays the fallback - the operator's
+    instruction on this was explicit: *"Do not 'fix' DEFAULT_WORKER_IDS to make the banner say
+    workers exist."* So this does not redefine that tuple; it stops REACHING for it when the
+    registry can name real panes. With no registered pane the dispatch is exactly what it was.
+
+    A pinned `worker_ids` from the caller always wins - tests and the emitter pin theirs, and a
+    dispatch that quietly retargeted a caller's explicit ids would be worse than a stale default.
+
+    Addressing a live pane is not executing on one. `worker_handles` remains the only way work
+    reaches a pane, `_assert_legs_honest` remains the only thing that may call a leg live, and
+    both are untouched: this dispatch stays mock-first and the feed keeps saying so.
+    """
+    if pinned is not None:
+        return tuple(str(x) for x in pinned)
+    live = live_pane_ids(presence_from_records(pane_records or ()))
+    return live or DEFAULT_WORKER_IDS
+
+
 def _pane_presence(pane_records: Any, dispatched_to: Any) -> dict[str, Any]:
     """Presence, folded for the feed. Read-only, and tolerant by contract.
 
@@ -301,7 +352,7 @@ def run_governed_dispatch(
     conductor_dir: Path,
     store_root: Path,
     objective: str = DEFAULT_OBJECTIVE,
-    worker_ids: Sequence[str] = DEFAULT_WORKER_IDS,
+    worker_ids: Sequence[str] | None = None,
     clock: Callable[[], str] | None = None,
     project_id: str = "proj",
     worker_handles: Callable[[MCPServer, str], Sequence[WorkerHandle]] | None = None,
@@ -325,6 +376,11 @@ def run_governed_dispatch(
     touches anything outside it. `clock` defaults to the fixed replayable `DISPATCH_TS`.
     """
     ts = clock or (lambda: DISPATCH_TS)
+    # EPC-03 L3-5. Read the registry ONCE, here at the boundary, and use the same rows for both
+    # the ids addressed and the presence reported - so the feed cannot say it dispatched to a
+    # pane it does not also list as present.
+    panes = registered_pane_records()
+    worker_ids = resolve_worker_ids(panes, worker_ids)
     srv = MCPServer(store_root / "store")
     srv.start()
     op: McpClient | None = None
@@ -354,13 +410,14 @@ def run_governed_dispatch(
             raise
         try:
             trace = flow.run(objective)
-            feed = fold_dispatch_feed(trace)
+            feed = fold_dispatch_feed(trace, panes)
         except Exception as exc:  # noqa: BLE001 — reported as un-dispatched, WITH what was spent
             # An auth pause or a second transport failure lands here AFTER `generate()` counted a
             # real call. Reading the flow's evidence keeps that spend on the record instead of
             # emitting a feed that says nothing ran (spec-audit MAJOR-1).
             feed = undispatched_feed(f"{type(exc).__name__}: {exc}", objective=objective,
-                                     worker_evidence=flow.worker_evidence_rows(), ts=ts())
+                                     worker_evidence=flow.worker_evidence_rows(), ts=ts(),
+                                     pane_records=panes)
     finally:
         # Close the operator client on EVERY path (a connect()/publish failure must not leak a socket
         # for an in-process caller), then the flow, then the server — nothing governed outlives the call.
@@ -381,7 +438,7 @@ def build_conductor_dispatch_feed(
     conductor_dir: Path,
     store_root: Path,
     objective: str = DEFAULT_OBJECTIVE,
-    worker_ids: Sequence[str] = DEFAULT_WORKER_IDS,
+    worker_ids: Sequence[str] | None = None,
     clock: Callable[[], str] | None = None,
     worker_handles: Callable[[MCPServer, str], Sequence[WorkerHandle]] | None = None,
 ) -> dict[str, Any]:
@@ -392,4 +449,5 @@ def build_conductor_dispatch_feed(
                                      objective=objective, worker_ids=worker_ids, clock=clock,
                                      worker_handles=worker_handles)
     except Exception as exc:  # noqa: BLE001 — a fault is reported as un-dispatched, never faked
-        return undispatched_feed(f"{type(exc).__name__}: {exc}", objective=objective)
+        return undispatched_feed(f"{type(exc).__name__}: {exc}", objective=objective,
+                                 pane_records=registered_pane_records())
