@@ -178,6 +178,27 @@ _HUMANIZED_PRODUCT_LOCATOR_ALIASES = {
     "constitution state": "constitution/constitution_state.json",
     "model hierarchy": "synthesis/model_hierarchy.json",
 }
+#: EPC-02. The constitution's own vocabulary, taken from its headings and defined terms -
+#: not a general keyword list. A query using one of these words is asking about governance,
+#: and the constitution is the only file that can answer it.
+_CONSTITUTIONAL_QUERY_WORDS = frozenset(
+    {
+        "constitution",
+        "constitutional",
+        "praxis",
+        "canonical",
+        "boundaries",
+        "boundary",
+        "governance",
+        "governs",
+        "promotion",
+        "promote",
+        "upgrade",
+        "authority",
+        "synthesis",
+    }
+)
+
 _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
     "system_manifest.json": frozenset(
         {"version", "runtime", "models", "configuration", "capabilities"}
@@ -197,6 +218,31 @@ _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
             "failure",
             "configuration",
             "capabilities",
+        }
+    ),
+    # EPC-02, operator-authorized. The constitution is PROSE, not product state, and the
+    # content classifier that handles unlisted files derives intents from words like
+    # "version" and "runtime" - which this document does not use in that sense. Left to the
+    # classifier it would be admitted for the wrong questions and refused for its own.
+    #
+    # These are the subjects it genuinely covers, taken from its own headings: canonical
+    # boundaries, the Praxis Answer as the sole synthesis channel, Sovereign Voice being
+    # explicitly non-canonical, and the rules governing a controlled upgrade.
+    "constitution/constitution_v1.md": frozenset(
+        {
+            "constitution",
+            "governance",
+            "boundaries",
+            "canonical",
+            "praxis",
+            "voice",
+            "synthesis",
+            "promotion",
+            "upgrade",
+            "policy",
+            "authority",
+            "mode",
+            "status",
         }
     ),
 }
@@ -765,6 +811,20 @@ class EvidenceBuilder:
             or bool(_GENERIC_CONFIGURATION_QUERY_RE.fullmatch(normalized))
         ):
             intents.add("configuration")
+
+        # EPC-02, operator-authorized. Adding constitution_v1.md to the retriever's candidate
+        # set was inert on its own: this classifier recognized only eight product-state
+        # concepts, so "What is the Praxis Answer?" produced NO intent, and a query with no
+        # intent omits every file. The constitution was a candidate that nothing could ever
+        # reach.
+        #
+        # This intent stays deliberately narrow, and narrow in a specific way: it fires on
+        # the document's OWN vocabulary rather than on a general relaxation of the rule. The
+        # surrounding design is fail-closed - a query it does not recognize retrieves nothing
+        # rather than everything - and that property is preserved. A question about the
+        # weather still matches no intent and still cites no evidence.
+        if words & _CONSTITUTIONAL_QUERY_WORDS:
+            intents.add("constitution")
 
         return intents
 

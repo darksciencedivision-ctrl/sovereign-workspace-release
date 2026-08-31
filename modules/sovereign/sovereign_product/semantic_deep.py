@@ -669,6 +669,12 @@ class SemanticDeepExecutor:
                 "artifact_root must resolve inside the product root or a trusted root; "
                 f"{self.artifact_root} is inside none of {[str(b) for b in _trusted]}"
             )
+        # EPC-02. The constructor validated against these and then threw them away, so every
+        # LATER containment check fell back to `self.root` alone. `_create_run_directory` is
+        # one of those, and it is on the DEEP path - the four-model pipeline failed in four
+        # seconds with "artifact root no longer resolves inside product root" for exactly this
+        # reason, once P4-4 moved runtime state out of the install tree. Kept now.
+        self._trusted_roots = tuple(_trusted)
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
         defaults = {
@@ -1081,12 +1087,16 @@ class SemanticDeepExecutor:
         execution_id: str,
     ) -> Path:
         resolved_artifact_root = self.artifact_root.resolve()
-        try:
-            resolved_artifact_root.relative_to(self.root)
-        except ValueError as exc:
+        trusted = getattr(self, "_trusted_roots", None) or (self.root,)
+        if not any(
+            resolved_artifact_root == base or base in resolved_artifact_root.parents
+            for base in trusted
+        ):
             raise SemanticDeepError(
-                "artifact root no longer resolves inside product root"
-            ) from exc
+                "artifact root no longer resolves inside the product root or any trusted "
+                f"root: {resolved_artifact_root} is inside none of "
+                f"{[str(b) for b in trusted]}"
+            )
         session_dir = resolved_artifact_root / session_id
         session_dir.mkdir(parents=True, exist_ok=True)
         resolved_session = session_dir.resolve()

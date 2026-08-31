@@ -673,14 +673,43 @@ class ProductService:
                 pass
 
     def _approved_evidence_paths(self) -> tuple[str, ...]:
+        """The files the retriever may cite as evidence. Existence-checked, never guessed.
+
+        EPC-02, operator-authorized. This list decides what SOVEREIGN is permitted to treat
+        as fact, so it is widened only on an explicit instruction and only by naming files.
+
+        Measured before the change: the list held five entries, all structured state, and
+        `constitution/constitution_v1.md` was absent. The CONSTITUTION ITSELF - 1,956 bytes
+        stating "The Praxis Answer is the only canonical synthesis channel" - was never
+        offered to the retriever, only the small state JSON beside it. Asked "What is the
+        Praxis Answer?", the system answered "cannot be verified from the available
+        evidence", because for it that was true.
+
+        The consequence reached further than one question. Every evidence packet came back
+        `sources: []`, `total_bytes: 0`. Out-of-scope questions were declined; in-scope ones
+        were REJECTED downstream - "project or continuity facts were asserted without
+        evidence", answer discarded - because the model answered from its own knowledge and
+        the honesty guard correctly refused it. The guard was the only part of the chain
+        working.
+
+        `corpus/domain.txt` is deliberately included and is EMPTY on this host (0 bytes). It
+        is listed because it is the intended home for domain evidence and the existence check
+        below skips it while it is absent rather than failing; an empty file is not silently
+        treated as a populated one.
+        """
         candidates = (
             "SYSTEM_MANIFEST.json",
             "sovereign_version.py",
             "constitution/constitution_state.json",
+            "constitution/constitution_v1.md",
             "synthesis/model_hierarchy.json",
             "runtime_profile.json",
+            "corpus/domain.txt",
         )
-        return tuple(item for item in candidates if (self.root / item).is_file())
+        return tuple(
+            item for item in candidates
+            if (self.root / item).is_file() and (self.root / item).stat().st_size > 0
+        )
 
     def _discover_research_executor(self) -> Any | None:
         """Load a research executor only through an explicit local factory/class."""
