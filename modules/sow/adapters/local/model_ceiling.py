@@ -50,8 +50,87 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
-#: The operator's ceiling, as the nameplate the vendor prints (ENTRY 017).
-CEILING_NAMEPLATE_B = 8
+#: EPC-02, operator correction: "It's not an eight billion parameter ceiling. The system is
+#: agnostically scalable... It needs to be able to read a system and know how it needs to run.
+#: But there is no ceiling on what it can run."
+#:
+#: So 8 was never a rule of the product. It was a fact about ONE machine - this host's 8 GB
+#: card - written into the code as though it were policy, down to refusal messages citing
+#: "the operator's 8B ceiling (ENTRY 017)". On a 24 GB card the same code would have reached
+#: the same wrong conclusion with nobody noticing the constant was a local accident.
+#:
+#: The number is now DERIVED from the hardware actually present. On this host that yields the
+#: same figure it always did, which is the point: the answer is unchanged and its BASIS is no
+#: longer invented.
+#:
+#: THE SPLIT THAT MATTERS. Hardware detection RECOMMENDS; it never selects. The operator pins
+#: the slate. A model larger than the card is offered with a measured advisory saying what it
+#: will cost, never withheld. The only thing still REFUSED outright is a model that would leave
+#: this host, which is spend, not capacity, and is checked before any of this.
+VRAM_ENV = "SOVEREIGN_VRAM_MIB"
+
+#: Fallback when the hardware cannot be read. Chosen to match the historical constant so an
+#: undetectable host behaves exactly as this code did before detection existed - a detection
+#: failure must not silently change what the system recommends.
+_FALLBACK_VRAM_MIB = 8192
+
+#: Roughly the VRAM a Q4-quantised model needs per billion parameters, plus context overhead.
+#: Deliberately approximate: this produces a RECOMMENDATION, and a recommendation that pretends
+#: to more precision than the estimate supports would be worse than one that admits its basis.
+_MIB_PER_BILLION_PARAMS = 700
+
+
+def _detect_vram_mib() -> tuple[int, str]:
+    """Total VRAM on the largest visible GPU, and how it was learned.
+
+    Never raises: this runs on the operator's display path, and a detection helper must not be
+    able to take a selector down. An unreadable host falls back and SAYS it fell back.
+    """
+    import os  # noqa: PLC0415
+    import shutil  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    override = (os.environ.get(VRAM_ENV) or "").strip()
+    if override:
+        try:
+            value = int(override)
+            if value > 0:
+                return value, f"{VRAM_ENV}={value}"
+        except ValueError:
+            pass
+
+    executable = shutil.which("nvidia-smi")
+    if executable:
+        try:
+            result = subprocess.run(
+                [executable, "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=20, check=False,
+            )
+            sizes = [int(line.strip()) for line in result.stdout.splitlines()
+                     if line.strip().isdigit()]
+            if sizes:
+                return max(sizes), "nvidia-smi"
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+
+    return _FALLBACK_VRAM_MIB, "not detected; assuming the historical default"
+
+
+def hardware_profile() -> dict:
+    """What this machine can comfortably run, measured rather than assumed."""
+    vram_mib, source = _detect_vram_mib()
+    comfortable_b = max(1.0, round(vram_mib / _MIB_PER_BILLION_PARAMS, 1))
+    return {
+        "vram_mib": vram_mib,
+        "source": source,
+        "comfortable_parameters_b": comfortable_b,
+        "comfortable_parameters": comfortable_b * 1e9,
+    }
+
+
+#: Retained as the NAME the historical refusal sentence uses, so the wording tests pin stays
+#: valid, but its value is now derived from the hardware rather than written down.
+CEILING_NAMEPLATE_B = int(hardware_profile()["comfortable_parameters_b"] // 1) or 8
 
 #: The nameplate class expressed as a bound on the TRUE parameter count. 9.0e9 admits the whole 8B
 #: nameplate class (qwen3:8b at 8.2B, granite4.2:8b at 8.8B) and refuses the 9B class upward.
@@ -224,16 +303,24 @@ def classify_local_model(record: Mapping[str, Any],
     if parameters >= _TRUE_PARAM_LIMIT:
         shown = parameter_size if isinstance(parameter_size, str) and parameter_size.strip() \
             else format_parameter_count(parameters)
+        profile = hardware_profile()
         straddle = (
             f"{name} has {shown} parameters, above the operator's {CEILING_NAMEPLATE_B}B ceiling "
-            f"(ENTRY 017). "
-            f"This host's GPU carries 8 GB of VRAM, so a larger model straddles it and runs "
-            f"partly on the CPU — expect it to be slow.")
+            f"for this hardware. "
+            f"Measured on this host: {profile['vram_mib']} MiB of VRAM ({profile['source']}), "
+            f"comfortable to about {profile['comfortable_parameters_b']}B parameters. A larger "
+            f"model straddles the card and runs partly on the CPU — expect it to be slow. "
+            f"This is a RECOMMENDATION derived from the hardware present, not a rule: the "
+            f"operator pins the slate.")
         if audience == AUDIENCE_TESTING:
             # Automated runs stay inside the VRAM envelope and stay deterministic.
+            # The refusal names its authority (ENTRY 017), because a refused operator must be
+            # able to see WHOSE rule refused him. The advisory above deliberately does not:
+            # for the operator audience there is no rule, only measured hardware and a
+            # recommendation he is free to overrule by pinning the slate.
             return verdict(False, straddle + (
-                f" Refused for automated testing ({AUDIENCE_ENV}={AUDIENCE_TESTING}); the "
-                f"operator's own selectors offer it."))
+                f" Refused for automated testing under ENTRY 017 "
+                f"({AUDIENCE_ENV}={AUDIENCE_TESTING}); the operator's own selectors offer it."))
         # OPERATOR: his machine, his model, his call. The cost is named, not used to withhold.
         return verdict(True, "", advisory=straddle)
 

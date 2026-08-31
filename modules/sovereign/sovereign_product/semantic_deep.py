@@ -51,7 +51,92 @@ _VERSION_TOKEN_RE = re.compile(
     r"\bv?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?\b",
     re.IGNORECASE,
 )
-DEEP_MEMBER_MAX_GENERATION_TOKENS = 2_048
+# EPC-02, ENTRY 034 (slate-wide tuning), operator-directed.
+#
+# 2,048 was too tight for a member writing a complete structured answer, and the cost of being
+# tight here is total rather than partial: a member that stops mid-sentence returns
+# done_reason=length, the pipeline correctly refuses to synthesise from a truncated input, and
+# the ENTIRE six-minute four-model run is discarded. Measured three times in a row on this
+# host - "member_2 returned a truncated visible answer" - with genuinely good reasoning thrown
+# away each time.
+#
+# member_2 is dolphin3:8b, which reports no thinking capability and has a 131,072-token
+# context, so neither hidden reasoning nor context exhaustion explains it. It was simply
+# writing a longer answer than the cap allowed.
+#
+# 6,144 is chosen against that asymmetry: a couple of extra minutes per run costs far less
+# than losing the run. It remains a bounded cap - a member cannot generate without limit - and
+# sits far inside the smallest context on the slate.
+# EPC-02, operator-directed. `num_ctx` was 131_072 - dolphin3's MODEL-CARD maximum, taken as
+# though it were a setting. Measured consequence on this host: an 8B model whose weights are
+# ~4.9 GB sat RESIDENT AT 23.2 GB on an 8,151 MiB card, because a 131k KV cache cannot fit and
+# Ollama spills the model into system RAM. Every DEEP member then ran largely on CPU, which is
+# why a run took 17-45 minutes rather than seconds. The model count was never the cost.
+#
+# This is the same mistake as the hardcoded 8B ceiling, in a different constant: a number
+# written down instead of derived. The card says what it can hold; the machine says what it
+# WILL hold. So the size is measured here and pinned for this host, exactly as the ceiling
+# advisory now is.
+#
+# It RECOMMENDS a size and pins it; it does not claim precision it has not got. The reserve
+# fractions below are deliberately conservative - spilling is catastrophic (7x slower) while a
+# smaller context costs nothing on a 2.5 KB evidence corpus.
+_VRAM_ENV = "SOVEREIGN_VRAM_MIB"
+_NUM_CTX_ENV = "SOVEREIGN_DEEP_NUM_CTX"
+
+#: Share of VRAM left for the KV cache after weights and runtime overhead.
+_KV_SHARE_OF_VRAM = 0.35
+#: Approximate MiB of KV cache per token for an 8B-class model at this quantisation.
+_MIB_PER_CONTEXT_TOKEN = 0.13
+#: Never below this: the pipeline's own validator requires >= 4096 and > num_predict.
+_MIN_NUM_CTX = 8_192
+#: Never above this, whatever the card: a context far larger than the corpus buys nothing.
+_MAX_NUM_CTX = 32_768
+
+
+def detect_vram_mib() -> tuple[int, str]:
+    """Total VRAM on the largest visible GPU, and how it was learned. Never raises."""
+    import os  # noqa: PLC0415
+    import shutil  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    override = (os.environ.get(_VRAM_ENV) or "").strip()
+    if override.isdigit() and int(override) > 0:
+        return int(override), f"{_VRAM_ENV}={override}"
+    executable = shutil.which("nvidia-smi")
+    if executable:
+        try:
+            result = subprocess.run(
+                [executable, "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=20, check=False)
+            sizes = [int(line.strip()) for line in result.stdout.splitlines()
+                     if line.strip().isdigit()]
+            if sizes:
+                return max(sizes), "nvidia-smi"
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+    return 0, "not detected"
+
+
+def recommended_num_ctx() -> tuple[int, str]:
+    """A context size this machine can actually hold, and the basis for it."""
+    import os  # noqa: PLC0415
+
+    override = (os.environ.get(_NUM_CTX_ENV) or "").strip()
+    if override.isdigit() and int(override) >= 4096:
+        return int(override), f"pinned by {_NUM_CTX_ENV}"
+
+    vram_mib, source = detect_vram_mib()
+    if not vram_mib:
+        return _MIN_NUM_CTX, "VRAM not detected; using the conservative floor"
+    budget_mib = vram_mib * _KV_SHARE_OF_VRAM
+    derived = int(budget_mib / _MIB_PER_CONTEXT_TOKEN)
+    derived = max(_MIN_NUM_CTX, min(_MAX_NUM_CTX, (derived // 4096) * 4096))
+    return derived, (f"{vram_mib} MiB VRAM ({source}), "
+                     f"{int(_KV_SHARE_OF_VRAM * 100)}% reserved for KV cache")
+
+
+DEEP_MEMBER_MAX_GENERATION_TOKENS = 6_144
 _NEGATION_TOKEN_RE = re.compile(
     r"\b(?:not|never|no|without|isn't|aren't|wasn't|weren't|"
     r"unconfirmed|unproven|unknown|unavailable)\b",
@@ -696,7 +781,7 @@ class SemanticDeepExecutor:
         defaults = {
             "temperature": 0.1,
             "num_predict": 32_768,
-            "num_ctx": 131_072,
+            "num_ctx": recommended_num_ctx()[0],
             "seed": 1729,
         }
         defaults.update(dict(base_options or {}))

@@ -97,6 +97,11 @@ class OllamaBackend:
         # counted their calls, so a REAL backend without a counter reports 0 for exactly the legs
         # that consume resources — an inverted usage record. Counted here for every backend.
         self.calls = 0
+        # EPC-02 A-4. The daemon reports which model it ACTUALLY ran in every response, and this
+        # class was throwing it away. The local conductor records an executing model on each
+        # decision, and without this it could only ever repeat the tag it asked for - a decision
+        # claiming a model on no evidence. None until a call returns; never assumed.
+        self.last_reported_model: str | None = None
 
     def generate(self, prompt: str, *, max_tokens: int = 256) -> str:
         self.calls += 1
@@ -108,6 +113,8 @@ class OllamaBackend:
                                      headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=180) as r:
             data = json.loads(r.read().decode("utf-8"))
+        reported = data.get("model")
+        self.last_reported_model = reported if isinstance(reported, str) and reported.strip() else None
         return data.get("response", "")
 
 
