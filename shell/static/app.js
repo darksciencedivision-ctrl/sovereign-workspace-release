@@ -864,11 +864,28 @@
     refs.extra.snapshot.textContent =
       (data.snapshot || {}).snapshot_id || "—";
 
+    // EPC-01 P3-2 follow-up. `String(q.open_count)` printed the literal "undefined" the
+    // moment the parser stopped hardcoding the operator's Distillery path: an unconfigured
+    // tree returns {error: "NOT_CONFIGURED"} with no open_count, and String(undefined) is a
+    // word, not a number. Observed in the running shell, not inferred from the code.
+    //
+    // This pane's whole contract is to report the truth about a module that has no runtime,
+    // so it names which state it is in rather than rendering a JavaScript accident.
     const q = data.questions || {};
     const openIds = Array.isArray(q.open_ids) ? q.open_ids : [];
-    refs.extra.questions.textContent = openIds.length
-      ? q.open_count + " (" + openIds.join(", ") + ")"
-      : String(q.open_count);
+    let questionsText;
+    if (typeof q.open_count === "number") {
+      questionsText = openIds.length
+        ? q.open_count + " (" + openIds.join(", ") + ")"
+        : String(q.open_count);
+    } else if (q.error === "NOT_CONFIGURED") {
+      questionsText = "not configured (set SOVEREIGN_DISTILLERY_ROOT)";
+    } else if (q.error) {
+      questionsText = String(q.reason || q.error);
+    } else {
+      questionsText = "\u2014";
+    }
+    refs.extra.questions.textContent = questionsText;
 
     const linkMap = data.links || {};
     const links = Object.keys(linkMap).map(function (key) {

@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-08-30T23:44:01Z
+# utc: 2026-08-31T00:13:36Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
@@ -31,7 +31,7 @@ b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6  src/redact.py
 f0cf8bc409445581f1dae53199470a717c5d6b3c200ed2a8b2a082fbfbf80e6f  src/states.py
 acb266cf0c2461df0a1419e5ebc828a627be910a9b884fa0c70b706623c7f214  src/supervisor.py
 b2407edea75851f7fc7893ef150c7cf94902f5af9e62594ca2b4794e548eb9b3  static/app.css
-7a2da7ee2a6d550d946bdc5c0cdf37036f98917cd241e44aaaa1033186d4a912  static/app.js
+674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390  static/app.js
 8a857b46058e252b1d3926e68b18da34e712d0b88b85197a1c9fd736e298f7a7  static/brand-mark.svg
 8e07311af72fb48b4406460af345f0f42188d889bee2578f9c7033e07e41e020  static/icon.svg
 71e5b816b1196b7c2790d1fafbef472120aa5834c3d3dda9e25da82f3d30dba1  static/index.html

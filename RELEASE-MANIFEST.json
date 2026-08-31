@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "343690730fa13415bb97acffffdf5069d851fced6c5a1984fb181ad15e16134e"
+      "sha256": "e94a5064fc96f137aee074f5c4356d27f8b1ccde78ef65bccc19586db188178d"
     },
     {
       "path": "shell/config/install.json",
@@ -286,7 +286,7 @@
     },
     {
       "path": "shell/static/app.js",
-      "sha256": "7a2da7ee2a6d550d946bdc5c0cdf37036f98917cd241e44aaaa1033186d4a912"
+      "sha256": "674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390"
     },
     {
       "path": "shell/static/brand-mark.svg",

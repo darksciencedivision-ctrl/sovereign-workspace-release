@@ -1,4 +1,4 @@
-# utc: 2026-08-30T23:44:01Z
+# utc: 2026-08-31T00:13:36Z
 # producer: claude-code REM-01
 # proof: H-4 - no dangerous DOM sinks; logs rendered as text
 
@@ -6,8 +6,8 @@
 ## 1. Static scan of shell/static/*.js
 
 files scanned: app.js
-  app.js       1053 lines  sha256=7a2da7ee2a6d550d946bdc5c0cdf37036f98917cd241e44aaaa1033186d4a912
-total lines scanned: 1053
+  app.js       1070 lines  sha256=674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390
+total lines scanned: 1070
 
 pattern                 hits
   innerHTML              0
@@ -49,6 +49,6 @@ CSP is script-src 'self'; inline script or an on* attribute would break it. ... 
 test_tokencenter_is_embedded_with_a_stopped_fallback (shell.tests.test_frontend.TestFrontendStatic.test_tokencenter_is_embedded_with_a_stopped_fallback) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.548s
+Ran 6 tests in 0.541s
 
 OK
