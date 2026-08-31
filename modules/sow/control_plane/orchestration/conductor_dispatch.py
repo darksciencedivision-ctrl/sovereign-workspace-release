@@ -41,6 +41,10 @@ from control_plane.orchestration.live_flow import (
     derive_worker_legs,
 )
 from control_plane.orchestration.node_log_reader import pane_records_as_objects
+from control_plane.orchestration.pane_observation import (
+    observation_budget,
+    observation_evidence,
+)
 from control_plane.orchestration.pane_presence import (
     live_pane_ids,
     presence_feed,
@@ -124,7 +128,8 @@ def _leg(value: Any) -> str:
 
 
 def fold_dispatch_feed(trace: Mapping[str, Any],
-                       pane_records: Any = ()) -> dict[str, Any]:
+                       pane_records: Any = (),
+                       pane_observations: Any = ()) -> dict[str, Any]:
     """Fold a `LiveGovernedFlow.run(...)` trace into the stable `conductor_dispatch_feed@1.0` contract.
 
     PURE (no I/O) so the fold is unit-tested without a live server. Everything it reports is DERIVED
@@ -222,6 +227,7 @@ def fold_dispatch_feed(trace: Mapping[str, Any],
         "synthesized_by": packet.get("synthesized_by"),
         "live_workers_owed": live_workers_record(legs, worker_evidence),
         "pane_presence": _pane_presence(pane_records, [a.get("node") for a in assignments]),
+        "pane_observations": _pane_observations(pane_observations),
         "ts": packet.get("ts") or trace.get("ts"),
         "torn_down": False,   # set True by run_governed_dispatch after teardown (D-LOOP-1)
     }
@@ -229,6 +235,7 @@ def fold_dispatch_feed(trace: Mapping[str, Any],
 
 def undispatched_feed(reason: str, *, objective: str | None = None,
                       pane_records: Any = (),
+                      pane_observations: Any = (),
                       worker_evidence: Sequence[Mapping[str, Any]] = (),
                       ts: str | None = None) -> dict[str, Any]:
     """The fail-closed feed: a fault (or a blocked plan) means nothing was dispatched. NEVER a
@@ -271,6 +278,7 @@ def undispatched_feed(reason: str, *, objective: str | None = None,
         "synthesized_by": None,
         "live_workers_owed": live_workers_record(legs, rows),
         "pane_presence": _pane_presence(pane_records, ()),
+        "pane_observations": _pane_observations(pane_observations),
         "ts": ts,
         "torn_down": True,   # nothing was left running to tear down
     }
@@ -319,6 +327,27 @@ def resolve_worker_ids(pane_records: Any, pinned: Sequence[str] | None) -> tuple
         return tuple(str(x) for x in pinned)
     live = live_pane_ids(presence_from_records(pane_records or ()))
     return live or DEFAULT_WORKER_IDS
+
+
+def _pane_observations(records: Any) -> dict[str, Any]:
+    """What the conductor could READ of its panes, folded for the feed. EPC-03 L4-3.
+
+    Sits beside `pane_presence` and answers the next question: presence says a pane is up,
+    observation says what it is showing. Both are descriptions and neither is a leg - there is no
+    `legs` key in this fold, deliberately, so a reviewer can see from the SHAPE that it cannot
+    make an execution claim. `_assert_legs_honest` remains the only thing that may.
+
+    The budget is derived from measured hardware, so the fold can say whether the observations
+    actually FIT the conductor's context rather than leaving that to be assumed. Tolerant by
+    contract, like presence: a fault costs the operator this line, not his dispatch.
+    """
+    try:
+        return observation_evidence(records or (), observation_budget())
+    except Exception as exc:  # noqa: BLE001 - a display path must not raise
+        return {"schema": None, "observed": [], "unanswerable": [], "refused": [],
+                "panes_observed": 0, "total_chars": 0, "budget_chars": 0,
+                "within_budget": False, "redactions": 0, "redaction_kinds": [],
+                "note": f"pane observation unavailable: {type(exc).__name__}"}
 
 
 def _pane_presence(pane_records: Any, dispatched_to: Any) -> dict[str, Any]:

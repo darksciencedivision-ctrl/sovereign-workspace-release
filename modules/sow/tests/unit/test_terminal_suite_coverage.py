@@ -32,6 +32,7 @@ TERMINAL_TESTS = REPO / "terminal" / "test"
 EXPECTED_FILES = (
     "approval-drawer.test.js",
     "conductor-dispatch-pane-presence.test.js",
+    "pane-redaction.test.js",
     "conductor-dispatch.test.js",
     "conductor-pane.test.js",
     "inspector-derive.test.js",
@@ -72,7 +73,11 @@ EXPECTED_FILES = (
 #: moved it, which is what the paragraph above has been asking for through four instances.
 #: `terminal/test/conductor-dispatch-pane-presence.test.js` adds 7 tests covering the DISPATCH
 #: line's new pane-presence clause. Measured: 232 tests, 232 pass, 0 fail, 0 SKIPPED.
-EXPECTED_TEST_COUNT = 232
+#:
+#: EPC-03 L4-2 (2026-08-31): re-taken to 244. `terminal/test/pane-redaction.test.js` adds 12 tests
+#: over the output redactor that stands between a live pane and a conductor prompt. Measured: 244
+#: tests, 244 pass, 0 fail, 0 SKIPPED.
+EXPECTED_TEST_COUNT = 244
 
 _SUMMARY = re.compile(r"^[\sℹ#]*\s*(tests|pass|fail|skipped)\s+(\d+)\s*$", re.MULTILINE)
 
@@ -91,8 +96,8 @@ def test_the_pinned_file_list_is_exactly_what_is_on_disk() -> None:
     assert on_disk == tuple(sorted(EXPECTED_FILES)), (
         f"terminal/test/ has drifted from the pinned set.\n"
         f"  on disk : {on_disk}\n  pinned  : {tuple(sorted(EXPECTED_FILES))}")
-    assert len(EXPECTED_FILES) == 16, (
-        "16 files as of EPC-03 L3-5; the directive's 14 and W-27's 15 are both stale")
+    assert len(EXPECTED_FILES) == 17, (
+        "17 files as of EPC-03 L4-2; the directive's 14 and W-27's 15 are both stale")
 
 
 def test_the_complete_terminal_suite_runs_and_every_test_passes() -> None:
