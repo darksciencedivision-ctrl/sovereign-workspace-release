@@ -11,12 +11,27 @@ The measured defects these pin, all reproduced live at the parent seal `8d9f5d24
     action).
   * `sam860/dolphin3-llama3.2:3b` — a 3.2B model well inside the ceiling — was never offered at
     all, silently dropped with 6 other namespaced tags (S-19).
+
+EPC-02 B-2 (ENTRY 030/032): these tests describe the ceiling as a REFUSAL, which is now the
+TESTING audience's contract rather than everyone's. The operator ruled that the ceiling binds
+automated testing and not him - implemented globally it locked him out of 52 of his own 60
+installed models - so an over-ceiling model is now ADMITTED WITH AN ADVISORY for the operator
+and REFUSED for testing.
+
+Every assertion below is unchanged and still exactly right; the audience is pinned explicitly
+in setup_module so this file keeps pinning the defects it was written to pin. The operator
+side, and the mutation proof that the Ollama Cloud refusal survives ANY ceiling setting, are
+in test_model_ceiling_audience.py.
 """
 from __future__ import annotations
 
 import pytest
 
+import os
+
 from adapters.local.model_ceiling import (
+    AUDIENCE_ENV,
+    AUDIENCE_TESTING,
     CEILING_NAMEPLATE_B,
     admitted_names,
     classify_local_model,
@@ -25,6 +40,25 @@ from adapters.local.model_ceiling import (
     parse_parameter_count,
     reasons_by_name,
 )
+
+
+_SAVED_AUDIENCE = None
+
+
+def setup_module(module):
+    """Pin this file to the audience whose contract it describes: refusal above the ceiling."""
+    global _SAVED_AUDIENCE
+    _SAVED_AUDIENCE = os.environ.get(AUDIENCE_ENV)
+    os.environ[AUDIENCE_ENV] = AUDIENCE_TESTING
+
+
+def teardown_module(module):
+    """Never leak the pin. A neighbouring file inheriting it would silently narrow what it
+    believes the operator can reach - which is the failure this whole change is about."""
+    if _SAVED_AUDIENCE is None:
+        os.environ.pop(AUDIENCE_ENV, None)
+    else:
+        os.environ[AUDIENCE_ENV] = _SAVED_AUDIENCE
 
 
 def record(name, *, params="8.2B", caps=("completion",), size=5_000_000_000,

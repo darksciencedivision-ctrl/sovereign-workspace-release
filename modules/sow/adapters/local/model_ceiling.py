@@ -57,6 +57,42 @@ CEILING_NAMEPLATE_B = 8
 #: nameplate class (qwen3:8b at 8.2B, granite4.2:8b at 8.8B) and refuses the 9B class upward.
 _TRUE_PARAM_LIMIT = 9.0e9
 
+#: EPC-02 B-2 (ENTRY 030/032). WHO is being served decides whether the ceiling REFUSES or WARNS.
+#:
+#: The ceiling's reason is hardware - 8 GB of VRAM, and a larger model straddles it and runs
+#: partly on the CPU. That caveat is true for everyone and is never dropped. But it was
+#: implemented as a global REFUSAL, which locked the operator out of 52 of his own 60 installed
+#: models. His ruling (ENTRY 030): "You're only bound by the eight billion local models when
+#: you're doing the testing, not me."
+#:
+#: So the same authority answers two audiences:
+#:   OPERATOR  - an over-ceiling model is ADMITTED and carries an ADVISORY naming the cost.
+#:               Choosing a slow model is his call to make; hiding it was not.
+#:   TESTING   - an over-ceiling model is REFUSED, exactly as before. Automated runs stay fast,
+#:               deterministic, and inside the VRAM envelope.
+#:
+#: What is NOT audience-dependent, at any setting: a model with no local weights (an Ollama
+#: Cloud pointer - selecting it leaves the host and becomes provider spend), a model that
+#: cannot hold a conversation, and a model whose size cannot be read. Those refusals come
+#: BEFORE the ceiling and are proven independent of it by mutation in the test suite.
+AUDIENCE_OPERATOR = "operator"
+AUDIENCE_TESTING = "testing"
+
+#: The environment variable an automated run sets to bind itself to the ceiling. Absent means
+#: OPERATOR: a fresh install serves the person who owns the machine, and a test harness must
+#: opt IN to the stricter rule rather than rely on a default it might not get.
+AUDIENCE_ENV = "SOVEREIGN_MODEL_AUDIENCE"
+
+
+def resolve_audience(audience: str | None = None) -> str:
+    """The audience in force. Explicit argument wins; then the environment; then OPERATOR."""
+    import os  # noqa: PLC0415 - kept local so this module stays import-cheap for the UI path
+    if audience:
+        return AUDIENCE_TESTING if audience == AUDIENCE_TESTING else AUDIENCE_OPERATOR
+    value = (os.environ.get(AUDIENCE_ENV) or "").strip().lower()
+    return AUDIENCE_TESTING if value == AUDIENCE_TESTING else AUDIENCE_OPERATOR
+
+
 #: Below this, a row carries no weights: it is an Ollama Cloud pointer (a few hundred bytes) or a
 #: model whose blobs are absent. The smallest real local model in the operator's library is 274 MB.
 _MIN_LOCAL_WEIGHTS_BYTES = 64 * 1024 * 1024
@@ -108,17 +144,24 @@ class LocalModelVerdict:
     quantization: str | None
     size_bytes: int
     capabilities: tuple[str, ...]
+    #: EPC-02 B-2. Non-empty when the model is ADMITTED but carries a cost the operator should
+    #: see before choosing it - today, only the VRAM straddle above the 8B nameplate class. An
+    #: advisory never withholds a model; it is the honest half of no longer refusing one.
+    #: Last, and defaulted, so every existing positional construction stays valid.
+    advisory: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "name": self.name, "admitted": self.admitted, "reason": self.reason,
+            "advisory": self.advisory,
             "parameters": self.parameters, "parameter_size": self.parameter_size,
             "family": self.family, "quantization": self.quantization,
             "size_bytes": self.size_bytes, "capabilities": list(self.capabilities),
         }
 
 
-def classify_local_model(record: Mapping[str, Any]) -> LocalModelVerdict:
+def classify_local_model(record: Mapping[str, Any],
+                         audience: str | None = None) -> LocalModelVerdict:
     """Admit or refuse ONE `/api/tags` record against the operator's ceiling.
 
     `record` is a row as `adapters.detect.ollama_model_records` returns it. Anything malformed is
@@ -126,6 +169,7 @@ def classify_local_model(record: Mapping[str, Any]) -> LocalModelVerdict:
     detection helper must not be able to take a selector down (the W-36 rule `ollama_models`
     already follows).
     """
+    audience = resolve_audience(audience)
     name = str((record or {}).get("name") or "").strip()
     details = (record or {}).get("details") or {}
     if not isinstance(details, Mapping):
@@ -141,12 +185,12 @@ def classify_local_model(record: Mapping[str, Any]) -> LocalModelVerdict:
     except (TypeError, ValueError):
         size_bytes = 0
 
-    def verdict(admitted: bool, reason: str) -> LocalModelVerdict:
+    def verdict(admitted: bool, reason: str, advisory: str = "") -> LocalModelVerdict:
         return LocalModelVerdict(
             name=name, admitted=admitted, reason=reason, parameters=parameters,
             parameter_size=parameter_size if isinstance(parameter_size, str) else None,
             family=family, quantization=quantization, size_bytes=size_bytes,
-            capabilities=capabilities)
+            advisory=advisory, capabilities=capabilities)
 
     if not name:
         return verdict(False, "this row carries no model name — refused (fail closed)")
@@ -180,18 +224,39 @@ def classify_local_model(record: Mapping[str, Any]) -> LocalModelVerdict:
     if parameters >= _TRUE_PARAM_LIMIT:
         shown = parameter_size if isinstance(parameter_size, str) and parameter_size.strip() \
             else format_parameter_count(parameters)
-        return verdict(False, (
-            f"{name} has {shown} parameters, above the operator's "
-            f"{CEILING_NAMEPLATE_B}B ceiling (ENTRY 017). This host's GPU carries 8 GB of VRAM and "
-            f"a larger model straddles it, running partly on the CPU. Installed and kept — not "
-            f"selectable in this build."))
+        straddle = (
+            f"{name} has {shown} parameters, above the operator's {CEILING_NAMEPLATE_B}B ceiling "
+            f"(ENTRY 017). "
+            f"This host's GPU carries 8 GB of VRAM, so a larger model straddles it and runs "
+            f"partly on the CPU — expect it to be slow.")
+        if audience == AUDIENCE_TESTING:
+            # Automated runs stay inside the VRAM envelope and stay deterministic.
+            return verdict(False, straddle + (
+                f" Refused for automated testing ({AUDIENCE_ENV}={AUDIENCE_TESTING}); the "
+                f"operator's own selectors offer it."))
+        # OPERATOR: his machine, his model, his call. The cost is named, not used to withhold.
+        return verdict(True, "", advisory=straddle)
 
     return verdict(True, "")
 
 
-def classify_local_models(records: Iterable[Mapping[str, Any]]) -> list[LocalModelVerdict]:
+def classify_local_models(records: Iterable[Mapping[str, Any]],
+                          audience: str | None = None) -> list[LocalModelVerdict]:
     """Classify a whole enumeration, deterministically ordered by model name."""
-    return sorted((classify_local_model(r) for r in records or ()), key=lambda v: v.name)
+    resolved = resolve_audience(audience)
+    return sorted((classify_local_model(r, resolved) for r in records or ()),
+                  key=lambda v: v.name)
+
+
+def advisories_by_name(verdicts: Iterable[LocalModelVerdict]) -> dict[str, str]:
+    """`{model tag: caveat}` for every ADMITTED model that carries one.
+
+    Disjoint from `reasons_by_name` by construction: a refused model has a reason and no
+    advisory, an admitted one may have an advisory and never a reason. A selector greys with
+    the first map and annotates with the second, so "offered" and "offered with a warning"
+    stay visibly different states rather than collapsing into each other.
+    """
+    return {v.name: v.advisory for v in verdicts if v.admitted and v.advisory}
 
 
 def admitted_names(verdicts: Iterable[LocalModelVerdict]) -> list[str]:
