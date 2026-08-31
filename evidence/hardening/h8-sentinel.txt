@@ -1,4 +1,4 @@
-# utc: 2026-08-31T00:13:35Z
+# utc: 2026-08-31T01:18:45Z
 # producer: claude-code REM-01
 # proof: H-8 - sentinel absent from all four surfaces
 # sentinel: SWS_SENTINEL_7f3a9c
@@ -37,6 +37,6 @@ The 10 KB line must be truncated to the 4 KB per-line cap (§7.3 item 4). ... ok
 test_sentinel_absent_from_all_four_surfaces (shell.tests.test_redaction_surfaces.TestRedactionFourSurfaces.test_sentinel_absent_from_all_four_surfaces) ... ok
 
 ----------------------------------------------------------------------
-Ran 2 tests in 0.904s
+Ran 2 tests in 0.899s
 
 OK

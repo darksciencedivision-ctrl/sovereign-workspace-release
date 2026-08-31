@@ -25,6 +25,16 @@ ROOT_MARKER = ".sovereign-root"
 ROOT_MARKER_CONTENT = "SOVEREIGN_ROOT_MARKER=1"
 POINTER_PREFIX = "sovereign://"
 
+#: EPC-02 B-1. A path expressed relative to the per-module STATE root rather than the install
+#: root. EPC-01 P4-4 moved runtime state out of the install tree so an installation can be
+#: verified against its manifest and replaced cleanly; the database and the evidence tree went
+#: with it, and neither can be named by the install-root scheme.
+#:
+#: The scheme is DELIBERATELY distinct rather than an extension of `sovereign://`. A consumer
+#: that can only resolve install-root pointers must be able to tell it has been handed
+#: something else, instead of resolving it against the wrong base and reading the wrong file.
+STATE_POINTER_PREFIX = "sovereign-state://"
+
 
 class PathResolutionError(RuntimeError):
     """A trusted product path could not be resolved."""
@@ -236,6 +246,19 @@ class ProductPaths:
         return artifact_pointer(path, root=self.root)
 
     def resolve_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
+        """Resolve either scheme against the base it names.
+
+        The containment discipline is identical for both: the resolved path must sit inside
+        the base the scheme names, checked after resolution so a `..` or a symlink cannot walk
+        out. Only the base differs.
+        """
+        if isinstance(pointer, str) and pointer.startswith(STATE_POINTER_PREFIX):
+            return _resolve_under(
+                pointer[len(STATE_POINTER_PREFIX):],
+                base=Path(self.state_dir),
+                must_exist=must_exist,
+                label="state",
+            )
         return resolve_artifact_pointer(pointer, root=self.root, must_exist=must_exist)
 
 
@@ -316,6 +339,23 @@ def _pointer_parts(pointer: str) -> tuple[str, ...]:
     if PureWindowsPath(decoded).drive:
         raise UnsafeArtifactPointer("Drive-qualified artifact pointers are not portable")
     return tuple(raw_parts)
+
+
+def _resolve_under(payload: str, *, base: Path, must_exist: bool, label: str) -> Path:
+    """Resolve a pointer payload under `base`, refusing anything that escapes it.
+
+    Shares the payload validation of `_pointer_parts` (no NUL, no URL metadata, no backslash,
+    no absolute or parent segments) and then re-checks containment AFTER resolution, so a
+    symlink cannot be used to walk out of the base the scheme named.
+    """
+    parts = _pointer_parts(POINTER_PREFIX + payload)
+    resolved = base.joinpath(*parts).resolve(strict=False)
+    if not _is_within(resolved, Path(base).resolve(strict=False)):
+        raise UnsafeArtifactPointer(
+            f"Artifact pointer escapes the SOVEREIGN {label} root")
+    if must_exist and not resolved.exists():
+        raise UnsafeArtifactPointer(f"Artifact does not exist: {resolved.name}")
+    return resolved
 
 
 def resolve_artifact_pointer(

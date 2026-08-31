@@ -3,7 +3,7 @@
 Reproduced live, not inferred. With SOVEREIGN running, `/v1/models` returned:
 
     {"error": "Artifact path escapes the SOVEREIGN root:
-      C:\\Users\\...\\SovereignWorkspace\\sovereign\\runtime\\sovereign.db", "ok": false}
+      C:\\Users\\<account>\\SovereignWorkspace\\sovereign\\runtime\\sovereign.db", "ok": false}
 
 and so did `/v1/self-state`. The operator saw four role slots with nothing to put in them.
 
@@ -37,7 +37,7 @@ from sovereign_product.paths import (  # noqa: E402
     UnsafeArtifactPointer,
     artifact_pointer,
 )
-from sovereign_product.server import STATE_POINTER_PREFIX  # noqa: E402
+from sovereign_product.paths import STATE_POINTER_PREFIX  # noqa: E402
 
 
 class _FakeService:
@@ -53,6 +53,9 @@ class _FakeService:
 from sovereign_product.server import ProductService  # noqa: E402
 
 _FakeService._database_descriptor = ProductService._database_descriptor
+# The general resolver every runtime pointer site now shares. Bound too, because the
+# database descriptor is a thin caller of it and the fix that matters lives here.
+_FakeService._runtime_pointer = ProductService._runtime_pointer
 
 
 class TheDatabaseDescriptor(unittest.TestCase):
@@ -106,6 +109,73 @@ class TheDatabaseDescriptor(unittest.TestCase):
         the call site, and the guard it tolerates is still armed."""
         with self.assertRaises(UnsafeArtifactPointer):
             artifact_pointer(Path("D:/elsewhere/x.db"), root=self.root)
+
+
+class TheSharedRuntimeResolver(unittest.TestCase):
+    """EPC-02 B-1b. Fixing only the database site left three more raising for the same reason,
+    and the operator hit the next one within minutes: a run stalled at 25% because the EVIDENCE
+    path could not be expressed. All four sites now share this resolver."""
+
+    def setUp(self) -> None:
+        self.root = MODULE_ROOT
+        self.state = Path("C:/Users/somebody/AppData/Local/SovereignWorkspace/sovereign")
+        self.service = _FakeService(self.root, self.state, self.state / "runtime" / "x.db")
+
+    def test_the_evidence_path_that_stalled_a_run_now_resolves(self) -> None:
+        """The exact shape from the operator's screenshot."""
+        evidence = (self.state / "runtime" / "evidence" / "status"
+                    / "session_67c99a1cf7824684b9927f9f3e3d2444"
+                    / "job_700f0ad52e7a4038aa73bee827061b69.json")
+        descriptor = self.service._runtime_pointer(evidence)
+        self.assertTrue(descriptor.startswith(STATE_POINTER_PREFIX), descriptor)
+        self.assertIn("evidence/status", descriptor)
+
+    def test_no_runtime_descriptor_leaks_a_host_path(self) -> None:
+        for path in (self.state / "runtime" / "x.db",
+                     self.state / "runtime" / "evidence" / "a.json",
+                     self.root / "runtime" / "inside.json"):
+            descriptor = self.service._runtime_pointer(path)
+            for needle in ("C:", "somebody", "\\"):
+                self.assertNotIn(needle, descriptor, f"{descriptor!r} leaks {needle!r}")
+
+
+class TheStateSchemeRoundTrips(unittest.TestCase):
+    """EPC-02 B-1c. A scheme that is emitted but not resolvable is half a fix.
+
+    Measured before this: /v1/evidence?pointer=sovereign-state://... returned
+    "Artifact pointer must use the sovereign:// scheme". The descriptor named a real file that
+    nothing could then open.
+    """
+
+    def setUp(self) -> None:
+        import tempfile
+        self.state = Path(tempfile.mkdtemp(prefix="sov-state-"))
+        (self.state / "evidence" / "status").mkdir(parents=True)
+        self.target = self.state / "evidence" / "status" / "job.json"
+        self.target.write_text('{"ok": true}', encoding="utf-8")
+        self.paths = ProductPaths(MODULE_ROOT, self.state,
+                                  self.state / "x.db", self.state / "evidence")
+
+    def test_a_state_pointer_resolves_back_to_the_file_it_names(self) -> None:
+        pointer = STATE_POINTER_PREFIX + "evidence/status/job.json"
+        self.assertEqual(self.paths.resolve_pointer(pointer, must_exist=True).resolve(),
+                         self.target.resolve())
+
+    def test_a_state_pointer_cannot_walk_out_of_the_state_root(self) -> None:
+        """The containment property, which is the whole reason a pointer scheme exists."""
+        for payload in ("../escaped.json", "evidence/../../escaped.json"):
+            with self.assertRaises(UnsafeArtifactPointer, msg=payload):
+                self.paths.resolve_pointer(STATE_POINTER_PREFIX + payload)
+
+    def test_a_missing_file_is_refused_when_existence_is_required(self) -> None:
+        with self.assertRaises(UnsafeArtifactPointer):
+            self.paths.resolve_pointer(STATE_POINTER_PREFIX + "evidence/nope.json",
+                                       must_exist=True)
+
+    def test_an_install_root_pointer_still_resolves_through_the_same_method(self) -> None:
+        """Adding the second scheme must not have broken the first."""
+        pointer = POINTER_PREFIX + "sovereign_product/paths.py"
+        self.assertTrue(self.paths.resolve_pointer(pointer, must_exist=True).is_file())
 
 
 if __name__ == "__main__":

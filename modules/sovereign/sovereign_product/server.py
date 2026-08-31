@@ -51,6 +51,7 @@ from .paths import (
     ProductPaths,
     UnsafeArtifactPointer,
     artifact_pointer,
+    STATE_POINTER_PREFIX,
     PathResolutionError,
     UnsafeArtifactPointer,
     resolve_product_paths,
@@ -107,12 +108,6 @@ FIXED_PRODUCT_POLICIES: dict[str, Any] = {
 _MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _ACTIVE_STATES = {"queued", "running"}
 LOGGER = logging.getLogger(__name__)
-
-
-#: EPC-02. The scheme for a path expressed relative to the per-module STATE root
-#: rather than the install root. Distinct from `sovereign://` on purpose: a consumer
-#: that resolves install-root pointers must not silently accept one it cannot resolve.
-STATE_POINTER_PREFIX = "sovereign-state://"
 
 
 class ServiceConfigurationError(RuntimeError):
@@ -871,10 +866,7 @@ class ProductService:
                             execution_id=execution_id,
                         ):
                             return
-                        safe["evidence_pointer"] = artifact_pointer(
-                            candidate,
-                            root=self.root,
-                        )
+                        safe["evidence_pointer"] = self._runtime_pointer(candidate)
                     elif execution_id and bound_execution_id is None:
                         # The first semantic progress event must bind its exact
                         # request artifact before any recovery identity is
@@ -1073,10 +1065,7 @@ class ProductService:
                     resolved = candidate.resolve(strict=True)
                     if not resolved.is_file():
                         continue
-                    converted[str(key)] = artifact_pointer(
-                        resolved,
-                        root=self.root,
-                    )
+                    converted[str(key)] = self._runtime_pointer(resolved)
                     break
                 except (
                     OSError,
@@ -1356,7 +1345,11 @@ class ProductService:
         return state
 
     def _database_descriptor(self) -> str:
-        """A non-leaking descriptor for the store's database file.
+        """A non-leaking descriptor for the store's database file."""
+        return self._runtime_pointer(self.paths.db_path)
+
+    def _runtime_pointer(self, path: "Path | str") -> str:
+        """A non-leaking pointer for ANY runtime path, wherever P4-4 put it.
 
         EPC-01 P4-4 moved runtime state OUT of the install root, to
         `%LOCALAPPDATA%/SovereignWorkspace/<module>`, so that an installation can be verified
@@ -1374,16 +1367,18 @@ class ProductService:
         than guessed at or silently dropped.
         """
         try:
-            return artifact_pointer(self.paths.db_path, root=self.root)
+            return artifact_pointer(path, root=self.root)
         except (PathResolutionError, UnsafeArtifactPointer):
             pass
-        try:
-            relative = Path(self.paths.db_path).resolve(strict=False).relative_to(
-                Path(self.paths.state_dir).resolve(strict=False)
-            )
-        except (ValueError, OSError):
-            return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
-        return STATE_POINTER_PREFIX + PurePosixPath(*relative.parts).as_posix()
+        for base in (self.paths.state_dir, Path(self.paths.state_dir).parent):
+            try:
+                relative = Path(path).resolve(strict=False).relative_to(
+                    Path(base).resolve(strict=False)
+                )
+            except (ValueError, OSError):
+                continue
+            return STATE_POINTER_PREFIX + PurePosixPath(*relative.parts).as_posix()
+        return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
 
     def _self_answer(self, query: str) -> tuple[dict[str, Any], dict[str, Any]]:
         try:
@@ -1445,7 +1440,7 @@ class ProductService:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
-        return artifact_pointer(target, root=self.root)
+        return self._runtime_pointer(target)
 
     def _run_status_job(self, job_id: str, query: str) -> dict[str, Any]:
         job = self.store.transition_job(
