@@ -40,6 +40,10 @@ from control_plane.orchestration.live_flow import (
     WorkerHandle,
     derive_worker_legs,
 )
+from control_plane.orchestration.pane_presence import (
+    presence_feed,
+    presence_from_records,
+)
 from mcp_server.protocol import McpClient
 from mcp_server.server import MCPServer
 
@@ -113,7 +117,8 @@ def _leg(value: Any) -> str:
     return value if isinstance(value, str) and value else "unknown"
 
 
-def fold_dispatch_feed(trace: Mapping[str, Any]) -> dict[str, Any]:
+def fold_dispatch_feed(trace: Mapping[str, Any],
+                       pane_records: Any = ()) -> dict[str, Any]:
     """Fold a `LiveGovernedFlow.run(...)` trace into the stable `conductor_dispatch_feed@1.0` contract.
 
     PURE (no I/O) so the fold is unit-tested without a live server. Everything it reports is DERIVED
@@ -210,12 +215,14 @@ def fold_dispatch_feed(trace: Mapping[str, Any]) -> dict[str, Any]:
         # from a GATE node, not from the synthesizer accepting its own work.
         "synthesized_by": packet.get("synthesized_by"),
         "live_workers_owed": live_workers_record(legs, worker_evidence),
+        "pane_presence": _pane_presence(pane_records, [a.get("node") for a in assignments]),
         "ts": packet.get("ts") or trace.get("ts"),
         "torn_down": False,   # set True by run_governed_dispatch after teardown (D-LOOP-1)
     }
 
 
 def undispatched_feed(reason: str, *, objective: str | None = None,
+                      pane_records: Any = (),
                       worker_evidence: Sequence[Mapping[str, Any]] = (),
                       ts: str | None = None) -> dict[str, Any]:
     """The fail-closed feed: a fault (or a blocked plan) means nothing was dispatched. NEVER a
@@ -257,9 +264,36 @@ def undispatched_feed(reason: str, *, objective: str | None = None,
         "gate_summary": None,
         "synthesized_by": None,
         "live_workers_owed": live_workers_record(legs, rows),
+        "pane_presence": _pane_presence(pane_records, ()),
         "ts": ts,
         "torn_down": True,   # nothing was left running to tear down
     }
+
+
+def _pane_presence(pane_records: Any, dispatched_to: Any) -> dict[str, Any]:
+    """Presence, folded for the feed. Read-only, and tolerant by contract.
+
+    EPC-02. The operator had panes open while the conductor dispatched to `worker-A` and
+    `worker-B`; his panes appeared nowhere. Presence is carried here so the two can be
+    COMPARED on the same feed rather than left to inference.
+
+    It is NOT a leg and never becomes one: `_assert_legs_honest` and `build_acceptance_packet`
+    remain the only things that may say a worker executed anything, and neither is touched.
+
+    A registry that raises must not cost the operator his dispatch feed, so the failure is
+    reported in-band as an empty presence rather than propagated.
+    """
+    try:
+        presence = presence_from_records(pane_records or ())
+        return presence_feed(presence, dispatched_to=[str(x) for x in (dispatched_to or ())])
+    except Exception as exc:  # noqa: BLE001 - a display path must not raise
+        return {
+            "panes_present": [],
+            "panes_live": [],
+            "dispatched_to": [str(x) for x in (dispatched_to or ())],
+            "dispatched_to_live_panes": False,
+            "note": f"pane presence unavailable: {type(exc).__name__}",
+        }
 
 
 def run_governed_dispatch(
