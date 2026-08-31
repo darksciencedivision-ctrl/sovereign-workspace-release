@@ -102,7 +102,12 @@ test("ordinary pane output is left alone", () => {
     "2561 passed, 3 skipped in 262.38s",
     "commit 7a06a0c EPC-03 L3-5: the conductor dispatches to the panes that exist",
     "sha256: 3c705fa9b1e2d4c6a8f0b2d4e6f8a0c2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4",
-    "  at Object.<anonymous> (D:\\producttion software 2\\release-worktree\\modules\\sow\\x.js:42:11)",
+    // A stack frame, because those are full of characters a jumpy redactor would eat. The path is
+    // deliberately generic: the first draft pasted this build tree's own absolute path in, and
+    // `shell/tests/test_developer_identifiers_are_bounded.py` failed the distribution on it. The
+    // guard was right — a build-host path is a developer identifier, and it has no business
+    // shipping inside an archive a recipient reads.
+    "  at Object.<anonymous> (C:\\app\\modules\\sow\\x.js:42:11)",
     "ERROR: connection refused (127.0.0.1:11434)",
   ].join("\n");
   const out = redactPaneText(ordinary);
