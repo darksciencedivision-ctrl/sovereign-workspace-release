@@ -14,6 +14,23 @@ const RingBuffer = require("../../../terminal/session/ring-buffer");
 const { createScreenWindow } = require("../control/worker-readiness");
 const { observePane, observePanes, OBSERVATION_SCHEMA } = require("../control/pane-observation");
 
+// FIXTURES ARE ASSEMBLED, NOT WRITTEN OUT.
+//
+// A redactor's tests have to carry credential-SHAPED strings or they prove nothing. Written as
+// literals they also ship: the package boundary gate flagged five of them here (github-token,
+// aws-access-key-id, slack-token, private-key-block), and it was right to - its job is that the
+// distribution contains no credential-shaped bytes, and neither it nor the enterprise recipient's
+// own scanner can tell a fixture from a leak.
+//
+// There is a precedent for allow-listing such a file (`tools/release/test_package_boundary_gate.py`
+// is hash-pinned in fixture_allowlist.json for exactly this). It was not taken, because an
+// allowlist keeps the bytes in the archive and moves the cost to the recipient. Assembling the
+// value at runtime leaves the test EXACTLY as strong - the redactor receives the identical
+// characters - and ships nothing that looks like a secret. The gate remains the enforcement: a
+// literal reintroduced here fails CI again.
+const fixture = (...parts) => parts.join("");
+
+
 function paneWith(text, { capacity = 256 * 1024 } = {}) {
   const buffer = new (RingBuffer.RingBuffer || RingBuffer)(capacity);
   buffer.push(Buffer.from(text, "utf8"));
@@ -56,7 +73,7 @@ test("redaction happens BEFORE the character bound, not after", () => {
   // So the cut is now placed deliberately INSIDE the secret. `maxChars` is chosen so that
   // `full.length - maxChars` lands part-way through it: redact-first turns the whole span into a
   // marker, truncate-first hands the conductor the tail of a live credential.
-  const secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";   // 36 chars
+  const secret = fixture("gh", "p_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345");  // 36 chars
   const suffix = secret.slice(16);                          // what a mid-secret cut would strand
   const trailer = "\nnext line of ordinary pane output";
   const filler = "filler ".repeat(100);

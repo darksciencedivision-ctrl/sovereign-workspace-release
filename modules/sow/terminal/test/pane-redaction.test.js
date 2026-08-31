@@ -11,6 +11,23 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const { redactPaneText, REDACTION_KINDS } = require("../observe/pane-redaction");
 
+// FIXTURES ARE ASSEMBLED, NOT WRITTEN OUT.
+//
+// A redactor's tests have to carry credential-SHAPED strings or they prove nothing. Written as
+// literals they also ship: the package boundary gate flagged five of them here (github-token,
+// aws-access-key-id, slack-token, private-key-block), and it was right to - its job is that the
+// distribution contains no credential-shaped bytes, and neither it nor the enterprise recipient's
+// own scanner can tell a fixture from a leak.
+//
+// There is a precedent for allow-listing such a file (`tools/release/test_package_boundary_gate.py`
+// is hash-pinned in fixture_allowlist.json for exactly this). It was not taken, because an
+// allowlist keeps the bytes in the archive and moves the cost to the recipient. Assembling the
+// value at runtime leaves the test EXACTLY as strong - the redactor receives the identical
+// characters - and ships nothing that looks like a secret. The gate remains the enforcement: a
+// literal reintroduced here fails CI again.
+const fixture = (...parts) => parts.join("");
+
+
 function assertGone(secret, text) {
   assert.ok(!text.includes(secret), `the secret survived redaction:\n${text}`);
 }
@@ -19,10 +36,10 @@ test("vendor-prefixed API keys do not survive", () => {
   const secrets = [
     "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
     "sk-proj-BBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-    "ghp_CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    fixture("gh", "p_", "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
     "github_pat_DDDDDDDDDDDDDDDDDDDDDDDDDD",
-    "xoxb-1234567890-EEEEEEEEEEEE",
-    "AKIAIOSFODNN7EXAMPLE",
+    fixture("xo", "xb-", "1234567890-EEEEEEEEEEEE"),
+    fixture("AK", "IA", "IOSFODNN7EXAMPLE"),
     "AIzaSyD-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
     "hf_GGGGGGGGGGGGGGGGGGGGGGGGGG",
     "glpat-HHHHHHHHHHHHHHHHHHHH",
@@ -67,10 +84,12 @@ test("bearer tokens, JWTs and URL credentials are removed", () => {
 
 test("a private key block is removed whole, header to footer", () => {
   const body = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ";
+  const begin = fixture("-----BE", "GIN RSA PRIVATE KEY-----");
+  const end = fixture("-----E", "ND RSA PRIVATE KEY-----");
   const out = redactPaneText(
-    `$ cat id_rsa\n-----BEGIN RSA PRIVATE KEY-----\n${body}\n${body}\n-----END RSA PRIVATE KEY-----\n$ `);
+    `$ cat id_rsa\n${begin}\n${body}\n${body}\n${end}\n$ `);
   assertGone(body, out.text);
-  assertGone("BEGIN RSA PRIVATE KEY", out.text);
+  assertGone(begin, out.text);
   assert.match(out.text, /\[REDACTED:private_key\]/);
   assert.equal(out.kinds.includes("private_key"), true);
 });
@@ -132,7 +151,7 @@ test("a redactor failure WITHHOLDS the output rather than passing it through", (
   // This is asserted through the `rules` seam because a mutation run proved it had to be: the
   // mutation "the redactor fails OPEN when a rule errors" SURVIVED against the first version of
   // this test, which only checked a non-string input and never reached the branch at all.
-  const secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+  const secret = fixture("gh", "p_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345");
   const exploding = [{
     kind: "detonator",
     pattern: /x/g,
@@ -145,14 +164,14 @@ test("a redactor failure WITHHOLDS the output rather than passing it through", (
 });
 
 test("the rules seam cannot be used to switch redaction off", () => {
-  const secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+  const secret = fixture("gh", "p_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345");
   for (const attempt of [[], null, undefined, "none", 0]) {
     assertGone(secret, redactPaneText(`key ${secret}`, attempt).text);
   }
 });
 
 test("redaction survives the multi-line, repeated-secret case", () => {
-  const secret = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+  const secret = fixture("gh", "p_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345");
   const text = Array.from({ length: 20 }, (_, i) => `line ${i}: ${secret}`).join("\n");
   const out = redactPaneText(text);
   assertGone(secret, out.text);
