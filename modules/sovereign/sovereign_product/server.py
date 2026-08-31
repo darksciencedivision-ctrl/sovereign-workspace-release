@@ -27,7 +27,7 @@ import logging
 import math
 import mimetypes
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import queue
 import threading
 from typing import Any, Callable, Mapping
@@ -51,6 +51,8 @@ from .paths import (
     ProductPaths,
     UnsafeArtifactPointer,
     artifact_pointer,
+    PathResolutionError,
+    UnsafeArtifactPointer,
     resolve_product_paths,
 )
 from .quality import (
@@ -105,6 +107,12 @@ FIXED_PRODUCT_POLICIES: dict[str, Any] = {
 _MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _ACTIVE_STATES = {"queued", "running"}
 LOGGER = logging.getLogger(__name__)
+
+
+#: EPC-02. The scheme for a path expressed relative to the per-module STATE root
+#: rather than the install root. Distinct from `sovereign://` on purpose: a consumer
+#: that resolves install-root pointers must not silently accept one it cannot resolve.
+STATE_POINTER_PREFIX = "sovereign-state://"
 
 
 class ServiceConfigurationError(RuntimeError):
@@ -1344,11 +1352,38 @@ class ProductService:
         if isinstance(store_state, dict):
             summary = store_state.get("summary")
             if isinstance(summary, dict) and "database" in summary:
-                summary["database"] = artifact_pointer(
-                    self.paths.db_path,
-                    root=self.root,
-                )
+                summary["database"] = self._database_descriptor()
         return state
+
+    def _database_descriptor(self) -> str:
+        """A non-leaking descriptor for the store's database file.
+
+        EPC-01 P4-4 moved runtime state OUT of the install root, to
+        `%LOCALAPPDATA%/SovereignWorkspace/<module>`, so that an installation can be verified
+        against its manifest, upgraded and uninstalled cleanly. The database went with it.
+
+        This site still asked `artifact_pointer` to express that path relative to the INSTALL
+        root, which it cannot do - and raised `UnsafeArtifactPointer` rather than returning
+        anything. The exception propagated out of `_self_state()`, which is the foundation of
+        `/v1/models`, `/v1/self-state` and the model picker: the operator saw four empty role
+        slots because the endpoint feeding them was returning an error, not a list.
+
+        The pointer's job here is to keep an absolute host path out of the state summary. That
+        purpose is served for either location, so both are expressed relative to a NAMED base
+        and neither leaks a machine path. A path under neither root is reported as such rather
+        than guessed at or silently dropped.
+        """
+        try:
+            return artifact_pointer(self.paths.db_path, root=self.root)
+        except (PathResolutionError, UnsafeArtifactPointer):
+            pass
+        try:
+            relative = Path(self.paths.db_path).resolve(strict=False).relative_to(
+                Path(self.paths.state_dir).resolve(strict=False)
+            )
+        except (ValueError, OSError):
+            return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
+        return STATE_POINTER_PREFIX + PurePosixPath(*relative.parts).as_posix()
 
     def _self_answer(self, query: str) -> tuple[dict[str, Any], dict[str, Any]]:
         try:
