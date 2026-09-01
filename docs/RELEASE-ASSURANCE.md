@@ -96,15 +96,27 @@ ANSI in a BOM-less file, turning one character into a parse failure at a mislead
 
 ### What the suite reports today
 
-Measured on the whole-product run at commit `0e2530a`, not estimated: **4,000 passed, 1 failed**,
-4 skipped, with 461 subtests passing, in 16 minutes 55 seconds. The Node side is 1,132 tests
-(SOW desktop) and 26 (SOVEREIGN UI), plus a clean TypeScript build. All seven release gates and
-the boundary gate pass. Thirteen lane stages: ten passed, one failed, two skipped (the clean-room
-install and verify, which are opt-in because they mutate the machine).
+Measured, not estimated: **4,030 passed, 1 failed, 1 error**, 4 skipped, with 473 subtests
+passing, in 17 minutes 3 seconds. The Node side is 1,132 tests (SOW desktop) and 26 (SOVEREIGN
+UI), plus a clean TypeScript build. All seven release gates and the boundary gate pass. Two lane
+stages stay skipped: the clean-room install and verify, which are opt-in because they mutate the
+machine.
 
-The previous statement of this section recorded 3,822 passed and 8 failed. Both numbers moved,
-for two different reasons, and the difference is worth stating rather than leaving as a better
-number nobody explained:
+WHICH TREE THAT DESCRIBES, stated because the seal and the suite are one commit apart and the
+difference is exactly the kind of near-miss this programme keeps paying for. The suite ran on the
+PARENT of the seal. It left 13 files re-stamped - `evidence/hardening/*` and
+`shell/BUILD-MANIFEST.txt`, 31 insertions and 31 deletions, entirely timestamps and the run's own
+ephemeral ports and pids - which were committed as `95526a4` so the tree was clean to cut from.
+All seven gates were then re-run at that HEAD and the archive was cut from it. So: **suite on the
+parent, stamp commit, gates re-checked at HEAD, cut from HEAD.** No product byte separates the two.
+
+The rise from 4,000 to 4,030 is **not** a quality change and should not be read as one: commit
+`057204b` added 30 tests around two SOVEREIGN files that had been changed without coverage. The
+count moved because tests were written, not because anything got better.
+
+Before that, this section recorded 3,822 passed and 8 failed. Those numbers moved for two
+reasons, and the difference is worth stating rather than leaving as a better number nobody
+explained:
 
 - **The seven frozen-schema failures are gone** because the operator decided the item. ENTRY 027
   deleted the thirteenth schema and applied one waiver, which closed P1-2. They were never fixed
@@ -112,18 +124,28 @@ number nobody explained:
 - **The test count rose by ~180** because the EPC-02 and EPC-03 work added tests, not because
   anything was re-counted.
 
-The one remaining failure is the **open cross-run interference** in the Debate module's hostile
-end-to-end suite (`test_short_interjection_does_not_suppress_speech`). It passes 9 of 9 on its own
-and 185 of 185 with its whole module, and fails only in the whole-product run. Four candidate
-causes were tested and ruled out: the state root, the repository-root `conftest.py` PYTHONPATH, a
-port collision with the smoke suite, and a shared state-root configuration. **The cause is not
-known**, and it is recorded that way rather than attributed to something plausible.
+The failure and the error are both in the Debate module's hostile end-to-end suite and its smoke
+test. **This document previously described that failure as cross-run interference that "fails only
+in the whole-product run". That description is FALSE and is withdrawn.**
 
-One property of it is newly measured and sharpens the description: it is **intermittent**. Two
-whole-product runs were made on this tree within the hour. It did not fire in the first and did
-fire in the second, which rules out "deterministic in the combined run" — the phrasing this
-document previously used — and points at ordering or timing rather than at a fixed collision.
-That is a narrower unknown than before, and still an unknown.
+Measured, three consecutive runs of the hostile e2e file alone with nothing else collected:
+**9 passed / 2 failed / 9 passed.** The suite is flaky standalone. Run alone, the Debate module
+also errored on a *different* test than the whole-product run did.
+
+This matters beyond the wording. The four causes this document records as tested-and-ruled-out -
+the state root, the repository-root `conftest.py` PYTHONPATH, a port collision with the smoke
+suite, and a shared state-root configuration - are all cross-run or cross-module hypotheses. They
+were ruled out against a question the evidence no longer supports, which is why "the cause is not
+known" has survived so long: the search was in the wrong place rather than insufficiently
+thorough. Cross-run interference may still exist on top of this; it is no longer the whole story.
+
+**The cause is not known**, and no cause is promoted here in place of the one withdrawn - not a
+product defect, not fixture hermeticity, not a shared port or state root. Rerun-until-green does
+not close it: two runs in three are already green and neither is evidence.
+
+The measurement, what it excludes, and what is explicitly not claimed are recorded in
+`docs/audit/DEBATE-INTERMITTENT-20260831.md`. Debate v1.2.1 remains the best-evidenced module in
+this corpus on its own record; what is in question is one suite's stability, not the module.
 
 So the lane is red. That is the correct report of this tree rather than a problem with the lane: a
 suite tuned green by excluding its own failures would be worth nothing.
