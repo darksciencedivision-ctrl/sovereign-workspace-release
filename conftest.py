@@ -97,3 +97,121 @@ if _SOW_TESTS.is_file() and "tests" not in sys.modules:
         _module = importlib.util.module_from_spec(_spec)
         sys.modules["tests"] = _module
         _spec.loader.exec_module(_module)
+
+
+# --------------------------------------------------------------------------------------
+# B-3 - the suite must be honest about what an EXTRACTED ARCHIVE can prove.
+#
+# Measured on the shipped archive, unpacked to a folder and run with `pytest .`:
+# 21 failed and 10 errors before anyone touched anything. None of them is a defect. They are
+# REPOSITORY validators - they check the tree the product was BUILT from, and an extraction is
+# not that tree:
+#
+#   * several shell out to `git` (`git archive`, `git ls-files`, `git check-ignore`), and an
+#     extraction has no `.git`;
+#   * `test_freeze_manifest_check` binds `.claude/agents/*`, `.claude/hooks/guard.py` and
+#     `.claude/settings.json`, every one of them `export-ignore`d ON PURPOSE;
+#   * `test_archive_ships_only_operator_docs` and `test_developer_identifiers_are_bounded`
+#     inspect the archive, which they cannot cut from inside it.
+#
+# WHY THIS MATTERS MORE THAN IT LOOKS. That is the first ten minutes of a recipient's
+# experience. Nothing in the archive told them those tests need a checkout, so the reasonable
+# conclusion was that the release is broken. It is not - but "trust me, those 31 do not count"
+# is not something a recipient can verify, and an unexplained red suite is indistinguishable
+# from a real one.
+#
+# WHAT THIS DOES NOT DO. It never weakens a test in a CHECKOUT. The skip is conditional on
+# `.git` being absent, so in the tree these tests still run and still fail if the repository
+# drifts - which is the only place they can mean anything. `_assert_enumeration_is_current`
+# below fails loudly if a listed id stops existing, so the list cannot rot into a silent
+# blanket exemption. That is the failure mode this codebase keeps finding, most recently in
+# the quarantine lane F-2 removed, and it is designed against here rather than discovered
+# later.
+#
+# The ids are enumerated EXPLICITLY, never by glob or by directory. `module_source_registry`
+# states the house rule: "Enumeration is explicit ... consumers must never infer paths by
+# glob." A directory rule is how a narrow exemption silently becomes a wide one.
+_GIT_ARCHIVE = "reads the repository through `git`; an extracted archive has no .git"
+_EXPORT_IGNORED = "binds files that are export-ignored on purpose and are absent from any archive"
+_INSPECTS_ARCHIVE = "inspects the distribution, which it cannot cut from inside the distribution"
+_TRACKED_BYTES = "validates tracked bytes against the repository index"
+
+CHECKOUT_ONLY: dict[str, str] = {
+    "shell/tests/test_developer_identifiers_are_bounded.py::DeveloperIdentifiersAreBounded::test_every_disclosed_entry_still_exists_and_still_needs_disclosing": _INSPECTS_ARCHIVE,
+    "shell/tests/test_developer_identifiers_are_bounded.py::DeveloperIdentifiersAreBounded::test_no_undisclosed_file_carries_a_developer_identifier": _INSPECTS_ARCHIVE,
+    "shell/tests/test_developer_identifiers_are_bounded.py::DeveloperIdentifiersAreBounded::test_the_archive_was_actually_read": _INSPECTS_ARCHIVE,
+    "shell/tests/test_developer_identifiers_are_bounded.py::DeveloperIdentifiersAreBounded::test_the_build_harness_does_not_ship": _INSPECTS_ARCHIVE,
+    "shell/tests/test_developer_identifiers_are_bounded.py::DeveloperIdentifiersAreBounded::test_the_product_code_that_was_fixed_stays_fixed": _INSPECTS_ARCHIVE,
+    "shell/tests/test_archive_ships_only_operator_docs.py::ArchiveShipsOnlyOperatorDocs::test_every_operator_facing_document_still_ships": _INSPECTS_ARCHIVE,
+    "shell/tests/test_archive_ships_only_operator_docs.py::ArchiveShipsOnlyOperatorDocs::test_no_internal_build_document_ships": _INSPECTS_ARCHIVE,
+    "shell/tests/test_archive_ships_only_operator_docs.py::ArchiveShipsOnlyOperatorDocs::test_the_architecture_decisions_still_ship": _INSPECTS_ARCHIVE,
+    "shell/tests/test_archive_ships_only_operator_docs.py::ArchiveShipsOnlyOperatorDocs::test_the_archive_is_not_empty": _INSPECTS_ARCHIVE,
+    "shell/tests/test_archive_ships_only_operator_docs.py::ArchiveShipsOnlyOperatorDocs::test_the_build_harness_launchers_do_not_ship": _INSPECTS_ARCHIVE,
+    "shell/tests/test_operator_documentation_exists.py::OperatorDocumentationExists::test_the_operator_documentation_actually_ships": _INSPECTS_ARCHIVE,
+    "shell/tests/test_sbom_is_generated_from_locks.py::SbomIsGeneratedFromLocks::test_check_mode_agrees_the_committed_sbom_is_current": _GIT_ARCHIVE,
+    "shell/tests/test_startup_evidence.py::TestStartupEvidenceLane::test_default_record_is_ignored_runtime_evidence": _GIT_ARCHIVE,
+    "tools/release/test_package_boundary_gate.py::NoLaneCoversShippedBytes::test_no_lane_matches_a_file_in_the_distribution": _GIT_ARCHIVE,
+    "tools/release/test_package_boundary_gate.py::TestCleanedWorktree::test_archive_passes": _GIT_ARCHIVE,
+    "tools/release/test_release_manifest_check.py::HandledSectionsStillValidateTests::test_real_manifest_still_passes_after_hardening": _TRACKED_BYTES,
+    "tools/release/test_release_manifest_check.py::ManifestValidatorTests::test_real_manifest_passes": _TRACKED_BYTES,
+    "tools/release/test_runtime_writes_are_gitignored.py::RuntimeWritesLeaveTheTrackedTree::test_a_rotated_log_generation_is_gitignored_too": _GIT_ARCHIVE,
+    "modules/sow/tests/unit/test_freeze_manifest_check.py::test_each_D1_provenance_bound_file_is_tracked_and_present[.claude/agents/gate-validator.md]": _EXPORT_IGNORED,
+    "modules/sow/tests/unit/test_freeze_manifest_check.py::test_each_D1_provenance_bound_file_is_tracked_and_present[.claude/agents/spec-auditor.md]": _EXPORT_IGNORED,
+    "modules/sow/tests/unit/test_freeze_manifest_check.py::test_each_D1_provenance_bound_file_is_tracked_and_present[.claude/hooks/guard.py]": _EXPORT_IGNORED,
+    "modules/sow/tests/unit/test_freeze_manifest_check.py::test_each_D1_provenance_bound_file_is_tracked_and_present[.claude/settings.json]": _EXPORT_IGNORED,
+    "modules/sow/tests/unit/test_mcp_registration_provenance.py::test_the_codex_registration_pins_the_mcp_server_working_directory": _GIT_ARCHIVE,
+    "modules/sow/tests/unit/test_mcp_registration_provenance.py::test_the_registration_is_wired_from_the_repo_not_handwritten": _GIT_ARCHIVE,
+    "modules/sow/tests/unit/test_text_integrity.py::test_no_tracked_text_file_carries_a_utf8_BOM": _TRACKED_BYTES,
+    "modules/sow/tests/unit/test_text_integrity.py::test_no_tracked_text_file_differs_from_its_blob_by_line_endings": _TRACKED_BYTES,
+    "modules/distillery/tests/test_operator_cli.py::OperatorCliTests::test_status_and_validate_and_hg3_preflight_are_honest": _GIT_ARCHIVE,
+    "modules/distillery/tests/test_raw_source_classification.py::RawSourceClassificationTests::test_every_tracked_file_receives_exactly_one_non_ambiguous_class": _GIT_ARCHIVE,
+    "modules/distillery/tests/test_raw_source_classification.py::RawSourceClassificationTests::test_historically_ambiguous_files_resolve_by_rule": _GIT_ARCHIVE,
+    "modules/distillery/tests/test_version_identity.py::VersionIdentityTests::test_cli_version_command_exposes_identity": _GIT_ARCHIVE,
+    "modules/distillery/tests/test_version_identity.py::VersionIdentityTests::test_resolve_identity_verifies_bundle_and_evidence_paths": _GIT_ARCHIVE,
+}
+
+
+def _is_git_checkout() -> bool:
+    """True in a clone or a linked worktree. `.git` is a directory in one and a FILE in the
+    other, so existence is the test rather than `is_dir()`."""
+    return (ROOT / ".git").exists()
+
+
+def _assert_enumeration_is_current(collected: set) -> None:
+    """A listed id that no longer exists is a rename, and a stale exemption list is how a
+    narrow skip quietly becomes a blanket one. Checked per FILE so a partial run
+    (`pytest shell/tests`) does not trip on ids it never collected."""
+    files_seen = {nid.split("::", 1)[0] for nid in collected}
+    stale = [nid for nid in CHECKOUT_ONLY
+             if nid.split("::", 1)[0] in files_seen and nid not in collected]
+    if stale:
+        raise RuntimeError(
+            "conftest.CHECKOUT_ONLY is stale — these ids no longer exist, so they are "
+            "exempting nothing and hiding a rename:\n  " + "\n  ".join(stale))
+
+
+def pytest_configure(config):  # noqa: D401
+    config.addinivalue_line(
+        "markers",
+        "checkout_only: validates the repository rather than the product; skipped in an "
+        "extracted archive, always run in a checkout")
+
+
+def pytest_collection_modifyitems(config, items):
+    checkout = _is_git_checkout()
+    collected = set()
+    for item in items:
+        nodeid = item.nodeid.replace(os.sep, "/")
+        reason = CHECKOUT_ONLY.get(nodeid)
+        if reason is None:
+            continue
+        collected.add(nodeid)
+        item.add_marker("checkout_only")
+        if not checkout:
+            import pytest  # noqa: PLC0415 - only needed on this branch
+
+            item.add_marker(pytest.mark.skip(
+                reason=f"repository validator: {reason}. Run it from a git checkout — "
+                       f"see docs/INSTALL.md, 'Running the test suite'."))
+    if checkout:
+        _assert_enumeration_is_current(collected)

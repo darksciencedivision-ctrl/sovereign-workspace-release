@@ -78,6 +78,32 @@ Any step failing stops the install. There is no partial-success path.
 
 Re-hashes every path in the install manifest and reports anything that moved.
 
+### Running the test suite
+
+The suite runs from an extracted archive:
+
+```powershell
+py -3.12 -m pytest .
+```
+
+**31 tests will report as SKIPPED, and that is correct.** They are repository validators, not
+product tests: they check the tree this archive was BUILT from, and an archive is not that tree.
+Each one names its reason when it skips. There are three kinds:
+
+| what they need | why an archive cannot provide it |
+|---|---|
+| a `git` checkout | they run `git archive` / `git ls-files` / `git check-ignore`; an extraction has no `.git` |
+| `export-ignore`d files | `test_freeze_manifest_check` binds `.claude/agents/*`, `.claude/hooks/guard.py` and `.claude/settings.json`, which are excluded from every archive deliberately |
+| the distribution itself | `test_archive_ships_only_operator_docs` and `test_developer_identifiers_are_bounded` inspect the archive, and cannot cut one from inside it |
+
+Everything else runs. A skip here is the suite declining to claim something it cannot check from
+where it is standing — it is not a disabled test and it is not a defect. The full enumeration,
+with a reason per test, is `CHECKOUT_ONLY` in the repository-root `conftest.py`; the same file
+fails loudly if any entry goes stale, so the list cannot quietly widen.
+
+If you want those 31 to run, clone the repository rather than extracting the archive. They can
+only mean anything there.
+
 ---
 
 ## Run
