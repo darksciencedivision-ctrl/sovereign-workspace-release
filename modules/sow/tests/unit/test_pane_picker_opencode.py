@@ -119,3 +119,26 @@ def test_every_offered_opencode_option_can_reach_a_governed_launch_path():
 def test_the_probe_is_injectable_so_the_suite_does_not_depend_on_the_host(present):
     """`opencode_present=None` probes the real machine; an explicit value must win over it."""
     assert bool(_opencode(_picker(opencode_present=present))[0]["available"]) is present
+
+
+def test_opencode_is_ordered_ahead_of_the_full_ollama_list():
+    """A defect the operator found, pinned so it cannot come back silently.
+
+    `_PROVIDER_TABLE`'s order IS the rendered group order, and the Ollama group is every model on
+    the host — 71 rows on the operator's machine. Appended last, the OpenCode group rendered
+    perfectly and was invisible: the app was restarted, the picker was opened, and the options were
+    reported missing. They were there, below a screen and a half of scrolling.
+
+    "It renders" is not the property that matters for a slot the operator has to FIND. This asserts
+    the one that does: OpenCode comes before the unbounded list, so its position does not degrade as
+    the operator installs more models.
+    """
+    picker = _picker(ollama_models=MODELS * 20)          # a long local list, as on the real host
+    order = [g["provider"] for g in picker["providers"]]
+    assert order.index("opencode_local") < order.index("ollama_local")
+
+    first_opencode = next(i for i, o in enumerate(picker["options"])
+                          if o["provider"] == "opencode_local")
+    first_ollama_after = [i for i, o in enumerate(picker["options"])
+                          if o["provider"] == "ollama_local"]
+    assert first_opencode < min(first_ollama_after)

@@ -136,12 +136,19 @@ _PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     # "Gemini CLI" for this path, and a second spelling is how that creeps back in.
     (GROK_ADAPTER, GROK_DISPLAY, "frontier"),
     (ANTIGRAVITY_ADAPTER, ANTIGRAVITY_DISPLAY, "frontier"),
-    (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
     # EPC-04. Locality "local" is load-bearing, not cosmetic: it keeps these options out of
     # `registered_frontier_providers()`, and therefore out of the status bar's n/allowance
     # counters — an OpenCode pane holds no subscription terminal and counting one would advertise
     # spend that does not exist (invariant 19/27).
+    #
+    # ORDERED BEFORE the bare Ollama group, and that ordering is the fix for a real defect rather
+    # than a preference. This table's order IS the rendered group order, and the Ollama group is
+    # every model on the host — 71 rows on the operator's machine. Appended last, the OpenCode
+    # group rendered correctly and was invisible: the operator restarted the app, looked at the
+    # picker, and reported the options were not there. They were, below a screen and a half of
+    # scrolling. A handful of coding options ahead of a 71-row list costs that list nothing.
     (_OPENCODE_PROVIDER, "OpenCode (local harness)", "local"),
+    (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
 )
 
 
