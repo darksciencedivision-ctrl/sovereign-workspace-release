@@ -9,14 +9,18 @@ Design rules (per Punch List v2.1 C-1 and directive R2 §4 Batch 1):
 
 * Rejected classes: ``*.db``/``*.sqlite*`` databases, ``.env*`` env files,
   key material extensions, ``*.log`` logs, runtime/session-state directories
-  (node_modules, venvs, __pycache__, .approvals, .recovery, runs, the
-  sovereign ``runtime`` lane), cache/junk files, and high-confidence
-  credential content patterns.
-* The ``evidence/`` lane, the ``dev/`` staging lane, and the Distillery
-  ``modules/distillery/runs/`` lane are treated as QUARANTINED-HISTORICAL:
-  their contents are counted and listed but never fail the scan. Frozen
-  captures and historical run-evidence (including the SD-RBR gate records
-  covered by OD-2) are evidence, not packaging defects.
+  (node_modules, venvs, __pycache__, .approvals, .recovery, the sovereign
+  ``runtime`` lane), cache/junk files, and high-confidence credential
+  content patterns.
+* The ``evidence/`` lane and the ``dev/`` staging lane are treated as
+  QUARANTINED-HISTORICAL: their contents are counted and listed but never
+  fail the scan. Both are ``export-ignore``d, so NO quarantine lane covers a
+  byte that ships - see ``NoLaneCoversShippedBytes`` in the tests, which
+  holds that property rather than leaving it to be re-derived.
+
+  The Distillery ``modules/distillery/runs/`` lane was removed with the
+  ``runs`` component rule that created the need for it (SYSTEM-REVIEW
+  2026-08-31, F-2).
 * Declared-fixture allow-list is VALUE-BASED: an entry matches only on an
   exact relative path AND exact SHA-256 of the file content. Glob/wildcard
   characters in allow-list paths are rejected with a configuration error.
@@ -70,7 +74,28 @@ COMPONENT_RULES = {
     "runtime-session-state": {
         "node_modules", ".venv", "venv", "env", ".eggs",
         "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-        ".cache", ".approvals", ".recovery", ".runtime", "runs",
+        ".cache", ".approvals", ".recovery", ".runtime",
+        # `runs` was here and is deliberately gone (SYSTEM-REVIEW 2026-08-31, F-2).
+        #
+        # Every other member of this set is a directory a TOOL creates and nobody
+        # curates - a virtualenv, a package cache, a bytecode cache. `runs` is not:
+        # it is a name a project may choose for material it maintains on purpose.
+        #
+        # Measured on this tree: `modules/distillery/runs/` was the ONLY tracked
+        # path with a `runs` component, all 80 files of it, and it is the
+        # Distillery's curated release-gate evidence - cited by four shipped tests
+        # (test_cold_restore_record, test_gate_status_chain, test_live_g0) and by
+        # the shipped tools/build_completion_manifest.py. The module already
+        # separates its volatile run output at the right layer: its own .gitignore
+        # excludes runs/G0-live/*.jsonl and runs/G0-live/private/.
+        #
+        # So this entry matched 79 shipped files, every one of them a false
+        # positive, and a quarantine lane existed solely to suppress them - which
+        # made the gate print `violations: 0` while 79 shipped files had matched a
+        # violation rule. The lane went with the rule: a name-based rule that
+        # needs a standing exemption to be usable is the wrong rule, and removing
+        # the exemption without removing the rule would have turned the lane red
+        # over no defect.
     },
 }
 
@@ -109,9 +134,14 @@ SKIP_DIRS = {".git"}
 # Default quarantined-historical lanes (relative POSIX prefixes).
 # evidence/  — frozen historical evidence captures (cp01, cpm1, gate4b, ...)
 # dev/       — director-accepted v1.2.1-hardening release staging history
-# modules/distillery/runs/ — historical run/gate evidence of the Distillery
-#              release process (SD-RBR records; OD-2 scope), not runtime state
-DEFAULT_QUARANTINE_LANES = ("evidence/", "dev/", "modules/distillery/runs/")
+#
+# BOTH are `export-ignore`d in .gitattributes (X-4, OD-35), so neither ships. That
+# is the property worth keeping: a quarantine lane may cover bytes a recipient
+# never receives, and may not cover bytes that ship. A lane over shipped bytes
+# turns "violations: 0" into a statement about the lane rather than about the
+# distribution. `modules/distillery/runs/` was such a lane and was removed with
+# the `runs` component rule above (SYSTEM-REVIEW 2026-08-31, F-2).
+DEFAULT_QUARANTINE_LANES = ("evidence/", "dev/")
 
 
 def _posix(rel: str) -> str:

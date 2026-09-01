@@ -4,6 +4,26 @@
   "policy": "value-based: each entry must match an exact relative path AND the exact SHA-256 of the file content. Glob/wildcard characters in paths are rejected with a configuration error. Nothing is allow-listed by pattern.",
   "entries": [
     {
+      "path": "modules/distillery/runs/export/LATEST_EXPORT_REPORT.json",
+      "sha256": "6a49afd9ff28c0a14a465fea39646bef47246262bafac0d233bac935e1fa99d4",
+      "reason": "declared test fixture: the Distillery's export report records the synthetic credential sk-synthetic000000000000000000 that its own secret detector planted and found"
+    },
+    {
+      "path": "modules/distillery/runs/release-baseline/GR2_SECRET_DETECTOR.json",
+      "sha256": "552b9b9ba30e59b797c2481303fa88493e4b475c16f8197d5735dd8c36d3afd5",
+      "reason": "declared test fixture: the GR2 secret-detector gate record quotes the synthetic credential sk-synthetic000000000000000000 it was verifying detection of"
+    },
+    {
+      "path": "modules/distillery/runs/release-baseline/SD_RBR_FINAL_REPORT.json",
+      "sha256": "2feceb93532aa51d824bedc3857618c4c971bfdecb5aa21c226c647b2cfbe604",
+      "reason": "declared test fixture: the SD-RBR final report quotes the synthetic credential sk-synthetic000000000000000000 from the secret-detector restore it reports on"
+    },
+    {
+      "path": "modules/distillery/runs/release-baseline/SD_RBR_V1_1_FINAL_REPORT.json",
+      "sha256": "b2923bb9496838d78febfce73ce660fdd56448c59d6266ea7fe9623df910f222",
+      "reason": "declared test fixture: the SD-RBR v1.1 final report quotes the synthetic credential sk-synthetic000000000000000000 from the secret-detector restore it reports on"
+    },
+    {
       "path": "modules/distillery/tests/test_corpus_admission.py",
       "sha256": "80ef530c9265b13a83bac141f707bacb736efa862bd723dd5386945c2dbefbff",
       "reason": "declared test fixture: contains the synthetic credential sk-synthetic000000000000000000 (SYNTHETIC_API_KEY) used by Distillery's secret-detector and corpus-admission tests"

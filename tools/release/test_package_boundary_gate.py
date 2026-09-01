@@ -64,6 +64,19 @@ class TestRejectedClasses(GateFixtureBase):
         self.assertTrue(hits, f"expected violation for {rel}, got {res['violations']}")
         self.assertEqual(hits[0]["class"], cls)
 
+    def _expect_clean(self, rel):
+        """The other direction. A rejection set is only as good as what it lets THROUGH, and this
+        gate's job is to be usable — a rule that flags curated product content trains its readers
+        to reach for an exemption, which is how a lane came to cover shipped bytes."""
+        write(os.path.join(self.tmp, rel))
+        res = self.scan()
+        hits = [v for v in res["violations"] if v["path"] == rel.replace(os.sep, "/")]
+        self.assertFalse(hits, f"{rel} must not be a violation, got {hits}")
+        quarantined = [q for q in res["quarantined"] if q["path"] == rel.replace(os.sep, "/")]
+        self.assertFalse(quarantined,
+                         f"{rel} was not flagged, but it was QUARANTINED — an exemption is not a "
+                         f"clean result: {quarantined}")
+
     def test_rejects_sqlite_db(self):
         self._expect_violation("state/sovereign.db", "database")
 
@@ -107,9 +120,33 @@ class TestRejectedClasses(GateFixtureBase):
         self._expect_violation(".runtime/evidence/startup-tests/module.json",
                                "runtime-session-state")
 
-    def test_rejects_runs_history(self):
-        self._expect_violation("runs/G0-live/events.jsonl",
-                               "runtime-session-state")
+    def test_a_curated_runs_tree_is_NOT_runtime_state(self):
+        """SUPERSEDED CONTRACT (SYSTEM-REVIEW 2026-08-31, F-2). This asserted the opposite.
+
+        `runs` sat in `COMPONENT_RULES["runtime-session-state"]` beside `node_modules`, `.venv`
+        and `__pycache__`. Those are directories a TOOL creates and nobody curates. `runs` is a
+        name a project may choose for material it maintains on purpose, and on this tree
+        `modules/distillery/runs/` was the ONLY tracked path with that component — 80 files of
+        curated release-gate evidence, cited by four shipped tests and a shipped tool.
+
+        So the rule produced 79 false positives on shipped files and a quarantine lane existed
+        only to suppress them, which made the gate report `violations: 0` while 79 shipped files
+        had matched a violation rule. Rule and lane were removed together: a name-based rule that
+        needs a standing exemption to be usable is the wrong rule.
+
+        The volatile half is still excluded, at the right layer — the Distillery's own
+        .gitignore drops `runs/G0-live/*.jsonl`, which is the very path this test used to name.
+        """
+        self._expect_clean("runs/release-baseline/GR0_PREFLIGHT.json")
+
+    def test_the_tool_generated_caches_are_still_rejected(self):
+        """What the removal must NOT have cost. Every remaining member of the set is a directory
+        no human curates, and each still fails the scan."""
+        for path in ("node_modules/pkg/index.js", ".venv/pyvenv.cfg",
+                     "__pycache__/mod.cpython-312.pyc", ".pytest_cache/v/cache/lastfailed",
+                     ".approvals/session-events.jsonl", ".runtime/receipts/READY.json"):
+            with self.subTest(path=path):
+                self._expect_violation(path, "runtime-session-state")
 
     def test_rejects_sovereign_runtime_lane_any_file(self):
         self._expect_violation(
@@ -258,11 +295,68 @@ class TestCleanedWorktree(GateFixtureBase):
             problems,
             "clean archive must pass; first problems: %r" % problems[:10])
         self.assertGreater(res["files_scanned"], 1000)
-        self.assertGreater(len(res["quarantined"]), 0,
-                           "evidence/dev lanes must be present and quarantined")
+        # SUPERSEDED CONTRACT (SYSTEM-REVIEW 2026-08-31, F-2). This asserted the archive must
+        # CONTAIN quarantined bytes, and its message named the evidence/ and dev/ lanes as the
+        # reason. Both are export-ignored and contribute nothing to an archive, so the assertion
+        # was in fact being satisfied by the `modules/distillery/runs/` lane — the one covering
+        # shipped bytes. An archive with quarantined content is an archive carrying an exemption,
+        # which is the defect, not the requirement.
+        self.assertEqual(len(res["quarantined"]), 0,
+                         f"a release archive must carry NO quarantined bytes — an exemption in "
+                         f"the distribution makes `violations: 0` a claim about the exemption: "
+                         f"{res['quarantined'][:5]}")
         self.assertGreaterEqual(len(res["allowlisted"]), 1,
                                 "declared fixtures must be recognized")
 
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class NoLaneCoversShippedBytes(unittest.TestCase):
+    """The property that makes `violations: 0` mean something.
+
+    A quarantine lane suppresses a whole subtree. That is defensible over bytes a recipient never
+    receives and indefensible over bytes that ship: it turns the gate's headline number into a
+    statement about the lane rather than about the distribution. Measured before this test existed:
+    the `modules/distillery/runs/` lane covered 79 shipped files, and it was hiding four
+    credential-pattern hits that nobody had had to dispose of.
+
+    This holds the rule going forward rather than leaving it to be re-derived by the next person
+    who adds a lane to make a red gate green.
+    """
+
+    def test_every_default_lane_is_export_ignored(self):
+        if not os.path.isdir(os.path.join(WORKTREE_ROOT, "modules")):
+            self.skipTest("worktree not present beside this checkout")
+        attributes = os.path.join(WORKTREE_ROOT, ".gitattributes")
+        with open(attributes, encoding="utf-8") as handle:
+            rules = [line.split()[0] for line in handle
+                     if line.strip() and not line.startswith("#") and "export-ignore" in line]
+        for lane in gate.DEFAULT_QUARANTINE_LANES:
+            with self.subTest(lane=lane):
+                stem = lane.rstrip("/")
+                self.assertTrue(
+                    any(r.rstrip("/*").lstrip("/") == stem for r in rules),
+                    f"quarantine lane {lane!r} is not export-ignored, so it covers bytes that "
+                    f"SHIP. Either exclude the lane from the distribution or stop quarantining "
+                    f"it — an exemption over shipped bytes makes `violations: 0` a claim about "
+                    f"the exemption. Current export-ignore rules: {rules}")
+
+    def test_no_lane_matches_a_file_in_the_distribution(self):
+        """The same property, measured against the archive rather than against the rules."""
+        if not os.path.isdir(os.path.join(WORKTREE_ROOT, "modules")):
+            self.skipTest("worktree not present beside this checkout")
+        with tempfile.TemporaryDirectory(prefix="pbg-lane-") as work:
+            archive = os.path.join(work, "release.tar")
+            cp = subprocess.run(
+                ["git", "archive", "--format=tar", "--output", archive, "HEAD"],
+                cwd=WORKTREE_ROOT, capture_output=True, text=True, check=False)
+            self.assertEqual(cp.returncode, 0, cp.stderr)
+            with tarfile.open(archive, "r") as tf:
+                shipped = [m.name for m in tf.getmembers() if m.isfile()]
+        for lane in gate.DEFAULT_QUARANTINE_LANES:
+            covered = [n for n in shipped if n.startswith(lane)]
+            self.assertFalse(covered,
+                             f"lane {lane!r} covers {len(covered)} shipped file(s), e.g. "
+                             f"{covered[:3]}")
