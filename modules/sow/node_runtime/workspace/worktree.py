@@ -110,6 +110,65 @@ class WorktreeManager:
         self._emit("node_commit", node_id=node_id, sha=sha)
         return sha
 
+    def ensure(self, node_id: str) -> NodeWorktree:
+        """`create`, but idempotent across PROCESS RESTARTS — the shape a pane actually needs.
+
+        `_nodes` is in-memory, so a manager built in a fresh process believes it has provisioned
+        nothing. `create` then runs `git worktree add -b node/<id>`, which FAILS because the branch
+        and the directory are still on disk from the last run. That turns "the operator reopened a
+        coding pane" into a refusal, which is the wrong answer: the containment is intact, it was
+        established earlier.
+
+        So an existing tree is ADOPTED rather than recreated. Adoption is deliberately narrow — the
+        registered path for `node/<id>` must be the path this manager would itself have chosen. A
+        worktree registered somewhere else under the same node id is NOT adopted: it would hand the
+        pane a directory this manager does not control, which is the containment failure the whole
+        module exists to prevent, arriving through the convenience door.
+        """
+        _validate_node_id(node_id)
+        if node_id in self._nodes:
+            return self._nodes[node_id]
+
+        expected = self._worktrees_root / node_id
+        registered = self._registered_worktrees().get(f"node/{node_id}")
+        if registered is None:
+            return self.create(node_id)
+        if Path(registered).resolve() != expected.resolve():
+            raise WorktreeError(
+                f"branch node/{node_id} is already checked out at {registered!r}, not at the "
+                f"managed path {str(expected)!r} — refusing to adopt a worktree this manager does "
+                f"not control (containment, invariant 29)")
+        if not expected.exists():
+            raise WorktreeError(
+                f"git still registers a worktree for node/{node_id} at {str(expected)!r} but the "
+                f"directory is gone — run `git worktree prune` (fail closed rather than reuse a "
+                f"half-removed tree)")
+
+        binding = WorkspaceBinding(expected, node_id,
+                                   on_refusal=lambda kind, **d: self._emit("workspace_escape", **d))
+        wt = NodeWorktree(node_id=node_id, branch=f"node/{node_id}", path=expected, binding=binding)
+        self._nodes[node_id] = wt
+        self._emit("worktree_adopted", node_id=node_id, branch=wt.branch, path=str(expected))
+        return wt
+
+    def _registered_worktrees(self) -> dict[str, str]:
+        """`{branch: path}` as GIT reports it — the authority on what already exists.
+
+        Read from `git worktree list --porcelain` rather than from a directory scan: a directory
+        that looks like a worktree but is not registered cannot be adopted, and a registered one
+        whose directory was deleted must be reported rather than silently recreated.
+        """
+        out = _git(self._base, "worktree", "list", "--porcelain")
+        found: dict[str, str] = {}
+        path: str | None = None
+        for line in out.splitlines():
+            if line.startswith("worktree "):
+                path = line[len("worktree "):].strip()
+            elif line.startswith("branch ") and path is not None:
+                ref = line[len("branch "):].strip()
+                found[ref[len("refs/heads/"):] if ref.startswith("refs/heads/") else ref] = path
+        return found
+
     def get(self, node_id: str) -> NodeWorktree:
         if node_id not in self._nodes:
             raise WorktreeError(f"no worktree for {node_id!r}")

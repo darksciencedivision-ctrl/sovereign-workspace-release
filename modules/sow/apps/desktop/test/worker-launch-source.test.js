@@ -615,6 +615,66 @@ test("the real emitter answers a picker selection with a governed ticket (and th
     }
   });
 
+// ---- EPC-04: the OpenCode coding ticket ----
+// `ADAPTER_EXECUTABLE` is an ALLOWLIST, so adding a provider to it widens what this shell will
+// spawn. These tests hold the new entry to the same terms as every other one: it launches ONE
+// binary, it is local, it carries no subscription, and it cannot be used to launch anything else.
+
+const OPENCODE_TICKET = {
+  ...LOCAL_TICKET,
+  launch: { ...LOCAL_TICKET.launch,
+    argv: ["C:/npm/opencode.CMD", "C:/repo/worktrees/coding-1", "--pure", "-m",
+           "ollama/qwen2.5-coder:3b"],
+    executable: "C:/npm/opencode.CMD" },
+  chrome: { ...LOCAL_TICKET.chrome, provider: "opencode_local", adapter: "opencode_local",
+    model_label: "qwen2.5-coder:3b", role: "coding" },
+  residency: { model: "qwen2.5-coder:3b", scheduled: true, status: "loading", evicted: [] },
+};
+
+test("an OpenCode coding ticket is accepted as a LOCAL launch", () => {
+  // the npm shim spelling `opencode.CMD` must pass: `executableBasename` lowercases and strips the
+  // extension, and on Windows this IS how the binary resolves (`shutil.which` returns the .CMD).
+  assert.equal(isWellFormedWorkerTicket(OPENCODE_TICKET), true);
+});
+
+test("an OpenCode ticket that declares a subscription_ref is refused", () => {
+  // invariant 19: a coding pane holds no subscription terminal, so a ref is producer drift.
+  const t = { ...OPENCODE_TICKET,
+    identity: { ...OPENCODE_TICKET.identity, subscription_ref: "sub-claude_code" } };
+  assert.equal(isWellFormedWorkerTicket(t), false);
+});
+
+test("an OpenCode ticket that declares frontier locality is refused", () => {
+  const t = { ...OPENCODE_TICKET,
+    chrome: { ...OPENCODE_TICKET.chrome, locality: "frontier" } };
+  assert.equal(isWellFormedWorkerTicket(t), false);
+});
+
+test("an opencode_local ticket may not launch any binary but opencode", () => {
+  // The whole point of the allowlist (validator FINDING 1): a ticket declaring a lease-free local
+  // adapter while pointing `executable` at a frontier CLI is an uncounted frontier terminal.
+  for (const exe of ["C:/bin/claude.EXE", "C:/bin/ollama.EXE", "C:/bin/codex.exe"]) {
+    const t = { ...OPENCODE_TICKET,
+      launch: { ...OPENCODE_TICKET.launch, executable: exe, argv: [exe, "C:/repo"] } };
+    assert.equal(isWellFormedWorkerTicket(t), false, `${exe} must not launch as opencode_local`);
+  }
+});
+
+test("an opencode_local ticket whose argv[0] disagrees with its executable is refused", () => {
+  // two separate facts, two separate checks — deleting either left the suite green (MAJOR-1).
+  const t = { ...OPENCODE_TICKET,
+    launch: { ...OPENCODE_TICKET.launch,
+      argv: ["C:/bin/ollama.EXE", "C:/repo/worktrees/coding-1"] } };
+  assert.equal(isWellFormedWorkerTicket(t), false);
+});
+
+test("an ollama_local ticket may not launch opencode either — the allowlist cuts both ways", () => {
+  const t = { ...LOCAL_TICKET,
+    launch: { ...LOCAL_TICKET.launch, executable: "C:/npm/opencode.CMD",
+      argv: ["C:/npm/opencode.CMD", "C:/repo"] } };
+  assert.equal(isWellFormedWorkerTicket(t), false);
+});
+
 // ---- (3) the two frontierClaim guards that had no coverage of their own ----
 // Both are behaviour-bearing and both left the suite GREEN when deleted, on a function whose
 // failure mode is an I-X3 terminal counted against the WRONG subscription, or a local ticket

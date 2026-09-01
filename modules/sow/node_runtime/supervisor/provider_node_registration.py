@@ -131,7 +131,19 @@ OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS: list[dict[str, Any]] = [
                                                  "locality": "local_only"}},
 ]
 
+#: What an OPENCODE coding pane can be asked to do (EPC-04). Separate from the reasoning
+#: descriptors above because the capability genuinely differs: this node edits files inside its own
+#: git worktree, which is a different thing to ask of a model than answering a question, and a
+#: conductor reading the registry must be able to tell the two apart. The `locality` and
+#: `structured_output` terms are unchanged — same card, same small local models.
+OPENCODE_LOCAL_CAPABILITY_DESCRIPTORS: list[dict[str, Any]] = [
+    {"capability": "coding", "requirements": {"structured_output": False,
+                                              "min_context": 8192,
+                                              "locality": "local_only"}},
+]
+
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
+from adapters.coding.opencode.session import OPENCODE_LOCAL_ADAPTER  # noqa: E402
 
 _PROVIDER_FACTS: dict[str, tuple[str, list[dict[str, Any]]]] = {
     GROK_ADAPTER: (GrokCliBackend.node_class, GROK_REASONING_CAPABILITY_DESCRIPTORS),
@@ -142,13 +154,19 @@ _PROVIDER_FACTS: dict[str, tuple[str, list[dict[str, Any]]]] = {
     # node registry stayed empty and a conductor asking who is up got nothing — measured on the
     # operator's host: 154 node events, grok_build 22, google_antigravity 20, everything else 0.
     OLLAMA_LOCAL_ADAPTER: ("worker_reasoning", OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS),
+    # EPC-04. A coding pane is a terminal, so invariant 2 applies to it identically: it registers
+    # or it does not open. `worker_coding` rather than `worker_reasoning` because the node class is
+    # what a conductor routes on — filing an OpenCode harness as a reasoning worker would make the
+    # registry answer the wrong question correctly.
+    OPENCODE_LOCAL_ADAPTER: ("worker_coding", OPENCODE_LOCAL_CAPABILITY_DESCRIPTORS),
 }
 
 #: Adapters governed by VRAM RESIDENCY rather than by a subscription. Their records name a
 #: ResidencyPlanner decision; they hold no lease because there is no subscription to count them
 #: against, and inventing one would put a lease id on a terminal nobody counted - exactly what
 #: the subscription fence exists to make unrepresentable.
-RESIDENCY_GOVERNED_ADAPTERS: frozenset[str] = frozenset({OLLAMA_LOCAL_ADAPTER})
+RESIDENCY_GOVERNED_ADAPTERS: frozenset[str] = frozenset({OLLAMA_LOCAL_ADAPTER,
+                                                         OPENCODE_LOCAL_ADAPTER})
 
 #: The providers this module can build a record for, DERIVED from the facts table above rather than
 #: re-listed. Callers that must decide "is this a session I should register?" before building

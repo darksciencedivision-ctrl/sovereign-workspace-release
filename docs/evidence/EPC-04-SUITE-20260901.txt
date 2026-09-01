@@ -1,0 +1,16 @@
+# utc: 2026-09-01T09:24:52.2321239Z
+# producer: claude-code builder EPC-04 W-6
+# command: py -3.12 -m pytest modules/sow/tests -q --no-header
+
+    resolver = jsonschema.RefResolver(base_uri=_SCHEMA["$id"], referrer=_SCHEMA, store=_STORE)
+
+tests/unit/test_schemas.py: 23 warnings
+  D:\producttion software 2\release-worktree\modules\sow\tests\unit\test_schemas.py:25: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    resolver = jsonschema.RefResolver(base_uri=schema["$id"], referrer=schema, store=STORE)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] modules\sow\tests\unit\test_run_frontier_providers_ps1.py:522: host-coupled; set SOW_PROVIDER_HOST_CHECK=1 to run
+SKIPPED [1] modules\sow\tests\unit\test_run_phase19_pytest.py:121: POSIX process-group signalling; the Windows path uses taskkill /T /F
+SKIPPED [1] modules\sow\tests\unit\test_u326_before_after_import_hygiene.py:82: the evaluation replays from b529314, which is not an object in this repository: SOW is vendored into the Sovereign Workspace and its upstream history was not carried across. The control cannot run from here, and revives automatically if the history is restored.
+3168 passed, 3 skipped, 61 warnings in 700.85s (0:11:40)

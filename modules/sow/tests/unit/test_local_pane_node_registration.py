@@ -28,7 +28,9 @@ MODULE_ROOT = Path(__file__).resolve().parents[2]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
+from adapters.coding.opencode.session import OPENCODE_LOCAL_ADAPTER  # noqa: E402
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
+from node_runtime.supervisor.worker_pane_spawn import FRONTIER_PANE_ADAPTERS  # noqa: E402
 from node_runtime.supervisor.provider_node_registration import (  # noqa: E402
     GATE_UNRESERVED_RESIDENCY,
     OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS,
@@ -52,10 +54,19 @@ class TheLocalAdapterIsRegistrable(unittest.TestCase):
         self.assertIn("grok_build", REGISTRABLE_PROVIDERS)
         self.assertIn("google_antigravity", REGISTRABLE_PROVIDERS)
 
-    def test_only_the_local_adapter_is_residency_governed(self) -> None:
+    def test_only_local_adapters_are_residency_governed(self) -> None:
         """A frontier pane must never be admitted on a residency reservation - it spends money,
-        and VRAM is not the resource that governs that."""
-        self.assertEqual(RESIDENCY_GOVERNED_ADAPTERS, frozenset({OLLAMA_LOCAL_ADAPTER}))
+        and VRAM is not the resource that governs that.
+
+        Stated as "no FRONTIER adapter is in the set" rather than as an exact set. The exact form
+        asserted the membership list, so it failed when EPC-04 added the OpenCode coding pane -
+        a local, residency-governed, credential-free adapter that belongs in the set. The rule it
+        was defending is the one written above it, and this is that rule.
+        """
+        self.assertIn(OLLAMA_LOCAL_ADAPTER, RESIDENCY_GOVERNED_ADAPTERS)
+        self.assertIn(OPENCODE_LOCAL_ADAPTER, RESIDENCY_GOVERNED_ADAPTERS)
+        for adapter in RESIDENCY_GOVERNED_ADAPTERS:
+            self.assertNotIn(adapter, FRONTIER_PANE_ADAPTERS)
 
     def test_local_descriptors_do_not_demand_tool_use(self) -> None:
         """Most models at or under 4B on this host report `completion` only. A descriptor

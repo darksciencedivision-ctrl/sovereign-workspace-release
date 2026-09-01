@@ -109,6 +109,7 @@ from node_runtime.supervisor.terminal_lease import (  # noqa: E402
     LeaseLedgerLocked,
     TerminalLeaseLedger,
 )
+from node_runtime.supervisor.coding_worktrees import coding_worktree_manager
 from node_runtime.supervisor.worker_pane_spawn import (  # noqa: E402
     FRONTIER_PANE_ADAPTERS,
     WorkerPaneRefused,
@@ -752,7 +753,11 @@ def build_worker_launch_ticket(
                 pane_selection, live_auth=auth, governor=gov, profile_loader=loader,
                 operator_terms_confirmed=operator_terms_confirmed, workspace=workspace,
                 residency_planner=planner, residency_budget=budget,
-                ollama_present=gates["local_runtime_present"], shell_env_names=shell_env_names)
+                ollama_present=gates["local_runtime_present"], shell_env_names=shell_env_names,
+                # EPC-04 / W-3. A coding pane is refused without this; a REASONING pane never
+                # reaches for it. Resolving it unconditionally keeps the branch free of a
+                # role test that would have to agree with the one inside the authorizer.
+                worktree_manager=coding_worktree_manager(workspace))
             gates["residency_scheduled"] = bool((session.residency_decision or {}).get("scheduled"))
             lease_view = None
             # EPC-02 / U313(A). This was a HARDCODED no-record result: the local branch never

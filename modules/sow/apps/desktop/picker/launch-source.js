@@ -108,6 +108,14 @@ const ADAPTER_EXECUTABLE = {
   grok_build: "grok",
   google_antigravity: "agy",
   ollama_local: "ollama",
+  // EPC-04. A coding pane launches `opencode` and nothing else. Its own entry rather than sharing
+  // `ollama_local`'s: the two adapters run different binaries, and one entry mapping to two
+  // permitted basenames would let an `ollama_local` ticket launch the harness (or the reverse)
+  // while the allowlist still read as satisfied. On Windows this resolves to the npm shim
+  // `opencode.CMD`; `executableBasename` strips the extension, and the shim's own cmd.exe
+  // metacharacter hazard is refused Python-side by `adapters/cmd_shim.assert_cmd_shim_argv_safe`
+  // (independent review N-03), which `build_interactive_opencode_command` calls before returning.
+  opencode_local: "opencode",
 };
 const FRONTIER_ADAPTERS = ["claude_code", "openai_codex_cli", "grok_build", "google_antigravity"];
 //: adapter -> the ONE subscription ref a frontier ticket for it may be counted against. Previously

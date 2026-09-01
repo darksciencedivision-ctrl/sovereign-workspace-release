@@ -37,7 +37,10 @@ from node_runtime.supervisor.subscription_governor import (
     SubscriptionLimitExceeded,
     canonical_subscription_ref,
 )
+from node_runtime.supervisor import worker_pane_spawn
 from node_runtime.supervisor.worker_pane_spawn import (
+    GATE_OPENCODE_ABSENT,
+    GATE_WORKTREE_UNAVAILABLE,
     OLLAMA_LOCAL_ADAPTER,
     WorkerPaneRefused,
     authorize_worker_pane,
@@ -402,16 +405,144 @@ def test_local_worker_is_refused_when_the_ollama_runtime_is_absent():
     assert "ollama" in str(err.value).lower()
 
 
-def test_local_coding_role_is_refused_as_deferred_not_unavailable():
+# ---------------------------------------------------------------------------------------------
+# Local CODING panes (EPC-04). U95 is lifted: the role is no longer refused for BEING coding.
+#
+# What replaced it is stricter, not looser. The old refusal deferred the role while naming its
+# reason — "a coding role without a worktree would be a model with write hands and no
+# containment". That reason is now ENFORCED: the worktree is a precondition, and its absence
+# refuses the pane. The tests below are the old test split into the two things it was conflating,
+# plus the authorized path it could never reach.
+
+
+#: A real coder tag at the size the operator's card actually admits beside an 8B conductor.
+CODING_MODEL = "qwen2.5-coder:3b"
+
+
+def _coding_selection():
+    option = _local_option()
+    option["model_slug"] = CODING_MODEL
+    option["label"] = CODING_MODEL
+    return _selection(option, role="coding", profile="pp-worker-coding")
+
+
+class _FakeWorktree:
+    def __init__(self, node_id, root):
+        self.node_id, self.path = node_id, root / node_id
+        self.branch = f"node/{node_id}"
+
+
+class _FakeWorktreeManager:
+    """Stands in for `WorktreeManager` at the ONE method the spawn path uses: `ensure`.
+
+    Deliberately does not implement `create`/`get`. If the spawn path ever reaches for those again
+    this fake raises AttributeError rather than quietly succeeding, so the narrowed surface stays
+    narrow. The real `ensure` is proven against actual git repositories in
+    `test_worktree_ensure.py` — this fake exists to test the SPAWN decisions, not git.
+    """
+
+    def __init__(self, root, *, fail=None):
+        self._root, self._fail, self.created = root, fail, {}
+
+    def ensure(self, node_id):
+        if node_id in self.created:
+            return self.created[node_id]
+        if self._fail:
+            raise self._fail
+        wt = _FakeWorktree(node_id, self._root)
+        self.created[node_id] = wt
+        return wt
+
+
+class _FakeHarness:
+    """Stands in for `OpenCodeCliHarness` at the ONE seam that decides presence.
+
+    Presence is `shutil.which("opencode")`, so on this host the real class finds the real binary
+    and the absent case is unreachable without injection. Patching the class is what lets the
+    absence refusal be PROVEN rather than merely written.
+    """
+
+    def __init__(self, executable="C:\\tools\\opencode.exe"):
+        self.executable = executable
+
+
+def _authorize_coding(*, worktree_manager, monkeypatch=None, opencode="C:\\tools\\opencode.exe"):
+    if monkeypatch is not None:
+        monkeypatch.setattr(worker_pane_spawn, "OpenCodeCliHarness",
+                            lambda: _FakeHarness(opencode))
+    return authorize_worker_pane(
+        _coding_selection(), live_auth=_authorized(), governor=SubscriptionGovernor(),
+        profile_loader=_loader(), operator_terms_confirmed=True, workspace=WORKSPACE,
+        residency_planner=_planner(register={CODING_MODEL: 2100}),
+        residency_budget=_established_budget(),
+        ollama_present=True, worktree_manager=worktree_manager)
+
+
+def test_a_coding_pane_without_a_worktree_manager_is_refused_not_run_uncontained(monkeypatch):
+    """The U95 reason, now enforced. This is the test that must never be relaxed.
+
+    A coding pane is a model with WRITE HANDS. If containment cannot be provided the correct
+    outcome is no pane — never a pane that runs in the trunk because the manager was missing.
+    """
     with pytest.raises(WorkerPaneRefused) as err:
-        authorize_worker_pane(_selection(_local_option(), role="coding",
-                                         profile="pp-worker-coding"),
-                              live_auth=_authorized(), governor=SubscriptionGovernor(),
-                              profile_loader=_loader(), operator_terms_confirmed=True,
-                              workspace=WORKSPACE, residency_planner=_planner(), residency_budget=_established_budget(),
-                              ollama_present=True)
-    msg = str(err.value)
-    assert "deferred" in msg and "OpenCode" in msg
+        _authorize_coding(worktree_manager=None, monkeypatch=monkeypatch)
+    msg = str(err.value).lower()
+    assert "worktree" in msg and "uncontained" in msg
+    assert err.value.gate == GATE_WORKTREE_UNAVAILABLE
+
+
+def test_a_coding_pane_is_refused_when_the_worktree_cannot_be_provisioned(tmp_path, monkeypatch):
+    """Provisioning FAILING is the same answer as provisioning being unavailable: no pane."""
+    mgr = _FakeWorktreeManager(tmp_path, fail=RuntimeError("git worktree add failed: locked"))
+    with pytest.raises(WorkerPaneRefused) as err:
+        _authorize_coding(worktree_manager=mgr, monkeypatch=monkeypatch)
+    assert err.value.gate == GATE_WORKTREE_UNAVAILABLE
+    assert "locked" in str(err.value)          # the underlying cause is reported, not swallowed
+
+
+def test_a_coding_pane_is_refused_when_the_opencode_binary_is_absent(tmp_path, monkeypatch):
+    """`shutil.which` returning None is the ABSENT case, and it must refuse rather than emit a
+    bare `opencode` for the shell to PATH-search at spawn time."""
+    with pytest.raises(WorkerPaneRefused) as err:
+        _authorize_coding(worktree_manager=_FakeWorktreeManager(tmp_path),
+                          monkeypatch=monkeypatch, opencode=None)
+    assert err.value.gate == GATE_OPENCODE_ABSENT
+
+
+def test_a_contained_coding_pane_is_authorized_and_runs_inside_its_worktree(tmp_path, monkeypatch):
+    """The authorization U95 deferred. Every governed property is asserted, not assumed."""
+    mgr = _FakeWorktreeManager(tmp_path)
+    session = _authorize_coding(worktree_manager=mgr, monkeypatch=monkeypatch)
+
+    # containment: the process starts in the WORKTREE, never the workspace
+    worktree = mgr.created[_coding_selection().node_id]
+    assert session.launch["cwd"] == str(worktree.path)
+    assert str(worktree.path) != WORKSPACE
+    assert str(worktree.path) in session.launch["argv"]
+
+    # it is an OpenCode pane, and says so — `ollama_local` would misdescribe a harness
+    assert session.chrome.adapter == "opencode_local"
+    assert session.chrome.locality == "local"
+
+    # the spend wall: local model pin, no subscription, no credential (invariant 19)
+    assert f"ollama/{CODING_MODEL}" in session.launch["argv"]
+    assert session.chrome.subscription is None
+    assert session.subscription_governed is False
+
+    # containment again, at the argv level: plugins off by default, auto-approve NOT set
+    assert "--pure" in session.launch["argv"]
+    assert "--auto" not in session.launch["argv"]
+
+    # invariant 22: a coding model occupies the card like any other, and the reservation is real
+    assert session.residency_decision
+    assert session.chrome.residency
+
+
+# W-3's "two panes never share a worktree" is NOT asserted here. It was, briefly, against the fake
+# above — which proved only that the fake keyed a dict by node id. The property belongs to the real
+# manager and git, so it is tested there instead:
+#     tests/unit/test_worktree_ensure.py::test_two_panes_never_share_a_worktree_or_a_branch
+# along with the trunk-unmodified property, against actual repositories.
 
 
 def test_an_unknown_adapter_is_refused_fail_closed():

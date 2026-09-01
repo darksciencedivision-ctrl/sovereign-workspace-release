@@ -29,6 +29,7 @@ from node_runtime.supervisor.subscription_governor import (
 )
 from node_runtime.supervisor.worker_pane_spawn import (
     GATE_ROLE_DEFERRED,
+    GATE_WORKTREE_UNAVAILABLE,
     GATE_RUNTIME_ABSENT,
     GATE_SUBSCRIPTION_REF,
     GATE_UNKNOWN_ADAPTER,
@@ -122,14 +123,28 @@ def test_a_frontier_selection_with_no_subscription_ref_refuses_under_the_ix3_gat
     assert exc.value.gate == GATE_SUBSCRIPTION_REF
 
 
-def test_both_coding_paths_refuse_under_the_deferred_role_gate() -> None:
+def test_the_frontier_coding_path_still_refuses_under_the_deferred_role_gate() -> None:
+    """UNCHANGED by EPC-04. A frontier coding pane needs an auto-approving permission mode the
+    operator directive §11 forbids emitting, so it stays deferred with its route named."""
     with pytest.raises(WorkerPaneRefused) as exc:
         _authorize(_frontier_option(), role="coding",
                    subscription_ref=canonical_subscription_ref(CLAUDE_CODE_ADAPTER))
     assert exc.value.gate == GATE_ROLE_DEFERRED
-    with pytest.raises(WorkerPaneRefused) as exc2:
+
+
+def test_the_local_coding_path_now_refuses_on_CONTAINMENT_not_on_the_role() -> None:
+    """EPC-04 lifted U95, and this is what replaced it — a stricter gate, not a removed one.
+
+    The local half of this test used to assert `GATE_ROLE_DEFERRED`: the role itself was refused,
+    with the OpenCode harness named as the route. That route is now walked, so the refusal moved to
+    the reason the deferral gave — "a coding role without a worktree would be a model with write
+    hands and no containment". `_authorize` supplies no worktree manager, so that is exactly the
+    condition here, and the gate id must say containment rather than role.
+    """
+    with pytest.raises(WorkerPaneRefused) as exc:
         _authorize(_local_option(), role="coding")
-    assert exc2.value.gate == GATE_ROLE_DEFERRED
+    assert exc.value.gate == GATE_WORKTREE_UNAVAILABLE
+    assert "uncontained" in str(exc.value).lower()
 
 
 def test_an_absent_local_runtime_refuses_under_the_runtime_gate_not_the_vram_one() -> None:

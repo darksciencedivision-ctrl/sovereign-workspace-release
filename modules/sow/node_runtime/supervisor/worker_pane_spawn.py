@@ -97,6 +97,11 @@ from node_runtime.supervisor.pane_node_spawn import (
     assert_selection_spawnable,
 )
 from node_runtime.supervisor.subscription_governor import SubscriptionGovernor
+from adapters.coding.opencode.harness import OpenCodeCliHarness
+from adapters.coding.opencode.session import (
+    OPENCODE_LOCAL_ADAPTER,
+    build_interactive_opencode_command,
+)
 from scheduler.residency_planner.residency_planner import (
     LOADING,
     RESIDENT,
@@ -155,6 +160,8 @@ _AUTHORIZED_NOT_STARTED = "launch_authorized"
 #: might also contain (gate-validator BLOCKING-1c, 2026-07-26).
 GATE_WORKER_ROLE = "worker_role"          # pane identity / role minting
 GATE_ROLE_DEFERRED = "role_deferred"      # a role this build has no isolated worktree to give
+GATE_WORKTREE_UNAVAILABLE = "worktree_unavailable"
+GATE_OPENCODE_ABSENT = "opencode_absent"
 GATE_SUBSCRIPTION_REF = "subscription_ref"  # a frontier selection that would be uncounted (I-X3)
 GATE_RUNTIME_ABSENT = "runtime_absent"    # the local runtime is not launchable on this host
 #: invariant 22, the FIT decision: this model does not fit the budget as the snapshot reports it
@@ -418,6 +425,7 @@ def authorize_worker_pane(
     workspace: str,
     residency_planner: ResidencyPlanner | None = None,
     residency_budget: dict[str, Any] | None = None,
+    worktree_manager: Any = None,
     model: str | None = None,
     model_available: bool | None = None,
     cli_present: bool | None = None,
@@ -445,15 +453,24 @@ def authorize_worker_pane(
             profile_loader=profile_loader, operator_terms_confirmed=operator_terms_confirmed,
             workspace=workspace, model=model, model_available=model_available,
             cli_present=cli_present, executable=executable, shell_env_names=shell_env_names)
+    if adapter_id == OPENCODE_LOCAL_ADAPTER:
+        # EPC-04. A distinct ADAPTER, not a role variant of `ollama_local`: both run a local model,
+        # but one is a REPL and the other is a harness with write hands inside a worktree. Routed
+        # straight to the coding authorizer so the pane cannot be reached with the reasoning
+        # path's assumptions — in particular, without a worktree.
+        return _authorize_local_coding(
+            selection, residency_planner=residency_planner, residency_budget=residency_budget,
+            worktree_manager=worktree_manager, shell_env_names=shell_env_names)
     if adapter_id == OLLAMA_LOCAL_ADAPTER:
         return _authorize_local(
             selection, workspace=workspace, residency_planner=residency_planner,
             residency_budget=residency_budget, ollama_present=ollama_present, executable=executable,
-            shell_env_names=shell_env_names)
+            shell_env_names=shell_env_names, worktree_manager=worktree_manager)
     raise WorkerPaneRefused(
         f"unknown adapter {adapter_id!r} in selection — this build authorizes live panes for "
         f"{'/'.join(sorted(FRONTIER_PANE_ADAPTERS))} (OP-6 + OP-12 scope) and "
-        f"{OLLAMA_LOCAL_ADAPTER} only (fail closed; a new provider needs a new operator "
+        f"{OLLAMA_LOCAL_ADAPTER}/{OPENCODE_LOCAL_ADAPTER} only (fail closed; a new provider "
+        f"needs a new operator "
         f"authorization)", gate=GATE_UNKNOWN_ADAPTER)
 
 
@@ -648,49 +665,27 @@ def _assert_fits_without_displacing(planner: ResidencyPlanner, model: str) -> No
             gate=GATE_VRAM_ADMISSION)
 
 
-def _authorize_local(
-    selection: PaneSelection,
-    *,
-    workspace: str,
-    residency_planner: ResidencyPlanner | None,
-    residency_budget: dict[str, Any] | None,
-    ollama_present: bool | None,
-    executable: str | None,
-    shell_env_names: list[str] | None = None,
-) -> WorkerPaneSession:
-    from adapters import detect
+def _reserve_local_vram(residency_planner: ResidencyPlanner | None,
+                        residency_budget: dict[str, Any] | None,
+                        model: str,
+                        build_argv: Any) -> tuple[list[str], Any, dict[str, Any]]:
+    """The invariant-22 reservation every LOCAL pane takes, in ONE place.
 
-    opt = selection.option
-    if selection.role == "coding":
-        # A local coding node is the OpenCode harness path (worktree-isolated, gated at Phase 10 /
-        # 14C), not a bare `ollama run` in a pane: a coding role without a worktree would be a model
-        # with write hands and no containment. DEFERRED with the route named, never faked.
-        raise WorkerPaneRefused(
-            "a local CODING pane is the supervised OpenCode-harness path (worktree-isolated, Phase "
-            "10 / 14C), not a bare `ollama run` session — deferred, not unavailable (U95)",
-            gate=GATE_ROLE_DEFERRED)
-    model = opt.get("model_slug")
-    if not model:
-        # NOT the VRAM gate: a selection with no model tag is malformed, and stamping it
-        # `vram_admission` is the same id-borrowing the gate ids exist to stop (validator R1).
-        raise SpawnRefused("local selection has no model_slug — fail closed")
-    resolved = executable or detect.ollama_executable()
-    present = (resolved is not None) if ollama_present is None else bool(ollama_present)
-    if not present:
-        raise WorkerPaneRefused(
-            "the local `ollama` runtime is not on this host's PATH — cannot open a local worker "
-            "pane (fail closed; the picker's enumeration comes from the daemon, which can be "
-            "reachable without the CLI being launchable)", gate=GATE_RUNTIME_ABSENT)
-    exe = _resolved_binary(resolved, OLLAMA_LOCAL_ADAPTER)
-    # Two independent conditions, both fail-closed, because they are two different ways the same
-    # thing goes wrong and relying on either alone is a fail-OPEN waiting for the other to drift:
-    #   * no planner — nothing can be measured at all;
-    #   * a budget that is not ESTABLISHED — the enumeration built a planner but the host's own
-    #     residency contradicted the budget it was built on, so its arithmetic means nothing.
-    # The enumeration currently returns those together, but that is a cross-module convention this
-    # module cannot see; asserting it here is what makes it a rule (spec-audit MAJOR-1). An absent
-    # budget is treated as unestablished — a caller that supplies a planner and no provenance has
-    # told us nothing about what the planner's total means.
+    EPC-04 extracted this when the OpenCode coding pane became a second caller. It is
+    deliberately shared rather than copied: `module_source_registry` states the house rule
+    that "a second literal elsewhere is how a provider ends up in one list and not the
+    other", and two copies of a VRAM gate is that shape with worse consequences — two
+    paths that disagree about whether a model fits the card.
+
+    `build_argv` is a CALLABLE rather than a finished list on purpose. The ordering below
+    is load-bearing (validator FINDING 3): argv must be built side-effect-free BEFORE
+    `request_load` mutates, because the planner has no cancel primitive and a refusal
+    after it leaves a phantom residency entry in the view the operator reads. Passing a
+    callable keeps that ordering INSIDE the helper instead of trusting each caller to
+    remember it.
+
+    Returns `(argv, decision, budget)`. Every refusal, and its gate id, is unchanged.
+    """
     budget = residency_budget or {}
     if residency_planner is None or budget.get("established") is not True:
         # Repeat the enumeration's own reason: a bare "no planner supplied" reads as an internal
@@ -724,7 +719,7 @@ def _authorize_local(
     # Build the (side-effect-free) argv FIRST, then reserve VRAM — `request_load` is MUTATING and the
     # planner has no cancel primitive, so any refusal that can be decided WITHOUT it must be decided
     # first or it leaves a phantom residency entry behind (validator FINDING 3).
-    argv = build_interactive_ollama_command(exe, model=model)
+    argv = build_argv()
     _assert_fits_without_displacing(residency_planner, model)
     try:
         decision = residency_planner.request_load(model)
@@ -751,6 +746,60 @@ def _authorize_local(
             f"a local pane for {model!r} would only fit by displacing {displaced} — refused "
             f"(invariant 22; see the pre-check above)", gate=GATE_VRAM_ADMISSION)
 
+    return argv, decision, dict(budget)
+
+
+def _authorize_local(
+    selection: PaneSelection,
+    *,
+    workspace: str,
+    residency_planner: ResidencyPlanner | None,
+    residency_budget: dict[str, Any] | None,
+    ollama_present: bool | None,
+    executable: str | None,
+    shell_env_names: list[str] | None = None,
+    worktree_manager: Any = None,
+) -> WorkerPaneSession:
+    from adapters import detect
+
+    opt = selection.option
+    if selection.role == "coding":
+        # U95 LIFTED (EPC-04). The refusal called this role "the supervised OpenCode-harness path
+        # (worktree-isolated, Phase 10 / 14C) ... deferred, not unavailable" — it named a route
+        # rather than denying one, and this branch walks it.
+        #
+        # Its REASON is unchanged and is now enforced rather than deferred to: "a coding role
+        # without a worktree would be a model with write hands and no containment." The worktree is
+        # a precondition below, and its absence refuses the pane in those words.
+        return _authorize_local_coding(
+            selection, residency_planner=residency_planner, residency_budget=residency_budget,
+            worktree_manager=worktree_manager, shell_env_names=shell_env_names)
+    model = opt.get("model_slug")
+    if not model:
+        # NOT the VRAM gate: a selection with no model tag is malformed, and stamping it
+        # `vram_admission` is the same id-borrowing the gate ids exist to stop (validator R1).
+        raise SpawnRefused("local selection has no model_slug — fail closed")
+    resolved = executable or detect.ollama_executable()
+    present = (resolved is not None) if ollama_present is None else bool(ollama_present)
+    if not present:
+        raise WorkerPaneRefused(
+            "the local `ollama` runtime is not on this host's PATH — cannot open a local worker "
+            "pane (fail closed; the picker's enumeration comes from the daemon, which can be "
+            "reachable without the CLI being launchable)", gate=GATE_RUNTIME_ABSENT)
+    exe = _resolved_binary(resolved, OLLAMA_LOCAL_ADAPTER)
+    # Two independent conditions, both fail-closed, because they are two different ways the same
+    # thing goes wrong and relying on either alone is a fail-OPEN waiting for the other to drift:
+    #   * no planner — nothing can be measured at all;
+    #   * a budget that is not ESTABLISHED — the enumeration built a planner but the host's own
+    #     residency contradicted the budget it was built on, so its arithmetic means nothing.
+    # The enumeration currently returns those together, but that is a cross-module convention this
+    # module cannot see; asserting it here is what makes it a rule (spec-audit MAJOR-1). An absent
+    # budget is treated as unestablished — a caller that supplies a planner and no provenance has
+    # told us nothing about what the planner's total means.
+    argv, decision, budget = _reserve_local_vram(
+        residency_planner, residency_budget, model,
+        lambda: build_interactive_ollama_command(exe, model=model))
+
     chrome = WorkerPaneChrome(
         provider=opt.get("provider", OLLAMA_LOCAL_ADAPTER), adapter=OLLAMA_LOCAL_ADAPTER,
         locality="local", model_label=opt.get("label", model), model_slug=model,
@@ -771,4 +820,103 @@ def _authorize_local(
         # fallback shape here was dead code that read as if an unestablished budget could reach an
         # authorized ticket — it cannot, and code that implies otherwise is a false disclosure.
         residency_budget=dict(budget),
+        subscription_governed=False, _release=None)
+
+
+def _authorize_local_coding(
+    selection: PaneSelection,
+    *,
+    residency_planner: ResidencyPlanner | None,
+    residency_budget: dict[str, Any] | None,
+    worktree_manager: Any,
+    shell_env_names: list[str] | None = None,
+) -> WorkerPaneSession:
+    """A local CODING pane: OpenCode, interactive, confined to its own git worktree (EPC-04, U95).
+
+    THE CONTAINMENT IS THE PRECONDITION, not a feature of the pane. The refusal this replaces
+    existed because "a coding role without a worktree would be a model with write hands and no
+    containment", and that sentence is still true — so the worktree is obtained BEFORE the pane is
+    authorized, and its absence refuses rather than downgrading to an uncontained session.
+
+    Everything a local pane already obeys is obeyed here unchanged, through the SAME helper the
+    reasoning pane uses: the invariant-22 reservation (a coding model occupies the card exactly
+    like any other), no subscription (invariant 19), no credential, and the `ollama/*` model pin
+    that is why an OpenCode pane can spend nothing.
+
+    `cwd` is the WORKTREE, not the workspace — that is the containment: the process starts inside
+    the only tree it may modify, and `--pure` keeps unmeasured plugins out of it.
+    """
+    opt = selection.option
+    model = opt.get("model_slug")
+    if not model:
+        raise SpawnRefused("local coding selection has no model_slug — fail closed")
+
+    # NO `ollama` CLI GATE HERE, and that is a decision rather than an omission. `_authorize_local`
+    # refuses when the ollama EXECUTABLE is missing because it launches `ollama run` in the pane.
+    # OpenCode does not: it reaches the model over the daemon's HTTP API, so the CLI being absent
+    # does not stop it. That refusal's own wording is the warrant — "the picker's enumeration comes
+    # from the daemon, which can be reachable without the CLI being launchable". Copying the gate
+    # across would refuse working panes for a binary this path never runs.
+    #
+    # The daemon being genuinely unreachable is still caught, and caught by the thing that measures
+    # it: the residency reservation below refuses when no VRAM budget could be established.
+
+    # (1) THE OPENCODE BINARY, RESOLVED HERE — deliberately not the caller's `executable`.
+    #
+    # `authorize_worker_pane` receives ONE executable, resolved for the option's own adapter. A
+    # local coding option is an `ollama_local` option (the picker lists one local model with both
+    # roles), so the executable reaching this function is OLLAMA'S. Launching it with OpenCode's
+    # argv would run the wrong program with a worktree path as its first argument. The parameter
+    # is not threaded in for exactly that reason.
+    #
+    # `.executable` is `shutil.which("opencode")` — a real path, or None when it is not installed.
+    # None is a PRESENCE fact, and gets its own gate: "install opencode" is a different operator
+    # action from `binary_unresolved` ("the presence gate and the resolver disagreed").
+    resolved = OpenCodeCliHarness().executable
+    if not (resolved or "").strip():
+        raise WorkerPaneRefused(
+            "the `opencode` CLI is not on this host's PATH — cannot open a local coding pane "
+            "(fail closed; the operator installs it, this workspace never does — §7)",
+            gate=GATE_OPENCODE_ABSENT)
+    exe = _resolved_binary(resolved, OPENCODE_LOCAL_ADAPTER)
+
+    # (2) the worktree. No manager, no worktree, no pane.
+    if worktree_manager is None:
+        raise WorkerPaneRefused(
+            "a local CODING pane requires a worktree manager and none was supplied — refused "
+            "rather than run uncontained. A coding role without a worktree is a model with write "
+            "hands and no containment (the U95 reason, enforced rather than deferred)",
+            gate=GATE_WORKTREE_UNAVAILABLE)
+    # `ensure`, not `create`: the manager's map is in-memory, so a pane the operator REOPENS in a
+    # fresh process would otherwise hit `git worktree add -b` on a branch that already exists and
+    # be refused. `ensure` reconciles against git and adopts the pane's own tree — and refuses to
+    # adopt one registered anywhere else, which is where the containment is actually kept.
+    try:
+        worktree = worktree_manager.ensure(selection.node_id)
+    except Exception as exc:  # noqa: BLE001 — every provisioning failure is an attributable refusal
+        raise WorkerPaneRefused(
+            f"could not provision an isolated worktree for {selection.node_id!r}: {exc} — "
+            f"refused rather than run uncontained", gate=GATE_WORKTREE_UNAVAILABLE) from exc
+
+    argv, decision, budget = _reserve_local_vram(
+        residency_planner, residency_budget, model,
+        lambda: build_interactive_opencode_command(exe, worktree=worktree.path, model=model))
+
+    chrome = WorkerPaneChrome(
+        provider=opt.get("provider", OPENCODE_LOCAL_ADAPTER), adapter=OPENCODE_LOCAL_ADAPTER,
+        locality="local", model_label=opt.get("label", model), model_slug=model,
+        model_verified=bool(opt.get("verified", False)), is_fallback=False,
+        role=selection.role, mode=selection.mode, node_id=selection.node_id,
+        node_state=_AUTHORIZED_NOT_STARTED,
+        subscription=None,                     # invariant 19: local is NOT subscription-governed
+        residency=decision.status)
+    launch = _launch(
+        argv, executable=exe, cwd=str(worktree.path), shell_env_names=shell_env_names,
+        note=("interactive OpenCode coding pane confined to its own git worktree; the model is "
+              "pinned to `ollama/*` and the child environment is credential-scrubbed, so no "
+              "subscription and no credential is involved — VRAM residency (invariant 22) and the "
+              "worktree are what govern it"))
+    return WorkerPaneSession(
+        chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
+        residency_decision=decision.as_dict(), residency_budget=dict(budget),
         subscription_governed=False, _release=None)

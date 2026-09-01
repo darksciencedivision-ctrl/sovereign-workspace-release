@@ -31,6 +31,8 @@ Honesty rules enforced here:
 """
 from __future__ import annotations
 
+import shutil
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -109,6 +111,17 @@ _OP12_NATIVE_MODEL_PREFIX: dict[str, str] = {
 # ADMITTED rather than as fixed; a rename remains the tidier end state and is not this unit's call.
 _LOCAL_PROVIDER = "ollama_local"
 
+#: The OpenCode coding-pane provider (EPC-04). A DISTINCT id from `ollama_local`, not a role
+#: variant of it: both run a local model on the same card, but one is a bare REPL and the other is
+#: a harness with write hands inside a git worktree. One id for both would leave the node record —
+#: and this picker's own group list — unable to say which of the two it is describing.
+#:
+#: Spelled here rather than imported from `worker_pane_spawn` because the dependency runs the other
+#: way (the supervisor imports nothing from the picker). `registered_providers()` intersects this
+#: table with the authorizer's real dispatch set, so an id that drifts out of the supervisor stops
+#: being reported as registered instead of quietly becoming unspawnable.
+_OPENCODE_PROVIDER = "opencode_local"
+
 
 # THE picker's provider table: (provider id, display, locality). One declaration, from which the
 # rendered group list AND both registration accessors are derived. Two hand-maintained enumerations
@@ -124,6 +137,11 @@ _PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     (GROK_ADAPTER, GROK_DISPLAY, "frontier"),
     (ANTIGRAVITY_ADAPTER, ANTIGRAVITY_DISPLAY, "frontier"),
     (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
+    # EPC-04. Locality "local" is load-bearing, not cosmetic: it keeps these options out of
+    # `registered_frontier_providers()`, and therefore out of the status bar's n/allowance
+    # counters — an OpenCode pane holds no subscription terminal and counting one would advertise
+    # spend that does not exist (invariant 19/27).
+    (_OPENCODE_PROVIDER, "OpenCode (local harness)", "local"),
 )
 
 
@@ -148,9 +166,11 @@ def registered_providers() -> frozenset[str]:
     from node_runtime.supervisor.worker_pane_spawn import (  # noqa: PLC0415 — import cycle
         FRONTIER_PANE_ADAPTERS,
         OLLAMA_LOCAL_ADAPTER,
+        OPENCODE_LOCAL_ADAPTER,
     )
 
-    dispatchable = frozenset(FRONTIER_PANE_ADAPTERS) | {OLLAMA_LOCAL_ADAPTER}
+    dispatchable = frozenset(FRONTIER_PANE_ADAPTERS) | {OLLAMA_LOCAL_ADAPTER,
+                                                        OPENCODE_LOCAL_ADAPTER}
     return frozenset(p for p, _display, _locality in _PROVIDER_TABLE) & dispatchable
 
 
@@ -421,6 +441,19 @@ def _local_group_reason(ollama_models: list[str],
     return None
 
 
+def _detect_opencode() -> bool:
+    """Is the `opencode` CLI on this host's PATH?
+
+    `shutil.which`, which is the SAME question `OpenCodeCliHarness` asks when it resolves the
+    binary the pane actually launches. Asking it differently here — a version call, a config file,
+    a cached flag — is how a picker comes to offer an option the spawn path then refuses.
+
+    Injectable (`build_pane_picker(opencode_present=...)`) so the deterministic suite does not
+    depend on what happens to be installed on the machine running it.
+    """
+    return any(shutil.which(n) for n in ("opencode", "opencode.cmd", "opencode.ps1"))
+
+
 def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
                    unavailable_reason: str | None = None,
                    ceiling_reasons: dict[str, str] | None = None) -> list[dict[str, Any]]:
@@ -503,6 +536,67 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
     return sorted(options, key=lambda o: o["label"])
 
 
+#: Substrings that mark a local model as CODE-ORIENTED. An OpenCode pane will technically start
+#: with any model, but offering every general chat model as a coding harness makes the menu a wall
+#: of options the operator has to know better than. This narrows the DEFAULT menu; it is not a
+#: capability claim and it gates nothing — `worker_pane_spawn` never consults it.
+_CODING_MODEL_MARKERS = ("coder", "code", "devstral", "starcoder", "codestral", "codellama")
+
+
+def _opencode_options(ollama_models: list[str], residency: dict[str, str] | None,
+                      unavailable_reason: str | None = None,
+                      ceiling_reasons: dict[str, str] | None = None,
+                      *, opencode_present: bool = False) -> list[dict[str, Any]]:
+    """One OpenCode option per code-oriented local model (EPC-04 W-2).
+
+    The operator asked for "open code, the harness, an available slot to be picked in one of the
+    terminals, and then I'll load a model into it" — so OpenCode is offered AS a selection, with
+    the model chosen at the same time, which is the shape every other option in this picker has.
+
+    ABSENT MEANS GREYED, NEVER HIDDEN. When the `opencode` CLI is not installed the options are
+    still listed, carrying the reason. That is this module's stated contract (S-19, ENTRY 017:
+    "excluded from selection with a stated reason, not silently hidden") and it is the difference
+    between the operator learning he needs to install something and the feature appearing not to
+    exist. `worker_pane_spawn` refuses these independently — the greying is disclosure, not a gate.
+    """
+    absent = None if opencode_present else (
+        "the `opencode` CLI is not on this host's PATH — install it to open a coding pane")
+    ceiling_reasons = ceiling_reasons or {}
+    options: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for name in ollama_models:
+        if not isinstance(name, str) or not name.strip() or name in seen:
+            continue
+        seen.add(name)
+        if not any(marker in name.lower() for marker in _CODING_MODEL_MARKERS):
+            continue
+        # The host-wide VRAM refusal and the operator's ceiling apply to an OpenCode pane exactly
+        # as they do to a bare local pane: it is the same weights on the same card. Whichever
+        # reason already greys the model is kept, and only then is OpenCode's own absence added.
+        reason = unavailable_reason or ceiling_reasons.get(name) or absent
+        options.append({
+            "provider": _OPENCODE_PROVIDER,
+            "adapter": _OPENCODE_PROVIDER,
+            "locality": "local",
+            "subscription_backed": False,
+            "label": f"OpenCode · {name}",
+            "model_slug": name,
+            "verified": True,
+            "is_fallback": False,
+            # CODING ONLY, and never "conductor". A harness with write hands is not a seat from
+            # which to conduct, and the conductor seat is resolved from reasoning options.
+            "roles": ["coding"],
+            "registered": True,
+            "conductor_capable": False,
+            "residency": UNKNOWN if residency is None else residency.get(name, NOT_LOADED),
+            "available": reason is None,
+            "unavailable_reason": reason,
+            "note": ("OpenCode harness pane — runs in its own git worktree, pinned to a local "
+                     "`ollama/*` model, no credential and no subscription (§2.3, invariant 23)"),
+        })
+    return sorted(options, key=lambda o: o["label"])
+
+
 def build_pane_picker(
     live: LiveAuthorization,
     *,
@@ -513,6 +607,7 @@ def build_pane_picker(
     codex_authenticated: bool = False,
     local_unavailable_reason: str | None = None,
     local_ceiling_reasons: dict[str, str] | None = None,
+    opencode_present: bool | None = None,
     grok: ProviderCliInventory | None = None,
     antigravity: ProviderCliInventory | None = None,
 ) -> dict[str, Any]:
@@ -557,17 +652,30 @@ def build_pane_picker(
     antigravity_options, antigravity_reason = _op12_options(ANTIGRAVITY_ADAPTER, live, antigravity)
     local = _local_options(ollama_models, residency, local_unavailable_reason,
                            local_ceiling_reasons)
+    opencode = _opencode_options(
+        ollama_models, residency, local_unavailable_reason, local_ceiling_reasons,
+        # None ⇒ probe the real host; the suite injects a value so the option set does not
+        # depend on what happens to be installed on the machine running it.
+        opencode_present=(_detect_opencode() if opencode_present is None else opencode_present))
 
     # Groups come from the ONE provider table, so `registered_providers()` cannot claim a provider
     # this list does not render (or vice versa).
     by_provider = {_ANTHROPIC: anthropic, _OPENAI: openai, GROK_ADAPTER: grok_options,
-                   ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local}
+                   ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local,
+                   _OPENCODE_PROVIDER: opencode}
     reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason,
                _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason)}
     providers = [{"provider": p, "display": display, "options": by_provider[p],
                   "status": _group_status(by_provider[p], reasons.get(p))}
                  for p, display, _locality in _PROVIDER_TABLE]
-    flat = anthropic + openai + grok_options + antigravity_options + local
+    # DERIVED from the groups, not re-assembled beside them. The hand-written sum this replaces
+    # (`anthropic + openai + grok_options + antigravity_options + local`) is the same
+    # second-enumeration hazard the note below describes, one line earlier: EPC-04 added a provider
+    # to the table and to `by_provider`, and the flat list silently kept omitting it — the picker
+    # rendered an OpenCode group while `options` and every count behaved as if it did not exist.
+    # Derivation makes `options == the union of the groups` true by construction rather than by
+    # remembering, which is exactly what `test_..._wellformed_picker` asserts.
+    flat = [o for group in providers for o in group["options"]]
     # Locality comes from the ONE provider table, so a provider added there is counted correctly
     # without a second edit here. The previous form named the two frontier lists literally, which
     # would have left `counts.frontier` reporting a number that excluded the two providers this
