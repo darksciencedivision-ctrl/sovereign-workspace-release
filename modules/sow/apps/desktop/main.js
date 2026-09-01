@@ -67,6 +67,7 @@ const { sourceApprovalDrawerFeed, routeApprovalDecision, unavailableApprovalFeed
 const { SessionApprovalLog } = require("./approvals/session-events");
 const { conductorBadge, conductorSuccessionControl } = require("../../terminal/compositor/conductor-pane");
 const { conductorDispatchSummary } = require("../../terminal/compositor/conductor-dispatch");
+const { delegateToPane } = require("./control/conductor-delegation");
 const { buildApprovalDrawer, summarizeApprovalDrawer } = require("../../terminal/compositor/approval-drawer");
 const {
   voiceControl, voiceOutcomeBadge, summarizeVoice, voiceTurnIndicator,
@@ -1919,13 +1920,13 @@ function registerIpc() {
   }
 
   /**
-   * Phase 17C `.mic`: REAL operator speech. Write the bytes, transcribe through the real engine, and
-   * delete the file — the delete guaranteed by `withCapture`'s `finally` on every path (invariant 26).
+ * Phase 17C `.mic`: REAL operator speech. Write the bytes, transcribe through the real engine, and
+ * delete the file — the delete guaranteed by `withCapture`'s `finally` on every path (invariant 26).
    *
-   * The renderer is the least-trusted surface (invariant 29): `CaptureStore.write` refuses anything
-   * that is not a bounded RIFF/WAVE before it touches disk, and a refusal is reported as the honest
-   * fail-closed feed — never a fabricated delivery, and never a silent fall-back to the mock, which
-   * would be a pretend-to-hear on the one path where the operator really did speak.
+ * The renderer is the least-trusted surface (invariant 29): `CaptureStore.write` refuses anything
+ * that is not a bounded RIFF/WAVE before it touches disk, and a refusal is reported as the honest
+ * fail-closed feed — never a fabricated delivery, and never a silent fall-back to the mock, which
+ * would be a pretend-to-hear on the one path where the operator really did speak.
    */
   async function captureFromPcm(payload) {
     const store = ensureCaptureStore();
@@ -2426,6 +2427,37 @@ async function notifyNode(nodeId, prompt) {
   return paneWriter.notifyNode(nodeId, prompt);
 }
 
+/**
+ * Delegate one task to one LOCAL worker pane and read its answer back (EPC-03 L5-3/L5-4).
+   *
+ * WHY THIS EXISTS SEPARATELY FROM `assign_task`. That path writes a task and then waits for the
+ * worker to call `publish_candidate` over MCP, which is right for a frontier coding agent that
+ * has the Sovereign tools wired in. A pane running `ollama run llama3.2:3b` is a bare REPL: it
+ * has no tools, it cannot call `publish_candidate`, and it never will. A local worker was
+ * therefore assignable and could never complete an assignment, because completion was defined
+ * as a call it cannot make.
+   *
+ * So the shell reads the answer off the pane and publishes it on the pane's behalf. The
+ * candidate is marked `self_published: false` / `source: "observed_pane_output"` — weaker
+ * evidence than a node's own publication, and recorded as such rather than smoothed over.
+   *
+ * `paneWriter.writePrompt` is passed, NOT `writePanePrompt`: the latter collapses the writer's
+ * record to its boolean, and the U328 refusal REASON is exactly what a delegation must surface.
+ * A withheld write has to be distinguishable from a pane that simply said nothing.
+   *
+ * This does NOT make a worker leg live. `_assert_legs_honest` and `build_acceptance_packet`
+ * remain the only things that may say a worker executed anything, and neither is touched here
+ * (L5-5, parked with its dossier).
+ */
+async function delegateToWorkerPane(paneId, nodeId, task, options = {}) {
+  return delegateToPane({
+    window: readinessWindow,
+    writePrompt: (id, body) => paneWriter.writePrompt(id, body),
+    sleep: pause,
+    log,
+  }, { paneId, nodeId, task, ...options });
+}
+
 /** Why a system write into this pane would be refused right now, or null. Callers that own an
  *  operational state consult this so a withheld write is reported as the provider state it is. */
 function paneWriteRefusalFor(paneId) {
@@ -2537,6 +2569,10 @@ const applicationControl = createApplicationControl({
   mcpState: (nodeId, record) => (sovereignControl && record
     ? sovereignControl.connectionState(nodeId) : null),
   writePanePrompt, log,
+  // EPC-03 L5-3/L5-4. Reachable from the control surface so the delegation loop is WIRED rather
+  // than merely built; nothing here calls it on launch, because an app launch must not start
+  // spending model time on the operator's behalf.
+  delegateToWorkerPane,
 });
 const {
   list_models: controlListModels,

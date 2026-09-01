@@ -89,10 +89,15 @@ class TheConductorCanAsk(unittest.TestCase):
 
     def test_NOT_asking_is_a_first_class_outcome(self) -> None:
         """Measured on the live model: with three idle panes it declined and said why. A conductor
-        that always asks is not deciding, and a turn with no requests must not look like a fault."""
+        that always asks is not deciding, and a turn with no requests must not look like a fault.
+
+        `max_panes=4` against three live panes leaves ROOM deliberately. The original scenario was
+        three panes against a cap of three, which is room 0 — a case the bound now answers without
+        calling the model at all. Testing the model's own restraint requires giving it the option
+        to be unrestrained; otherwise this asserts the short-circuit twice and the model never."""
         turn = request_worker_panes(
             objective="summarise one paragraph", live_panes=["pane-1", "pane-2", "pane-3"],
-            installed_models=INSTALLED, max_panes=3,
+            installed_models=INSTALLED, max_panes=4,
             transport=daemon(content="No additional workers are required for this task."))
         self.assertEqual(turn.requests, [])
         self.assertIsNone(turn.error)
@@ -108,13 +113,20 @@ class TheConductorCanAsk(unittest.TestCase):
                              done_reason="length"))
         self.assertTrue(turn.truncated)
 
-    def test_the_tool_turn_budget_exceeds_the_decomposition_budget(self) -> None:
-        """Same measurement, expressed as a rule. A thinking model spends tokens before its first
-        tool call, so a budget sized for the answer alone truncates the request list."""
-        from adapters.local.conductor_backend import LOCAL_CONDUCTOR_MAX_TOKENS
-        self.assertGreater(TOOL_TURN_MAX_TOKENS, 0)
+    def test_the_tool_turn_budget_is_the_MEASURED_one(self) -> None:
+        """SUPERSEDED ASSERTION, and the supersession is the point.
+
+        This used to assert `TOOL_TURN_MAX_TOKENS != LOCAL_CONDUCTOR_MAX_TOKENS`, beside a
+        docstring claiming the tool budget was "bigger than" the decomposition budget. Neither
+        survived checking: the values were 1024 and 2048, so the tool budget was SMALLER than the
+        comment claimed, and the test passed only because two unrelated numbers happened to
+        differ. An inequality between independent constants asserts nothing about either.
+
+        The real property is the measurement: 1024 truncates a thinking conductor mid-reasoning
+        and 2048 does not. That the decomposition budget is also 2048 is a coincidence of two
+        separate measurements, not a relationship worth pinning."""
+        self.assertGreaterEqual(TOOL_TURN_MAX_TOKENS, 2_048)
         self.assertLess(TOOL_TURN_MAX_TOKENS, 8_192)
-        self.assertNotEqual(TOOL_TURN_MAX_TOKENS, LOCAL_CONDUCTOR_MAX_TOKENS)
 
     def test_an_uninstalled_model_is_refused_with_the_reason(self) -> None:
         """A model working from the list in its prompt can transpose a tag. Passing that to the
@@ -297,3 +309,88 @@ class TheOperatorDecides(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheBoundIsCheckedBeforeTheModelIsCalled(unittest.TestCase):
+    """Measured twice on the operator's live host, 2026-09-01.
+
+    With the bound at 1 and two panes already up, the conductor was told "at most 1 worker
+    pane(s), 2 already up" and spent its ENTIRE token budget reasoning about an instruction it
+    could not satisfy — returning `done_reason=length`, empty content, zero requests.
+
+    The outcome was correct: nothing was requested and nothing was queued. The RECORD was not. A
+    turn reporting `truncated` with no content reads like a model that failed, when what happened
+    is that the host had no room and the answer was knowable before asking.
+
+    This is not a new refusal. `max_panes` was always enforced, after the fact. It is the same
+    refusal made without spending a model call, and stated in words instead of as a truncation.
+    """
+
+    def test_no_model_call_is_made_when_there_is_no_room(self) -> None:
+        called = []
+
+        def transport(payload):
+            called.append(payload)
+            raise AssertionError("the model must not be called when the bound forbids a request")
+
+        turn = request_worker_panes(
+            objective="review two modules", live_panes=["pane-1", "pane-2"],
+            installed_models=INSTALLED, max_panes=1, bound_reason="measured VRAM",
+            transport=transport)
+        self.assertEqual(called, [])
+        self.assertEqual(turn.requests, [])
+        self.assertFalse(turn.truncated, "a turn that was never taken cannot be truncated")
+
+    def test_it_says_WHY_rather_than_returning_an_empty_turn(self) -> None:
+        turn = request_worker_panes(
+            objective="o", live_panes=["pane-1"], installed_models=INSTALLED,
+            max_panes=1, bound_reason="8151 MiB VRAM measured by nvidia-smi",
+            transport=daemon())
+        self.assertIn("at most 1 worker pane(s)", turn.content)
+        self.assertIn("1 are already up", turn.content)
+        self.assertIn("nvidia-smi", turn.content)
+        self.assertIn("The conductor was not called", turn.content)
+
+    def test_room_still_available_DOES_call_the_model(self) -> None:
+        """The short-circuit must not become a blanket refusal."""
+        called = []
+
+        def transport(payload):
+            called.append(payload)
+            return {"model": "granite4.2:3b", "done_reason": "stop",
+                    "message": {"content": "", "tool_calls": [
+                        call(SPAWN_TOOL_NAME, model="llama3.2:3b", reason="needed")]}}
+
+        turn = request_worker_panes(
+            objective="o", live_panes=["pane-1"], installed_models=INSTALLED,
+            max_panes=3, bound_reason="measured", transport=transport)
+        self.assertEqual(len(called), 1)
+        self.assertEqual([r.model for r in turn.requests], ["llama3.2:3b"])
+
+
+class TheTokenBudgetFitsAThinkingConductor(unittest.TestCase):
+    """MEASURED with granite4.2:3b, room for two panes, one worker per module:
+
+        num_predict=1024   done_reason=length   0 requests   <- truncated mid-reasoning
+        num_predict=2048   done_reason=stop     1 request
+        num_predict=4096   done_reason=stop     1 request    <- buys nothing more
+
+    1024 shipped because every test here drives a STUBBED transport that returns instantly and
+    has no thinking phase — the fixture could not exhibit the failure. Same gap that hid the
+    node-log reader defect the same night.
+    """
+
+    def test_the_budget_is_at_the_measured_knee(self) -> None:
+        self.assertGreaterEqual(TOOL_TURN_MAX_TOKENS, 2_048)
+
+    def test_the_budget_actually_reaches_the_daemon(self) -> None:
+        """A constant nothing sends is a constant nothing honours."""
+        seen = {}
+
+        def transport(payload):
+            seen.update(payload.get("options") or {})
+            return {"message": {"content": "", "tool_calls": []}}
+
+        request_worker_panes(objective="o", live_panes=[], installed_models=INSTALLED,
+                             max_panes=2, transport=transport)
+        self.assertEqual(seen.get("num_predict"), TOOL_TURN_MAX_TOKENS)

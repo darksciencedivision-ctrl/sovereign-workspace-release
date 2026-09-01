@@ -39,11 +39,22 @@ from typing import Any, Mapping, Sequence
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
 
-#: Bigger than `LOCAL_CONDUCTOR_MAX_TOKENS`, and the measurement above is the reason: a thinking
-#: model spends tokens reasoning before it emits its first tool call, and a budget sized for the
-#: answer alone truncates the request list. Still bounded - an unbounded turn is how a conductor
-#: spends a minute deciding to open one terminal.
-TOOL_TURN_MAX_TOKENS = 1_024
+#: Sized from measurement, not from a relationship to any other budget: a thinking model
+#: spends tokens reasoning before it emits its first tool call, and a budget sized for the answer
+#: alone truncates the request list. Still bounded - an unbounded turn is how a conductor spends a
+#: minute deciding to open one terminal.
+#:
+#: MEASURED on the operator's host, 2026-09-01, with granite4.2:3b conducting and room for two
+#: panes, asking for one worker per module:
+#:
+#:     num_predict=1024   done_reason=length   0 requests   <- truncated mid-reasoning
+#:     num_predict=2048   done_reason=stop     1 request
+#:     num_predict=4096   done_reason=stop     1 request    <- buys nothing more
+#:
+#: 2048 is the knee, not a round number picked for comfort. 1024 shipped because the unit tests
+#: drive a STUBBED transport that returns instantly and has no thinking phase at all - the same
+#: fixture-versus-reality gap that hid the node-log reader defect the same night.
+TOOL_TURN_MAX_TOKENS = 2_048
 
 SPAWN_TOOL_NAME = "open_worker_pane"
 
@@ -193,6 +204,27 @@ def request_worker_panes(
     response. The default posts to the loopback daemon. Never raises: a conductor turn that cannot
     reach its model produces a turn with an error, not an exception that takes the dispatch.
     """
+    # MEASURED on the operator's host, 2026-09-01, with two panes up and an 8B conductor at
+    # 8192 context: the derived bound was 0, the model was told "at most 0 worker pane(s)", and
+    # it spent its entire budget reasoning about an instruction it could not satisfy - returning
+    # `done_reason=length` with empty content and no requests.
+    #
+    # The OUTCOME was right (nothing was requested, nothing was queued) but the record was poor:
+    # a turn that reports `truncated` and no content reads like a model that failed, when what
+    # actually happened is that the host had no room and the answer was known before asking.
+    #
+    # So the bound is checked BEFORE the call. This is not a new refusal - `max_panes` was always
+    # enforced after the fact, below - it is the same refusal, made without spending a model call
+    # and recorded in words instead of as a truncation.
+    room = max(0, int(max_panes) - len(live_panes))
+    if room <= 0:
+        return ToolTurn(
+            requests=[],
+            content=(f"No worker pane was requested: this host holds at most {max_panes} worker "
+                     f"pane(s) ({bound_reason}) and {len(live_panes)} are already up, so there is "
+                     f"no room to ask for one. The conductor was not called."),
+            model_reported=None)
+
     payload = {
         "model": model,
         "messages": [
@@ -229,7 +261,6 @@ def request_worker_panes(
 
     # The bound, enforced. The model was told it in the system prompt above; being told is not
     # being stopped, and a model is not a gate.
-    room = max(0, int(max_panes) - len(live_panes))
     if len(requests) > room:
         kept = requests[:room]
         for extra in requests[room:]:
