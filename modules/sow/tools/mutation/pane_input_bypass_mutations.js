@@ -256,7 +256,7 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // no code, touches no anchor, and main.js still parses. Re-run and every mutation CAUGHT.
 // Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript labels),
 // BB350F20... (option-C deferred startup), 54153697... (pre-P0-2), 5F79A2C1... (pre-BOM-removal)
-const PINNED_BASELINE = "D0724DC405419E2DA88BC5FED2A70E0CA8DB038765A164F28F57A816B43E3AD4";
+const PINNED_BASELINE = "693FFDDAF5CAF7897486A23D98489394E58BACE60D4A54FE10207BF7FCCB4613";
 
 let lockFd;
 try {

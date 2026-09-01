@@ -108,6 +108,11 @@
     // A self-check-only no-delivery marker: main returns before writing to the conductor.
     { method: "sendOperatorText", channel: "conductor:operator-text", pane: "none",
       args: () => [SWEEP_PROBE, true] },
+    // EPC-03. Refused before anything happens: `runObjective` returns `{ok:false}` on an empty
+    // objective, so the sweep drives the channel without dispatching, spawning or writing to any
+    // pane. The empty string is the safe argument U177 asks for, not a narrowed claim.
+    { method: "runObjective", channel: "conductor:run-objective", pane: "none",
+      args: () => [{ objective: "" }] },
     // refused: a live conductor session is already running in pane 1 (main's own fail-closed path)
     { method: "launchConductor", channel: "conductor:launch", pane: "none", args: () => [] },
     // refused: selection is pre-launch only, and an empty descriptor cannot resolve or persist

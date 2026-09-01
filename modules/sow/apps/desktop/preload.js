@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld("sovereign", {
   // delivery path voice chat uses (deliverConductorChat); never straight to a PTY.
   sendOperatorText: (text, sweep = false) => ipcRenderer.invoke(
     "conductor:operator-text", sweep ? { text, __sweep: true } : { text }),
+  /** EPC-03: run an operator objective as a governed dispatch and delegate it to the live worker
+   *  panes. Separate from `sendOperatorText` deliberately — typing to the conductor is
+   *  conversation, and only the operator says when a message is work. */
+  runObjective: (payload) => ipcRenderer.invoke("conductor:run-objective", payload || {}),
   onConductorTranscript: (cb) => ipcRenderer.on("shell:conductor-transcript", (_e, t) => cb(t)),
   input: (id, data) => ipcRenderer.invoke("pane:input", id, data),
   // Phase 16A: byte-exact scrollback for a pane's session, replayed when the term view (re)attaches.

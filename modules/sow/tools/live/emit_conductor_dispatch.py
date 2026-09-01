@@ -203,9 +203,16 @@ def _live_worker_factory(model: str | None):
     return _factory
 
 
-def emit(*, live_workers: bool = False, model: str | None = None) -> dict:
+def emit(*, live_workers: bool = False, model: str | None = None,
+         objective: str | None = None) -> dict:
     """Run the governed dispatch in a self-cleaning tempdir and return the folded feed. The tempdir
     is created UNDER the OS temp root (never in the repo, §2.5) and removed on exit.
+
+    `objective` is the OPERATOR'S, when he has given one. Absent, the replayable smoke objective is
+    used exactly as before, so the launch dispatch and every mock receipt folded from it are
+    unchanged. Supplying one takes the REAL clock for the same reason a live run does: a dispatch
+    over something the operator actually asked for is dated when it happened, not stamped with the
+    replayable `DISPATCH_TS` that exists to make the smoke path byte-reproducible.
 
     `live_workers=False` (the default, and the ONLY thing the shell's launch path asks for) makes no
     live call at all. `live_workers=True` (Phase 17B `.legs`) replaces the deterministic pool with a
@@ -219,14 +226,18 @@ def emit(*, live_workers: bool = False, model: str | None = None) -> dict:
                 conductor_dir=CONDUCTOR_DIR, store_root=Path(td),
                 # The LIVE path alone carries the criteria brief; the shell's launch dispatch keeps
                 # the replayable objective every mock receipt was folded from.
-                objective=LIVE_WORKER_OBJECTIVE if live_workers else DEFAULT_OBJECTIVE,
+                objective=(objective if objective
+                           else (LIVE_WORKER_OBJECTIVE if live_workers else DEFAULT_OBJECTIVE)),
                 # the live worker is the ONLY node in the pool, so the one `reasoning` subtask it can
                 # serve routes to it by descriptor and the rest are honestly QUEUED — one live call
-                worker_ids=() if live_workers else ("worker-A", "worker-B"),
+                # `None` lets the dispatch boundary resolve the operator's REAL live panes from
+                # the node registry (L3-5). The synthetic pair stays only on the replayable
+                # smoke path, whose receipts are folded from exactly those two ids.
+                worker_ids=() if live_workers else (None if objective else ("worker-A", "worker-B")),
                 # A LIVE run takes the REAL clock: a run that spent a real call is dated when it
                 # happened, never with the mock path's replayable `DISPATCH_TS` (inv 11). The mock
                 # path keeps the fixed stamp so its receipts stay byte-reproducible.
-                clock=_utc_now if live_workers else None,
+                clock=_utc_now if (live_workers or objective) else None,
                 worker_handles=_live_worker_factory(model) if live_workers else None)
     except Exception as exc:  # noqa: BLE001 — even a tempdir/setup fault is reported, never faked
         feed = undispatched_feed(f"{type(exc).__name__}: {exc}",
@@ -257,10 +268,28 @@ def main(argv: list[str]) -> int:
             idx = argv.index("--model")
             if idx + 1 < len(argv):
                 model = argv[idx + 1]
-        sys.stdout.write(json.dumps(emit(live_workers=live, model=model), default=str) + "\n")
+        objective = None
+        if "--objective-stdin" in argv:
+            # OVER STDIN, NEVER ARGV. The operator's objective is caller-authored free text of
+            # arbitrary length and content; putting it in a process argument list is the hazard
+            # W-01 names and `select_conductor.py --select-stdin` already refuses. A malformed or
+            # empty payload falls back to the smoke objective rather than dispatching something
+            # half-read.
+            try:
+                payload = json.loads(sys.stdin.read() or "{}")
+                text = str((payload or {}).get("objective") or "").strip()
+                objective = text or None
+            except (json.JSONDecodeError, ValueError):
+                objective = None
+        sys.stdout.write(
+            json.dumps(emit(live_workers=live, model=model, objective=objective),
+                       default=str) + "\n")
         return 0
     sys.stderr.write(
-        "usage: emit_conductor_dispatch.py --emit-conductor-dispatch [--live-workers] [--model SLUG]\n"
+        "usage: emit_conductor_dispatch.py --emit-conductor-dispatch [--live-workers] "
+        "[--model SLUG] [--objective-stdin]\n"
+        "  --objective-stdin reads {\"objective\": \"...\"} from stdin and dispatches THAT,\n"
+        "  resolving the operator's real live panes from the node registry.\n"
         "  prints the governed conductor_dispatch_feed@1.0 JSON the shell renders (Phase 16C .dispatch).\n"
         "  --live-workers spawns ONE governed live claude_code worker (Phase 17B .legs) — every live\n"
         "  gate applies and an unmet gate yields the honest un-dispatched feed, never a fake dispatch.\n"

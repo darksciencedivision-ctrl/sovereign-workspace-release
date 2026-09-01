@@ -102,9 +102,18 @@ function fetchConductorDispatchFeed(opts = {}) {
   const pythonArgs = opts.pythonArgs || defaultPythonArgs();
   const cwd = opts.cwd;
   const liveWorkers = opts.liveWorkers === true;
+  // The OPERATOR'S objective, when he has given one. Absent, the emitter keeps its replayable smoke
+  // objective and this path is byte-for-byte what it was.
+  const objective = typeof opts.objective === "string" && opts.objective.trim()
+    ? opts.objective.trim() : null;
   const timeoutMs = opts.timeoutMs || (liveWorkers ? 900000 : 40000);
   const args = [...pythonArgs, "tools/live/emit_conductor_dispatch.py", "--emit-conductor-dispatch"];
   if (liveWorkers) args.push("--live-workers");
+  // OVER STDIN, NEVER ARGV. The objective is operator-authored free text of arbitrary length and
+  // content, and a process argument list is the wrong place for it — the hazard W-01 names and the
+  // reason `select_conductor.py` reads its selection from a pipe. The flag only says a payload is
+  // coming; the payload itself never touches the command line.
+  if (objective) args.push("--objective-stdin");
 
   return new Promise((resolve, reject) => {
     let child;
@@ -113,6 +122,18 @@ function fetchConductorDispatchFeed(opts = {}) {
     } catch (e) {
       reject(new ConductorDispatchSourceError(`could not launch the conductor-dispatch emitter: ${e.message}`));
       return;
+    }
+    if (objective) {
+      // Written and closed immediately: the emitter reads to EOF, so an unclosed pipe would hang
+      // it until the timeout above rather than failing.
+      try {
+        child.stdin.write(JSON.stringify({ objective }));
+        child.stdin.end();
+      } catch (e) {
+        reject(new ConductorDispatchSourceError(
+          `could not send the objective to the conductor-dispatch emitter: ${e.message}`));
+        return;
+      }
     }
     let out = "";
     let err = "";

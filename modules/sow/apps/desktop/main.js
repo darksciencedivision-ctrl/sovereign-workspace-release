@@ -2458,6 +2458,90 @@ async function delegateToWorkerPane(paneId, nodeId, task, options = {}) {
   }, { paneId, nodeId, task, ...options });
 }
 
+/**
+ * THE LOOP, joined (EPC-03). Operator objective -> governed dispatch -> delegation -> candidates.
+ *
+ * The two halves have both worked for a while and were never connected. Typing reached the
+ * CONDUCTOR's pane as text (`deliverConductorChat`); the governed dispatch ran once at launch over
+ * the emitter's own fixed smoke objective and never saw anything the operator asked for. So the
+ * DISPATCH line named real panes while reflecting no input, and `delegateToPane` sat wired and
+ * uninvoked.
+ *
+ * EXPLICIT, NOT AUTOMATIC. This is not hung off `conductor:operator-text`. Every message the
+ * operator types is not an objective — most are conversation — and decomposing each one would
+ * spend model time on the operator's behalf without being asked, which is the rule an app launch
+ * already obeys. The operator says when a message is work.
+ *
+ * WHAT IT DOES NOT DO. It does not make a worker leg live: `_assert_legs_honest` and
+ * `build_acceptance_packet` remain the only things that may say a worker executed anything, and
+ * neither is touched. Every candidate it returns is marked `self_published: false` /
+ * `source: "observed_pane_output"`, because the shell READ it off a pane rather than the node
+ * having ASSERTED it. L5-5 is parked and this does not quietly close it.
+ *
+ * Fail-closed at every step: a dispatch that will not run, an assignment naming no live pane, and
+ * a pane whose write gate refuses are each REPORTED, never worked around.
+ */
+async function runObjective(objective, options = {}) {
+  const text = String(objective || "").trim();
+  if (!text) return { ok: false, reason: "empty objective" };
+
+  let feed;
+  try {
+    feed = await sourceConductorDispatchFeed({ cwd: REPO_ROOT, objective: text });
+  } catch (e) {
+    log(`objective: governed dispatch unavailable (fail-closed, nothing delegated): ${e.message}`);
+    return { ok: false, reason: `dispatch unavailable: ${e.message}`, delegations: [] };
+  }
+  if (!feed || feed.dispatched !== true) {
+    const why = (feed && feed.reason) || "the governed dispatch did not run";
+    log(`objective: not dispatched (fail-closed): ${why}`);
+    return { ok: false, reason: why, feed, delegations: [] };
+  }
+
+  // Only assignments naming a pane that is actually up. An assignment to an id with no live pane
+  // is reported rather than written into whatever pane happens to be nearest.
+  const live = new Map();
+  for (const rec of liveWorkerRecords()) {
+    if (rec && rec.node_id && rec.paneId) live.set(rec.node_id, rec.paneId);
+  }
+
+  const delegations = [];
+  for (const assignment of feed.assignments || []) {
+    const nodeId = assignment && assignment.node;
+    const paneId = live.get(nodeId);
+    if (!paneId) {
+      delegations.push({ node_id: nodeId, pane_id: null, delivered: false,
+                         reason: "no live pane is registered for this assignment" });
+      continue;
+    }
+    const result = await delegateToWorkerPane(paneId, nodeId, {
+      task_id: assignment.task,
+      objective: text,
+      expected_output: "a concise, complete answer",
+    }, options);
+    delegations.push(result);
+    log(`objective: ${nodeId} (${paneId}) delivered=${result.delivered} answered=${result.answered}`
+      + (result.reason ? ` — ${result.reason}` : ""));
+  }
+
+  return {
+    ok: true,
+    objective: text,
+    assigned: (feed.assignments || []).length,
+    answered: delegations.filter((d) => d.answered).length,
+    // Carried verbatim so a caller cannot mistake this for an acceptance: the legs are the feed's.
+    legs: feed.legs,
+    live_workers_owed: feed.live_workers_owed,
+    delegations,
+    feed,
+  };
+}
+
+ipcMain.handle("conductor:run-objective", async (_e, payload) => {
+  const p = payload && typeof payload === "object" ? payload : {};
+  return runObjective(p.objective, p.options || {});
+});
+
 /** Why a system write into this pane would be refused right now, or null. Callers that own an
  *  operational state consult this so a withheld write is reported as the provider state it is. */
 function paneWriteRefusalFor(paneId) {
