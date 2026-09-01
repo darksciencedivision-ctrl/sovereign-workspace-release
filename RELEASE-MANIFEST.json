@@ -326,7 +326,7 @@
     },
     {
       "path": "tools/release/fixture_allowlist.json",
-      "sha256": "ef9f0285339bb3e0d60e9018bbfc94dc98b9c03ae3e2901a4bfa0cd1f34ac365"
+      "sha256": "5b44cc0f988e2d5595b8b3ff61f5f33353c163d3b9b139618b23ba5e53e207f3"
     },
     {
       "path": "tools/release/generate_module_provenance.py",
@@ -366,7 +366,7 @@
     },
     {
       "path": "tools/release/test_package_boundary_gate.py",
-      "sha256": "8556215657e5c1cd60dfcc5feed420b768fbf47a7781ec66fafea015cb88467e"
+      "sha256": "534507bfe325a23abfcadcb99dde3a210e7bdd623557eeb540d13d8c5cdc13db"
     },
     {
       "path": "tools/release/test_rebase_adapters.py",
