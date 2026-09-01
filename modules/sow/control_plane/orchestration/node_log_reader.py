@@ -59,27 +59,58 @@ def _record_of(row: dict[str, Any]) -> dict[str, Any]:
     return record if isinstance(record, dict) else {}
 
 
+def _node_key(row: dict[str, Any], data: dict[str, Any], record: dict[str, Any]) -> str:
+    """The STABLE identity of the node this row is about.
+
+    The row's own top-level `node_id` first, and that ordering is the whole correctness of this
+    module. Measured against the operator's real store, 2026-09-01: 102 rows, three kinds, and
+    only ONE field common to all three -
+
+        spawn       data={adapter, node_record{node_id: <uuid>}, pid, session_id, ...}
+        transition  data={frm, to, reason}
+        exit        data={exit_code, expected}
+
+    `data.node_key` is absent on every one of them, and `node_record.node_id` is a per-INCARNATION
+    uuid that appears only on spawn rows. Preferring it - which this function used to do - keyed
+    every spawn under a fresh uuid while the transitions and exits that carry the state and the
+    pid keyed under `worker-pane-N`. Nothing ever joined.
+
+    The visible cost, on the operator's own log: 36 phantom nodes reported, every one stuck at
+    SPAWNING with pid None, when the truth was two panes, both READY, both with live pids. A
+    surface built to stop the conductor guessing would have been guessing differently.
+    """
+    for candidate in (row.get("node_id"), data.get("node_key"), record.get("node_id")):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return ""
+
+
 def latest_pane_state(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Fold the event log into one current row per node, newest wins.
 
-    An append-only log records a HISTORY: a pane may be registered SPAWNING and later attested
-    READY with a pid, and both rows are permanent. The current state is the last row for that
-    node, never the first one found - reading the first is how a pane stays SPAWNING forever in
-    a surface that claims to show what is up now.
+    An append-only log records a HISTORY: a pane is spawned SPAWNING, attested with a pid, and
+    transitions to READY, and every one of those rows is permanent. The current state is the last
+    row for that node, never the first one found - reading the first is how a pane stays SPAWNING
+    forever in a surface that claims to show what is up now.
+
+    A `transition` row carries the new state in `data.to`, which is the only place it appears;
+    a fold that reads only `node_record.state` sees the spawn-time value for ever.
     """
     latest: dict[str, dict[str, Any]] = {}
     for row in rows:
         data = row.get("data") if isinstance(row.get("data"), dict) else {}
         record = _record_of(row)
-        node_key = (data.get("node_key") or record.get("node_id")
-                    or row.get("node_id") or "")
-        if not isinstance(node_key, str) or not node_key.strip():
+        node_key = _node_key(row, data, record)
+        if not node_key:
             continue
         pid = data.get("pid")
-        previous = latest.get(node_key.strip(), {})
-        latest[node_key.strip()] = {
-            "node_id": node_key.strip(),
-            "state": record.get("state") or data.get("state") or previous.get("state") or "UNKNOWN",
+        previous = latest.get(node_key, {})
+        # Order matters: a transition's `to` is NEWER than the spawn record's `state`.
+        state = (data.get("to") or record.get("state") or data.get("state")
+                 or previous.get("state") or "UNKNOWN")
+        latest[node_key] = {
+            "node_id": node_key,
+            "state": state,
             # A pid, once attested, is not un-attested by a later row that omits the field.
             "pid": pid if isinstance(pid, int) and pid > 0 else previous.get("pid"),
             "model": (record.get("model_ref") or data.get("model")
