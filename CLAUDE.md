@@ -54,7 +54,9 @@ Never by hand; only through the shell's authorized startup-test path. SOW only t
 
 `py -3.12` (3.12.10) always; bare `python` (3.14) never. Node 24, npm 11 (lifecycle scripts blocked by default — ADR-005). No Windows SDK; node-pty uses approved prebuilds. Ports: 5175 SOVEREIGN, 8700 Debate, 11434 Ollama, 5180 shell; tests use ephemeral ports. Host facts are observations: if reality differs, record the new fact; do not silently update assumptions.
 
-Application code never launches via `cmd.exe`, PowerShell, `.cmd`, `.bat`, or `shell=True`; absolute `.exe` paths and argv arrays only. PowerShell is permitted as the builder's own inspection, hashing, capture, and test-orchestration tool. No `git init/commit/push`, branches, tags, remotes anywhere.
+Application code never launches via `cmd.exe`, PowerShell, `.cmd`, `.bat`, or `shell=True`; absolute `.exe` paths and argv arrays only. PowerShell is permitted as the builder's own inspection, hashing, capture, and test-orchestration tool.
+
+Git: the builder may `commit` and `push` only on an explicit operator instruction for that specific change — never on its own initiative, never to tidy a tree it did not author, and never work it has not verified. It stages only what it changed; another author's uncommitted work is left alone and said so. No `git init`; no new branches, tags, or remotes. A commit is a record, never a promotion: it does not move a gate, does not become `PASS`, and confers no authority (§3, §4). Protected-tree git stays inspect-only per §8.
 
 ## 10. Evidence
 
