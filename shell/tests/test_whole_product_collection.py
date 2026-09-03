@@ -28,6 +28,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MINIMUM_COLLECTED = 3000
 
 
+def _selected(result: subprocess.CompletedProcess) -> int:
+    """The count pytest reports for a `--collect-only -q` run, whether or not it deselected.
+
+    With a `-m` selector the summary reads "N/M tests collected (K deselected)"; without one it
+    reads "M tests collected". Both start with the number that was SELECTED.
+    """
+    match = [ln for ln in result.stdout.splitlines() if "tests collected" in ln]
+    if not match:
+        return 0
+    return int(match[-1].split("/")[0].split()[0])
+
+
 def _collect(cwd: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q",
@@ -80,6 +92,73 @@ class WholeProductCollection(unittest.TestCase):
                     "errors during collection", result.stdout + result.stderr,
                     f"modules/{module} stopped collecting on its own"
                 )
+
+    def test_runtime_worktrees_are_not_collected(self) -> None:
+        """A coding pane's own git worktree must never be collected (EPC-04).
+
+        `test_repo_root_collection_reports_no_errors` above catches this only on a host that has
+        actually launched a coding pane — on a fresh clone `worktrees/` does not exist and the
+        guard passes while the configuration is still wrong. So the exclusion is pinned directly.
+
+        The defect it pins was measured: each `worktrees/worker-<pane>` holds a full copy of
+        `modules/sow`, `conftest.py` included, so collecting them registers the same conftest
+        plugin twice and pytest INTERRUPTS the run — `ValueError: Plugin already registered`,
+        exit 2, no result for the whole product. 2 errors with it collected, 0 without.
+        """
+        import configparser
+
+        parser = configparser.ConfigParser()
+        parser.read(REPO_ROOT / "pytest.ini", encoding="utf-8")
+        excluded = parser["pytest"]["norecursedirs"].split()
+        self.assertIn(
+            "worktrees", excluded,
+            "`worktrees/` is runtime output (it is already in .git/info/exclude) and collecting "
+            "it aborts the whole-product run; it must stay in norecursedirs"
+        )
+
+    def test_the_phase19_markers_actually_attach_in_a_whole_product_run(self) -> None:
+        """A marker declared but never applied is worse than an absent one.
+
+        `modules/sow/conftest.py` stamps `host_coupled` and `phase19_focused` by looking each
+        item up in two `getini` path lists. Only modules/sow/pytest.ini carried those lists, so a
+        run from the repository root marked NOTHING: `-m host_coupled` reported "no tests
+        collected (4094 deselected)" while the same selector from modules/sow returned its eight
+        files. `-m "not host_coupled"` therefore looked like it excluded the load-sensitive tests
+        and excluded none of them.
+
+        That is not hypothetical here: `test_opencode_candidate_live` drives a real coder model,
+        passes alone in 141s, and times out (returncode 124) against the full suite. It was
+        already declared host-coupled and still ran unmarked in the whole-product run.
+        """
+        for marker in ("host_coupled", "phase19_focused"):
+            with self.subTest(marker=marker):
+                result = _collect(REPO_ROOT, "-m", marker)
+                self.assertGreater(
+                    _selected(result), 0,
+                    f"`-m {marker}` selects nothing from the repository root — the marker is "
+                    f"declared in pytest.ini but its phase19_*_paths list is not, so conftest "
+                    f"stamps no item and the selector silently matches nothing"
+                )
+
+    def test_the_marking_is_identical_from_either_invocation(self) -> None:
+        """The subsets are declared once and must mark the same items however pytest is invoked.
+
+        This is what makes the single-source read in modules/sow/conftest.py checkable: the
+        per-module invocation was always correct, so the root invocation is compared against it
+        rather than against a number written down here.
+        """
+        module_root = REPO_ROOT / "modules" / "sow"
+        for marker in ("host_coupled", "phase19_focused"):
+            with self.subTest(marker=marker):
+                from_root = _collect(REPO_ROOT, "-m", marker, "modules/sow/tests")
+                from_module = _collect(module_root, "-m", marker, "tests")
+                self.assertEqual(
+                    _selected(from_root), _selected(from_module),
+                    f"`-m {marker}` selects a different set from the repository root than from "
+                    f"modules/sow — conftest is not seeing the declared subset in one of them"
+                )
+                self.assertGreater(_selected(from_module), 0,
+                                   f"the {marker} subset is empty; this test proves nothing")
 
     def test_the_shell_suite_is_reachable_from_the_repository_root(self) -> None:
         """P1-5: shell/tests/__init__.py imports `shell.tests…` absolutely, so it collects

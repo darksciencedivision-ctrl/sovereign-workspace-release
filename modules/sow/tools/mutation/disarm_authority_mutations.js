@@ -91,7 +91,22 @@ const MUTATIONS = [
   {
     id: "U179", what: "the manual-mode pane is trusted on vendor chrome alone again",
     file: WRITE, test: ["test/conductor-write.test.js"], cwd: DESKTOP,
-    find: "    { supervisorBoundary: supervisorEnforcedBoundary(readBoundary()) });",
+    // ANCHOR RESTORED. This mutation had gone quiet: its `find` was the single-line form
+    // `{ supervisorBoundary: supervisorEnforcedBoundary(readBoundary()) });`, and LOCAL-01 F-3
+    // (39079f6, "the Conductor seat is agnostic") added the local-conductor disjunct, wrapping the
+    // expression onto two lines. The harness reported it honestly — "its anchor matched 0 times in
+    // conductor-write.js" — and kept exiting non-zero, but the PROOF was no longer being taken:
+    // Guard 3's re-read could have been deleted and this suite would not have noticed.
+    //
+    // The mutation's intent is unchanged, which is what makes it worth repairing rather than
+    // dropping. Guard 1 has already checked the boundary; Guard 3 RE-READS it because the
+    // authority service can stop between the two, and a manual-mode pane with no live restriction
+    // is exactly what `paneAcceptsTypedText` refuses. Replacing the whole re-read with `true`
+    // restores the defect — the pane trusted on vendor chrome alone — across BOTH boundary kinds,
+    // so the repaired anchor grades the frontier and local paths together rather than silently
+    // grading only the half that existed when it was written.
+    find: "    { supervisorBoundary: supervisorEnforcedBoundary(readBoundary())\n"
+      + "        || localNonExecutingBoundary(readBoundary()) });",
     replace: "    { supervisorBoundary: true });",
   },
   {

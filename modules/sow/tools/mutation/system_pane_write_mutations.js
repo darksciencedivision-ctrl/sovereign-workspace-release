@@ -240,7 +240,23 @@ const PINS = {
   // the structural conductor mint. No write path, disarm sink, readiness path or PTY
   // write site moved. Anchors re-read on the new bytes; re-run CAUGHT, restores
   // byte-identical. Previous pin: DA9C7CA3...859F4.
-  [MAIN]: "526FBA8CF34235B6B3419771FA8DCF3727D5321FE8EF7D178D99C48C73801A0A",
+  //
+  // Re-pinned after a MEASURED PERIOD OF SILENCE, which is the part worth recording. The previous
+  // pin (526FBA8C) was the byte state at the import commit `cf50cde`, and `main.js` has since
+  // moved in EIGHT commits: bf855e7 (admission-before-spawn), e2e8e55 (CP-M1 reconcile), 1397a14
+  // (visible terminal cap), 39079f6 (agnostic Conductor seat), 029177e (receipts leave the tracked
+  // tree), ddcb87b (EPC-01 distribution blockers), 30ca496 (delegation wiring) and 570a642 (the
+  // operator objective reaching live worker panes). From the first of those onward this suite did
+  // not run at all: it fail-closes on a hash mismatch and exits 3, and it is NOT part of
+  // `npm test`, so nothing reported that a mutation proof had stopped being taken. The
+  // fail-closed refusal did its job; what was missing was anyone re-pinning it.
+  //
+  // Re-read against the new bytes before this pin: every mutation in this file is re-run below and
+  // every one is CAUGHT, each pinned file restoring BYTE-IDENTICAL — so no `find` anchor has been
+  // orphaned by those eight commits, and no guard mutated here has stopped catching its defect. A
+  // mutation whose anchor HAD gone stale would announce itself the way U179 does in
+  // `disarm_authority_mutations.js`: "its anchor matched 0 times".
+  [MAIN]: "693FFDDAF5CAF7897486A23D98489394E58BACE60D4A54FE10207BF7FCCB4613",
   // Added at 19.9 with M3. Its suite drives a modal refusal and proves zero prompt writes,
   // replacing the old circular source-order assertion over main.js.
   [CONDUCTOR_READINESS]: "B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49",

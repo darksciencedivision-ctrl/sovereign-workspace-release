@@ -48,7 +48,18 @@ const PINS = {
   // the picker lookup three lines above it. O1/O11/O15/O16 anchors were re-read against the
   // new bytes and none moved; O17 GRADES the model half.
   "apps/desktop/control/application-control.js": "21DA3C9F1D14DC5F6CE9555822840B8EC71D2011441B962424F33C4173C23213",
-  "apps/desktop/control/operational-state.js": "0B57C358F14B32FE3F485719D0A8AB70E862A9C5344AC00F590BF6D6C4965AC5",
+  // Re-pinned after this suite had been REFUSING TO RUN, which is the part worth recording.
+  // `operational-state.js` moved in exactly one commit since the previous pin — e2e8e55 ("C0
+  // suite: reconcile CP-M1 source and assertions"), a two-line ADDITIVE change that adds
+  // `created_utc` and `backend` to the operator-facing projection object in
+  // `createOperationalState`. No statement moved and no key was removed, so O12's and O14's
+  // anchors are untouched; both are re-read against the new bytes and re-run CAUGHT below.
+  //
+  // From e2e8e55 onward the whole suite exited 3 on the hash mismatch rather than running. That
+  // fail-closed refusal is correct — a mutation harness that ran against unverified bytes would
+  // be worse — but it is not `npm test`, so nothing surfaced that this proof had stopped being
+  // taken for a two-line comment-free edit made many commits ago.
+  "apps/desktop/control/operational-state.js": "1AE8E8616448C8D23A9169DBCE357AF945C9F0664EACEE32D06DC9B4621BC059",
   // Re-pinned at 19.7 (U334/U335): `sovereign-control-server.js` gained the bounded `stop()` and the
   // staleness window on `connectionState`; `main.js` gained the assignment gate's binding, the
   // teardown-time gateway stop and the inspector's honest `ok`. O2 anchors on the bearer check
@@ -114,9 +125,30 @@ const PINS = {
   // present exactly ONCE, and its meaning is unchanged (it still skips capability injection, just
   // from a later point). No other anchor in this file touches the scrub region. O18/O19 are new and
   // grade the ordering. Previous pin: 515B14FE...97F311D68.
-  "apps/desktop/picker/worker-spawn.js": "B1C22F94CD204D20834E2593735E6806FAD89AD380A4212929AD4C4385849BEB",
+  // Re-pinned for e2e8e55's G22 governed replacement, the one SUBSTANTIVE change among this
+  // batch. The "pane must be free" branch no longer refuses every occupied pane outright: an
+  // unconfirmed click now takes a NAMED soft refusal (`replacement-requires-confirmation`), and a
+  // click carrying `selection.replaceConfirmed === true` tears the prior session down through the
+  // injected `endLiveSession` primitive, waits bounded for the record to release, then falls
+  // through to a fresh launch. The mutations anchored here (O1's governed-launch site, and the
+  // refusal-path graders below) sit on the lease/supervision checks BEFORE that branch and on the
+  // refuse() shape itself, neither of which moved; all are re-read against the new bytes and
+  // re-run CAUGHT below.
+  //
+  // Worth recording about e2e8e55: it DID update `pane_input_bypass_mutations.js` in the same
+  // commit and did not update this file or `system_pane_write_mutations.js`. That is why
+  // `test:falsify` kept passing while these two silently stopped running — the drift was not
+  // uniform neglect, it was one mutation harness re-pinned and two forgotten.
+  "apps/desktop/picker/worker-spawn.js": "F3B405126424D1A0B55CB3D95E03CCF5FC3CFCDF78218F7432EDED6238A90C55",
   // Added at 19.7 with O6–O11, which mutate them.
-  "apps/desktop/inspector/operational-source.js": "48D985836FD62B48D5A3A4510F2F2225FB181FCDF2D3831A9015507DA089DB3C",
+  // Re-pinned for ddcb87b (EPC-01), a THREE-LINE substitution and nothing else: the hardcoded
+  // `"py"` executable and `["-3.12"]` argument list are now read from the shared
+  // `../python-runtime` helper (`defaultPython()` / `defaultPythonArgs()`), so one module decides
+  // which interpreter the product spawns. No branch, no ordering and no spawn site moved — the
+  // same `spawn(...)` call on the same line receives the same values by a different name. The
+  // mutations anchored in this file grade the reader's fail-closed parse, which is downstream of
+  // the spawn; both re-read against the new bytes and re-run CAUGHT below.
+  "apps/desktop/inspector/operational-source.js": "5CC901D81C9892223D34BF1FE21292B48540E345A2F43875C937F490307663F0",
   // Added at U458 (the W-41 corrective) with O20/O21, which mutate it. This file is one half of a
   // TWO-SIDED protocol: W-41 hardened `control_plane/ipc/envelope.py` and left this mirror signing
   // `payload` alone, so both halves passed their own tests while the channel was dead in both

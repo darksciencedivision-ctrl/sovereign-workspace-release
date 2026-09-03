@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-09-01T06:00:04Z
+# utc: 2026-09-03T04:20:22Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
@@ -100,6 +100,6 @@ c4ee9a0140863ff527aa9fb16789834c5f39c131f038ebfb573ca398560ab367  tests/test_shi
 0b7055a5e637431c53fda6d6ffe69422812b6ef14f7dddaa095ffeec2ffeea62  tests/test_supervisor.py
 0ae202e78566a3d5bf8c42cf8e5c64ec171be3d5e5201eeb8cff09ade6669dd2  tests/test_tokencenter_embed.py
 be5a2770621789436105092416323bc44cb8f1222e8525d182a6a27360d0ba84  tests/test_tokencenter_loopback_and_csrf.py
-bce115f412ff281b0fa3bcd23dd66c7401f4b91792ad31f85ba1e753b0eabe69  tests/test_whole_product_collection.py
+11d5dbb99d8218c8f11ca835698fe85a81ef829d351500b3688e881a8a6457e3  tests/test_whole_product_collection.py
 26619ca2f60bb614c32a06b31c8089b4a6e5874c30d84906f6ed3b58c7b72757  tests/test_zz_evidence.py
 422630f419fd5ce0d90e8be4bd2a22023734a21ae86764577fd08eef5605e86a  tools/install_sow.py

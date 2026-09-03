@@ -59,9 +59,12 @@ from typing import Any, Iterable, Mapping
 #: "the operator's 8B ceiling (ENTRY 017)". On a 24 GB card the same code would have reached
 #: the same wrong conclusion with nobody noticing the constant was a local accident.
 #:
-#: The number is now DERIVED from the hardware actually present. On this host that yields the
-#: same figure it always did, which is the point: the answer is unchanged and its BASIS is no
-#: longer invented.
+#: What is DERIVED from the hardware actually present is the ADVISORY - what this card costs a
+#: model that straddles it. That is the honest use of a measurement.
+#:
+#: It is NOT where the enforced ceiling comes from. It briefly was, and that produced a refusal
+#: quoting a VRAM-derived figure (11B on this host) while comparing against a hardcoded 9.0e9 -
+#: two numbers nothing kept in agreement. The enforced bound is declared at `CEILING_ENV` below.
 #:
 #: THE SPLIT THAT MATTERS. Hardware detection RECOMMENDS; it never selects. The operator pins
 #: the slate. A model larger than the card is offered with a measured advisory saying what it
@@ -128,13 +131,61 @@ def hardware_profile() -> dict:
     }
 
 
-#: Retained as the NAME the historical refusal sentence uses, so the wording tests pin stays
-#: valid, but its value is now derived from the hardware rather than written down.
-CEILING_NAMEPLATE_B = int(hardware_profile()["comfortable_parameters_b"] // 1) or 8
+#: The environment variable that sets the ENFORCED ceiling, as a nameplate class in billions.
+#: Absent means ENTRY 017's eight.
+#:
+#: WHY THIS EXISTS (the defect it repairs). The enforced ceiling used to be TWO independent
+#: numbers that nothing kept in agreement: `CEILING_NAMEPLATE_B` was derived from VRAM, while the
+#: comparison below used a hardcoded `9.0e9`. On this host that produced a refusal reading
+#: "ornith-1.5:9b has 9.0B parameters, above the operator's 11B ceiling" — a sentence stating a
+#: threshold that was not the one applied, in the one place whose whole job is to justify a
+#: refusal. The same split reached evidence: `enumerate_pane_picker` recorded `nameplate_b: 11`
+#: under `authority: ENTRY 017`, attributing to that ruling a figure it does not contain.
+#:
+#: It also meant the ceiling could not be SET. Lowering `SOVEREIGN_VRAM_MIB` moved the displayed
+#: nameplate and changed nothing about admission, so a run asked to stay at or under 4B still
+#: admitted every 8B-class model in the library while reporting a 4B ceiling.
+#:
+#: WHAT DERIVES FROM HARDWARE AND WHAT DOES NOT (EPC-02, ENTRY 030/032). Hardware detection
+#: RECOMMENDS and never selects: for the OPERATOR there is no ceiling at all, only the measured
+#: advisory below, which still comes from `hardware_profile`. The TESTING refusal is a RULE, and a
+#: rule's threshold is declared, not measured — deriving it from whichever card is installed was
+#: the conflation. `hardware_profile` is untouched and keeps reporting what this machine measures.
+CEILING_ENV = "SOVEREIGN_MODEL_CEILING_B"
 
-#: The nameplate class expressed as a bound on the TRUE parameter count. 9.0e9 admits the whole 8B
-#: nameplate class (qwen3:8b at 8.2B, granite4.2:8b at 8.8B) and refuses the 9B class upward.
-_TRUE_PARAM_LIMIT = 9.0e9
+#: ENTRY 017's figure, used when `CEILING_ENV` is absent or unreadable. Fail SAFE rather than
+#: closed here: an unparseable value falls back to the declared default rather than raising on a
+#: display path, matching how `resolve_audience` treats a typo.
+_DEFAULT_CEILING_NAMEPLATE_B = 8
+
+
+def resolve_ceiling_nameplate_b() -> int:
+    """The enforced nameplate class in billions. Explicit environment wins; else ENTRY 017's 8."""
+    import os  # noqa: PLC0415 - kept local so this module stays import-cheap for the UI path
+    raw = (os.environ.get(CEILING_ENV) or "").strip()
+    if raw:
+        try:
+            # OverflowError as well as ValueError: `float("inf")` parses, and `int(inf)` raises
+            # OverflowError rather than ValueError. This runs on the operator's display path, so
+            # every unreadable spelling has to land on the default instead of raising (W-36).
+            value = int(float(raw))
+            if value > 0:
+                return value
+        except (ValueError, OverflowError):
+            pass
+    return _DEFAULT_CEILING_NAMEPLATE_B
+
+
+#: The nameplate class the refusal sentence QUOTES and the comparison below APPLIES — one number,
+#: so the two can no longer disagree.
+CEILING_NAMEPLATE_B = resolve_ceiling_nameplate_b()
+
+#: The nameplate class expressed as a bound on the TRUE parameter count, derived from the nameplate
+#: rather than written down beside it. At the default 8 this is 9.0e9 — exactly the value that was
+#: hardcoded here — so it admits the whole 8B nameplate class (qwen3:8b at 8.2B, granite4.2:8b at
+#: 8.8B) and refuses the 9B class upward, unchanged. At a nameplate of 4 it becomes 5.0e9 and the
+#: 4B class is genuinely the top of the slate.
+_TRUE_PARAM_LIMIT = (CEILING_NAMEPLATE_B + 1.0) * 1e9
 
 #: EPC-02 B-2 (ENTRY 030/032). WHO is being served decides whether the ceiling REFUSES or WARNS.
 #:
@@ -304,23 +355,27 @@ def classify_local_model(record: Mapping[str, Any],
         shown = parameter_size if isinstance(parameter_size, str) and parameter_size.strip() \
             else format_parameter_count(parameters)
         profile = hardware_profile()
+        # The MEASURED half, true for both audiences and never dropped. It says what the hardware
+        # costs and nothing about anyone's rule — so it can be handed to the operator as an
+        # advisory without asserting a ceiling that does not bind him.
         straddle = (
-            f"{name} has {shown} parameters, above the operator's {CEILING_NAMEPLATE_B}B ceiling "
-            f"for this hardware. "
+            f"{name} has {shown} parameters. "
             f"Measured on this host: {profile['vram_mib']} MiB of VRAM ({profile['source']}), "
             f"comfortable to about {profile['comfortable_parameters_b']}B parameters. A larger "
             f"model straddles the card and runs partly on the CPU — expect it to be slow. "
             f"This is a RECOMMENDATION derived from the hardware present, not a rule: the "
             f"operator pins the slate.")
         if audience == AUDIENCE_TESTING:
-            # Automated runs stay inside the VRAM envelope and stay deterministic.
-            # The refusal names its authority (ENTRY 017), because a refused operator must be
-            # able to see WHOSE rule refused him. The advisory above deliberately does not:
-            # for the operator audience there is no rule, only measured hardware and a
-            # recommendation he is free to overrule by pinning the slate.
+            # Automated runs stay deterministic and inside a DECLARED bound. The refusal names
+            # its authority (ENTRY 017) because a refused operator must be able to see WHOSE rule
+            # refused him, and it names the ceiling it actually applied — `CEILING_NAMEPLATE_B` is
+            # now the same number the comparison above used, so this sentence can no longer quote
+            # a threshold that is not the one enforced. The advisory branch below deliberately
+            # names no rule at all: for the operator there is only measured hardware.
             return verdict(False, straddle + (
-                f" Refused for automated testing under ENTRY 017 "
-                f"({AUDIENCE_ENV}={AUDIENCE_TESTING}); the operator's own selectors offer it."))
+                f" Refused for automated testing under ENTRY 017: above the {CEILING_NAMEPLATE_B}B "
+                f"ceiling in force ({AUDIENCE_ENV}={AUDIENCE_TESTING}, {CEILING_ENV}="
+                f"{CEILING_NAMEPLATE_B}); the operator's own selectors offer it."))
         # OPERATOR: his machine, his model, his call. The cost is named, not used to withhold.
         return verdict(True, "", advisory=straddle)
 
