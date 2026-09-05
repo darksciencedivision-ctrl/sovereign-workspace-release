@@ -9,7 +9,7 @@ adds ONLY what 15D needs on top of it:
   1. `BackendDebater` — a `Debater` backed by any `Backend`, so the SAME governed debate runs on
      a mock backend or on the live `claude_code` CLI with no branch in the service.
   2. A FAIL-CLOSED statement parse: a model reply that is not well-formed becomes a recorded
-     refusal with NO citations (hence UNSUPPORTED), never a fabricated evidence ref.
+      refusal with NO citations (hence UNRESOLVED), never a fabricated evidence ref.
   3. Per-debater leg classification and a report that REFUSES an unbacked `live` claim.
 
 The leg vocabulary (`live` / `attempted` / `mock` / `skipped`) and the operator-disposition pin
@@ -79,7 +79,7 @@ DEBATE_REPORT_KEYS: tuple[str, ...] = (
 SCOPED_TRANSCRIPT_ROUNDS = 1
 
 #: A refusal must be recognizable as "no position was produced" and must never read as an
-#: argument. It carries no citations, so the EvidenceManager classifies it UNSUPPORTED.
+#: argument. It carries no citations, so the EvidenceManager classifies it UNRESOLVED.
 REFUSAL_PREFIX = "[no position: "
 
 _DEFAULT_EXCERPT_CHARS = 240

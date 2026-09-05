@@ -494,16 +494,27 @@ def compile_adapter(adapter: dict) -> dict:
         compiled["identity"] = identity
 
         # Compile the startup_test override block (ADR-004, R3-11).
+        # D6: ${state_root} must expand in startup_test.env_set and may name the
+        # startup-test receipt lane under this module's state root.
         st = adapter.get("startup_test")
         if st is not None:
             st = json.loads(json.dumps(st))  # deep copy
+            if "env_set" in st:
+                st["env_set"] = {
+                    key: _resolve_var(value, compiled["root"], compiled["state_root"])
+                    for key, value in dict(st.get("env_set") or {}).items()
+                }
             if "readiness" in st and "path" in st["readiness"]:
                 st["readiness"]["path"] = _resolve_path(
-                    st["readiness"]["path"], compiled["root"])
-                if not is_contained(compiled["root"], st["readiness"]["path"]):
+                    st["readiness"]["path"], compiled["root"], compiled["state_root"])
+                path = st["readiness"]["path"]
+                if not (
+                    is_contained(compiled["root"], path)
+                    or is_contained(compiled["state_root"], path)
+                ):
                     raise AdapterError(
-                        "startup_test.readiness.path escapes root (H-5): "
-                        + st["readiness"]["path"])
+                        "startup_test.readiness.path escapes both the install root and "
+                        "this module's state root (H-5): " + path)
             compiled["startup_test"] = st
 
         # Compile open

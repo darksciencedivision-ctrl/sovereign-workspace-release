@@ -1,9 +1,8 @@
 """Debate evidence manager (Plan §19.2, §19.3; prohibited drift: model votes are not evidence).
 
-Validates that every assertion's citations resolve to REAL MCP entries. An assertion with no
-citations, or citations that don't resolve, is marked UNSUPPORTED in the evidence map — it is
-never silently accepted as evidence. This is what keeps a debate evidence-based rather than a
-popularity contest of model opinions.
+Validates that every assertion's citations resolve to REAL MCP entries. Resolution is not
+entailment: a resolvable citation is REFERENCE_RESOLVED, never SUPPORTED. This component
+does not claim that a cited source supports, proves, verifies, or entails the assertion.
 """
 from __future__ import annotations
 
@@ -26,15 +25,16 @@ class EvidenceManager:
         return [CitationCheck(r, bool(self._resolves(r))) for r in evidence_refs]
 
     def classify_assertion(self, position: str, evidence_refs: list[str]) -> dict[str, Any]:
-        """Return an evidence-map entry: supported iff at least one citation resolves. A
-        position with no resolving citation is UNSUPPORTED (a model vote is not evidence)."""
+        """Return citation-resolution only. Assertion text is unused for the verdict."""
+        del position  # retained at the caller for audit; not an entailment input
         checks = self.check_refs(evidence_refs)
         resolving = [c.ref for c in checks if c.resolves]
         return {
-            "supported": bool(resolving),
+            "reference_resolved": bool(resolving),
             "resolving_refs": resolving,
             "unresolved_refs": [c.ref for c in checks if not c.resolves],
-            "status": "SUPPORTED" if resolving else "UNSUPPORTED",
+            "status": "REFERENCE_RESOLVED" if resolving else "UNRESOLVED",
+            "legacy_supported_field_removed": True,
         }
 
 

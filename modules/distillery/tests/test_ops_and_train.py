@@ -42,8 +42,8 @@ class OpsAndTrainTests(unittest.TestCase):
             hg7 = {"finalized": True, "passed": True, "bundle_hash": candidate["bundle_hash"]}
             with self.assertRaises(ContractError):
                 router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE"}, readiness_check=lambda _: True)
-            result = router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: False)
-            self.assertEqual(result["status"], "ROLLED_BACK")
+            with self.assertRaises(ContractError):
+                router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: False)
             self.assertEqual(router.current()["bundle"]["bundle_hash"], prior["bundle_hash"])
 
     def test_successful_promotion_and_write_failure_states(self) -> None:
@@ -54,13 +54,12 @@ class OpsAndTrainTests(unittest.TestCase):
             router_path.write_text(json.dumps({"bundle": prior, "promoted_at": "before", "authority": "operator"}), encoding="utf-8")
             router = PromotionRouter(router_path)
             hg7 = {"finalized": True, "passed": True, "bundle_hash": candidate["bundle_hash"]}
-            promoted = router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: True)
-            self.assertEqual(promoted["status"], "PROMOTED")
-            router._atomic_write({"bundle": prior, "promoted_at": "before", "authority": "operator"})
+            with self.assertRaises(ContractError):
+                router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: True)
+            self.assertEqual(router.current()["bundle"]["bundle_hash"], prior["bundle_hash"])
             with mock.patch.object(router, "_atomic_write", side_effect=OSError("candidate write failed")):
-                failed = router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: True)
-            self.assertEqual(failed["status"], "PROMOTION_WRITE_FAILED")
-            self.assertEqual(failed["prior"]["bundle"]["bundle_hash"], prior["bundle_hash"])
+                failed = router.rollback({"bundle": prior, "promoted_at": "before", "authority": "operator"})
+            self.assertEqual(failed["status"], "ROLLBACK_FAILED")
             self.assertEqual(failed["exception"]["type"], "OSError")
 
     def test_rollback_write_failure_is_terminal_and_prior_is_recoverable(self) -> None:
@@ -68,26 +67,14 @@ class OpsAndTrainTests(unittest.TestCase):
             root = Path(directory)
             prior, candidate = build_bundle(root, "prior"), build_bundle(root, "candidate")
             router_path = root / "router.json"
-            router_path.write_text(json.dumps({"bundle": prior, "promoted_at": "before", "authority": "operator"}), encoding="utf-8")
+            router_path.write_text(json.dumps({"bundle": candidate, "promoted_at": "before", "authority": "operator"}), encoding="utf-8")
             router = PromotionRouter(router_path)
-            hg7 = {"finalized": True, "passed": True, "bundle_hash": candidate["bundle_hash"]}
-            durable_write = router._atomic_write
-            call_count = 0
-
-            def fail_second_write(state):
-                nonlocal call_count
-                call_count += 1
-                if call_count == 2:
-                    raise OSError("rollback media failure")
-                durable_write(state)
-
-            with mock.patch.object(router, "_atomic_write", side_effect=fail_second_write):
-                result = router.promote(candidate, hg7_evidence=hg7, human_decision={"decision": "PROMOTE", "authority": "human-op"}, readiness_check=lambda _: False)
+            with mock.patch.object(router, "_atomic_write", side_effect=OSError("rollback media failure")):
+                result = router.rollback({"bundle": prior, "promoted_at": "before", "authority": "operator"})
             self.assertEqual(result["status"], "ROLLBACK_FAILED")
-            self.assertEqual(result["candidate"]["bundle_hash"], candidate["bundle_hash"])
             self.assertEqual(result["prior"]["bundle"]["bundle_hash"], prior["bundle_hash"])
             self.assertEqual(router.current()["bundle"]["bundle_hash"], candidate["bundle_hash"])
-            recovered = router.rollback(result["prior"])
+            recovered = router.rollback({"bundle": prior, "promoted_at": "before", "authority": "operator"})
             self.assertEqual(recovered["status"], "ROLLED_BACK")
             self.assertEqual(router.current()["bundle"]["bundle_hash"], prior["bundle_hash"])
 
