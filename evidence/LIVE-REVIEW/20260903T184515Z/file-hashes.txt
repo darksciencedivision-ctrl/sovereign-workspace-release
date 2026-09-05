@@ -1,0 +1,26 @@
+﻿# utc: 2026-09-03T19:05:55.8122251Z
+# producer: grok-4.6 static-hash
+657cf02a18d37cf0a1fb5021b261c7297c4cbe0ea5e7437b3b199065079f5af8  39097  D:\producttion software 2\release-worktree\BUILD-DIRECTIVE-SWS-UI-001.md
+03439fe511f6dbb41fe83f0fb4afff9bc936a86ded8fb34184fbd084dffa458a  20177  D:\producttion software 2\release-worktree\shell\src\server.py
+3e9c6cbd9fce5f312df6980d5c9cffcea4b8149419df3b9912b47f0a8c56b03b  24388  D:\producttion software 2\release-worktree\shell\src\adapter.py
+acb266cf0c2461df0a1419e5ebc828a627be910a9b884fa0c70b706623c7f214  24232  D:\producttion software 2\release-worktree\shell\src\supervisor.py
+bb119dab0f305ddac33d33fad8c94243feeb96608710fcd2e378e4c3f4a9d9d1  18551  D:\producttion software 2\release-worktree\shell\src\states.py
+9c05df805cfc9f18a1c353b189f96e335713970b6119176ee510fa00d79a52f3  6226  D:\producttion software 2\release-worktree\shell\src\startup_test.py
+fe63dbfe66c79da59d3f7e99aa47e7c2187e0f14a26bbffe0af57e1c5f4c9a66  7225  D:\producttion software 2\release-worktree\shell\src\distillery.py
+b200f17871bbd03f9d2c69928396286f4a57705188fdce1041f24754d55c0ea6  3018  D:\producttion software 2\release-worktree\shell\src\redact.py
+9e429da65564b9ab95f7976a4be9641136d96f179ddcfa7c6bd1872bf4f4acb9  615  D:\producttion software 2\release-worktree\shell\src\csrf.py
+8532f40e1dd974fe7be91cb72154eceaf7694897d59784552dfd07ccc524f05b  1106  D:\producttion software 2\release-worktree\shell\modules\debate.json
+54dcae7a07aea417c572d635373ba805ba7d9d56f50dfd38561ec82175233967  998  D:\producttion software 2\release-worktree\shell\modules\distillery.json
+e23e4c9cfba8468d1171d87856f2a249bebbc6cd9e4d3fc0588b7d959db3b7b4  1457  D:\producttion software 2\release-worktree\shell\modules\llamacpp.json
+5cb11b0239b0c22350d9c2ade98180cf3a133e6542b9c56cd6f48598608787e7  1405  D:\producttion software 2\release-worktree\shell\modules\sovereign.json
+55fb60f3160d43055243bdc8b37c34ccfbb7d013acb90d1d360f714c4038141a  1403  D:\producttion software 2\release-worktree\shell\modules\sow.json
+d47121cfa41d365742981ecbdb1d3e0f38201cbe36c862dac8df06b6efa19404  1107  D:\producttion software 2\release-worktree\shell\modules\tokencenter.json
+49c975d52bab8cef7d1f976407f28b96b67cc375140894da693dea844ba75d95  891  D:\producttion software 2\release-worktree\modules\debate\BUILD-INFO.json
+5e5c4a6ef735d4e3ddafd472a269b3d773096ca18c0b9b1b1f47d319f540eddb  87407  D:\producttion software 2\release-worktree\modules\debate\app.py
+484c89d7a769757ac8ba5e849c74c18786488367817aca553360607d676d686f  3605  D:\producttion software 2\release-worktree\modules\distillery\serve.py
+da91123ae4c290a45d5e8fb075fcb5bab4dc8bf76d155b5d27ebe74e3cbbbd10  579  D:\producttion software 2\release-worktree\modules\distillery\pyproject.toml
+e55878ae92277ee0138ac9f1cc1923660824a13c77b2e59fd950ef2896d84284  4725  D:\producttion software 2\release-worktree\modules\distillery\grounded\cli.py
+619ef2ff7b56f3dad144cb7948b8fafbfd30261a9f905706c18cc0fa6229a5cc  3232  D:\producttion software 2\release-worktree\modules\distillery\docs\VERSION_MATRIX.json
+1acc252143785eb5c2c427035b2340762bbc336730e5eed06886a2c4923ec1e7  39719  D:\producttion software 2\release-worktree\modules\tokencenter\piggybank.py
+3c0c98e4ed286774258802c14789f89c2752fe03b782346f70e3304065c93da6  2500  D:\producttion software 2\release-worktree\modules\sovereign\INSTALL-PROVENANCE.json
+ea96af3fe4d7dc6ad8b63ce5a04082707ee110b99aaccde9f5b790ccd41b04f9  1439  D:\Product Software\Production Workspace\modules\sovereign\INSTALL-PROVENANCE.json
