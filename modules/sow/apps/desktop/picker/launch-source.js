@@ -35,6 +35,7 @@ const { defaultPython, defaultPythonArgs } = require("../python-runtime");
  * with zero dependence on a live host (apps/desktop/test/worker-launch-source.test.js).
  */
 const path = require("path");
+const fsMod = require("fs");
 const {
   runPythonEmitter, BANNED_FLAGS, SHELL_METACHARACTERS, ConductorLaunchSourceError,
 } = require("../conductor/launch-source");
@@ -298,6 +299,74 @@ function isWellFormedAttestation(a) {
     && typeof a.attested === "boolean";
 }
 
+/** Case-insensitively on Windows ONLY, where the filesystem itself is: a case difference there is
+ *  the same directory, and refusing it would be a false alarm rather than a guard. */
+function sameDir(a, b) {
+  const x = path.resolve(String(a || ""));
+  const y = path.resolve(String(b || ""));
+  return process.platform === "win32" ? x.toLowerCase() === y.toLowerCase() : x === y;
+}
+
+/**
+ * The repository a coding pane's worktrees are cut from — the SHELL's own resolution, deliberately
+ * duplicating `node_runtime/supervisor/coding_worktrees.resolve_base_repo` rather than reading the
+ * answer off the ticket. That duplication is the point: this is the check that the ticket's cwd is
+ * legitimate, so taking the expected value from the ticket would be the ticket authorizing itself.
+ * Same two rules, same order, same refusal: an explicit `SOW_CODING_BASE_REPO` outranks inference
+ * and is REFUSED (not silently fallen back from) when it is not a repository, because falling back
+ * would validate a pane against a different project than the operator named.
+ * @returns {string|null} the base repo, or null when there is none to contain in.
+ */
+function resolveCodingBaseRepo(workspace, env = process.env) {
+  const override = String((env && env.SOW_CODING_BASE_REPO) || "").trim();
+  if (override) {
+    const candidate = path.resolve(override);
+    return fsMod.existsSync(path.join(candidate, ".git")) ? candidate : null;
+  }
+  if (!workspace) return null;
+  let here = path.resolve(String(workspace));
+  for (;;) {
+    if (fsMod.existsSync(path.join(here, ".git"))) return here;
+    const up = path.dirname(here);
+    if (up === here) return null;   // filesystem root: no enclosing repository
+    here = up;
+  }
+}
+
+/**
+ * Every directory a ticket for THIS pane may legitimately bind its ConPTY to.
+ *
+ * WHY THIS IS A SET AND NOT ONE DIRECTORY (EPC-04). The rule here was `asked === given`, on the
+ * premise that "the shell knows exactly one governed workspace — the root it invoked the emitter
+ * from". That premise stopped being true when local CODING panes arrived: a coding pane is a model
+ * with write hands and is bound BY DESIGN to its own git worktree (`<base>/worktrees/worker-<pane>`,
+ * cut by `WorktreeManager.create`), which is exactly what the containment it ships under requires.
+ * So every OpenCode pane launch was refused with "not the governed workspace" for doing the thing
+ * its own design mandates — the guard was right about the mismatch and wrong about what governed
+ * means for this pane class.
+ *
+ * WHAT IS AND IS NOT RELAXED. The ticket still cannot name a directory of its own choosing: the
+ * shell derives both members from inputs the TICKET DOES NOT SUPPLY — the workspace it invoked the
+ * emitter from, this pane's id, and its own environment — and the node id half is re-derived from
+ * `paneId` (`worker-${paneId}`, `worker_pane_spawn._identity`) rather than read from
+ * `t.identity.node_id`. A ticket naming any other directory, including another pane's worktree, is
+ * still refused, which is the drift this guard exists to catch (spec-audit MINOR-8).
+ *
+ * The worktree member is offered for EVERY role, not only `coding`. The role in a ticket is the
+ * ticket's own claim, so gating on it would let a forged `role:"reasoning"` ticket pick which rule
+ * it is judged by; the set is a property of the pane and its host, and a reasoning ticket has no
+ * reason to name a worktree in the first place.
+ */
+function admissibleWorkspaces(governedWorkspace, paneId, env = process.env) {
+  const governed = path.resolve(String(governedWorkspace));
+  const out = [governed];
+  const base = resolveCodingBaseRepo(governed, env);
+  // `worker-${paneId}` is `worker_pane_spawn._identity`'s rule, and the worktree directory is named
+  // for the node id (`WorktreeManager.create`: `self._worktrees_root / node_id`).
+  if (base && paneId) out.push(path.join(base, "worktrees", `worker-${paneId}`));
+  return out;
+}
+
 /**
  * Obtain a governed worker launch ticket for ONE picker selection.
  * `holderPid` OWNS any durable lease (the Electron main process). `sessionId` is the key the
@@ -363,15 +432,12 @@ function fetchWorkerLaunchTicket(opts = {}) {
       // the emitter from — and a ticket naming a different directory is drift, not a launch: it
       // would put a live model process's working directory outside what was authorized.
       if (t.authorized && opts.cwd) {
-        const asked = path.resolve(String(opts.cwd));
+        const admissible = admissibleWorkspaces(opts.cwd, paneId);
         const given = path.resolve(String((t.launch && t.launch.cwd) || ""));
-        // Case-insensitively on Windows ONLY, where the filesystem itself is: a case difference
-        // there is the same directory, and refusing it would be a false alarm rather than a guard.
-        const same = process.platform === "win32"
-          ? asked.toLowerCase() === given.toLowerCase() : asked === given;
-        if (!same) {
+        if (!admissible.some((dir) => sameDir(dir, given))) {
           throw new WorkerLaunchSourceError(
-            `ticket binds the session to workspace ${given}, not the governed workspace ${asked}`);
+            `ticket binds the session to workspace ${given}, not a governed workspace for ${paneId} `
+            + `(${admissible.join(" | ")})`);
         }
       }
       return t;

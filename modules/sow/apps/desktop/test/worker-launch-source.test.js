@@ -32,6 +32,17 @@ const {
 } = require("../picker/launch-source");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
+// The repository a coding pane's worktrees are cut from. Walked here INDEPENDENTLY of the
+// production helper, so the guard's expectation is checked against the filesystem rather than
+// against its own implementation of the same rule.
+const BASE_REPO = (() => {
+  for (let dir = REPO_ROOT; ; ) {
+    if (fs.existsSync(path.join(dir, ".git"))) return dir;
+    const up = path.dirname(dir);
+    if (up === dir) return REPO_ROOT;   // no enclosing repo: the set has one member and the
+    dir = up;                           // worktree legs below assert the refusal, still meaningful
+  }
+})();
 const HAVE_PY = spawnSync("py", ["-3.12", "--version"], { encoding: "utf8" }).status === 0;
 
 const SESSION = "pane-2#77.1";
@@ -492,12 +503,46 @@ test("a ticket for a different session or pane is refused (our reclaim key frees
 test("a ticket binding the session to a DIFFERENT workspace is refused (spec-audit MINOR-8)", async () => {
   // The shape contract only ever required `launch.cwd` to be a non-empty string, so the claim "the
   // ConPTY is bound to the governed workspace" rested entirely on the producer plus one in-runtime
-  // assertion. The shell knows exactly one governed workspace — the root it invoked the emitter
-  // from — and a live model process started somewhere else is outside what was authorized.
+  // assertion. A live model process started somewhere the shell never authorized is outside the
+  // containment, and EPC-04 widening the admissible set to include this pane's own coding worktree
+  // must not weaken this: an unrelated directory is still refused.
   const elsewhere = { ...FRONTIER_TICKET,
     launch: { ...FRONTIER_TICKET.launch, cwd: "C:/Users/Public" } };
   await assert.rejects(() => ask(fakeSpawn({ stdout: JSON.stringify(elsewhere) })),
-    (e) => /binds the session to workspace .*, not the governed workspace/.test(e.message));
+    (e) => /binds the session to workspace .*, not a governed workspace for/.test(e.message));
+});
+
+test("a local CODING pane's OWN git worktree is a governed workspace (EPC-04)", async () => {
+  // THE REGRESSION. A coding pane is bound by design to `<base>/worktrees/worker-<pane>` — the tree
+  // `WorktreeManager.create` cuts for it — and the guard's old "exactly one governed workspace"
+  // premise refused every OpenCode pane launch for doing exactly that. The pane under test is
+  // `pane-2` (see `ask`), and the base repo is the one enclosing REPO_ROOT.
+  const worktree = path.join(BASE_REPO, "worktrees", "worker-pane-2");
+  const inTree = { ...FRONTIER_TICKET, launch: { ...FRONTIER_TICKET.launch, cwd: worktree } };
+  const t = await ask(fakeSpawn({ stdout: JSON.stringify(inTree) }));
+  assert.equal(t.authorized, true, "a coding pane's own worktree is where it is supposed to run");
+});
+
+test("…but ANOTHER pane's worktree is still refused (the set is per-pane, not a blanket)", async () => {
+  // The widening is one directory, derived from THIS pane's id. If it admitted the worktrees root
+  // or any sibling, a ticket could bind pane-2's session to pane-9's tree and write over its work.
+  const foreign = { ...FRONTIER_TICKET,
+    launch: { ...FRONTIER_TICKET.launch,
+      cwd: path.join(BASE_REPO, "worktrees", "worker-pane-9") } };
+  await assert.rejects(() => ask(fakeSpawn({ stdout: JSON.stringify(foreign) })),
+    (e) => /not a governed workspace for pane-2/.test(e.message));
+});
+
+test("the expected worktree is derived from paneId, NEVER from the ticket's own node_id", async () => {
+  // Otherwise the ticket would be authorizing its own working directory: a forged identity naming
+  // `worker-pane-9` would make the guard compute pane-9's tree and admit it. The shell re-derives
+  // `worker-${paneId}` from the pane it is spawning, so a forged node_id changes nothing.
+  const forged = { ...FRONTIER_TICKET,
+    identity: { ...FRONTIER_TICKET.identity, node_id: "worker-pane-9" },
+    launch: { ...FRONTIER_TICKET.launch,
+      cwd: path.join(BASE_REPO, "worktrees", "worker-pane-9") } };
+  await assert.rejects(() => ask(fakeSpawn({ stdout: JSON.stringify(forged) })),
+    (e) => /not a governed workspace for pane-2/.test(e.message));
 });
 
 test("…but a mere CASE difference on Windows is the same directory, not drift", async () => {
@@ -508,7 +553,7 @@ test("…but a mere CASE difference on Windows is the same directory, not drift"
     const t = await call();
     assert.equal(t.authorized, true, "a case-different path on a case-insensitive filesystem is the same workspace");
   } else {
-    await assert.rejects(call, (e) => /not the governed workspace/.test(e.message));
+    await assert.rejects(call, (e) => /not a governed workspace for/.test(e.message));
   }
 });
 

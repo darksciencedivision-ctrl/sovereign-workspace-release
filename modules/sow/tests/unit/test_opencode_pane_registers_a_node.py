@@ -11,6 +11,7 @@ one, because a conductor reading the registry then routes reasoning work to a fi
 """
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -18,6 +19,8 @@ from pathlib import Path
 MODULE_ROOT = Path(__file__).resolve().parents[2]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
+
+SCHEMA_DIR = MODULE_ROOT / "schemas"
 
 from adapters.coding.opencode.session import OPENCODE_LOCAL_ADAPTER  # noqa: E402
 from node_runtime.supervisor.provider_node_registration import (  # noqa: E402
@@ -62,7 +65,8 @@ class RecordingRegistrar:
             incarnation = 1
             validated_against = "node@1.1"
             adapter_schema_version = "node@1.1"
-            record = {"node_id": "uuid-9", "class": "worker_coding", "locality": "local"}
+            record = {"node_id": "uuid-9", "class": "worker_coding_specialist",
+                      "locality": "local"}
 
         return Out()
 
@@ -76,7 +80,24 @@ class TheCodingPaneIsARegistrableProvider(unittest.TestCase):
         """The registry answers "who is up and what can they do". Filing a harness with write hands
         as a reasoning worker answers that question wrongly while looking correct."""
         node_class, _descriptors = _PROVIDER_FACTS[OPENCODE_LOCAL_ADAPTER]
-        self.assertEqual(node_class, "worker_coding")
+        self.assertEqual(node_class, "worker_coding_specialist")
+
+    def test_its_node_class_is_one_the_node_schema_admits(self) -> None:
+        """The regression this pins. The class above was `worker_coding`, which is NOT a member of
+        `node@1.1`'s enum, so every OpenCode pane launch was refused at `node_record_invalid` —
+        after passing selection, local-runtime and residency, which is why it read as a governed
+        refusal rather than a typo. Asserting the literal alone cannot catch that: the old literal
+        was asserted too, and agreed with the bug. This asserts the class against the SCHEMA the
+        registrar validates against, so any future class here must be one a record can be written
+        with. Every registrable provider is checked, not just this one."""
+        enum = json.loads(
+            (SCHEMA_DIR / "node.schema@1.1.json").read_text(encoding="utf-8")
+        )["properties"]["class"]["enum"]
+        for provider in REGISTRABLE_PROVIDERS:
+            node_class, _descriptors = _PROVIDER_FACTS[provider]
+            self.assertIn(node_class, enum,
+                          f"{provider} registers class {node_class!r}, which node@1.1 refuses — "
+                          f"its panes cannot open (invariant 2)")
 
     def test_it_declares_a_coding_capability_bound_to_local_only(self) -> None:
         _node_class, descriptors = _PROVIDER_FACTS[OPENCODE_LOCAL_ADAPTER]

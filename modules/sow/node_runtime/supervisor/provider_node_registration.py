@@ -155,10 +155,19 @@ _PROVIDER_FACTS: dict[str, tuple[str, list[dict[str, Any]]]] = {
     # operator's host: 154 node events, grok_build 22, google_antigravity 20, everything else 0.
     OLLAMA_LOCAL_ADAPTER: ("worker_reasoning", OLLAMA_LOCAL_CAPABILITY_DESCRIPTORS),
     # EPC-04. A coding pane is a terminal, so invariant 2 applies to it identically: it registers
-    # or it does not open. `worker_coding` rather than `worker_reasoning` because the node class is
+    # or it does not open. A CODING class rather than `worker_reasoning` because the node class is
     # what a conductor routes on — filing an OpenCode harness as a reasoning worker would make the
     # registry answer the wrong question correctly.
-    OPENCODE_LOCAL_ADAPTER: ("worker_coding", OPENCODE_LOCAL_CAPABILITY_DESCRIPTORS),
+    #
+    # The name is `worker_coding_specialist`, which is the one `node.schema@1.1` admits and the one
+    # the frontier coding path already mints (`codex._ROLE_NODE_CLASS`, `roster.coding_node`). This
+    # read `worker_coding` — a name no schema enum contains — so EVERY OpenCode pane launch was
+    # refused at `node_record_invalid` AFTER passing every gate that precedes it (selection,
+    # local runtime, residency). Invariant 2 makes that refusal fatal by design: the record does not
+    # validate, so the terminal does not open. The class is a ROUTING key shared with the permission
+    # profiles (`permission.schema.json` gates on the same enum), so the fix is to speak the
+    # system's existing name, never to widen the enum to admit a second name for one concept.
+    OPENCODE_LOCAL_ADAPTER: ("worker_coding_specialist", OPENCODE_LOCAL_CAPABILITY_DESCRIPTORS),
 }
 
 #: Adapters governed by VRAM RESIDENCY rather than by a subscription. Their records name a
