@@ -10,6 +10,7 @@ endpoint.
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import threading
@@ -75,11 +76,21 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        if self.close_connection:
+            # Setting close_connection alone drops the socket without telling the client.
+            # RFC 7230 6.6: a server that will close SHOULD advertise it.
+            self.send_header("Connection", "close")
         self._common_headers()
         self.end_headers()
         self.wfile.write(body)
 
     def _send_error(self, message: str, status: int = 400):
+        # H-2b. Close the connection on every error. _validate_state_changing_request
+        # answers BEFORE the body is read, so on HTTP/1.1 keep-alive the undrained body
+        # would be parsed as the next request line - a smuggled request whose Host,
+        # Origin and CSRF headers the attacker chooses. The portable shell closes in
+        # parse_request() for the same reason.
+        self.close_connection = True
         self._send_json({"error": message}, status)
 
     # -- H-2 ----------------------------------------------------------------
@@ -111,15 +122,15 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         if ctype != "application/json":
             return 400, "Content-Type must be application/json"
 
-        raw_len = self.headers.get("Content-Length")
-        if raw_len is None:
+        lengths = self.headers.get_all("Content-Length", [])
+        if len(lengths) != 1:
             return 400, "Content-Length required"
-        try:
-            length = int(raw_len)
-        except ValueError:
+        raw_len = lengths[0]
+        # ASCII digits only: int() would accept " 10 ", "+10", "1_0" and Unicode
+        # digits, letting this length disagree with the bytes actually framed.
+        if not re.fullmatch(r"[0-9]{1,7}", raw_len):
             return 400, "Content-Length must be an integer"
-        if length < 0:
-            return 400, "Content-Length must be non-negative"
+        length = int(raw_len)
         if length > MAX_BODY:
             return 400, f"Content-Length exceeds {MAX_BODY}"
 
