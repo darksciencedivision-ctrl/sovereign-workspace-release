@@ -6,11 +6,7 @@ committed before any comparison was run. Nothing below may be changed after seei
 changed threshold makes the comparison worthless, so a change means a new protocol with a new
 identifier and a fresh holdout.
 
-**Protocol ID:** `SWS-BENCH-02`
-
-SWS-BENCH-01 is preserved as `PROTOCOL-SWS-BENCH-01.historical.md`. This identifier exists
-because the scorer, output-ownership, ablation seam, and ablation decision rule changed
-*before* a valid comparison was obtained. No SWS-BENCH-01 result is a valid primary outcome.
+**Protocol ID:** `SWS-BENCH-01`
 
 ---
 
@@ -45,10 +41,18 @@ copy.
 C1 and C2 are the ablations of the two stages whose value is least established: both are extra
 model calls whose output is not the answer the operator reads.
 
-C1 and C2 use a **measurement-only** seam (`SemanticDeepExecutor.set_measurement_skip`).
-Production defaults are unchanged: critic and verifier still run unless the harness sets the
-skip. Call traces must show the named stage absent and the remaining stages present. A
-no-op flag that still invokes the stage is forbidden.
+> **C1 and C2 cannot be run yet, and the harness refuses rather than pretending.**
+> `SemanticDeepExecutor` has no switch for skipping the critic or the verifier — the stages are
+> inline in `execute` and each feeds the next. A harness that "disabled" a stage by setting a
+> flag nothing reads would re-run B_full under a different label, and the analysis would then
+> report a difference of zero as evidence that the stage is worthless. That is a fabricated
+> finding of exactly the kind this workstream exists to prevent, so `_disable_stage` raises
+> `NotImplementedError` and names what is missing.
+>
+> Adding a real, reversible off-switch to the product is itself a product change, and §7 is
+> explicit that a simplification is implemented where the numbers support it — not in order to
+> obtain the numbers. The switch therefore has to be added deliberately, as its own decision,
+> before either ablation can be measured.
 
 **Roster.** Exactly what `SYSTEM_MANIFEST.json MODELS` declares — the assignments the shipped
 product uses. No model is substituted to make a condition look better.
@@ -93,8 +97,7 @@ Per task, per condition, per run, the harness records:
 |---|---|
 | `correct` | the known-answer verdict — the **primary outcome** |
 | `abstained` | did the answer decline |
-| `unattributed_claims` | clauses with no citation token, from `quality.assess_quick_response` (attribution, not truth) |
-| `unsupported_claims` | independent known-answer / source-support misses: forbidden facts even with a real citation; required facts asserted under negation; required facts cited to a source that does not contain them |
+| `unsupported_claims` | clauses asserting a fact with no citation, from `quality.assess_quick_response` |
 | `citation_errors` | citations naming a source not in the packet |
 | `elapsed_s` | wall-clock, monotonic |
 | `model_calls`, `prompt_tokens`, `completion_tokens` | from the provider's own counters; unknown stays `null` |
@@ -108,13 +111,7 @@ output — no subjective dimension is reported at all.
 ## 5. Execution discipline
 
 - **3 runs per task per condition.** 30 tasks × 4 conditions × 3 runs = 360 executions.
-- **Exclusive output.** `--out` is created exclusively. An existing file is refused unless
-  `--resume` is passed and the environment header (dataset/harness/protocol/candidate hashes
-  and conditions) matches. Duplicate cells are skipped, not overwritten. Concurrent writers
-  are refused via a sibling `.lock` file. Each run set has a `run_id`; artifacts live under
-  `{out_parent}/{run_id}/artifacts/`.
-- **Paired.** Every condition sees the identical task and the identical evidence *content*.
-  Executor session IDs are unique per (run, task, condition, repeat).
+- **Paired.** Every condition sees the identical task and the identical evidence packet.
 - **Counterbalanced.** Condition order is permuted per (task, run) from a seeded shuffle, so no
   condition systematically runs on a warmer cache.
 - **Cold/warm cache policy.** Ollama keeps a model resident after use. Order permutation is the
@@ -139,11 +136,9 @@ on this hardware, takes several times as long. A difference smaller than that do
 latency an operator waits through, and with 30 paired tasks a difference below ~10 points is not
 distinguishable from noise at this sample size anyway.
 
-**Regression tolerance.** An ablation (C1, C2) is compared to B with a 95% bootstrap CI of the
-paired per-task difference (C − B). A point estimate inside 5 percentage points is **not**
-enough. The CI must lie entirely inside ±5 points to treat the stage as not demonstrating
-benefit; a wide interval is **INCONCLUSIVE**. If the whole CI is below −5, the stage helps
-(removing it hurts). If the whole CI is above +5, the stage hurts (removing it helps).
+**Regression tolerance.** An ablation (C1, C2) is treated as *no worse* than B if its success rate
+is within **5 percentage points** of B's. A stage whose removal costs less than that has not
+demonstrated its value.
 
 **Uncertainty.** Paired differences are reported with a 95% bootstrap confidence interval over
 tasks (10 000 resamples, seeded). An interval spanning zero is reported as **inconclusive**.
@@ -158,8 +153,7 @@ Applied per component, from the numbers alone:
 | B − A ≥ +10 pts and the CI excludes zero | **RETAIN** the full orchestration as default |
 | B − A ≤ −10 pts and the CI excludes zero | **SIMPLIFY**: make A the default |
 | otherwise | **INCONCLUSIVE**: no default change. Uncertainty is a reason for a reversible default or an experimental flag, never for a claim of superiority |
-| C1 (or C2) CI entirely within ±5 pts of B | that stage has **not demonstrated benefit** |
-| C1 (or C2) CI not entirely inside ±5 pts | **INCONCLUSIVE** for that stage — do not simplify from a point estimate |
+| C1 (or C2) within 5 pts of B | that stage has **not demonstrated benefit** — candidate for an explicit, reversible off-by-default flag |
 
 A change of default is implemented only where the numbers support it, is reversible, deletes no
 capability, and is followed by re-running the affected correctness checks.

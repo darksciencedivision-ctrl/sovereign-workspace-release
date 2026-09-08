@@ -863,11 +863,32 @@ class SemanticDeepExecutor:
             self.minimum_num_predict_by_model[model.strip()] = minimum
         self.require_evidence_citations = bool(require_evidence_citations)
         self.per_call_timeout_seconds = float(per_call_timeout_seconds)
+        # Measurement-only ablation flags. Production callers never set these; the
+        # default path still runs critic and verifier.
+        self.skip_critique = False
+        self.skip_verification = False
         self._now = now
         self._monotonic = monotonic
         self._execution_id_factory = execution_id_factory or self._new_execution_id
         self._lock = threading.RLock()
         self._active: dict[str, threading.Event] = {}
+
+    def set_measurement_skip(self, stage: str) -> None:
+        """Disable one named DEEP stage for an ablation measurement.
+
+        Production defaults are unchanged. A named stage that is skipped is absent
+        from the call trace; remaining stages still run.
+        """
+        key = str(stage).strip().lower()
+        if key in {"critic", "critique"}:
+            self.skip_critique = True
+            return
+        if key in {"verifier", "verification"}:
+            self.skip_verification = True
+            return
+        raise ValueError(
+            "measurement skip stage must be critic or verifier, not " + repr(stage)
+        )
 
     @staticmethod
     def _new_execution_id() -> str:
@@ -2369,28 +2390,43 @@ class SemanticDeepExecutor:
                         }
                     )
 
-                critique_prompt = self.build_critique_prompt(
-                    topic,
-                    evidence_view,
-                    member_material,
-                )
-                critique_raw, _turn = self._call_turn(
-                    context,
-                    stage="critique",
-                    role="adversarial_critic",
-                    model=self.critic_model,
-                    prompt=critique_prompt,
-                    options=self._options_for("critique", runtime_options),
-                    percent=51,
-                    cancel_requested=cancel_requested,
-                )
-                try:
-                    critique = parse_critique(critique_raw)
-                except ModelContractError as exc:
-                    raise _PipelineStop(
-                        ExecutionStatus.REJECTED,
-                        f"critique contract rejected: {exc}",
-                    ) from exc
+                if self.skip_critique:
+                    critique_raw = ""
+                    critique = {
+                        "material_issues": [],
+                        "reliable_points": [],
+                        "unresolved": [],
+                        "synthesis_guidance": [],
+                    }
+                    context.pipeline_findings.append(
+                        {
+                            "stage": "critique",
+                            "disposition": "measurement skip: critic stage absent",
+                        }
+                    )
+                else:
+                    critique_prompt = self.build_critique_prompt(
+                        topic,
+                        evidence_view,
+                        member_material,
+                    )
+                    critique_raw, _turn = self._call_turn(
+                        context,
+                        stage="critique",
+                        role="adversarial_critic",
+                        model=self.critic_model,
+                        prompt=critique_prompt,
+                        options=self._options_for("critique", runtime_options),
+                        percent=51,
+                        cancel_requested=cancel_requested,
+                    )
+                    try:
+                        critique = parse_critique(critique_raw)
+                    except ModelContractError as exc:
+                        raise _PipelineStop(
+                            ExecutionStatus.REJECTED,
+                            f"critique contract rejected: {exc}",
+                        ) from exc
                 critique_path = run_dir / "critique.json"
                 critique_record = _with_digest(
                     {
@@ -2424,29 +2460,47 @@ class SemanticDeepExecutor:
                     percent=65,
                     cancel_requested=cancel_requested,
                 )
-                verification_prompt = self.build_verification_prompt(
-                    topic,
-                    evidence_view,
-                    candidate,
-                    critique,
-                )
-                verdict_raw, _turn = self._call_turn(
-                    context,
-                    stage="verification",
-                    role="grounding_verifier",
-                    model=self.verifier_model,
-                    prompt=verification_prompt,
-                    options=self._options_for("verification", runtime_options),
-                    percent=75,
-                    cancel_requested=cancel_requested,
-                )
-                try:
-                    verdict = parse_verdict(verdict_raw)
-                except ModelContractError as exc:
-                    raise _PipelineStop(
-                        ExecutionStatus.REJECTED,
-                        f"verification contract rejected: {exc}",
-                    ) from exc
+                if self.skip_verification:
+                    verdict_raw = ""
+                    verdict = {
+                        "accept": True,
+                        "unsupported_claims": [],
+                        "contradictions": [],
+                        "missing_requirements": [],
+                        "directness": "pass",
+                        "grounding": "pass",
+                        "reason": "measurement skip: verifier stage absent",
+                    }
+                    context.pipeline_findings.append(
+                        {
+                            "stage": "verification",
+                            "disposition": "measurement skip: verifier stage absent",
+                        }
+                    )
+                else:
+                    verification_prompt = self.build_verification_prompt(
+                        topic,
+                        evidence_view,
+                        candidate,
+                        critique,
+                    )
+                    verdict_raw, _turn = self._call_turn(
+                        context,
+                        stage="verification",
+                        role="grounding_verifier",
+                        model=self.verifier_model,
+                        prompt=verification_prompt,
+                        options=self._options_for("verification", runtime_options),
+                        percent=75,
+                        cancel_requested=cancel_requested,
+                    )
+                    try:
+                        verdict = parse_verdict(verdict_raw)
+                    except ModelContractError as exc:
+                        raise _PipelineStop(
+                            ExecutionStatus.REJECTED,
+                            f"verification contract rejected: {exc}",
+                        ) from exc
                 local_issues = self._local_acceptance_issues(
                     candidate,
                     resolved_evidence,
@@ -2500,31 +2554,43 @@ class SemanticDeepExecutor:
                         percent=85,
                         cancel_requested=cancel_requested,
                     )
-                    reverify_prompt = self.build_verification_prompt(
-                        topic,
-                        evidence_view,
-                        candidate,
-                        critique,
-                    )
-                    verdict_raw, _turn = self._call_turn(
-                        context,
-                        stage="reverification",
-                        role="grounding_verifier",
-                        model=self.verifier_model,
-                        prompt=reverify_prompt,
-                        options=self._options_for(
-                            "reverification", runtime_options
-                        ),
-                        percent=94,
-                        cancel_requested=cancel_requested,
-                    )
-                    try:
-                        verdict = parse_verdict(verdict_raw)
-                    except ModelContractError as exc:
-                        raise _PipelineStop(
-                            ExecutionStatus.REJECTED,
-                            f"reverification contract rejected: {exc}",
-                        ) from exc
+                    if self.skip_verification:
+                        verdict_raw = ""
+                        verdict = {
+                            "accept": True,
+                            "unsupported_claims": [],
+                            "contradictions": [],
+                            "missing_requirements": [],
+                            "directness": "pass",
+                            "grounding": "pass",
+                            "reason": "measurement skip: verifier stage absent",
+                        }
+                    else:
+                        reverify_prompt = self.build_verification_prompt(
+                            topic,
+                            evidence_view,
+                            candidate,
+                            critique,
+                        )
+                        verdict_raw, _turn = self._call_turn(
+                            context,
+                            stage="reverification",
+                            role="grounding_verifier",
+                            model=self.verifier_model,
+                            prompt=reverify_prompt,
+                            options=self._options_for(
+                                "reverification", runtime_options
+                            ),
+                            percent=94,
+                            cancel_requested=cancel_requested,
+                        )
+                        try:
+                            verdict = parse_verdict(verdict_raw)
+                        except ModelContractError as exc:
+                            raise _PipelineStop(
+                                ExecutionStatus.REJECTED,
+                                f"reverification contract rejected: {exc}",
+                            ) from exc
                     local_issues = self._local_acceptance_issues(
                         candidate,
                         resolved_evidence,

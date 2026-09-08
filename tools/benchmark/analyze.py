@@ -31,6 +31,9 @@ PRIMARY = ("B_full", "A_single")
 
 def load(path: Path):
     env, runs = None, []
+    shas = set()
+    cells = set()
+    dupes = []
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -39,6 +42,21 @@ def load(path: Path):
             env = rec
         elif rec.get("record_kind") == "run":
             runs.append(rec)
+            if rec.get("candidate_sha"):
+                shas.add(rec["candidate_sha"])
+            cell = (rec.get("task_id"), rec.get("condition"), rec.get("run_index"))
+            if cell in cells:
+                dupes.append(cell)
+            cells.add(cell)
+    if len(shas) > 1:
+        raise ValueError("mixed candidate_sha values; file is not a single experiment: " + repr(shas))
+    if env and env.get("candidate_sha") and shas and env["candidate_sha"] not in shas and shas:
+        # env sha with no matching runs is allowed only if runs are empty
+        pass
+    if env and shas and env.get("candidate_sha") and env["candidate_sha"] not in shas:
+        raise ValueError("environment candidate_sha does not match run rows")
+    if dupes:
+        raise ValueError("duplicate task/condition/repeat cells: " + repr(dupes[:8]))
     return env, runs
 
 
@@ -130,7 +148,7 @@ def main(argv=None) -> int:
     partial = any(r.get("partial") for r in runs) or (env or {}).get("partial")
 
     print("=" * 78)
-    print("SWS-BENCH-01 analysis")
+    print("SWS-BENCH-02 analysis")
     print("=" * 78)
     if env:
         print(f"candidate       {env.get('candidate_sha')}")
@@ -144,7 +162,7 @@ def main(argv=None) -> int:
     print(f"executions      {len(runs)}  {per_cell}")
     if partial:
         print()
-        print("  *** PRELIMINARY *** This run set does not satisfy SWS-BENCH-01 in full.")
+        print("  *** PRELIMINARY *** This run set does not satisfy SWS-BENCH-02 in full.")
         print("      Its coverage is stated above and in the report; the decision below is")
         print("      correspondingly provisional and MUST NOT be reported as the protocol's.")
 
@@ -202,12 +220,20 @@ def main(argv=None) -> int:
             continue
         mean, diffs, shared = paired_diff(runs, ab, "B_full")
         lo, hi = bootstrap_ci(diffs)
-        within = abs(mean) <= REGRESSION_TOLERANCE_PTS
-        verdict = ("stage has NOT demonstrated benefit" if within
-                   else ("stage helps" if mean < 0 else "stage HURTS"))
+        if lo is None or hi is None:
+            verdict = "INCONCLUSIVE"
+        elif hi < -REGRESSION_TOLERANCE_PTS:
+            verdict = "stage helps"
+        elif lo > REGRESSION_TOLERANCE_PTS:
+            verdict = "stage HURTS"
+        elif lo >= -REGRESSION_TOLERANCE_PTS and hi <= REGRESSION_TOLERANCE_PTS:
+            verdict = "stage has NOT demonstrated benefit"
+        else:
+            verdict = "INCONCLUSIVE"
         ablations[ab] = {"mean_pts": round(mean, 2), "ci95": [lo, hi], "verdict": verdict}
         print(f"  {ab:<16} {mean:+.1f} pts vs B_full   CI [{lo}, {hi}]   -> {verdict}")
-        print(f"  {'':<16} (tolerance +/-{REGRESSION_TOLERANCE_PTS} pts, frozen before the run)")
+        print(f"  {'':<16} (non-inferiority uses the CI, not the point estimate; "
+              f"tolerance +/-{REGRESSION_TOLERANCE_PTS} pts)")
 
     print()
     print("-" * 78)
@@ -223,7 +249,7 @@ def main(argv=None) -> int:
 
     if args.json_out:
         Path(args.json_out).write_text(json.dumps({
-            "protocol": "SWS-BENCH-01",
+            "protocol": "SWS-BENCH-02",
             "preliminary": bool(partial),
             "environment": env,
             "conditions": rows,

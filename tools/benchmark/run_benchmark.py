@@ -25,10 +25,12 @@ import hashlib
 import json
 import os
 import random
+import re
 import subprocess
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -194,7 +196,69 @@ def build_packet(session_id: str, dataset: dict, task: dict) -> EvidencePacket:
     )
 
 
-# --------------------------------------------------------------------------- grading
+_NEGATION = re.compile(
+    r"\b(not|never|no|n't|cannot|can't|isn't|wasn't|aren't|weren't)\b",
+    re.IGNORECASE,
+)
+
+
+def token_is_negated(text: str, token: str) -> bool:
+    """True when `token` appears in a window that also contains a negation marker."""
+    low = text.lower()
+    needle = token.lower()
+    start = 0
+    while True:
+        idx = low.find(needle, start)
+        if idx < 0:
+            return False
+        window = low[max(0, idx - 48): idx + len(needle) + 48]
+        if _NEGATION.search(window):
+            return True
+        start = idx + max(1, len(needle))
+
+
+def independent_unsupported(task: dict, answer: str, packet) -> int:
+    """Source-support / known-answer unsupportedness. Not citation-token presence.
+
+    Counts: forbidden facts even when they carry a real citation; required facts asserted
+    under negation; required facts whose cited source text does not contain them.
+    """
+    count = 0
+    text = answer or ""
+    low = text.lower()
+    packet_text = (getattr(packet, "text", None) or "") if packet is not None else ""
+    sources = list(getattr(packet, "sources", ()) or ()) if packet is not None else []
+    source_text = {
+        s.source_id: (s.snippet or "").lower()
+        for s in sources
+    }
+    for forbidden in task.get("must_not_contain") or []:
+        if forbidden.lower() in low:
+            count += 1
+    if not task.get("expect_abstention"):
+        for required in task.get("must_contain") or []:
+            if required.lower() not in low:
+                continue
+            if token_is_negated(text, required):
+                count += 1
+                continue
+            cited_ok = False
+            for sid, snippet in source_text.items():
+                if required.lower() in snippet and f"[{sid}]".lower() in low:
+                    cited_ok = True
+                    break
+            if sources and required.lower() in packet_text.lower() and not cited_ok:
+                # Present in the packet but the answer did not cite a source that
+                # actually contains it — still a support miss if a citation is present
+                # pointing at a different source.
+                if re.search(r"\[source:[^\]]+\]|\[[A-Za-z][^\]]+\]", text):
+                    for sid, snippet in source_text.items():
+                        if f"[{sid}]".lower() in low and required.lower() not in snippet:
+                            count += 1
+                            break
+    return count
+
+
 def grade(task: dict, answer: str, dataset: dict, packet) -> dict:
     """Known-answer grading. No model judges another model's output."""
     low = (answer or "").lower()
@@ -202,11 +266,15 @@ def grade(task: dict, answer: str, dataset: dict, packet) -> dict:
 
     missing = [s for s in task["must_contain"] if s.lower() not in low]
     forbidden = [s for s in task["must_not_contain"] if s.lower() in low]
+    negated = [
+        s for s in task["must_contain"]
+        if s.lower() in low and token_is_negated(answer or "", s)
+    ]
 
     if task["expect_abstention"]:
         correct = bool(abstained) and not forbidden
     else:
-        correct = not missing and not forbidden and bool(low.strip())
+        correct = not missing and not forbidden and not negated and bool(low.strip())
 
     assessment = assess_quick_response(answer, packet, query=task["query"])
     return {
@@ -214,7 +282,9 @@ def grade(task: dict, answer: str, dataset: dict, packet) -> dict:
         "abstained": abstained,
         "missing_required": missing,
         "found_forbidden": forbidden,
-        "unsupported_claims": len(assessment.unattributed_claims),
+        "negated_required": negated,
+        "unattributed_claims": len(assessment.unattributed_claims),
+        "unsupported_claims": independent_unsupported(task, answer, packet),
         "citation_errors": len(assessment.unknown_citations),
         "acceptance_accepted": assessment.accepted,
         "answer_chars": len(answer or ""),
@@ -222,9 +292,10 @@ def grade(task: dict, answer: str, dataset: dict, packet) -> dict:
 
 
 # --------------------------------------------------------------------------- conditions
-def session_for(task_id: str) -> str:
-    """One session id per TASK, shared by every condition - the packet is paired."""
-    return "bench" + hashlib.sha256(task_id.encode()).hexdigest()[:12]
+def session_for(run_id: str, task_id: str, condition: str, run_index: int) -> str:
+    """Unique per (run, task, condition, repeat). Evidence *content* stays paired by task."""
+    raw = f"{run_id}:{task_id}:{condition}:{run_index}"
+    return "bench" + hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 
 def run_condition(condition, task, dataset, packet, models, client, artifact_root, timeout,
@@ -239,7 +310,8 @@ def run_condition(condition, task, dataset, packet, models, client, artifact_roo
             prompt_builder=build_quick_prompt,
         )
         result = ex.execute(session, task["query"], model=models["PRIMARY_REASONER"],
-                            evidence=packet, overall_timeout=timeout)
+                            evidence=packet, overall_timeout=timeout,
+                            options=runtime_options)
         return _harvest(result, calls=1)
 
     kwargs = dict(
@@ -268,59 +340,59 @@ def run_condition(condition, task, dataset, packet, models, client, artifact_roo
 
 
 def _disable_stage(executor, stage: str) -> None:
-    """Neutralise one stage of the DEEP pipeline for an ablation condition.
-
-    NOT IMPLEMENTED, and deliberately loud about it.
-
-    `SemanticDeepExecutor` has no switch for skipping the critic or the verifier: the stages are
-    inline in `execute`, and each one's output feeds the next. Ablating them properly means
-    adding a real, reversible off-switch to the product - which is a product change, and
-    PROTOCOL.md is explicit that a simplification is implemented only where the numbers support
-    it, not in order to measure it.
-
-    The dangerous version of this function is the one that quietly does nothing. A C1 or C2 run
-    against an executor that still ran every stage would produce results IDENTICAL to B_full,
-    and `analyze.py` would faithfully report "this stage has not demonstrated benefit" about a
-    stage that had never been removed. That is a fabricated finding, and it is exactly the shape
-    of the claim this whole workstream exists to avoid making.
-
-    So it raises. An ablation condition cannot be run until the switch it needs actually exists.
-    """
-    raise NotImplementedError(
-        "ablation condition '{}' cannot run: SemanticDeepExecutor has no switch for skipping "
-        "that stage, so this condition would silently re-run B_full and report a difference of "
-        "zero as evidence that the stage is worthless. Add an explicit, reversible off-switch "
-        "to the product first, then re-run. See PROTOCOL.md section 2.".format(stage))
+    """Measurement-only skip of one named DEEP stage. Production defaults stay enabled."""
+    executor.set_measurement_skip(stage)
 
 
 def _harvest(result, calls):
     answer = getattr(result, "answer", None) or ""
     status = getattr(result, "status", None)
+    status_value = str(getattr(status, "value", status) or "")
+    reason = getattr(result, "reason", None)
+    tel = getattr(result, "telemetry", None) or {}
+    internal = tel.get("internal_cost") if isinstance(tel, dict) else None
+    if not isinstance(internal, dict):
+        internal = {}
+    model_calls = internal.get("model_calls")
+    if model_calls is None:
+        model_calls = tel.get("turn_count") if isinstance(tel, dict) else None
+    if model_calls is None:
+        model_calls = calls
+    prompt_tokens = None
+    completion_tokens = None
+    if isinstance(tel, dict):
+        if tel.get("prompt_eval_count") is not None:
+            prompt_tokens = tel.get("prompt_eval_count")
+        if tel.get("eval_count") is not None:
+            completion_tokens = tel.get("eval_count")
+    if prompt_tokens is None and internal.get("prompt_eval_count") is not None:
+        prompt_tokens = internal.get("prompt_eval_count")
+    if completion_tokens is None and internal.get("eval_count") is not None:
+        completion_tokens = internal.get("eval_count")
+    error = None
+    if status_value in {"timeout", "TIMEOUT"} or (
+        isinstance(reason, str) and "timeout" in reason.lower()
+    ):
+        error = reason or "timeout"
     meta = {
-        "status": str(getattr(status, "value", status)),
-        "reason": getattr(result, "reason", None),
-        "model_calls": calls,
-        "prompt_tokens": None,
-        "completion_tokens": None,
+        "status": status_value,
+        "reason": reason,
+        "model_calls": model_calls,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
     }
-    raw = getattr(result, "raw_records", None) or getattr(result, "raw", None)
-    if isinstance(raw, (list, tuple)):
-        meta["model_calls"] = len(raw)
-        p = c = 0
-        seen = False
-        for item in raw:
-            if not isinstance(item, dict):
-                continue
-            if "prompt_eval_count" in item:
-                p += int(item.get("prompt_eval_count") or 0)
-                seen = True
-            if "eval_count" in item:
-                c += int(item.get("eval_count") or 0)
-                seen = True
-        if seen:
-            meta["prompt_tokens"] = p
-            meta["completion_tokens"] = c
-    return answer, meta
+    if not answer:
+        artifacts = getattr(result, "artifacts", None) or {}
+        result_rel = artifacts.get("result")
+        if result_rel:
+            try:
+                path = Path(result_rel)
+                if path.is_file():
+                    doc = json.loads(path.read_text(encoding="utf-8"))
+                    answer = doc.get("answer") or doc.get("candidate") or answer
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+    return answer, meta, error
 
 
 # --------------------------------------------------------------------------- main
@@ -335,7 +407,18 @@ def main(argv=None) -> int:
     ap.add_argument("--conditions", default=",".join(CONDITIONS))
     ap.add_argument("--timeout", type=float, default=600.0)
     ap.add_argument("--seed", type=int, default=20260908)
+    ap.add_argument("--run-id", default=None,
+                    help="unique id for this run set; generated if omitted")
+    ap.add_argument("--resume", action="store_true",
+                    help="append to an existing compatible --out; refuse overwrite otherwise")
     args = ap.parse_args(argv)
+
+    out_path = Path(args.out).resolve()
+    if out_path.exists() and not args.resume:
+        print(f"refusing to overwrite existing output: {out_path}", file=sys.stderr)
+        print("pass --resume for a compatible continuation, or a new --out path",
+              file=sys.stderr)
+        return 2
 
     dataset = json.loads((HERE / "dataset.json").read_text(encoding="utf-8"))
     tasks = dataset["tasks"]
@@ -356,10 +439,45 @@ def main(argv=None) -> int:
     from sovereign_product.model_client import OllamaClient
     client = OllamaClient()
 
-    artifact_root = Path(args.out).resolve().parent / "artifacts"
-    artifact_root.mkdir(parents=True, exist_ok=True)
-    out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    run_id = args.run_id or ("run-" + uuid.uuid4().hex[:12])
+    lock_path = out_path.with_name(out_path.name + ".lock")
+    existing_cells: set[tuple[str, str, int]] = set()
+    existing_env = None
+    if out_path.exists():
+        if not args.resume:
+            print(f"refusing to overwrite existing output: {out_path}", file=sys.stderr)
+            print("pass --resume for a compatible continuation, or a new --out path",
+                  file=sys.stderr)
+            return 2
+        for line in out_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            if rec.get("record_kind") == "environment":
+                existing_env = rec
+            elif rec.get("record_kind") == "run":
+                existing_cells.add((rec["task_id"], rec["condition"], rec["run_index"]))
+    else:
+        try:
+            fd = os.open(str(out_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+        except FileExistsError:
+            print(f"refusing to race on existing output: {out_path}", file=sys.stderr)
+            return 2
+    if lock_path.exists():
+        print(f"another benchmark holds {lock_path}", file=sys.stderr)
+        return 2
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(fd, f"{os.getpid()} {utc()}\n".encode("utf-8"))
+        finally:
+            os.close(fd)
+    except FileExistsError:
+        print(f"another benchmark holds {lock_path}", file=sys.stderr)
+        return 2
+    artifact_root = out_path.parent / run_id / "artifacts"
 
     candidate = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
                                capture_output=True, text=True).stdout.strip()
@@ -368,7 +486,8 @@ def main(argv=None) -> int:
 
     env = {
         "record_kind": "environment",
-        "protocol": "SWS-BENCH-01",
+        "protocol": "SWS-BENCH-02",
+        "run_id": run_id,
         "partial": partial,
         "utc": utc(),
         "candidate_sha": candidate,
@@ -379,6 +498,7 @@ def main(argv=None) -> int:
         "runs_per_cell": args.runs,
         "conditions": conditions,
         "task_count": len(tasks),
+        "timeout_s": args.timeout,
         "models": models,
         "model_details": ollama_digests(tags),
         "sampling": "product defaults from SYSTEM_MANIFEST RUNTIME; no benchmark override",
@@ -394,71 +514,103 @@ def main(argv=None) -> int:
                          "limitation rather than eliminated"),
         "seed": args.seed,
     }
-    with out_path.open("w", encoding="utf-8", newline="\n") as fh:
-        fh.write(json.dumps(env) + "\n")
-    print(json.dumps({k: env[k] for k in
-                      ("candidate_sha", "dataset_sha256", "task_count", "runs_per_cell",
-                       "partial")}, indent=2))
+    try:
+        if existing_env is not None:
+            for key in ("dataset_sha256", "sources_sha256", "harness_sha256", "protocol_sha256",
+                        "candidate_sha", "runs_per_cell"):
+                if existing_env.get(key) != env.get(key):
+                    print(f"resume refused: {key} changed", file=sys.stderr)
+                    return 2
+            if list(existing_env.get("conditions") or []) != conditions:
+                print("resume refused: conditions changed", file=sys.stderr)
+                return 2
+            run_id = existing_env.get("run_id") or run_id
+            env["run_id"] = run_id
+            artifact_root = out_path.parent / run_id / "artifacts"
+        else:
+            with out_path.open("w", encoding="utf-8", newline="\n") as fh:
+                fh.write(json.dumps(env) + "\n")
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        print(json.dumps({k: env[k] for k in
+                          ("run_id", "candidate_sha", "dataset_sha256", "task_count",
+                           "runs_per_cell", "partial")}, indent=2))
 
-    rng = random.Random(args.seed)
-    total = len(tasks) * len(conditions) * args.runs
-    done = 0
+        rng = random.Random(args.seed)
+        total = len(tasks) * len(conditions) * args.runs
+        done = 0
+        for run_index in range(args.runs):
+            for task in tasks:
+                order = list(conditions)
+                rng.shuffle(order)
+                for condition in order:
+                    done += 1
+                    cell = (task["id"], condition, run_index)
+                    if cell in existing_cells:
+                        print(f"[{done:>4}/{total}] skip {task['id']:<6} {condition:<14} "
+                              f"(already recorded)")
+                        continue
+                    session = session_for(run_id, task["id"], condition, run_index)
+                    packet = build_packet(session, dataset, task)
+                    started = time.monotonic()
+                    record = {
+                        "record_kind": "run",
+                        "protocol": "SWS-BENCH-02",
+                        "run_id": run_id,
+                        "partial": partial,
+                        "utc": utc(),
+                        "run_index": run_index,
+                        "task_id": task["id"],
+                        "category": task["category"],
+                        "condition": condition,
+                        "order_position": order.index(condition),
+                        "candidate_sha": candidate,
+                        "dataset_sha256": dataset["dataset_sha256"],
+                    }
+                    answer, meta, harvested_error = "", {}, None
+                    error = None
+                    with VramSampler() as vram:
+                        try:
+                            harvested = run_condition(
+                                condition, task, dataset, packet, models, client,
+                                artifact_root, args.timeout, session, runtime_options)
+                            if len(harvested) == 3:
+                                answer, meta, harvested_error = harvested
+                            else:
+                                answer, meta = harvested
+                        except Exception as exc:  # noqa: BLE001 - recorded, never dropped
+                            error = f"{type(exc).__name__}: {exc}"
+                        record["peak_vram_mib"] = vram.peak
+                        record["vram_method"] = (
+                            "nvidia-smi memory.used sampled every 500ms; whole-device, sampled not "
+                            "integrated, so a peak between samples is missed"
+                            if vram.available else "unavailable on this host")
+                    if error is None:
+                        error = harvested_error
+                    record["elapsed_s"] = round(time.monotonic() - started, 3)
+                    record["error"] = error
+                    record.update(meta)
+                    record["grade"] = grade(task, answer, dataset, packet)
+                    record["answer_sha256"] = sha(answer) if answer else None
+                    record["answer"] = answer[:4000]
 
-    for run_index in range(args.runs):
-        for task in tasks:
-            session = session_for(task["id"])
-            packet = build_packet(session, dataset, task)
-            order = list(conditions)
-            rng.shuffle(order)  # counterbalancing: no condition always runs warm
-            for condition in order:
-                done += 1
-                started = time.monotonic()
-                record = {
-                    "record_kind": "run",
-                    "protocol": "SWS-BENCH-01",
-                    "partial": partial,
-                    "utc": utc(),
-                    "run_index": run_index,
-                    "task_id": task["id"],
-                    "category": task["category"],
-                    "condition": condition,
-                    "order_position": order.index(condition),
-                    "candidate_sha": candidate,
-                    "dataset_sha256": dataset["dataset_sha256"],
-                }
-                answer, meta, error = "", {}, None
-                with VramSampler() as vram:
-                    try:
-                        answer, meta = run_condition(
-                            condition, task, dataset, packet, models, client,
-                            artifact_root, args.timeout, session, runtime_options)
-                    except Exception as exc:  # noqa: BLE001 - recorded, never dropped
-                        error = f"{type(exc).__name__}: {exc}"
-                    record["peak_vram_mib"] = vram.peak
-                    record["vram_method"] = (
-                        "nvidia-smi memory.used sampled every 500ms; whole-device, sampled not "
-                        "integrated, so a peak between samples is missed"
-                        if vram.available else "unavailable on this host")
-                record["elapsed_s"] = round(time.monotonic() - started, 3)
-                record["error"] = error
-                record.update(meta)
-                record["grade"] = (grade(task, answer, dataset, packet)
-                                   if error is None else None)
-                record["answer_sha256"] = sha(answer) if answer else None
-                record["answer"] = answer[:4000]
+                    with out_path.open("a", encoding="utf-8", newline="\n") as fh:
+                        fh.write(json.dumps(record) + "\n")
 
-                with out_path.open("a", encoding="utf-8", newline="\n") as fh:
-                    fh.write(json.dumps(record) + "\n")
+                    verdict = "ERR" if error else ("OK " if record["grade"]["correct"] else "no ")
+                    print(f"[{done:>4}/{total}] {verdict} {task['id']:<6} {condition:<14} "
+                          f"{record['elapsed_s']:>7.1f}s"
+                          + (f"  {error[:80]}" if error else ""))
 
-                verdict = "ERR" if error else ("OK " if record["grade"]["correct"] else "no ")
-                print(f"[{done:>4}/{total}] {verdict} {task['id']:<6} {condition:<14} "
-                      f"{record['elapsed_s']:>7.1f}s"
-                      + (f"  {error[:80]}" if error else ""))
-
-    print(f"\nwrote {out_path}")
-    if partial:
-        print("PARTIAL RUN: this does not satisfy SWS-BENCH-01 and is labelled so in every record.")
-    return 0
+        print(f"\nwrote {out_path}")
+        if partial:
+            print("PARTIAL RUN: this does not satisfy SWS-BENCH-02 and is labelled so in every record.")
+        return 0
+    finally:
+        try:
+            if lock_path.exists():
+                lock_path.unlink()
+        except OSError:
+            pass
 
 
 def _gpu_name():
