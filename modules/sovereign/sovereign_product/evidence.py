@@ -203,6 +203,9 @@ _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
     "system_manifest.json": frozenset(
         {"version", "runtime", "models", "configuration", "capabilities"}
     ),
+    "readme_production.md": frozenset(
+        {"version", "runtime", "models", "configuration", "capabilities"}
+    ),
     "sovereign_version.py": frozenset({"version"}),
     "constitution/constitution_state.json": frozenset(
         {"mode", "status", "configuration"}
@@ -757,6 +760,13 @@ class EvidenceBuilder:
             )
         ):
             intents.add("models")
+        # Product vocabulary from SYSTEM_MANIFEST MODELS.PRIMARY_REASONER and
+        # README_PRODUCTION.md. The frozen operator query names these phrases
+        # without saying "sovereign" or "the product"; fullmatch patterns miss it.
+        if re.search(r"\bprimary\s+reasoner\b", normalized):
+            intents.add("models")
+        if re.search(r"\bruntime\s+state\b", normalized):
+            intents.add("runtime")
 
         if "mode" in words and (
             has_product_reference

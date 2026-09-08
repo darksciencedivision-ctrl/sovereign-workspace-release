@@ -699,6 +699,7 @@ class ProductService:
         """
         candidates = (
             "SYSTEM_MANIFEST.json",
+            "README_PRODUCTION.md",
             "sovereign_version.py",
             "constitution/constitution_state.json",
             "constitution/constitution_v1.md",

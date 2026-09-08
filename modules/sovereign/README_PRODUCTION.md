@@ -55,6 +55,6 @@ Run diagnostics:
 .\Diagnose-Sovereign.ps1
 ```
 
-Mutable state is initialized under the extracted package's root-relative `runtime` directory, including `runtime/sovereign.db`, evidence, service state, and runtime logs. No operator conversation, history, research run, job, session, or other mutable runtime state is included in this distribution.
+Mutable runtime state is kept under `%LOCALAPPDATA%\SovereignWorkspace\sovereign`, outside the installation directory. `SOVEREIGN_WORKSPACE_STATE` overrides that location. The distribution itself contains no operator conversations, history, research runs, jobs, sessions, or other mutable runtime state.
 
 SOVEREIGN binds the product service to loopback. The current deployment requires local Ollama and the assigned model tags to be available before startup. This package is a folder distribution, not an MSI/EXE installer or Windows Service.
