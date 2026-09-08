@@ -10,7 +10,7 @@
 
 | Field | Value |
 |---|---|
-| Build commit | `0761d756dfb95d9acc7aa0218dbd828effd85a56` |
+| Build commit | `45751ac54363cf77ff8bc672eca7f375d42de9cb` |
 | Version | `1.0.0-rc.1` |
 | Tracked tree at build | clean (`git status --porcelain --untracked-files=no` empty) |
 | Reviewed baseline | `52bcc931e6ebb0db24155758cf19d1cf592731fa` |
@@ -25,14 +25,14 @@ Cut by `tools/release/build_release.ps1 -Commit HEAD`. Each carries a `.sha256` 
 
 | Artifact | Bytes | SHA-256 |
 |---|---|---|
-| `sovereign-workspace-1.0.0-rc.1-source.zip` | 10563536 | `f15614222744758c48af3c7a13c28fc002acd05b1983a29925727d562b216dc3` |
-| **`sovereign-workspace-1.0.0-rc.1-install.zip`** | **10639630** | **`4b14d525d23233880a2b3b5cb82589546b23f6703c16f1edeb500448be43177d`** |
-| `debate-v1.2.1-hardening-src.zip` | 192506 | `ba10b890828e654209990dc87812ac95352db8384f6781d4be1e7b7c73062db9` |
-| `distillery-1.1.0rc3-src.zip` | 2203219 | `3b97a61ae0fc68f02b0d0908d412ebc387277b20d13910962112ead60cfc21f7` |
-| `shell-1.0.0-rc.1-src.zip` | 1759760 | `15daf4e3c45c6e5248fdcf34d6c26181e44e00505546aff726575ee8abff6bb3` |
-| `sovereign-SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520-src.zip` | 506999 | `e112e99931d340e16515e48cc04c385306d799f44b8eeaa252175981c00bee47` |
-| `sow-0.1.0-src.zip` | 5157178 | `85708d5cfbfd3a42dfe0375a93bcbec582c7fa92e4bc6e180f6f629e11cfeaaa` |
-| `tokencenter-record-dated-2026-08-26-src.zip` | 389079 | `9f989228b43682fa526fca04258d132e30421606d2a76d03a289dede5067cb55` |
+| `sovereign-workspace-1.0.0-rc.1-source.zip` | 10564896 | `d611306be4979007cc037f1dcd5d05da338089a691fa16b3ad50f78fea34f6e8` |
+| **`sovereign-workspace-1.0.0-rc.1-install.zip`** | **10640990** | **`5f45b35acd5791cd4bfc7122ede80bebb420e629ddb56a75d998d0b398c25953`** |
+| `debate-v1.2.1-hardening-src.zip` | 192506 | `5f459f8591ccd4cbbe4e33c130d37cfe03ad59d99feddb0b0f614c88e590c18b` |
+| `distillery-1.1.0rc3-src.zip` | 2203219 | `cfb52f64373dd1e227fe4f9a8b007320148a495ae11a9f36844efb420dd3cca5` |
+| `shell-1.0.0-rc.1-src.zip` | 1759808 | `87574016b29eabacdda53beeaffa87273a86831ebb356f55bca9a7ae25ef3730` |
+| `sovereign-SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520-src.zip` | 507753 | `938d2d412aee2702a2a6850756abb35ef80bef8f50c688b0574ffb8b40387daf` |
+| `sow-0.1.0-src.zip` | 5157178 | `af58c967210719f2cdbff34882573a835ed32df9427039821aaaf3e0d1e1ab06` |
+| `tokencenter-record-dated-2026-08-26-src.zip` | 389079 | `3e4e429590bb573eed270440166360a400fe033ed7ed626750b6e410df7de78b` |
 
 The install archive is the one the acceptance sequence consumes.
 
@@ -42,14 +42,20 @@ folder. They are reproducible from the commit at any time by the command above.
 
 ## 3. Reproducibility — two isolated builds (§5.8)
 
-The build was run twice into two separate output directories from the same commit. All **eight**
-artifacts were **byte-identical**, sizes and SHA-256 both:
+The build was run twice into two separate output directories from the same commit — `0761d756`,
+an earlier candidate in this run. All **eight** artifacts were **byte-identical**, sizes and
+SHA-256 both:
 
 ```
 build 1 -> ...\scratchpad\artifacts
 build 2 -> ...\scratchpad\artifacts2
 8 of 8 artifacts identical
 ```
+
+The final candidate `45751ac` was then built once more, into a third directory, and those are the
+hashes tabulated above. Stated precisely: the **double build was run on `0761d756`**, not
+re-demonstrated on `45751ac`. Reproducibility is a property of the producer and the producer did
+not change between them, but the measurement belongs to the commit it was taken on.
 
 `git archive` fixes entry timestamps from the commit rather than the clock, which is why whole-file
 hashes reproduce rather than only content. `release-build-manifest.json` carries a UTC-free record;
@@ -68,7 +74,8 @@ The producer refuses rather than adopting a file it did not cut.
 
 ## 4. Release gates — measured on this candidate
 
-Every gate run against `0761d756`, exit code recorded:
+Every gate run against the candidate, exit code recorded. The twelve below were also run as part
+of the whole-suite invocation recorded in §4.1, and re-run individually against `45751ac`:
 
 | Gate | Result | Exit |
 |---|---|---|
@@ -87,6 +94,35 @@ Every gate run against `0761d756`, exit code recorded:
 
 R1 and R2 — the two gates the review recorded as FAILING — both pass on this candidate. Their
 before/after is in `../01-baseline/REPRODUCTIONS.md`.
+
+### 4.1 The whole-product run
+
+`tools/ci/run_ci.ps1 -SkipNode`, executed on `0761d756`, 23m19s of pytest:
+
+```
+4247 passed, 3 failed, 5 skipped, 61 warnings, 495 subtests passed in 1399.13s
+19 stage(s): 12 passed, 1 failed, 6 skipped
+RELEASE-QUALIFYING: NO. This run does not qualify a release.
+```
+
+The combined Python run **finished**; it was not a subset. Its three failures were all this
+work's own guards catching this work's own changes, and all three are fixed in `45751ac`:
+
+| Failure | Cause | Fixed by |
+|---|---|---|
+| `test_no_operator_facing_document_carries_an_undocumented_absolute_path` | the launcher table I added to `OPERATIONS.md` named an absolute build path | `7f81559` — table rewritten generically |
+| `test_no_operator_facing_document_names_a_build_tree` | the same table named `release-worktree`, a directory that exists only on this machine | `7f81559` — and `Start-Sovereign.ps1` now genuinely searches rather than hard-coding the name |
+| `test_build_manifest_describes_the_tracked_tree` | commits landed after the manifest was last regenerated | `45751ac` — regenerated and re-pinned through the generators |
+
+That third failure is the R2 guard doing exactly its job: it detected the drift the old design
+could not, one commit after it appeared, instead of the drift sitting undetected across two
+commits and a release.
+
+**Stages that did not run, and what that means.** `-SkipNode` was passed and `-IncludeCleanRoom`
+was not, so six stages were SKIPPED with their reasons recorded. The summary consequently reports
+**RELEASE-QUALIFYING: NO**, which is the correct and intended behaviour: a release-required stage
+that did not run prevents qualification even though the developer run itself is useful. The
+clean-room install was instead performed separately and is recorded in `../04-acceptance/`.
 
 ### Planted defects still fail (negative controls, executed)
 
