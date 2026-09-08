@@ -1,7 +1,0 @@
-# utc: 2026-08-26T15:40:41.599492Z
-# producer: ox-alpha CP-M1 ADD-07 wave3
-
-FAIL: created_utc absent from before-a operational-state.js
-path=D:\Product Software\Production Workspace\evidence\cpm1\before-a\modules\sow\apps\desktop\control\operational-state.js
-created_utc_present=False
-This is the fails-before witness (pre-G28 projection).

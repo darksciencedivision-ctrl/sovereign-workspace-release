@@ -1,4 +1,0 @@
-# utc: 2026-08-26T21:02:31.846594Z
-# producer: ox-alpha CP-M1 ADD-07 wave9
-
-G81 grep-proof: Backend Protocol widened in adapters/base/backend.py. No parallel abstraction introduced. LlamaCppBackend is a Backend beside OllamaBackend.

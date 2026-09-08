@@ -1,4 +1,0 @@
-# utc: 2026-09-06T17:59:20.0497543Z
-# producer: Codex scope-stop text integrity
-....                                                                     [100%]
-4 passed in 0.78s

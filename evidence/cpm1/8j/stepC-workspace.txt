@@ -1,4 +1,0 @@
-# utc: 2026-08-26T21:00:20.211268Z
-# producer: ox-alpha CP-M1 ADD-07 wave7
-
-G57 stepC: NOT_RUN(SOW_ELECTRON_UNATTENDED). Creating a worker terminal requires the SOW tree; G26 launches killed Electron. Band 3 EMPTY session proven earlier (G20-G23 TRUE).

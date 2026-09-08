@@ -1,7 +1,0 @@
-﻿# utc: 2026-08-25T16:30:43.2312885Z
-# producer: ox-alpha CP-M1 Band 0 / correction C-1(a) standing incidental finding
-# OBSERVATION: D:\Product Software (outside Production Workspace), D:\multi model terminal app
-# and D:\Sovereign Distillery were observed EVENT-FREE from 09:33:01Z to 16:22:29Z (24568 s)
-# per superseded artifact fs-watch-cpm1.stall-window-superseded.txt (events: 0, errors: 0).
-# Coverage in that window was three of five protected roots; D:\Sov 1 was not watched.
-# This finding stands independent of the replacement window.

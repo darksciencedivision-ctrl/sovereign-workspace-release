@@ -1,6 +1,0 @@
-# utc: 2026-08-25T23:01:09.153Z
-# producer: ox-alpha CP-M1 / E-9
-Between a7c3f39b..1eae (reported at completion) and efa98fd0..425 live there was
-exactly ONE write: resync_8b.py refreshing shell/BUILD-MANIFEST.txt evidence hashes
-inside gates 8b and 8c only (61e60f83 -> 2f0ddf73), recorded in that tool run's output
-and referenced by LOOP-LEDGER i=24's correction note; no other field changed.

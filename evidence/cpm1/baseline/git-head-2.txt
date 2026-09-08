@@ -1,3 +1,0 @@
-﻿# utc: 2026-08-25T09:18:43.9353478Z
-# producer: ox-alpha CP-M1 Band 0 / G4 (SOW upstream inspection 2 of 2; GIT_OPTIONAL_LOCKS=0)
-HEAD: e6fcb89984ba50f296a1f4debb6669bfef12f996

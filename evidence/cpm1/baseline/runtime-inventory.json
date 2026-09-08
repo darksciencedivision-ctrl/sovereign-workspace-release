@@ -1,9 +1,0 @@
-﻿{
-    "captured_utc":  "2026-08-25T16:30:05.0460421Z",
-    "py_3_12":  "Python 3.12.10",
-    "node":  "v24.16.0",
-    "npm":  "11.17.0",
-    "git":  "git version 2.46.0.windows.1",
-    "powershell":  "5.1.26100.9168",
-    "note":  "runtime inventory as observed from builder shell PATH; corrects faulty capture of 2026-08-25T09:16:57Z whose git field was empty ($gv assigned, $gitv interpolated)"
-}

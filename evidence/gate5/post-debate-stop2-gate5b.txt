@@ -1,4 +1,0 @@
-# utc: 2026-08-22T21:05:50.484041+00:00
-# producer: ox-alpha GATE5B
-# request: POST /api/stop id=debate -> HTTP 200
-{"status": "stopped", "id": "debate", "state": "STOPPED"}

@@ -1,9 +1,0 @@
-# utc: 2026-08-25T04:22:38Z
-# producer: ox-alpha THEME01
-no workspace module processes
-checked: Get-CimInstance Win32_Process CommandLine scan for 'Production Workspace\\modules' and 'shell.src' - zero hits
-builder transient tooling: shell sessions ended via the shell's own CTRL_BREAK path (exit 3221225786 observed); no py/edge leftovers
-ports at close: 5175 free; 5180 free; 8700 in use by operator-side pid 52968 (C:\Python314\python.exe "D:\Debate table\app.py") -
-  predates this session, outside the workspace, not builder-started, left untouched (host fact recorded in evidence/theme01/session-start.txt)
-gate ledger sha256 after 7a/7b append: 176429fc4012ce57c1a19558e7aaed55e7f37ca268be0fdd067996fe79b8fc77
-pre-write snapshot evidence/theme01/ledger-snap-pre7.json sha256: 518ac84ce6a2b55b0c2d2f0bdcbd4dcd64886669012e1354432c28df6ef28085

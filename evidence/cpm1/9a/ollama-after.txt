@@ -1,6 +1,0 @@
-# utc: 2026-08-27T00:54:53.602Z
-# producer: ox-alpha CP-M1 ADD-08 wave
-
-G73 ollama intact (inspection only; no generate)
-version: ollama version is 0.33.0
-No ollama pull/delete/config this session. Store read-only.

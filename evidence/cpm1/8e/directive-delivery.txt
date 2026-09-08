@@ -1,7 +1,0 @@
-# utc: 2026-08-26T15:38:19.563180Z
-# producer: ox-alpha CP-M1 ADD-07 wave1
-
-G29 RESULT: NOT_RUN(DEPENDENCY_UNMET: G26)
-A task issued by the Conductor cannot be proven: G26 is NOT_RUN(CONDUCTOR_LAUNCH_PROCESS_DEATH).
-No session_id was assigned by a live Conductor this run. Ownership is not inferred.
-AUTHORIZED-BY-STANDING-DELEGATION skip of attendance; dependency is product, not signature.

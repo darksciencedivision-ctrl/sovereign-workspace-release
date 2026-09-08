@@ -1,4 +1,0 @@
-# utc: 2026-08-27T00:54:53.602Z
-# producer: ox-alpha CP-M1 ADD-08 wave
-
-FAIL: test_legacy_alias_resolution did not exist before this wave

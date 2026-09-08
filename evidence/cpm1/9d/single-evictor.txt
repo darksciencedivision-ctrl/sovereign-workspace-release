@@ -1,5 +1,0 @@
-# utc: 2026-08-26T21:02:31.846594Z
-# producer: ox-alpha CP-M1 ADD-07 wave9
-
-G88 router --no-models-autoload; --models-max set strictly above planner concurrency bound.
-Band 13 --models-max 1 must not survive (D5-2). Planner bound from measured free VRAM. Dual-evictor avoided.

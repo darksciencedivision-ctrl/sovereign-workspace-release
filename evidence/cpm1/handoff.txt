@@ -1,9 +1,0 @@
-# utc: 2026-08-26T21:00:20.211268Z
-# producer: ox-alpha CP-M1 ADD-07 wave7
-
-
-G67 handoff
-G64 before-b captured: evidence/cpm1/before-b/HASHES.txt (240 files)
-G65 test-run-handoff: pending suite
-G66 protected spot-check: adopted G4; this session wrote nothing under protected roots.
-utc: 2026-08-26T21:00:20.211268Z

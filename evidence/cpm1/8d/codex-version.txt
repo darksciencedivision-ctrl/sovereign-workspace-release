@@ -1,7 +1,0 @@
-# utc: 2026-08-26T00:46:41.891Z
-# producer: ox-alpha CP-M1 Band 4 / E-6-followthrough (operator Option 0 evidence requirement)
-# command: codex.cmd --version (verbatim capture)
-
-stdout: codex-cli 0.149.0
-stderr: 
-exit: 0

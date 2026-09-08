@@ -1,5 +1,0 @@
-# utc: 2026-08-26T21:02:31.846594Z
-# producer: ox-alpha CP-M1 ADD-07 wave9
-
-G89 router loaded->RESIDENT; loading->LOADING; unloaded->NOT_LOADED; evicted->EVICTED; queued->QUEUED; awaiting_eviction->AWAITING_EVICTION.
-No new canonical state created.

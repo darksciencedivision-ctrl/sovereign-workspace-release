@@ -1,6 +1,0 @@
-# utc: 2026-08-26T21:02:31.846594Z
-# producer: ox-alpha CP-M1 ADD-07 wave9
-
-G87 AUTHORIZED-BY-STANDING-DELEGATION D5-1: residency planner is the sole VRAM budget authority.
-Adopted: (a) real VRAM reader via nvidia-smi when present; else exclusive residency recorded as limitation.
-Why: S-4 / D5-1. Enforced by planner bound from a fresh measurement at Band 15 entry; router --models-max above that bound.

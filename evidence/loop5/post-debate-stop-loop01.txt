@@ -1,4 +1,0 @@
-# utc: 2026-08-24T16:21:07.711786+00:00
-# producer: ox-alpha LOOP-01
-# request: POST /api/stop id=debate -> HTTP 200
-{"status": "stopped", "id": "debate", "state": "STOPPED"}

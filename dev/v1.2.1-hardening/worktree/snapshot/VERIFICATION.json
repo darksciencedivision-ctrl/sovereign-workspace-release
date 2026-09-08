@@ -1,8 +1,0 @@
-{
-  "verified": true,
-  "file_count": 145,
-  "failures": [],
-  "verified_at": "2026-08-08T18:11:33.946921+00:00",
-  "verified_against_ref": "d03a1b7",
-  "method": "re-read snapshot/MANIFEST.json from disk and re-hashed every named file; checked size, worktree sha256 and git_blob_sha256"
-}

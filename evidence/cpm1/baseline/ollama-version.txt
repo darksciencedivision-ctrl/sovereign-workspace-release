@@ -1,3 +1,0 @@
-﻿ollama version is 0.32.14
-# utc: 2026-08-25T09:16:57.0648175Z
-# ollama http reachability at capture: REACHABLE

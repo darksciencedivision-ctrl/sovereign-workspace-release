@@ -1,5 +1,0 @@
-# utc: 2026-08-26T15:40:41.599492Z
-# producer: ox-alpha CP-M1 ADD-07 wave3
-
-FAIL: control_plane.canonical_registry did not exist before G40
-ImportError would fire; no refuse_incompatible symbol.

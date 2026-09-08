@@ -1,1 +1,0 @@
-{"ollama_url": "http://127.0.0.1:9", "port": 18977, "seats": [{"name": "Neo", "model": "m", "color": "#4fd1ff", "persona": "B", "thesis": "T"}, {"name": "Clue", "model": "m", "color": "#7dffa0", "persona": "C", "thesis": "T"}], "insight_panel": false}

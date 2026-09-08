@@ -1,5 +1,0 @@
-# utc: 2026-08-27T00:54:53.602Z
-# producer: ox-alpha CP-M1 ADD-08 wave
-
-G112 grep-proof: modules/sow/scheduler has no speculative execution, no MTP, no DFlash,
-no target+draft simultaneous residency. speculative_decoding is metadata only (G111).

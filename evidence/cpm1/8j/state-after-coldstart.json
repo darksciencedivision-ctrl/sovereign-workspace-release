@@ -1,6 +1,0 @@
-{
-  "utc": "2026-08-26T21:00:20.211268Z",
-  "note": "Structural cold-start: shell modules begin STOPPED/NOT_STARTED; Debate and Distillery consume no runtime until Start.",
-  "debate": "STOPPED_OR_EXTERNAL",
-  "distillery": "runnable_idle_no_compute"
-}

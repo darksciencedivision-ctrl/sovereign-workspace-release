@@ -1,4 +1,0 @@
-# utc: 2026-08-26T21:02:31.846594Z
-# producer: ox-alpha CP-M1 ADD-07 wave9
-
-G105: fallback uses existing descriptor-based resolver. No role_router module created.
