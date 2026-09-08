@@ -230,3 +230,62 @@ class TestTheHelpers:
         d = classify_local_model(record("qwen3:8b", params="8.2B")).as_dict()
         assert d["name"] == "qwen3:8b" and d["admitted"] is True
         assert d["parameter_size"] == "8.2B"
+
+
+import shutil
+import subprocess
+from types import SimpleNamespace
+
+from adapters.local.model_ceiling import VRAM_ENV, _detect_vram_mib
+
+
+class TestVramDetectionSeparatesFailedFromAbsent:
+    """SW-JOURNAL-002-A2 WO-3. nvidia-smi writes "Failed to initialize NVML" to STDOUT and
+    returns 255; the detector kept only all-digit lines, found none, and fell through to the
+    same "not detected" source it uses when there is no GPU at all. A FAILED measurement and an
+    ABSENT GPU are different problems and must not report the same way. No test here requires a
+    real GPU: `shutil.which` and `subprocess.run` are mocked in every case, and the env override
+    is cleared so detection cannot short-circuit before the mock."""
+
+    @staticmethod
+    def _detect(monkeypatch, *, executable, stdout="", returncode=0):
+        """Run `_detect_vram_mib` under a mocked host. `executable=None` means no nvidia-smi."""
+        monkeypatch.delenv(VRAM_ENV, raising=False)
+        monkeypatch.setattr(shutil, "which", lambda name: executable)
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **k: SimpleNamespace(stdout=stdout, returncode=returncode))
+        return _detect_vram_mib()
+
+    def test_an_nvml_failure_is_reported_as_a_failed_measurement(self, monkeypatch):
+        """The real failure mode on this host: NVML text on stdout, returncode 255, no digits."""
+        vram, source = self._detect(
+            monkeypatch, executable="nvidia-smi",
+            stdout="Failed to initialize NVML: Driver/library version mismatch",
+            returncode=255)
+        assert "measurement failed" in source
+        assert source != "not detected; assuming the historical default"
+
+    def test_an_absent_nvidia_smi_still_reports_not_detected(self, monkeypatch):
+        """The genuine no-GPU host keeps its honest string: nothing was run, so nothing failed."""
+        vram, source = self._detect(monkeypatch, executable=None)
+        assert source == "not detected; assuming the historical default"
+
+    def test_a_readable_size_still_reports_exactly_nvidia_smi(self, monkeypatch):
+        """Another file compares this source with ==; the success string must not drift."""
+        vram, source = self._detect(monkeypatch, executable="nvidia-smi", stdout="24576\n")
+        assert source == "nvidia-smi"
+        assert vram == 24576
+
+    def test_every_detection_outcome_returns_a_positive_vram(self, monkeypatch):
+        """Callers plan against the number; a failed or absent measurement still yields one."""
+        hosts = [
+            dict(executable="nvidia-smi",
+                 stdout="Failed to initialize NVML: Driver/library version mismatch",
+                 returncode=255),
+            dict(executable=None),
+            dict(executable="nvidia-smi", stdout="24576\n"),
+        ]
+        for host in hosts:
+            vram, source = self._detect(monkeypatch, **host)
+            assert vram > 0, f"non-positive vram_mib for {host!r} (source: {source!r})"

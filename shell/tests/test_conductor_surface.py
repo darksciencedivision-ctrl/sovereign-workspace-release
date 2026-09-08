@@ -67,7 +67,8 @@ class TestConductorSurface(unittest.TestCase):
         self.assertIn("empty-directive", block)
         self.assertIn("directive-too-long", block)
         self.assertIn("CONDUCTOR_COMMUNICATION_FAILED", block)
-        self.assertIn("deliverConductorChat(text)", block)
+        self.assertIn("deliverConductorConversation(text)", block)
+        self.assertIn("deliverConductorChat(body)", self.main)
 
 
 if __name__ == "__main__":

@@ -497,13 +497,34 @@ def compile_adapter(adapter: dict) -> dict:
         st = adapter.get("startup_test")
         if st is not None:
             st = json.loads(json.dumps(st))  # deep copy
+            # SW-REMED-001 F-16, contract item 2. This block resolved the readiness path against
+            # the install root ONLY and never resolved `env_set` at all, so a startup test could
+            # not name the module's own state root in either place. The consequence was measured on
+            # the operator's host: SOW's startup test launched the self-check, the self-check wrote
+            # a fresh `ok:true` receipt to its default `.runtime/receipts` lane, and readiness sat
+            # watching the git-tracked `docs/evidence/receipts` fossil until it timed out at 90 s
+            # with "Receipt is stale (predates launch)". The probe was right every time; the
+            # descriptor had no way to say where the receipt actually goes.
+            #
+            # Both fixes mirror `runtime_writes` above rather than inventing a second convention:
+            # `${state_root}` resolves, and containment admits the install root OR this module's
+            # own state root and nothing else. H-5's invariant is unchanged — still two exact
+            # locations, resolved canonically, with anything escaping both refused. What it stops
+            # forcing is runtime evidence back inside the install tree, which is the coupling
+            # `runtime_writes` already refuses to accept.
+            if "env_set" in st:
+                st["env_set"] = {
+                    key: _resolve_var(value, compiled["root"], compiled["state_root"])
+                    for key, value in dict(st["env_set"]).items()
+                }
             if "readiness" in st and "path" in st["readiness"]:
                 st["readiness"]["path"] = _resolve_path(
-                    st["readiness"]["path"], compiled["root"])
-                if not is_contained(compiled["root"], st["readiness"]["path"]):
+                    st["readiness"]["path"], compiled["root"], compiled["state_root"])
+                if not (is_contained(compiled["root"], st["readiness"]["path"])
+                        or is_contained(compiled["state_root"], st["readiness"]["path"])):
                     raise AdapterError(
-                        "startup_test.readiness.path escapes root (H-5): "
-                        + st["readiness"]["path"])
+                        "startup_test.readiness.path escapes both the install root and this "
+                        "module's state root (H-5): " + st["readiness"]["path"])
             compiled["startup_test"] = st
 
         # Compile open

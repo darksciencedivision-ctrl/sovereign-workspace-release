@@ -21,7 +21,9 @@
       "TMP",
       "USERPROFILE",
       "LOCALAPPDATA",
-      "APPDATA"
+      "APPDATA",
+      "ProgramFiles",
+      "ProgramW6432"
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
@@ -48,11 +50,12 @@
   },
   "startup_test": {
     "env_set": {
-      "SHELL_SELFCHECK": "1"
+      "SHELL_SELFCHECK": "1",
+      "SHELL_SELFCHECK_RECEIPT_DIR": "${state_root}/receipts"
     },
     "readiness": {
       "kind": "receipt_file",
-      "path": "${root}/docs/evidence/receipts/PHASE16A_SELFCHECK.json",
+      "path": "${state_root}/receipts/PHASE16A_SELFCHECK.json",
       "require": {
         "ok": true
       },

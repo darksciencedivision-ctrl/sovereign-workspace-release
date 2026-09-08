@@ -113,8 +113,12 @@ def _detect_vram_mib() -> tuple[int, str]:
                      if line.strip().isdigit()]
             if sizes:
                 return max(sizes), "nvidia-smi"
+            # nvidia-smi ran and did NOT report a size. It writes NVML failures to stdout with a
+            # non-zero return, so an empty size list here is a FAILED measurement, not an absent
+            # GPU, and saying "not detected" would hide a fixable host problem.
+            return _FALLBACK_VRAM_MIB, "nvidia-smi ran but reported no size; measurement failed"
         except (OSError, ValueError, subprocess.SubprocessError):
-            pass
+            return _FALLBACK_VRAM_MIB, "nvidia-smi could not be run; measurement failed"
 
     return _FALLBACK_VRAM_MIB, "not detected; assuming the historical default"
 
