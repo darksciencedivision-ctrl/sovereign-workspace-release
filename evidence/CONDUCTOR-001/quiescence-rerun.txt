@@ -1,0 +1,35 @@
+﻿=== SW-CONDUCTOR-001 RE-RUN Step 0 quiescence check ===
+UTC: 2026-09-07T19:41:17.9935970Z
+
+PORT 5175: free
+PORT 8700: free
+PORT 5180: free
+
+--- processes with this worktree / project root in command line (excluding this check's own pwsh) ---
+
+
+ProcessId   : 1888
+Name        : powershell.exe
+CommandLine : "C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile 
+              -ExecutionPolicy Bypass -File C:\Users\Sslaw\opencode-full.ps1 
+              "D:\production software 3"
+
+ProcessId   : 34536
+Name        : opencode.exe
+CommandLine : "C:\Users\Sslaw\AppData\Roaming\npm\node_modules\opencode-ai\bin\opencod
+              e.exe" "D:\production software 3" --auto
+
+
+
+
+
+--- electron / ollama / node processes anywhere ---
+
+   Id ProcessName StartTime          
+   -- ----------- ---------          
+22904 node        9/5/2026 8:57:39 PM
+24688 node        9/5/2026 8:57:40 PM
+12680 ollama      9/4/2026 2:47:40 PM
+
+
+

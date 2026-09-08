@@ -1,0 +1,24 @@
+# utc: 2026-09-06T17:59:20.033031+00:00
+# producer: Codex SW-JOURNAL-002-A1 scope stop
+[
+  {
+    "path": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\picker\\launch-source.js",
+    "sha256": "29b217182a075f875687f36b9f40dadb5a5081fadf622ffd93faf1926526163e"
+  },
+  {
+    "path": "D:\\production software 3\\release-worktree\\modules\\sow\\node_runtime\\supervisor\\worker_pane_spawn.py",
+    "sha256": "f0be30fbe5184de16eee9457aaeec6a7009d70208192e6dcd908ea98a8b65d9c"
+  },
+  {
+    "path": "D:\\production software 3\\release-worktree\\modules\\sow\\node_runtime\\supervisor\\provider_node_registration.py",
+    "sha256": "62b4b848a1beebdf124c554205748dc0f6259c39b9afd40c3ead4be637d25311"
+  },
+  {
+    "path": "D:\\production software 3\\release-worktree\\modules\\sow\\tools\\live\\emit_worker_launch.py",
+    "sha256": "1c521435db47241478038206528ee068248876799a8cb4cf128fe43c47d38000"
+  },
+  {
+    "path": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\picker\\pane-wiring.js",
+    "sha256": "8342afe7b899887aac3478a6d5f6fc26b5e554af44ffc50014549e4853eee57d"
+  }
+]

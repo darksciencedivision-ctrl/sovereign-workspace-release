@@ -1,0 +1,12 @@
+﻿=== SW-CONDUCTOR-001 exit pin rehash (stop-at-entry run; exit must equal entry) ===
+UTC: 2026-09-07T19:30:31.2862637Z
+
+MATCH  16332 bytes  5fe9c13de6756d0912dfab45d18793667292c5c6691202bdf8a8cdabea23bc8a  modules/sow/apps/desktop/control/conductor-delegation.js
+MATCH  19197 bytes  6e1bcc395f0e9d371ab6c9c61941a664e13c4a955f0066c33ae56e04ee3d171c  modules/sow/apps/desktop/control/conductor-view.js
+MATCH  19283 bytes  c5f20c7e652c3ec3d1ff6158ed38185ec3b3ac7e6eefb453b7b592468c24f2da  modules/sow/apps/desktop/control/local-mcp-bridge.js
+MATCH  218002 bytes  43d79f5c7d8b6521dbfa67708d6626bf8dd18ad1aae96393efb1a616795d2b35  modules/sow/apps/desktop/main.js
+MATCH  4459 bytes  f9db388cfd56a1547b4705c5e1e0c1277ed16394061eadf7bef903d8f27b6bd9  modules/sow/apps/desktop/test/broadcast-delegation.test.js
+MATCH  38708 bytes  005b8c101272ecf660b119aefc3fbde45632428755852281f74f8bda70f36173  modules/sow/tools/mutation/pane_input_bypass_mutations.js
+MATCH  48717 bytes  583150bd54d824f33af72149e67ca8daeea7856612535c888bc8ee0135735b88  modules/sow/tools/mutation/system_pane_write_mutations.js
+
+ALL EXIT PINS MATCH ENTRY PINS: True

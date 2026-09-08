@@ -1,0 +1,27 @@
+# utc: 2026-09-06T19:22:08.471153+00:00
+# producer: Codex Step6 evidence
+--- a/apps/desktop/renderer/index.html
++++ b/apps/desktop/renderer/index.html
+@@ -274,6 +274,7 @@
+ #conductor-delegate-why { color: #d29922; font-size: 12px; margin-bottom: 4px; overflow-wrap: anywhere; }
+ #conductor-delegate-why:empty { display: none; }
+ #conductor-transcript .dg { margin: 3px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
++#conductor-context-notice { overflow-wrap: anywhere; font-size: 12px; margin-bottom: 4px; }
+ #conductor-view-rule { font-size: 11px; color: #8b949e; margin: 4px 0; overflow-wrap: anywhere; }
+ #conductor-transcript .dg .node { color: #79c0ff; }
+ #conductor-transcript .dg .warn { color: #d29922; }
+@@ -285,9 +286,12 @@
+ <div id="conductor-bar">
+   <button id="conductor-transcript-toggle" type="button" aria-controls="conductor-transcript"
+           aria-expanded="false" aria-live="polite">0 results | 0 refused | Transcript | Expand: more details + markers</button>
++  <div id="conductor-context-notice" aria-live="polite"></div>
+   <div id="conductor-transcript" aria-live="polite" hidden></div>
+-  <div id="conductor-view-rule">Worker/pane/terminal questions and requests to combine or compare answers
+-    attach a bounded recent view. Type /workspace for the full recent view; other chat adds none.
++  <div id="conductor-view-rule">Every chat turn carries a compact pane roster inside the measured budget.
++    The full recent view attaches by default, except greetings and acknowledgements.
++    /workspace requests the full recent view; prefix /no-workspace to suppress excerpts for one turn.
++    The roster remains; insufficient or unknown budget refuses the turn.
+     Transcript retains 200 result lines; recorded history stays in the journal. U58 OWED.</div>
+   <div id="conductor-delegate-why" aria-live="polite"></div>
+   <form id="conductor-form">

@@ -1,0 +1,382 @@
+# utc: 2026-09-06T18:08:40.6291608Z
+# producer: Codex F37 decisive tests before repair
+✖ F-37: full view by default: what did terminal 2 say (5.2353ms)
+✖ F-37: full view by default: what did pane 3 come up with (0.687ms)
+✖ F-37: full view by default: what did the third one say (0.373ms)
+✖ F-37: full view by default: what did number 2 answer (0.1599ms)
+✖ F-37: full view by default: tell me about the second one (0.1247ms)
+✖ F-37: full view by default: what did they all say (0.0951ms)
+✖ F-37: full view by default: give me a summary of the work (0.1008ms)
+✖ F-37: greetings and acknowledgements retain every pane and session answer count (0.4011ms)
+✖ F-37: a short question is not treated as an acknowledgement (0.1607ms)
+✖ F-37: explicit suppression is documented and withholds excerpts, never the roster (0.3576ms)
+✖ F-37: truncation spends view space first and keeps the full roster inside budget (0.4809ms)
+✖ F-37: insufficient or unknown budget refuses a rosterless turn before writing (0.2866ms)
+✖ F-37: empty journals and no open panes are explicitly described (0.1327ms)
+✖ F-37: session tally survives the recent-window cap without storing answer content (0.1246ms)
+✖ F-37: roster metadata is redacted and cannot forge a second roster line (0.1898ms)
+✖ F-38: attached, empty, suppressed and unavailable notices are distinct (0.1573ms)
+✖ F-38: journal failure during a greeting is not reported as an empty journal (0.1995ms)
+✖ F-37 mutation control: restoring the keyword gate fails the ordinary-phrasing assertion (1.0745ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 0
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 96.249
+
+✖ failing tests:
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: what did terminal 2 say (5.2353ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(r.message.includes(r.roster))
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:23:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.start (node:internal/test_runner/test:1257:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: what did pane 3 come up with (0.687ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(r.message.includes(r.roster))
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:23:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: what did the third one say (0.373ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: what did number 2 answer (0.1599ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: tell me about the second one (0.1247ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: what did they all say (0.0951ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:20:33
+✖ F-37: full view by default: give me a summary of the work (0.1008ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:26:1
+✖ F-37: greetings and acknowledgements retain every pane and session answer count (0.4011ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:33:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:39:1
+✖ F-37: a short question is not treated as an acknowledgement (0.1607ms)
+  AssertionError [ERR_ASSERTION]: why?
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:41:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:43:1
+✖ F-37: explicit suppression is documented and withholds excerpts, never the roster (0.3576ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\/no-workspace/. Input:
+  
+  'Worker/pane/terminal questions and requests to combine or compare answers attach a bounded recent view. /workspace explicitly requests the full recent view; other chat adds none.'
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:44:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Worker/pane/terminal questions and requests to combine or compare answers attach a bounded recent view. /workspace explicitly requests the full recent view; other chat adds none.',
+    expected: /\/no-workspace/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:49:1
+✖ F-37: truncation spends view space first and keeps the full roster inside budget (0.4809ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:52:47)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:56:1
+✖ F-37: insufficient or unknown budget refuses a rosterless turn before writing (0.2866ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:62:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:66:1
+✖ F-37: empty journals and no open panes are explicitly described (0.1327ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type undefined (undefined)
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:68:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /No retained worker observations/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:72:1
+✖ F-37: session tally survives the recent-window cap without storing answer content (0.1246ms)
+  TypeError: V.createAnswerTally is not a function
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:73:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:86:1
+✖ F-37: roster metadata is redacted and cannot forge a second roster line (0.1898ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /REDACTED/. Input:
+  
+  'hello'
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:89:64)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'hello',
+    expected: /REDACTED/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:91:1
+✖ F-38: attached, empty, suppressed and unavailable notices are distinct (0.1573ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /4 entries/. Input:
+  
+  'Worker view not requested by the attachment rule.'
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:96:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Worker view not requested by the attachment rule.',
+    expected: /4 entries/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:103:1
+✖ F-38: journal failure during a greeting is not reported as an empty journal (0.1995ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /journal unavailable/i. Input:
+  
+  'Worker view not requested by the attachment rule.'
+  
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:107:10)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Worker view not requested by the attachment rule.',
+    expected: /journal unavailable/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at modules\sow\apps\desktop\test\conductor-view-amendment.test.js:110:1
+✖ F-37 mutation control: restoring the keyword gate fails the ordinary-phrasing assertion (1.0745ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at check (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:117:31)
+      at TestContext.<anonymous> (D:\production software 3\release-worktree\modules\sow\apps\desktop\test\conductor-view-amendment.test.js:118:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1397:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:969:18)
+      at Test.postRun (node:internal/test_runner/test:1537:19)
+      at Test.run (node:internal/test_runner/test:1462:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

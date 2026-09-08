@@ -1,0 +1,56 @@
+# utc: 2026-09-06T19:17:58.3014406Z
+# producer: Codex U186 system-pane harness
+base apps/desktop/control/pane-writer.js SHA-256 A517069E12D923605A34A76225D9E44F6359B4207275C9D9F2AA706D64560A07
+base apps/desktop/main.js SHA-256 43D79F5C7D8B6521DBFA67708D6626BF8DD18AD1AAE96393EFB1A616795D2B35
+base apps/desktop/control/conductor-readiness.js SHA-256 B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49
+base apps/desktop/control/worker-readiness.js SHA-256 494E01FBF6881F1EA4E840A73EBCC78FE061F96D0D3ED85459CBDA47EE878037
+base apps/desktop/control/modal-affordance.js SHA-256 3F0E3CBBFD821A1C83CEE784BDFDF06F17831EC73C64213ED1ED1423E65F56EA
+clean tree test/pane-writer.test.js: GREEN (expected)
+clean tree test/system-pane-write-wiring.test.js: GREEN (expected)
+clean tree test/worker-readiness.test.js: GREEN (expected)
+CAUGHT  P1  the gate never refuses anything
+CAUGHT  P2  an unreadable screen is treated as consent
+CAUGHT  P3  any truthy value opens the gate (fail-open on a non-boolean)
+CAUGHT  P4  only the body is gated — the submit key is not re-checked
+CAUGHT  P5  the codex confirm Enter escapes the gate
+CAUGHT  P6  notifyNode reaches the PTY directly instead of through writePrompt
+CAUGHT  P7  a window that throws mid-read is reported as a legible empty screen
+CAUGHT  P8  the own-echo exclusion blanks the whole screen before the submit key
+CAUGHT  P10  the exclusion goes back to exact-substring matching (no wrap tolerance)
+CAUGHT  P11  the screen is no longer normalised, so colouring hides our own echo
+CAUGHT  P12  panes with no known provider stop being gated
+CAUGHT  P13  the echo-settle wait is deleted, so a half-rendered echo refuses itself
+CAUGHT  P14  the echo-settle wait loses its bound
+CAUGHT  P15  echoIsWhole always says the echo is complete, so the wait never waits
+CAUGHT  P16  the pre-body check excludes the body it has not written yet
+CAUGHT  P17  a submit-time UNREADABLE refusal is downgraded and the Enter goes out
+CAUGHT  P25  the model-authored body reaches the PTY unflattened
+CAUGHT  P26  only the escape runs are stripped, so an embedded CR still submits
+CAUGHT  P9  the conductor node is routed to the conductor pane unconditionally
+CAUGHT  M1  writePanePrompt reaches the PTY itself again (the audited shape)
+CAUGHT  M2  notifyNode resolves its own pane and writes around the writer
+CAUGHT  M3  the conductor readiness prompt drops its pre-check
+CAUGHT  M4  the worker readiness turn drops its pre-check
+CAUGHT  M8  readiness is handed its own screen read instead of the production gate
+CAUGHT  M5  the io claims every pane is legible (an inline reader main.js owns)
+CAUGHT  P27  the process-level fault handlers are deleted, so a fault strands every terminal
+CAUGHT  M7  a fourth PTY write site, spelled so the old counter could not see it
+CAUGHT  P28  the renderer spec goes back to pass-through, so `file`/`args` reach pty.spawn
+CAUGHT  P29  the boundary stops supplying an env, so the sanitiser re-opens the inherit-everything fallback
+CAUGHT  P30  window.open is allowed again, so a compromised renderer can open a real BrowserWindow
+CAUGHT  P31  will-navigate observes the escape instead of cancelling it
+CAUGHT  P18  the bounded reader hands on whatever it was given, answerable or not
+CAUGHT  P19  the affordance verdict is deleted — an unrecognised modal is consent again
+CAUGHT  P23  the provider's excerpt travels into the reason verbatim
+CAUGHT  P24  only spaces are collapsed, so the newline survives into the log line
+CAUGHT  P20  the gate's window is narrowed below the one it claims to share
+CAUGHT  P21  the affordance is judged on the last 200 characters only
+CAUGHT  P22  the modal refusal reports a state that is not what happened
+CAUGHT  M6  the readiness pre-check is consulted AFTER the prompt is typed
+restored apps/desktop/control/pane-writer.js SHA-256 A517069E12D923605A34A76225D9E44F6359B4207275C9D9F2AA706D64560A07 — BYTE-IDENTICAL
+restored apps/desktop/main.js SHA-256 43D79F5C7D8B6521DBFA67708D6626BF8DD18AD1AAE96393EFB1A616795D2B35 — BYTE-IDENTICAL
+restored apps/desktop/control/conductor-readiness.js SHA-256 B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49 — BYTE-IDENTICAL
+restored apps/desktop/control/worker-readiness.js SHA-256 494E01FBF6881F1EA4E840A73EBCC78FE061F96D0D3ED85459CBDA47EE878037 — BYTE-IDENTICAL
+restored apps/desktop/control/modal-affordance.js SHA-256 3F0E3CBBFD821A1C83CEE784BDFDF06F17831EC73C64213ED1ED1423E65F56EA — BYTE-IDENTICAL
+ALL 39 SYSTEM→PANE MUTATIONS CAUGHT
+exit_code=0

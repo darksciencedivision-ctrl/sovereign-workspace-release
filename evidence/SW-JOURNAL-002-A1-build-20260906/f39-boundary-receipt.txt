@@ -1,0 +1,6 @@
+# utc: 2026-09-06T17:57:45.5677124Z
+# producer: Codex F39 boundary probe
+selectExecution powershell: CONFIGURING, modelRef=null, pid=null, launch calls=0
+existing local-model fixture accepted; PowerShell ticket rejected by same validator
+allowed adapter executables: {"claude_code":"claude","openai_codex_cli":"codex","grok_build":"grok","google_antigravity":"agy","ollama_local":"ollama","opencode_local":"opencode"}
+Python authorize_worker_pane: no PowerShell branch, ends in unknown_adapter refusal

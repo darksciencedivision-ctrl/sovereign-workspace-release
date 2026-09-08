@@ -1,0 +1,41 @@
+# utc: 2026-09-06T17:45:30.1852999Z
+# producer: Codex SW-JOURNAL-002-A1 resumed entry
+{
+  "listeners": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 5180,
+      "OwningProcess": 2020
+    }
+  ],
+  "module_processes": [
+    {
+      "ProcessId": 20232,
+      "ParentProcessId": 2020,
+      "Name": "electron.exe",
+      "ExecutablePath": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\node_modules\\electron\\dist\\electron.exe",
+      "CreationDate": "2026-09-06T11:57:44.024823-05:00"
+    },
+    {
+      "ProcessId": 37848,
+      "ParentProcessId": 20232,
+      "Name": "electron.exe",
+      "ExecutablePath": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\node_modules\\electron\\dist\\electron.exe",
+      "CreationDate": "2026-09-06T11:57:44.202032-05:00"
+    },
+    {
+      "ProcessId": 31676,
+      "ParentProcessId": 20232,
+      "Name": "electron.exe",
+      "ExecutablePath": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\node_modules\\electron\\dist\\electron.exe",
+      "CreationDate": "2026-09-06T11:57:44.204972-05:00"
+    },
+    {
+      "ProcessId": 35536,
+      "ParentProcessId": 20232,
+      "Name": "electron.exe",
+      "ExecutablePath": "D:\\production software 3\\release-worktree\\modules\\sow\\apps\\desktop\\node_modules\\electron\\dist\\electron.exe",
+      "CreationDate": "2026-09-06T11:57:45.901535-05:00"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 {
   "ARCHIVE_VERSION": "3.1.2",
   "MODELS": {
-    "PRIMARY_REASONER": "qwen3:8b",
-    "ADVERSARIAL_CHALLENGER": "granite4.2:8b",
-    "CRITIC": "dolphin3:8b",
-    "SYNTHESIZER": "deepseek-r1:8b",
+    "PRIMARY_REASONER": "qwen2.5:3b-instruct",
+    "ADVERSARIAL_CHALLENGER": "granite4.2:3b",
+    "CRITIC": "sam860/dolphin3-llama3.2:3b",
+    "SYNTHESIZER": "llama3.2:3b",
     "EMBEDDING_MODEL": "nomic-embed-text:latest"
   },
   "RUNTIME": {

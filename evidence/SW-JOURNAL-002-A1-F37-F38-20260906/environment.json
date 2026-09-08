@@ -1,0 +1,10 @@
+# utc: 2026-09-06T19:22:08.471153+00:00
+# producer: Codex Step6 evidence
+{
+  "platform": "Windows",
+  "worktree": "D:\\production software 3\\release-worktree",
+  "node": "v24.20.0",
+  "python": "Python 3.12.10",
+  "test_mode": "headless; injected journal and existing suites; no live model",
+  "main_cr_bytes": 0
+}

@@ -1,0 +1,14 @@
+
+
+Algorithm : SHA256
+Hash      : 9108483D6BFB99D93DB57EEC8F820D2A1BC6C3E15D250F1DB3B9A16DDC32EC84
+Path      : D:\production software 
+            3\release-worktree\modules\sow\apps\desktop\control\conductor-view.js
+
+Algorithm : SHA256
+Hash      : 92540B1043DC67D7B7956C745D79564792CEE713F3A85EC95AEA0F6E89F2F76F
+Path      : D:\production software 
+            3\release-worktree\modules\sow\apps\desktop\renderer\renderer.js
+
+
+

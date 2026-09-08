@@ -1,0 +1,12 @@
+# utc: 2026-09-06T19:17:09.4503693Z
+# producer: Codex U186 anchor recount
+main.js CR bytes: 0
+main.js sha256: 43d79f5c7d8b6521dbfa67708d6626bf8dd18ad1aae96393efb1a616795d2b35
+IN_HANDLER: 1 "    return manager.write(id, data);\n  });"
+HANDLER_TOP: 1 "  ipcMain.handle(\"pane:input\", (_e, id, data) => {"
+AFTER_RESUME: 1 "function makeWindow() {"
+BEFORE_INPUT: 1 "    handleOperatorResumeInput(event, input);"
+REAL_DISARM: 1 "    conductorVoiceAuthority.disarm(\"electron_main_before_input_event\", { key_kind: kind });"
+clearConductorInputResidue bare name: 4
+pane-input harness: all 37 mutation anchor sequences unique
+system-pane harness: all 39 mutation anchor sequences unique; 10 target main.js
