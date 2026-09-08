@@ -21,6 +21,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -412,3 +413,83 @@ class QuiescenceRefusal(unittest.TestCase):
                              "committed")
         finally:
             conn.close()
+
+        inv = json.loads(Path(str(archive) + ".inventory.json").read_text(encoding="utf-8"))
+        self.assertEqual(inv["snapshot_method"], "offline-quiesced")
+
+
+class HeldHandleSnapshot(unittest.TestCase):
+    """Late-writer and set-drift cases. The probe must last through capture."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp(prefix="sov-held-")
+        self.state = Path(self.tmp) / "SovereignWorkspace"
+        self.state.mkdir()
+        self.barrier = Path(self.tmp) / "barrier"
+        self.barrier.mkdir()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _popen(self, archive: Path) -> subprocess.Popen:
+        env = os.environ.copy()
+        env["SOVEREIGN_BACKUP_TEST_BARRIER_DIR"] = str(self.barrier)
+        return subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-File", str(BACKUP), "-StateRoot", str(self.state), "-Out", str(archive)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+
+    def _wait_acquired(self) -> None:
+        acquired = self.barrier / "acquired"
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if acquired.is_file():
+                return
+            time.sleep(0.05)
+        self.fail("backup never reached the acquire barrier")
+
+    def _release(self) -> None:
+        (self.barrier / "continue").write_text("go", encoding="utf-8")
+
+    def test_a_late_writer_cannot_mutate_bytes_copied_from_held_handles(self) -> None:
+        (self.state / "a.txt").write_bytes(b"A-original\n")
+        b_path = self.state / "b.txt"
+        b_path.write_bytes(b"B-original\n")
+        archive = Path(self.tmp) / "held.zip"
+        proc = self._popen(archive)
+        try:
+            self._wait_acquired()
+            mutated = False
+            try:
+                b_path.write_bytes(b"B-MUTATED\n")
+                mutated = True
+            except OSError:
+                pass
+            self.assertFalse(mutated, "a late writer mutated a file while backup held it")
+            self._release()
+            stdout, stderr = proc.communicate(timeout=60)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+        self.assertEqual(proc.returncode, 0, (stdout + stderr)[-2000:])
+        inv = json.loads(Path(str(archive) + ".inventory.json").read_text(encoding="utf-8"))
+        self.assertEqual(inv["snapshot_method"], "offline-quiesced")
+        entry = next(e for e in inv["entries"] if e.get("path") == "b.txt")
+        self.assertEqual(entry["sha256"], hashlib.sha256(b"B-original\n").hexdigest())
+
+    def test_a_file_created_after_acquire_is_refused(self) -> None:
+        (self.state / "a.txt").write_bytes(b"A-original\n")
+        archive = Path(self.tmp) / "drift.zip"
+        proc = self._popen(archive)
+        try:
+            self._wait_acquired()
+            (self.state / "late.txt").write_bytes(b"appeared-after-acquire\n")
+            self._release()
+            stdout, stderr = proc.communicate(timeout=60)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+        out = (stdout + stderr).lower()
+        self.assertNotEqual(proc.returncode, 0, out[-2000:])
+        self.assertIn("state changed during capture", out)
+        self.assertFalse(archive.exists(), "a refused backup still produced an archive")

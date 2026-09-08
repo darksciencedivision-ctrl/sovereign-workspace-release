@@ -36,11 +36,13 @@ param(
 #
 #   QUIESCENCE. This is an OFFLINE snapshot. Every relevant product writer must be stopped.
 #   The script proves it rather than asking: each file is opened with FileShare.Read, which
-#   fails while another process holds it for writing, so a live SQLite database or an open log
-#   is detected instead of being copied mid-write. -AllowNonQuiescent captures anyway and
-#   labels the result honestly; it does not make the result consistent. Online backup would
-#   need database-aware snapshots for every store, which this version deliberately does not
-#   claim to provide.
+#   fails while another process holds it for writing, and THOSE HANDLES ARE HELD through hash
+#   and zip. Bytes are copied from the held streams, not by re-opening the path. A writer
+#   that arrives after the probe therefore cannot mutate captured bytes, and a file created
+#   after acquire is refused as "state changed during capture". -AllowNonQuiescent captures
+#   anyway and labels the result honestly; it does not make the result consistent. Online
+#   backup would need database-aware snapshots for every store, which this version
+#   deliberately does not claim to provide.
 #
 #   COMPLETENESS. Enumeration is `-Force`, so hidden and system entries are included, and
 #   directories are recorded as well as files so a required-but-empty directory survives.
@@ -111,6 +113,17 @@ function Get-RelativePath {
     return $Full.Substring($statePrefixFs.Length).Replace('\', '/')
 }
 
+function Get-StreamSha256 {
+    param([IO.Stream] $Stream)
+    $Stream.Position = 0
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return [BitConverter]::ToString($sha.ComputeHash($Stream)).Replace('-', '').ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
+}
+
+$held = New-Object System.Collections.Generic.List[object]
 try {
     # --- enumerate ------------------------------------------------------------------------
     $all = @(Get-ChildItem -LiteralPath $stateRootFull -Force -Recurse -ErrorAction Stop)
@@ -126,15 +139,18 @@ try {
         }
     }
 
-    # --- quiescence -----------------------------------------------------------------------
-    # Opening with FileShare.Read denies other writers. It fails while a writer holds the file,
-    # which is precisely the live-database and open-log case.
+    # --- quiescence: acquire FileShare.Read on every file and HOLD the handles ------------
     $busy = @()
     foreach ($file in $files) {
         try {
-            $handle = [IO.File]::Open($file.FullName, [IO.FileMode]::Open,
+            $stream = [IO.File]::Open($file.FullName, [IO.FileMode]::Open,
                                       [IO.FileAccess]::Read, [IO.FileShare]::Read)
-            $handle.Dispose()
+            $held.Add([pscustomobject]@{
+                Rel        = (Get-RelativePath $file.FullName)
+                FullName   = $file.FullName
+                Stream     = $stream
+                Attributes = [string]$file.Attributes
+            })
         }
         catch {
             $busy += (Get-RelativePath $file.FullName)
@@ -155,8 +171,44 @@ try {
             exit 3
         }
         $method = 'online-uncoordinated (NOT a consistent snapshot)'
-        Write-Output "backup: WARNING - $($busy.Count) file(s) were being written during the capture."
+        Write-Output "backup: WARNING - $($busy.Count) file(s) could not be opened denying writers."
         Write-Output '  The archive is labelled online-uncoordinated and is NOT a consistent snapshot.'
+    }
+
+    # Test-only barrier: after acquire, before re-enum/hash/zip. Production never sets this.
+    $barrierDir = $env:SOVEREIGN_BACKUP_TEST_BARRIER_DIR
+    if ($barrierDir) {
+        New-Item -ItemType Directory -Path $barrierDir -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $barrierDir 'acquired'), 'acquired')
+        $continue = Join-Path $barrierDir 'continue'
+        $deadline = [datetime]::UtcNow.AddSeconds(30)
+        while (-not (Test-Path -LiteralPath $continue)) {
+            if ([datetime]::UtcNow -gt $deadline) { throw 'backup test barrier timed out waiting for continue' }
+            Start-Sleep -Milliseconds 50
+        }
+    }
+
+    # Re-enumerate. FileShare.Read cannot stop CREATE of a new WAL/log; a changed set is
+    # not an offline snapshot of the tree that was acquired.
+    $all2 = @(Get-ChildItem -LiteralPath $stateRootFull -Force -Recurse -ErrorAction Stop)
+    $files2 = @($all2 | Where-Object { -not $_.PSIsContainer })
+    $heldRels = @($held | ForEach-Object { $_.Rel })
+    $known = @{}
+    foreach ($rel in $heldRels) { $known[$rel] = $true }
+    foreach ($b in $busy) { $known[$b] = $true }
+    $newFiles = @()
+    foreach ($file in $files2) {
+        $rel = Get-RelativePath $file.FullName
+        if (-not $known.ContainsKey($rel)) { $newFiles += $rel }
+    }
+    if ($newFiles.Count -gt 0) {
+        Write-Output ''
+        Write-Output 'backup: REFUSED - state changed during capture.'
+        Write-Output '  file(s) appeared after quiescence handles were acquired:'
+        $newFiles | Select-Object -First 20 | ForEach-Object { Write-Output "    $_" }
+        Write-Output ''
+        Write-Output '  Nothing was written. Stop writers and re-run.'
+        exit 3
     }
 
     if ($refusals.Count -gt 0 -and -not $AllowIncomplete) {
@@ -169,7 +221,7 @@ try {
         exit 4
     }
 
-    # --- inventory ------------------------------------------------------------------------
+    # --- inventory from held streams (never re-open the path) -----------------------------
     $entries = New-Object System.Collections.Generic.List[object]
     foreach ($dir in ($dirs | Sort-Object FullName)) {
         # [pscustomobject], not [ordered]: Windows PowerShell 5.1 raises "Argument types do
@@ -182,10 +234,18 @@ try {
     }
     $captured = 0
     $omitted = @()
+    $heldByRel = @{}
+    foreach ($h in $held) { $heldByRel[$h.Rel] = $h }
     foreach ($file in ($files | Sort-Object FullName)) {
         $rel = Get-RelativePath $file.FullName
+        $h = $heldByRel[$rel]
+        if (-not $h) {
+            $omitted += $rel
+            continue
+        }
         try {
-            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash.ToLowerInvariant()
+            $hash = Get-StreamSha256 $h.Stream
+            $length = [int64]$h.Stream.Length
         }
         catch {
             $omitted += $rel
@@ -194,9 +254,9 @@ try {
         $entries.Add([pscustomobject][ordered]@{
             kind       = 'file'
             path       = $rel
-            length     = [int64]$file.Length
+            length     = $length
             sha256     = $hash
-            attributes = [string]$file.Attributes
+            attributes = $h.Attributes
         })
         $captured++
     }
@@ -221,7 +281,10 @@ try {
                      ForEach-Object { $_.Name })
     $omittedArray = @($omitted)
     $refusedArray = @($refusals)
-    $totalBytes = [int64](($files | Measure-Object -Property Length -Sum).Sum)
+    $totalBytes = [int64]0
+    foreach ($entry in $entries) {
+        if ($entry.kind -eq 'file') { $totalBytes += [int64]$entry.length }
+    }
 
     $inventory = [ordered]@{
         schema           = 'sovereign.state-backup.v2'
@@ -254,17 +317,22 @@ try {
         [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
             $zip, $inventoryStaged, $INVENTORY_NAME,
             [IO.Compression.CompressionLevel]::Optimal)
-        foreach ($entry in $entries) {
-            if ($entry.kind -eq 'directory') {
-                # A directory entry keeps a required-but-empty directory alive across the trip.
-                [void]$zip.CreateEntry($STATE_PREFIX + $entry.path + '/')
-                continue
-            }
-            $source = Join-Path $stateRootFull ($entry.path -replace '/', '\')
-            [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-                $zip, $source, $STATE_PREFIX + $entry.path,
-                [IO.Compression.CompressionLevel]::Optimal)
-        }
+         foreach ($entry in $entries) {
+             if ($entry.kind -eq 'directory') {
+                 # A directory entry keeps a required-but-empty directory alive across the trip.
+                 [void]$zip.CreateEntry($STATE_PREFIX + $entry.path + '/')
+                 continue
+             }
+             $h = $heldByRel[$entry.path]
+             $zipEntry = $zip.CreateEntry($STATE_PREFIX + $entry.path,
+                                          [IO.Compression.CompressionLevel]::Optimal)
+             $dest = $zipEntry.Open()
+             try {
+                 $h.Stream.Position = 0
+                 $h.Stream.CopyTo($dest)
+             }
+             finally { $dest.Dispose() }
+         }
     }
     finally { $zip.Dispose() }
 
@@ -327,6 +395,11 @@ try {
     exit 0
 }
 finally {
+    foreach ($h in $held) {
+        if ($h.Stream) {
+            try { $h.Stream.Dispose() } catch { }
+        }
+    }
     if (Test-Path -LiteralPath $staging) {
         $resolved = [IO.Path]::GetFullPath($staging)
         # Never recurse-delete anything that is not the staging directory this run created.
