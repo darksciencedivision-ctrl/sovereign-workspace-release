@@ -159,14 +159,27 @@ a reader holding an older copy can tell what changed and why.
 - **Uninstall works on an installation that has been used.** It removes exactly the paths its
   manifest records, then names the operator's state and *keeps it by default*. `-PurgeData`
   removes it as well, after listing what goes.
-- **An upgrade path exists.** `tools/release/upgrade.ps1` verifies the incoming artifact
-  against its sidecar before touching anything, backs up the state root, moves the outgoing
-  installation aside rather than deleting it, installs, verifies, and leaves both the previous
-  installation and the state backup in place. Rollback is moving the previous installation
-  back.
-- **Backup and restore exist.** `backup_state.ps1` and `restore_state.ps1` produce and consume
-  one archive with a SHA-256 sidecar. Restore verifies before writing anything, refuses an
-  archive whose sidecar does not match, and never deletes the state it replaces.
+- **An upgrade path exists, and it is now a transaction.** `tools/release/upgrade.ps1` stages
+  its controller *outside* both the outgoing and the incoming installation, so it survives
+  replacing the directory it was started from — which the previous version did not: it moved
+  the installation containing itself and then failed to find `install.ps1` through the emptied
+  path, leaving no installation at all. It validates every path, verifies the artifact and its
+  structure, and checks interpreters, disk space, permissions, quiescence, the rollback route
+  and state-schema compatibility *before* the cutover. A failure at or after the cutover rolls
+  back automatically, preserves the failed incoming tree, and prints no success line. Every
+  phase is journalled. See `docs/RECOVERY-RUNBOOK.md` for the exit codes.
+- **Backup and restore exist, under a stated snapshot contract.** It is an **offline** contract:
+  `backup_state.ps1` proves quiescence by opening each file denying other writers, and refuses
+  rather than copying live state. It captures hidden and system entries and empty directories —
+  the previous version's `Compress-Archive` wildcard silently dropped hidden files and still
+  reported COMPLETE. The inventory records path, length, SHA-256 and attributes per entry, not a
+  count. The archive is verified before it takes its final name. Restore stages, validates paths
+  and the entry set, re-hashes everything, and only then displaces the existing state, which is
+  moved aside rather than deleted.
+
+  > **Integrity is not authenticity.** The `.sha256` sidecar proves the archive is intact. It
+  > does not identify who produced it. This product ships no signing infrastructure and claims
+  > none.
 
 What has *not* changed: an existing installation created before this release still has its
 state beside the code. Nothing migrates it automatically. Copy it into the new state root, or

@@ -161,7 +161,26 @@ def _available_citations(evidence: EvidencePacket | None) -> set[str]:
 
 
 def _clauses(text: str) -> list[str]:
-    return [part.strip(" \t-*•") for part in _CLAUSE_SPLIT.split(text) if part and part.strip()]
+    """Split into clauses, keeping a trailing citation with the claim it supports.
+
+    A model that writes ``The synthesizer is llama3.2:3b. [source:manifest]`` has cited its
+    claim; the citation simply landed after the full stop. Splitting on sentence boundaries
+    alone put that citation in a clause of its own and left the assertion reading as
+    unattributed, which rejected a correctly-cited answer. Measured on SWS-BENCH-01 task
+    ``gf-02``, whose answer was exactly that shape.
+
+    So a fragment that is *only* citations is folded back into the clause before it.
+    """
+    parts = [part.strip(" \t-*•")
+             for part in _CLAUSE_SPLIT.split(text) if part and part.strip()]
+    merged: list[str] = []
+    for part in parts:
+        without_citations = CITATION.sub("", part).strip(" \t.,;:-")
+        if not without_citations and merged:
+            merged[-1] = merged[-1] + " " + part
+            continue
+        merged.append(part)
+    return merged
 
 
 def _is_abstention(clause: str) -> bool:

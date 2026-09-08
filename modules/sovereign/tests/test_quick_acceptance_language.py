@@ -171,3 +171,34 @@ class QuickAcceptanceLanguage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CitationPlacement(unittest.TestCase):
+    """Regression: a citation after the full stop still attributes the claim before it.
+
+    Found by SWS-BENCH-01, not by inspection. Task gf-02's answer was
+    'The configured synthesizer model is llama3.2:3b. [source:manifest]' - correctly cited, and
+    rejected, because the clause splitter put the citation in a clause of its own and the
+    assertion then read as unattributed. Rejecting correct answers is as much a defect as
+    accepting wrong ones.
+    """
+
+    def test_a_citation_after_the_full_stop_still_counts(self) -> None:
+        ok, reason = validate_quick_response(
+            "The configured synthesizer model is llama3.2:3b. [source:manifest]",
+            _packet("manifest"), query=PROJECT_QUERY)
+        self.assertTrue(ok, reason)
+
+    def test_a_citation_on_its_own_line_still_counts(self) -> None:
+        ok, reason = validate_quick_response(
+            "The configured model is qwen2.5:3b-instruct.\n[source:manifest]",
+            _packet("manifest"), query=PROJECT_QUERY)
+        self.assertTrue(ok, reason)
+
+    def test_a_trailing_citation_does_not_attribute_an_earlier_uncited_claim(self) -> None:
+        """Folding must not become a licence to cite once and cover everything."""
+        ok, _ = validate_quick_response(
+            "The critic is dolphin3:70b. The synthesizer is llama3.2:3b. [source:manifest]",
+            _packet("manifest"), query=PROJECT_QUERY)
+        self.assertFalse(
+            ok, "a trailing citation attributed a separate, earlier, uncited claim")
