@@ -24,20 +24,23 @@ param(
     [string] $Environment = 'FIXTURE',
 
     # Steps to run. Default is the whole sequence from docs/ACCEPTANCE-WORKFLOW.md.
-    [string[]] $Steps = @('1', '2', '4', '5', '6', '7', '8', '9')
+    #
+    # NOTE THE ORDER. The workflow numbers uninstall as 8 and the non-writable launch as 9, but
+    # step 8 REMOVES the installation that step 9 needs. Running them in numeric order left step 9
+    # BLOCKED with "no installation present" - observed on the first execution of this harness.
+    # The steps keep their numbers, which are the workflow's, and 9 is executed before 8.
+    [string[]] $Steps = @('1', '2', '3', '4', '5', '6', '7', '9', '8')
 )
 
 # SWS-CORRECTIVE-01 workstream 4 - the acceptance sequence, executed and recorded.
 #
 # This harness runs the sequence in docs\ACCEPTANCE-WORKFLOW.md against a DISPOSABLE install and
 # a DISPOSABLE state root. It refuses to touch the operator's real installation or state: the
-# state root must be under the system temp directory or explicitly marked disposable, and the
-# check is on the CANONICAL resolved path, not the string it was given.
+# state root must be under the system temp directory, checked on the CANONICAL path after
+# resolving reparse points. A junction under temp that targets operator data is refused.
 #
-# Step 3 - the frozen operator workflow through the assembled UI - is not automated here. It
-# needs a human at the browser, and a harness that clicked through it would be proving that the
-# harness can click, not that an operator can work. The runbook records how to perform it and
-# what to capture; this script performs every step that can be performed without a person.
+# Step 3 drives the frozen HTTP workflow (shell + SOVEREIGN APIs). Automated UI operation is
+# legitimate end-to-end evidence; human usability acceptance stays separate.
 #
 # Every step writes a JSON record with the environment label, the command, start and end time,
 # the real exit code, a PASS/FAIL/SKIP/BLOCKED verdict, and where its evidence went. A step that
@@ -45,26 +48,32 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
+. (Join-Path $PSScriptRoot '..\release\path_guard.ps1')
 
-$installRoot = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
-$stateRoot = [IO.Path]::GetFullPath($StateRoot).TrimEnd('\')
-$evidenceDir = [IO.Path]::GetFullPath($EvidenceDir).TrimEnd('\')
+$installRoot = Get-CanonicalPath $InstallRoot
+$stateRoot = Get-CanonicalPath $StateRoot
+$evidenceDir = Get-CanonicalPath $EvidenceDir
 $artifactPath = [IO.Path]::GetFullPath($Artifact)
 
 # --- refuse to operate on anything that is not disposable ------------------------------------
-$tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+$tempRoot = Get-CanonicalPath ([IO.Path]::GetTempPath())
 foreach ($guard in @(@{ p = $installRoot; n = 'InstallRoot' }, @{ p = $stateRoot; n = 'StateRoot' })) {
     if ($guard.p -eq [IO.Path]::GetPathRoot($guard.p)) {
         throw "$($guard.n) may not be a filesystem root: $($guard.p)"
     }
-    if (-not $guard.p.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw ("$($guard.n) must live under the system temp directory so this harness cannot " +
-               "back up, restore over, upgrade or purge anything the operator relies on. " +
-               "Given: $($guard.p); required prefix: $tempPrefix")
+    if (-not (Test-CanonicalContained -Root $tempRoot -Candidate $guard.p)) {
+        throw ("$($guard.n) must live under the system temp directory after canonical " +
+               "resolution so this harness cannot back up, restore over, upgrade or purge " +
+               "anything the operator relies on. Given: $($guard.p); temp: $tempRoot")
+    }
+    if (Test-Path -LiteralPath $guard.p) {
+        if (Test-TreeContainsReparsePoint $guard.p) {
+            throw "$($guard.n) contains a reparse point; refusing recursive delete/move/ACL: $($guard.p)"
+        }
     }
 }
-$defaultState = Join-Path $env:LOCALAPPDATA 'SovereignWorkspace'
-if ($stateRoot.Equals([IO.Path]::GetFullPath($defaultState).TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {
+$defaultState = Get-CanonicalPath (Join-Path $env:LOCALAPPDATA 'SovereignWorkspace')
+if ($stateRoot.Equals($defaultState, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Refusing to run acceptance against the operator's real state root: $stateRoot"
 }
 
@@ -74,22 +83,29 @@ $logDir = Join-Path $evidenceDir 'logs'
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-$candidate = (& git -C $repoRoot rev-parse HEAD).Trim()
+$runId = [Guid]::NewGuid().ToString('N').Substring(0, 12)
+$checkoutSha = (& git -C $repoRoot rev-parse HEAD).Trim()
+$candidate = $checkoutSha
 $artifactHash = if (Test-Path -LiteralPath $artifactPath) {
     (Get-FileHash -Algorithm SHA256 -LiteralPath $artifactPath).Hash.ToLowerInvariant()
 } else { $null }
+# Checkout SHA is NOT proof the zip was built from that SHA.
+$artifactBuiltFromSha = $null
 
 function Write-Record {
     param([string]$Step, [string]$Name, [string]$Verdict, [string]$Reason,
           $ExitCode, [string]$Command, [string]$Evidence, [datetime]$Started)
     $record = [ordered]@{
         workflow      = 'SWS-ACCEPT-01'
+        run_id        = $runId
         environment   = $Environment
         step          = $Step
         name          = $Name
+        checkout_sha  = $checkoutSha
         candidate_sha = $candidate
         artifact      = [IO.Path]::GetFileName($artifactPath)
         artifact_sha256 = $artifactHash
+        artifact_built_from_sha = $artifactBuiltFromSha
         command       = $Command
         started_utc   = $Started.ToUniversalTime().ToString('o')
         ended_utc     = (Get-Date).ToUniversalTime().ToString('o')
@@ -177,17 +193,49 @@ if ($Steps -contains '2') {
     }
 }
 
+# --- step 3: frozen HTTP workflow --------------------------------------------------------------
+if ($Steps -contains '3') {
+    $started = Get-Date
+    $launcher = Join-Path $installRoot 'Start-Shell.ps1'
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+        Write-Record '3' 'frozen useful workflow through the assembled UI' 'BLOCKED' `
+            'no installation to launch' $null '' '' $started
+    }
+    else {
+        $wf = Join-Path $PSScriptRoot 'exercise_live.ps1'
+        $r = Invoke-Child $wf @(
+            '-InstallRoot', $installRoot,
+            '-StateRoot', $stateRoot,
+            '-Mode', 'workflow'
+        ) 'step3-workflow'
+        $verdict = if ($r.ExitCode -eq 0) { 'PASS' } elseif ($r.ExitCode -eq 2) { 'BLOCKED' } else { 'FAIL' }
+        $reason = ''
+        if ($verdict -ne 'PASS') {
+            $reason = "exercise_live.ps1 -Mode workflow exited $($r.ExitCode)"
+        }
+        Write-Record '3' 'frozen useful workflow through the assembled UI' $verdict $reason `
+            $r.ExitCode 'exercise_live.ps1 -Mode workflow' $r.Log $started
+    }
+}
+
 # --- step 4/5: cancellation and crash recovery -------------------------------------------------
-# Both require a live workflow to interrupt, which is step 3's territory. They are recorded as
-# BLOCKED here rather than approximated, because cancelling nothing proves nothing.
 foreach ($pending in @(
-    @{ n = '4'; t = 'cancel real in-progress work, then restart and complete another task' },
-    @{ n = '5'; t = 'crash an owned instance at a checkpoint and recover' })) {
+    @{ n = '4'; t = 'cancel real in-progress work, then restart and complete another task'; mode = 'cancel' },
+    @{ n = '5'; t = 'crash an owned instance at a checkpoint and recover'; mode = 'crash' })) {
     if ($Steps -contains $pending.n) {
         $started = Get-Date
-        Write-Record $pending.n $pending.t 'BLOCKED' `
-            ('requires the live operator workflow of step 3, which needs a person at the ' +
-             'browser; see docs\ACCEPTANCE-WORKFLOW.md and the runbook') $null '' '' $started
+        if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'Start-Shell.ps1'))) {
+            Write-Record $pending.n $pending.t 'BLOCKED' 'no installation to exercise' $null '' '' $started
+        }
+        else {
+            $r = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
+                '-InstallRoot', $installRoot, '-StateRoot', $stateRoot, '-Mode', $pending.mode
+            ) ("step$($pending.n)-$($pending.mode)")
+            $verdict = if ($r.ExitCode -eq 0) { 'PASS' } elseif ($r.ExitCode -eq 2) { 'BLOCKED' } else { 'FAIL' }
+            Write-Record $pending.n $pending.t $verdict `
+                $(if ($verdict -ne 'PASS') { "exercise_live.ps1 -Mode $($pending.mode) exited $($r.ExitCode)" } else { '' }) `
+                $r.ExitCode "exercise_live.ps1 -Mode $($pending.mode)" $r.Log $started
+        }
     }
 }
 
@@ -251,26 +299,19 @@ if ($Steps -contains '7') {
                   else { '' }
         Write-Record '7' 'upgrade rollback with an injected candidate failure' $verdict $reason `
             $r.ExitCode 'upgrade.ps1 -InjectFailureAt postcheck' $r.Log $started
-    }
-}
-
-# --- step 8: uninstall preserving state by default ----------------------------------------------
-if ($Steps -contains '8') {
-    $started = Get-Date
-    if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json'))) {
-        Write-Record '8' 'uninstall, preserving state by default' 'BLOCKED' `
-            'no installation to uninstall' $null 'uninstall.ps1' '' $started
-    }
-    else {
-        $stateBefore = @(Get-ChildItem -LiteralPath $stateRoot -Force -Recurse -File -ErrorAction SilentlyContinue).Count
-        $r = Invoke-Child (Join-Path $release 'uninstall.ps1') @('-Dest', $installRoot) 'step8-uninstall'
-        $stateAfter = @(Get-ChildItem -LiteralPath $stateRoot -Force -Recurse -File -ErrorAction SilentlyContinue).Count
-        $verdict = if ($r.ExitCode -eq 0 -and $stateAfter -eq $stateBefore) { 'PASS' } else { 'FAIL' }
-        $reason = if ($stateAfter -ne $stateBefore) {
-            "uninstall changed the state root: $stateBefore file(s) before, $stateAfter after"
-        } elseif ($r.ExitCode -ne 0) { "uninstall exited $($r.ExitCode)" } else { '' }
-        Write-Record '8' 'uninstall, preserving state by default' $verdict $reason `
-            $r.ExitCode 'uninstall.ps1' $r.Log $started
+        if ($verdict -eq 'PASS') {
+            $startedUp = Get-Date
+            $u = Invoke-Child (Join-Path $release 'upgrade.ps1') `
+                @('-Dest', $installRoot, '-Artifact', $artifactPath) 'step7-upgrade'
+            $still = Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json')
+            $upOk = ($u.ExitCode -eq 0 -and $still)
+            $upReason = if (-not $still) { 'successful upgrade removed the installation' }
+                        elseif ($u.ExitCode -ne 0) { "upgrade.ps1 exited $($u.ExitCode)" }
+                        else { '' }
+            Write-Record '7' 'successful upgrade after rollback recovery' `
+                $(if ($upOk) { 'PASS' } else { 'FAIL' }) $upReason `
+                $u.ExitCode 'upgrade.ps1' $u.Log $startedUp
+        }
     }
 }
 
@@ -282,36 +323,86 @@ if ($Steps -contains '9') {
             'no installation present (step 8 removed it, or step 1 did not run)' $null '' '' $started
     }
     else {
-        # Deny write to the current user on the install tree, run the preflight, then restore the
-        # ACL. Only this disposable tree is touched.
-        $acl = Get-Acl -LiteralPath $installRoot
+        $originalSddl = (Get-Acl -LiteralPath $installRoot).GetSecurityDescriptorSddlForm('All')
         $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
         $deny = New-Object Security.AccessControl.FileSystemAccessRule(
             $me, 'Write', 'ContainerInherit,ObjectInherit', 'None', 'Deny')
         $ok = $false; $reason = ''; $code = $null
         try {
+            $acl = Get-Acl -LiteralPath $installRoot
             $acl.AddAccessRule($deny)
             Set-Acl -LiteralPath $installRoot -AclObject $acl
-            $r = Invoke-Child (Join-Path $installRoot 'Start-Shell.ps1') @('-CheckOnly') 'step9-readonly'
-            $code = $r.ExitCode
-            $ok = ($r.ExitCode -eq 0)
-            if (-not $ok) { $reason = "preflight reported a blocking problem under a non-writable install (exit $($r.ExitCode))" }
+            $probe = Join-Path $installRoot ('.accept-write-probe-' + [Guid]::NewGuid().ToString('N'))
+            $writeDenied = $false
+            try {
+                [IO.File]::WriteAllText($probe, 'should-fail')
+            }
+            catch { $writeDenied = $true }
+            if (Test-Path -LiteralPath $probe) {
+                Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+            }
+            if (-not $writeDenied) {
+                $reason = 'negative control failed: write succeeded under the deny-Write ACL'
+            }
+            else {
+                $r = Invoke-Child (Join-Path $installRoot 'Start-Shell.ps1') @('-CheckOnly') 'step9-readonly'
+                $code = $r.ExitCode
+                $ok = ($r.ExitCode -eq 0)
+                if (-not $ok) { $reason = "preflight reported a blocking problem under a non-writable install (exit $($r.ExitCode))" }
+            }
         }
         catch { $reason = $_.Exception.Message }
         finally {
-            $restore = Get-Acl -LiteralPath $installRoot
-            $restore.RemoveAccessRuleAll($deny)
-            Set-Acl -LiteralPath $installRoot -AclObject $restore
+            try {
+                $restore = Get-Acl -LiteralPath $installRoot
+                $restore.SetSecurityDescriptorSddlForm($originalSddl)
+                Set-Acl -LiteralPath $installRoot -AclObject $restore
+            }
+            catch {
+                Write-Host "WARNING: failed to restore original ACL on $installRoot : $($_.Exception.Message)" -ForegroundColor Red
+            }
         }
         Write-Record '9' 'launch with a non-writable installation directory' `
             $(if ($ok) { 'PASS' } else { 'FAIL' }) $reason $code 'Start-Shell.ps1 -CheckOnly' $logDir $started
     }
 }
 
+# --- step 8: uninstall preserving state by default ----------------------------------------------
+if ($Steps -contains '8') {
+    $started = Get-Date
+    if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json'))) {
+        Write-Record '8' 'uninstall, preserving state by default' 'BLOCKED' `
+            'no installation to uninstall' $null 'uninstall.ps1' '' $started
+    }
+    else {
+        $hashBefore = @{}
+        Get-ChildItem -LiteralPath $stateRoot -Force -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $rel = $_.FullName.Substring($stateRoot.Length).TrimStart('\')
+            $hashBefore[$rel] = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
+        }
+        $r = Invoke-Child (Join-Path $release 'uninstall.ps1') @('-Dest', $installRoot) 'step8-uninstall'
+        $hashAfter = @{}
+        Get-ChildItem -LiteralPath $stateRoot -Force -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $rel = $_.FullName.Substring($stateRoot.Length).TrimStart('\')
+            $hashAfter[$rel] = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
+        }
+        $missing = @($hashBefore.Keys | Where-Object { -not $hashAfter.ContainsKey($_) })
+        $changed = @($hashBefore.Keys | Where-Object { $hashAfter.ContainsKey($_) -and $hashAfter[$_] -ne $hashBefore[$_] })
+        $verdict = if ($r.ExitCode -eq 0 -and $missing.Count -eq 0 -and $changed.Count -eq 0) { 'PASS' } else { 'FAIL' }
+        $reason = if ($r.ExitCode -ne 0) { "uninstall exited $($r.ExitCode)" }
+                  elseif ($missing.Count -gt 0 -or $changed.Count -gt 0) {
+                      "uninstall changed state hashes: missing=$($missing.Count) changed=$($changed.Count)"
+                  } else { '' }
+        Write-Record '8' 'uninstall, preserving state by default' $verdict $reason `
+            $r.ExitCode 'uninstall.ps1' $r.Log $started
+    }
+}
+
 # --- summary --------------------------------------------------------------------------------------
 Write-Host ""
 Write-Host "  record: $recordPath" -ForegroundColor Cyan
-$records = @(Get-Content -LiteralPath $recordPath | ForEach-Object { $_ | ConvertFrom-Json })
+$records = @(Get-Content -LiteralPath $recordPath | ForEach-Object { $_ | ConvertFrom-Json } |
+    Where-Object { $_.run_id -eq $runId })
 $counts = $records | Group-Object verdict | ForEach-Object { "$($_.Name)=$($_.Count)" }
 Write-Host ("  {0}" -f ($counts -join '  '))
 Write-Host ""
@@ -320,5 +411,11 @@ if ($Environment -ne 'CLEAN') {
     Write-Host "  Gate D requires a fresh Windows VM or clean host." -ForegroundColor Yellow
     Write-Host ""
 }
-if (@($records | Where-Object { $_.verdict -eq 'FAIL' }).Count -gt 0) { exit 1 }
+$fails = @($records | Where-Object { $_.verdict -eq 'FAIL' })
+$blocked = @($records | Where-Object { $_.verdict -eq 'BLOCKED' })
+if ($fails.Count -gt 0) { exit 1 }
+if ($blocked.Count -gt 0) {
+    Write-Host "  RUN INCOMPLETE: $($blocked.Count) required step(s) BLOCKED. Exit 0 is not completion." -ForegroundColor Yellow
+    exit 2
+}
 exit 0
