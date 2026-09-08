@@ -217,8 +217,9 @@ class WorktreeManager:
         """
         owner = self._registration_owner(registered)
         mine = (self._base / ".git").resolve()
-        # Quoted, NOT `!r`. `repr()` of a Windows path doubles every separator
-        # (`'C:\\Users\\...'`), and this message exists to hand an operator two paths and a command
+        # Quoted, NOT `!r`. `repr()` of a Windows path doubles every separator (a user-profile
+        # path comes back with each backslash written twice), and this message exists to hand an
+        # operator two paths and a command
         # they can act on. `registered` comes back from `git worktree list --porcelain` already
         # spelled with forward slashes; it is quoted verbatim rather than normalised, because that
         # is what their own `git worktree list` will show and what the remediation command takes.

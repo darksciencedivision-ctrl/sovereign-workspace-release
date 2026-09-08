@@ -96,6 +96,19 @@ DISCLOSED = {
     "shell/tests/test_developer_identifiers_are_bounded.py": "this file",
     "modules/sow/apps/desktop/test/renderer-spec-allowlist.test.js": "fixture path in a test",
     "modules/distillery/tests/test_corpus_admission.py": "fixture path in a test",
+    # SW-JOURNAL-002-A3 F-47. These two prove the journal REDACTS a user-profile path. The
+    # needle has to have that exact shape to be a proof; a neutral drive path would test a
+    # weaker claim than the one the redactor makes.
+    "modules/sow/apps/desktop/test/journal-redaction-a3.test.js": "the redacted needle IS the test",
+    "modules/sow/apps/desktop/test/workspace-journal.test.js": "the redacted needle IS the test",
+    # F-22/F-23. The defect these document and test is a COLLISION BETWEEN TWO REAL TREE NAMES on
+    # this operator's disk: one is a character-prefix of the other, so a `startswith` containment
+    # test placed a whole product tree inside an unrelated directory. Replacing the names with
+    # neutral ones would leave a comment that no longer explains anything and a test that no
+    # longer reproduces the collision it exists for.
+    "modules/sow/control_plane/conductor/registry.py": "the prefix collision it fixes is between two real tree names",
+    "modules/sow/tests/unit/test_conductor_workspace_containment.py": "reproduces that collision",
+    "modules/sow/tests/unit/test_worktree_foreign_registration.py": "reproduces that collision",
 }
 
 #: Evidence trees whose contents are cited by things a recipient runs. Disclosed wholesale,
