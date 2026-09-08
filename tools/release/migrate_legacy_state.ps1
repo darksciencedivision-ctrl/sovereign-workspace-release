@@ -69,6 +69,9 @@ if (-not $StateRoot) {
         $StateRoot = Join-Path $localAppData 'SovereignWorkspace'
     }
 }
+if ($StateRoot -match '^[A-Za-z]:\\?$') {
+    throw "Refusing a filesystem-root state root: $StateRoot"
+}
 $stateRootFull = Get-CanonicalPath $StateRoot
 $volumeRoot = [IO.Path]::GetPathRoot($stateRootFull)
 if ($stateRootFull.TrimEnd('\').Equals($volumeRoot.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {

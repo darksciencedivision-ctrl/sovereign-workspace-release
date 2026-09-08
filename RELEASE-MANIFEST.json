@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "8cf503890210b65c4f087664dd4dd2200a257b004ff6fc6b355bfd1c446075c1"
+      "sha256": "e23db6c3914a5042247694163cf7e12bb3ef667b5de296ac92c8016dbe2a25b2"
     },
     {
       "path": "shell/config/install.json",

@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-09-08T18:33:56Z
+# utc: 2026-09-08T19:23:56Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self), untracked files
@@ -62,7 +62,7 @@ c74be37ec028f26f13b782dc600e60ae4890866380fdbb466a2dad81ef2234ee  tests/test_con
 fdacf051e2360866336058ae27cab07c38e39a3c15ef54809dc2695d6f2fa67d  tests/test_installer_honours_adr005.py
 8dd56761f5a011cb14b8de4709cb8a013d3d3176addaaf5945e34cd24dff4246  tests/test_launcher_contract.py
 bd9d8ed4df1398a3c952ccc3e34dce0b13459d496dc966a38bd203a640da936f  tests/test_legacy_alias_resolution.py
-ff25f92ce1a0361a6c633cf578d388948fe49e962192b0b2a3d4c480b214c759  tests/test_legacy_state_migration.py
+dcd90f287c726961c0aa418da8ca2adaf8ed463a13f58d5f04e036ba1a346810  tests/test_legacy_state_migration.py
 f4ad1439b96bb813ad39dc894d8de7ad4ed511307705519b3fbb6a0c1af310af  tests/test_licence_is_complete.py
 c42f2f7240ca83f9f0b29adb97a372c67bbe6b0fcf70bda1b07daa441a442da1  tests/test_lifecycle_serialization.py
 b3ffb1c441022f2e88d18f523c05f7daec953e0debf5aaffef145f173d3b4232  tests/test_limitations_are_disclosed.py

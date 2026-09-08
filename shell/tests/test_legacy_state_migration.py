@@ -175,11 +175,12 @@ class LegacyStateMigration(unittest.TestCase):
         self.assertIn("overlapping", (r.stdout + r.stderr).lower())
 
     def test_a_filesystem_root_state_root_is_refused(self) -> None:
-        r = _ps("-LegacyInstall", str(self.legacy),
-                "-StateRoot", "C:\\",
-                "-ReceiptPath", str(self.receipt))
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn("filesystem-root", (r.stdout + r.stderr).lower())
+        for root in ("C:\\", "C:"):
+            r = _ps("-LegacyInstall", str(self.legacy),
+                    "-StateRoot", root,
+                    "-ReceiptPath", str(self.receipt))
+            self.assertNotEqual(r.returncode, 0, root + "\n" + (r.stdout + r.stderr)[-800:])
+            self.assertIn("filesystem-root", (r.stdout + r.stderr).lower())
 
     def test_a_junction_state_root_that_lands_inside_legacy_is_refused(self) -> None:
         bait = self.tmp / "state-bait"
