@@ -240,3 +240,134 @@ nothing.
 `docs/RECOVERY-RUNBOOK.md` documents what to do when an upgrade, a backup, a restore, a launch or
 a crash goes wrong, keyed to the exit codes the tooling actually returns.
 
+---
+
+## 6. Workstream 5 — measuring the benefit
+
+`tools/benchmark/PROTOCOL.md` was frozen and committed before any comparison ran, with one
+preselected primary outcome, a +10-point benefit threshold and a 5-point ablation tolerance, both
+with their rationale. `dataset.json` holds 30 held-out tasks over five categories, hashed
+`f844c7dc…`; the substituted category (`procedural` for executable work) was declared before any
+result was seen, because these routes execute nothing and have no tool access.
+
+The harness drives the **product's own** `QuickExecutor` and `SemanticDeepExecutor` against a
+real `OllamaClient`. It computes `packet_sha256` with the product's own functions, because
+`SemanticDeepExecutor` re-derives and re-checks that digest before it will run — a benchmark that
+hashed the packet its own way would either be refused or be measuring a loosened check.
+
+**The benchmark found a defect in this run's own work.** Task `gf-02` produced
+`The configured synthesizer model is llama3.2:3b. [source:manifest]` — correctly cited — and the
+Q1 repair rejected it, because the clause splitter cut at the full stop and left the citation in
+a clause of its own. Rejecting a correct answer is as much a defect as accepting a wrong one, and
+it is the failure mode a conservative clause rule is most likely to introduce. Fixed in `0543059`
+with three regression tests, one of which keeps the fix honest: a trailing citation must not
+attribute a separate, earlier, uncited claim.
+
+Results, coverage and the resulting decisions are in `05-benchmark/RESULTS.md`.
+
+---
+
+## 7. The candidate
+
+| Field | Value |
+|---|---|
+| Candidate SHA | `45751ac54363cf77ff8bc672eca7f375d42de9cb` |
+| Version | `1.0.0-rc.1` |
+| Install artifact | `sovereign-workspace-1.0.0-rc.1-install.zip` |
+| Install artifact SHA-256 | `5f45b35acd5791cd4bfc7122ede80bebb420e629ddb56a75d998d0b398c25953` |
+| Tracked tree at build | clean |
+
+Full artifact table, gate record, reproducibility evidence and negative controls:
+`02-release/CANDIDATE.md`.
+
+**Status of this candidate, stated in the four terms the directive asks for:**
+
+- **Code-complete** for workstreams 1, 2, 3 and 4.1 — yes.
+- **Artifact-verified** — yes for the gates and the reproducible build; the clean-room install
+  and verify are recorded in `04-acceptance/`.
+- **Fresh-machine-verified** — **no**. See §8.
+- **Awaiting operator acceptance** — yes, and one concrete decision is outstanding. See §9.
+
+---
+
+## 8. What is BLOCKED, and by exactly what
+
+Neither of these was converted into a PASS.
+
+### 8.1 Gate D — fresh-machine acceptance
+
+**Missing resource:** a fresh Windows VM or clean host — documented OS build, a standard
+non-administrator user, no development checkout, no global project packages, no existing
+`%LOCALAPPDATA%\SovereignWorkspace`, no prior Sovereign configuration.
+
+This session had one machine: the operator's development host, which is the opposite of all five
+conditions. A new directory on it is a **fixture install**, and the directive says so explicitly.
+Everything that does not require the missing resource was completed: the frozen workflow, its
+independent success criteria, the recovery contract, the harness, the runbook, the artifact, and
+a FIXTURE execution of every step the harness can perform without a person at the browser.
+
+**To unblock:** provide a clean Windows VM with the artifact above and run
+
+```
+tools\acceptance\run_acceptance.ps1 -Environment CLEAN -Artifact <artifact> ...
+```
+
+plus the manual step 3 from `docs/ACCEPTANCE-WORKFLOW.md`.
+
+### 8.2 The live operator workflow, and the cancellation and crash steps built on it
+
+Steps 3, 4 and 5 need a person at the browser to submit work, cancel it mid-flight and crash an
+owned instance at a defined checkpoint. The harness records them **BLOCKED** rather than
+approximating them, because cancelling nothing proves nothing. The workflow, its four
+independently checkable artifacts and the recovery contract are all frozen and ready to execute.
+
+---
+
+## 9. One concrete decision for the operator
+
+Everything else in this run was determined from the code and the evidence. This one is a product
+decision with no evidence in the tree either way, so it was **not** made:
+
+> **Should the legacy synthesis pipeline be retargeted from its 8B roster to the product's 3B
+> roster, or should it stay as it is?**
+
+The facts, traced rather than assumed:
+
+- The shipped service resolves every model role from `SYSTEM_MANIFEST MODELS` — the 3B roster.
+- `synthesis/model_hierarchy.json` names an 8B roster and configures the legacy `synth_king` /
+  `live_orchestrator` pipeline, which `shell/modules/sovereign.json` never launches.
+- Both rosters are fully installed on this host, so availability does not decide it.
+- `sovereign_product` opens the hierarchy for exactly one purpose: to offer it to the model as an
+  **evidence document**.
+
+That last point is why the divergence was not simply left alone. An operator asking "what model
+is configured?" could be handed the 8B hierarchy as evidence while the product ran 3B. The
+behaviour-preserving repair was applied: the hierarchy now **declares its scope** inside the
+document itself, so a reader handed that text can see what it does and does not govern, and the
+gate enforces the declaration and that no product file consumes it. **No pipeline's behaviour was
+changed.**
+
+If the answer is "retarget it", it is a one-line-per-role edit to `model_hierarchy.json` and the
+gate will keep passing. If the answer is "leave it", nothing further is needed.
+
+---
+
+## 10. Risks that remain
+
+1. **Fresh-machine behaviour is unproven.** §8.1. Everything else is fixture evidence from a
+   machine that has had this product on it for weeks.
+2. **The live UI workflow has not been driven end to end.** §8.2. The assembled Electron app was
+   not launched as part of this verification, and this report does not claim it was.
+3. **The benchmark is preliminary.** See `05-benchmark/RESULTS.md` for exactly how, and for what
+   its numbers may and may not be used to say.
+4. **The upgrade's path-bound provisioning step is the one thing that cannot be validated in
+   isolation.** §2's design note explains why that is a property of CPython venvs rather than a
+   shortcut, and it is covered by a tested automatic rollback rather than by hope.
+5. **The acceptance validator cannot tell a relevant citation from an irrelevant one.** This is
+   stated in the code, the assessment object, the UI tooltip and the docs, and one benchmark task
+   (`af-03`) produced exactly that case: a fabricated claim carrying a real citation, accepted by
+   the format checks and wrong. `source_support_checked` is permanently `False` for this reason.
+6. **`-AllowNonQuiescent` and `-AllowUnverifiedLegacyArchive` are escape hatches.** Both label
+   their output honestly, and both let an operator produce something less trustworthy than the
+   default. That is the intended trade; it is documented rather than hidden.
+
