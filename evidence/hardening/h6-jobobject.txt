@@ -1,4 +1,4 @@
-# utc: 2026-09-08T16:21:29Z
+# utc: 2026-09-08T16:23:44Z
 # producer: claude-code REM-01
 # proof: H-6 - Windows Job Object containment
 # command: py -3.12 -B -m unittest -v shell.tests.test_supervisor.TestJobObjectContainment shell.tests.test_supervisor.TestJobAssignFailure
@@ -14,6 +14,6 @@ test_runner_state_is_failed_job_assign (shell.tests.test_supervisor.TestJobAssig
 test_spawn_raises_job_assign (shell.tests.test_supervisor.TestJobAssignFailure.test_spawn_raises_job_assign) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 2.757s
+Ran 5 tests in 3.919s
 
 OK
