@@ -18,27 +18,31 @@ blocking conditions, readiness and shutdown.
 
 | Entry point | Where it lives | Supports | What it does |
 |---|---|---|---|
-| `Sovereign Workspace.bat` | beside the checkout | source checkout | forwards its arguments to `Start-Sovereign.ps1` and propagates the exit code |
-| `Start-Sovereign.ps1` | beside the checkout | source checkout | locates `release-worktree\Start-Shell.ps1` and forwards to it |
-| `Start-Shell.ps1` | inside the workspace | **source checkout and installed artifact** | the preflight and the launch |
+| `Sovereign Workspace.bat` | beside the source tree | source tree | forwards its arguments to `Start-Sovereign.ps1` and propagates the exit code |
+| `Start-Sovereign.ps1` | beside the source tree | source tree | locates the source tree's `Start-Shell.ps1` and forwards to it |
+| `Start-Shell.ps1` | inside the workspace | **source tree and installed artifact** | the preflight and the launch |
 
 All three accept `-Port <n>`, `-NoBrowser` and `-CheckOnly`, and paths containing spaces work
 through every one of them.
 
 **Installing the two external launchers.** `Sovereign Workspace.bat` and `Start-Sovereign.ps1`
-are operator tooling, not product files. They are not inside the release archive and
-`tools\release\install.ps1` does not place them. To use them, copy both into the folder that
-*contains* the checkout directory — the layout they expect is:
+are operator tooling for a *source tree*, not product files. They are not inside the release
+archive and `tools\release\install.ps1` does not place them. To use them, copy both into the
+folder that *contains* the source tree, so that the layout is:
 
 ```
-D:\production software 3\
+<any folder>\
     Sovereign Workspace.bat
     Start-Sovereign.ps1
-    release-worktree\           <- the checkout, containing Start-Shell.ps1
+    <source tree>\      <- the directory holding Start-Shell.ps1 and shell\
 ```
 
-For an **installed** copy there is no outer launcher: run `Start-Shell.ps1` from inside the
-installation directory, or use the Start Menu shortcut `install.ps1 -TargetDir` creates.
+`Start-Sovereign.ps1` looks for the source tree in a subdirectory beside itself; if it is not
+found it says so and names the path it looked in, rather than failing obscurely.
+
+For an **installed** copy there is no outer launcher, and none is needed: run `Start-Shell.ps1`
+from inside the installation directory, or use the Start Menu shortcut `install.ps1 -TargetDir`
+creates.
 
 **Blocking versus advisory.** A blocking condition stops the launch and produces a non-zero
 exit code. An advisory is printed and does not.
