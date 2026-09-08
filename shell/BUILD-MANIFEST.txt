@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-09-08T03:40:49Z
+# utc: 2026-09-08T04:09:51Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self)
@@ -55,7 +55,7 @@ bb11f120e22c454a47078b727c91ea8901002d679e97962f57f5c8e768d5378e  tests/test_bro
 9d9d981c85a33f97040e10a4917d289568ff3a9a766e9ad4624b54a7bb3f5574  tests/test_ci_lane_runs_what_it_claims.py
 361be7858da033409b6406b6eb8b667ef32789cd1f986bdbcb0ffb661f8ddf37  tests/test_cold_start.py
 c74be37ec028f26f13b782dc600e60ae4890866380fdbb466a2dad81ef2234ee  tests/test_conductor_surface.py
-9cd44e0018aef8c9454c9d1af100a55cb72d97eeb7e99588f08145fd39abe64b  tests/test_developer_identifiers_are_bounded.py
+97f999b1d763a45db4f228eae5eba5d8375022624afde0305f41a7eefcafcb34  tests/test_developer_identifiers_are_bounded.py
 6db1950bce2081f71ec36d972c7506ef5090785d5df63dca9f9b4882854becd7  tests/test_failure_classes.py
 7a27d2c511fca92dff29fac3ad8a392879e55841d18f534c0b0a87f5f3ba41d8  tests/test_frontend.py
 9f9f47b5e2d29929580e35ce218bbd340d3fa18d5a805e499d2a95f90c87ab14  tests/test_governed_replacement.py
