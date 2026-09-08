@@ -1,6 +1,22 @@
-# SWS-BENCH-01 — results
+# SWS-BENCH-01 — results (HISTORICAL / INVALID FOR INFERENCE)
 
-**Protocol:** `tools/benchmark/PROTOCOL.md`, frozen and committed **before** any comparison ran.
+**Correction 2026-09-08 (OpenCode / grok-4.6).** Current protocol is **SWS-BENCH-02**
+(`tools/benchmark/PROTOCOL.md`). SWS-BENCH-01 is preserved as
+`tools/benchmark/PROTOCOL-SWS-BENCH-01.historical.md`.
+
+Do not use `scratchpad/bench/B-1run.jsonl` as a result. At resume it was a mixed file: three
+concurrent writers, `open("w")` then append, duplicate `(gf-03, B_full, 0)` cells, mixed
+`candidate_sha` values (`0543059`, `45751ac`, `a225666`). It is preserved hashed under
+`%TEMP%\opencode\sws-corrective-01\handoff-preserve-20260908T173000Z` as diagnostic history.
+The report's "30 B executions" claim is not supported by that file.
+
+`A-3runs.jsonl` (90 A_single rows) and `A-only.jsonl` (30 A_single rows) are independently
+complete **A-only** observations. They are not a paired A vs B protocol outcome. Token counts
+were null; `model_calls` for A was hardcoded to 1.
+
+No valid SWS-BENCH-02 comparison has been run yet. Gate E is **not complete**.
+
+**Protocol:** `tools/benchmark/PROTOCOL-SWS-BENCH-01.historical.md`, frozen before any comparison ran.
 **Dataset:** `tools/benchmark/dataset.json`, 30 held-out tasks, `dataset_sha256`
 `f844c7dc61841b9b8834415a02010420bd15c1deb09c0825a5783daf0aed9313`.
 **Candidate at run time:** `0761d756dfb95d9acc7aa0218dbd828effd85a56`.

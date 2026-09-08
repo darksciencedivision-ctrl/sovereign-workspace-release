@@ -1,5 +1,9 @@
 # SWS-CORRECTIVE-01 — implementation report
 
+**OpenCode continuation (grok-4.6 / xai/grok-4.6), 2026-09-08.** This report's original body is
+Claude's. Treat its PASS labels as claims to verify. The continuation did **not** qualify a
+final release. See the addendum at the end.
+
 **Run ID:** `SWS-CORRECTIVE-01-20260908T151625Z`
 **Reviewed baseline:** `52bcc931e6ebb0db24155758cf19d1cf592731fa`
 **Candidate:** see §7
@@ -378,7 +382,7 @@ gate will keep passing. If the answer is "leave it", nothing further is needed.
 | Gate | Outcome | On what evidence |
 |---|---|---|
 | **A — Lifecycle** | **PASS** | 20 upgrade-transaction cases with fault injection at preparation, cutover, postcheck and rollback; 15 backup/restore cases including the recorded hidden-file reproduction and a byte-for-byte round trip; 8 lifecycle-serialisation cases driven by events with real fixture-process ownership tests alongside. All three recorded reproductions (L1, L2, L3) fail before the fix and pass after it. |
-| **B — Release** | **PASS with a stated condition** | All twelve required gates pass on candidate `45751ac`; the whole-product Python suite finished (4247 passed) with its three failures fixed in the candidate; the build is reproducible (8/8 artifacts byte-identical across two isolated builds) and refuses a stale artifact; ten planted defects still fail. **The condition:** the one recorded full-suite run predates the candidate by four commits, and its own RELEASE-QUALIFYING verdict was NO because `-SkipNode` and the absence of `-IncludeCleanRoom` left six stages skipped. A qualifying run needs `run_ci.ps1 -IncludeCleanRoom` on `45751ac` with the Node trees provisioned. |
+| **B — Release** | **NOT YET QUALIFIED** | A prior whole-product run reported 4247 passed / 3 failed / 5 skipped with **RELEASE-QUALIFYING: NO**. That run predates later commits and untracked migration work. `generate_build_manifest.py --check` failed at handoff because `test_state_snapshot_contract.py` changed. No qualifying `run_ci.ps1 -IncludeCleanRoom` has been re-run on the continuation HEAD. Do not inherit PASS. |
 | **C — Contract** | **PASS** | One launcher implementation; `-CheckOnly` exercised through all three entry points with blocking exit codes propagating through both delegation layers; the shell launched and served `SWS-UI-001 v1.2`; SOW's declared writes now cover the write it actually performs, with a test asserting no declared write target is inside the installation. |
 | **D — Acceptance** | **BLOCKED** | No fresh Windows VM or clean host was available. §8.1 names the exact missing resource. FIXTURE evidence exists for the mechanism and is labelled FIXTURE everywhere it appears. |
 | **E — Value** | **PRELIMINARY** | The protocol, the frozen 30-task dataset, the harness and the analysis are delivered and executable. Condition A is complete (90 executions). The orchestration conditions are under-powered against the protocol, for a measured resource reason. `05-benchmark/RESULTS.md` states the coverage and the decision it does and does not support. |
@@ -386,4 +390,47 @@ gate will keep passing. If the answer is "leave it", nothing further is needed.
 **This directive is not complete.** Gate D is blocked on a resource this session did not have, and
 gate E is preliminary. Saying otherwise would be the failure the directive spends its length
 guarding against.
+
+---
+
+## Addendum — OpenCode / grok-4.6 continuation
+
+**Source HEAD at resume:** `a22566626afce598b1b3d931d91c611db7a84578` (dirty + untracked).
+**Executor:** OpenCode using grok-4.6 (`xai/grok-4.6`). No silent substitution.
+
+### Background writers
+
+Three task-owned `run_benchmark.py --conditions B_full --out ...\bench\B-1run.jsonl` pairs were
+still alive (venv wrapper + Python 3.12 child): PIDs 10760/38704 (11:21:50), 20080/37284
+(11:24:48), 38820/38784 (11:43:58), launched from `run_bench_after_ci.sh`, `after_ci.sh`, and
+`accept_then_bench.sh`. Evidence copied, then those identified processes were stopped. Stable
+`B-1run.jsonl` SHA-256 `D661863F6E15C6F689EB128DD2C3F3A98BC6C8DEC16CCF9D0EFD090870CE6223`
+(17794 bytes). Labelled invalid for inference.
+
+### What this continuation changed
+
+- Held-handle offline backup: `FileShare.Read` handles last through hash/zip; re-enum refuses
+  set drift; late-writer tests added. 35 targeted tests passed including migration + snapshot +
+  harness + junction guard.
+- Legacy migration script integrated with canonical overlap/junction refusal; LIMITATIONS and
+  OPERATIONS updated. Plan-first, non-destructive, receipt.
+- Acceptance: canonical reparse-point containment, exact SDDL restore, hashes not counts on
+  uninstall, current-run aggregation (BLOCKED exits 2), HTTP workflow/cancel/crash drivers.
+  Checkout SHA is no longer implied to be the artifact's build SHA.
+- Benchmark: SWS-BENCH-02 — exclusive `--out`, resume, run_id, unique sessions, telemetry
+  harvest, independent `unsupported_claims`, CI-based ablation rule, measurement-only critic/
+  verifier skip on `SemanticDeepExecutor` (production default unchanged).
+
+### Still unresolved (exact)
+
+1. **No local commit** of these changes yet (not requested).
+2. **Gate B:** no current release-qualifying CI on the continuation tree; BUILD-MANIFEST will
+   need regeneration after the new files are tracked.
+3. **Gate D:** no fresh Windows VM/clean host.
+4. **Gate E:** no valid paired SWS-BENCH-02 run. Do not start one while other GPU work is live;
+   use a new `--out` path, never `B-1run.jsonl`.
+5. **Installed-artifact acceptance** of the HTTP workflow has not been executed against a new
+   candidate artifact.
+6. **Successful upgrade + post-upgrade workflow** is still not a completed acceptance step
+   (rollback injection remains; success path not added as a separate recorded step).
 
