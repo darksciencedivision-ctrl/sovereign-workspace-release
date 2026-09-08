@@ -1,9 +1,9 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-09-08T19:23:56Z
+# utc: 2026-09-08T20:52:27Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self), untracked files
-# entries: 104
+# entries: 105
 dacd46cc21ec9e0bb2d50f0f45582629126026241b37899f3e4c73d88874facf  config/install.json
 8532f40e1dd974fe7be91cb72154eceaf7694897d59784552dfd07ccc524f05b  modules/debate.json
 54dcae7a07aea417c572d635373ba805ba7d9d56f50dfd38561ec82175233967  modules/distillery.json
@@ -44,6 +44,7 @@ b52e0ed2664d2a20a4d6153191fe1e453cc63a75a29438bd50d47e27a186fbef  tests/fixtures
 b6bed87ad338bdaec1906244ec3c1464718fb3951a9acc54ff0224158699ef5c  tests/fixtures/fixture_sleeper.py
 93aa061962f8f67fd9e3ed57647fbd5bc4951bd8f04356d360186ff992837e93  tests/fixtures/fixture_tree.py
 211480a44c665082a6da1e6c263e57787cf4154b0e4e4ea5401061741c49a011  tests/test_absent_runtime_is_declared_honestly.py
+d69f630ea7d8c49924977c07f94a17964a37b6fec449fd5a72a4bc7cef3a0b2d  tests/test_acceptance_http_json.py
 1b18be19c934a19182442380ebc6eb066ef2736aa98ae4ec6ee405ccd790263f  tests/test_acceptance_path_guard.py
 667f033afe871010e62d02f2845360e2a549045cb37f4d57c903b9dd4fc22180  tests/test_archive_content_hash.py
 05e74f39cdbf8142d9ec56793ac171d6d4b97ded6a7a3c4caa979f5466f694d8  tests/test_archive_ships_only_operator_docs.py

@@ -206,14 +206,15 @@ if ($Steps -contains '3') {
         $r = Invoke-Child $wf @(
             '-InstallRoot', $installRoot,
             '-StateRoot', $stateRoot,
-            '-Mode', 'workflow'
+            '-Mode', 'workflow',
+            '-EvidenceLog', (Join-Path $logDir 'step3-workflow.log')
         ) 'step3-workflow'
         $verdict = if ($r.ExitCode -eq 0) { 'PASS' } elseif ($r.ExitCode -eq 2) { 'BLOCKED' } else { 'FAIL' }
         $reason = ''
         if ($verdict -ne 'PASS') {
             $reason = "exercise_live.ps1 -Mode workflow exited $($r.ExitCode)"
         }
-        Write-Record '3' 'frozen useful workflow through the assembled UI' $verdict $reason `
+        Write-Record '3' 'HTTP integration of frozen workflow (not assembled UI)' $verdict $reason `
             $r.ExitCode 'exercise_live.ps1 -Mode workflow' $r.Log $started
     }
 }
@@ -229,7 +230,8 @@ foreach ($pending in @(
         }
         else {
             $r = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
-                '-InstallRoot', $installRoot, '-StateRoot', $stateRoot, '-Mode', $pending.mode
+                '-InstallRoot', $installRoot, '-StateRoot', $stateRoot, '-Mode', $pending.mode,
+                '-EvidenceLog', (Join-Path $logDir ("step$($pending.n)-$($pending.mode).log"))
             ) ("step$($pending.n)-$($pending.mode)")
             $verdict = if ($r.ExitCode -eq 0) { 'PASS' } elseif ($r.ExitCode -eq 2) { 'BLOCKED' } else { 'FAIL' }
             Write-Record $pending.n $pending.t $verdict `
@@ -345,10 +347,14 @@ if ($Steps -contains '9') {
                 $reason = 'negative control failed: write succeeded under the deny-Write ACL'
             }
             else {
-                $r = Invoke-Child (Join-Path $installRoot 'Start-Shell.ps1') @('-CheckOnly') 'step9-readonly'
+                $r = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
+                    '-InstallRoot', $installRoot, '-StateRoot', $stateRoot,
+                    '-Mode', 'workflow', '-ShellPort', '15181',
+                    '-EvidenceLog', (Join-Path $logDir 'step9-readonly.log')
+                ) 'step9-readonly'
                 $code = $r.ExitCode
                 $ok = ($r.ExitCode -eq 0)
-                if (-not $ok) { $reason = "preflight reported a blocking problem under a non-writable install (exit $($r.ExitCode))" }
+                if (-not $ok) { $reason = "live launch under deny-Write failed (exit $($r.ExitCode))" }
             }
         }
         catch { $reason = $_.Exception.Message }
@@ -363,7 +369,7 @@ if ($Steps -contains '9') {
             }
         }
         Write-Record '9' 'launch with a non-writable installation directory' `
-            $(if ($ok) { 'PASS' } else { 'FAIL' }) $reason $code 'Start-Shell.ps1 -CheckOnly' $logDir $started
+            $(if ($ok) { 'PASS' } else { 'FAIL' }) $reason $code 'exercise_live.ps1 under deny-Write' $logDir $started
     }
 }
 
