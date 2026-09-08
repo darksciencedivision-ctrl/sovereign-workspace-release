@@ -169,8 +169,10 @@ a reader holding an older copy can tell what changed and why.
   back automatically, preserves the failed incoming tree, and prints no success line. Every
   phase is journalled. See `docs/RECOVERY-RUNBOOK.md` for the exit codes.
 - **Backup and restore exist, under a stated snapshot contract.** It is an **offline** contract:
-  `backup_state.ps1` proves quiescence by opening each file denying other writers, and refuses
-  rather than copying live state. It captures hidden and system entries and empty directories —
+  `backup_state.ps1` proves quiescence by opening each file denying other writers **and holding
+  those handles through hash and zip**, then copies from the held streams. A writer that starts
+  after the probe cannot mutate captured bytes; a file created after acquire is refused. It
+  refuses rather than copying live state. It captures hidden and system entries and empty directories —
   the previous version's `Compress-Archive` wildcard silently dropped hidden files and still
   reported COMPLETE. The inventory records path, length, SHA-256 and attributes per entry, not a
   count. The archive is verified before it takes its final name. Restore stages, validates paths
@@ -181,6 +183,8 @@ a reader holding an older copy can tell what changed and why.
   > does not identify who produced it. This product ships no signing infrastructure and claims
   > none.
 
-What has *not* changed: an existing installation created before this release still has its
-state beside the code. Nothing migrates it automatically. Copy it into the new state root, or
-start fresh.
+An existing installation created before this release still has its state beside the code.
+`tools\release\migrate_legacy_state.ps1` copies that state into the new root: plan-only unless
+you pass `-Apply`, never modifies the legacy install, never overwrites current state (conflicts
+are kept or written alongside), and writes a receipt naming every file. Removing the old
+installation stays the operator's decision after they have seen the result.

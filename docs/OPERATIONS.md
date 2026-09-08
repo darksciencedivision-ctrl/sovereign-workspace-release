@@ -148,11 +148,13 @@ If you want to reset the Debate Table's configuration to the shipped defaults, d
 ```
 
 **Stop the shell and every module first.** This is an **offline** snapshot contract, and the
-tool proves it rather than trusting you: it opens each file denying other writers, and if
-anything is being written it **refuses** and names the files. `-AllowNonQuiescent` captures
-anyway and labels the archive `online-uncoordinated (NOT a consistent snapshot)` in its
-inventory — that flag makes the refusal go away, not the inconsistency. A live SQLite database
-copied mid-write may need repair on restore.
+tool proves it rather than trusting you: it opens each file denying other writers, **holds those
+handles through hash and zip**, and copies from the held streams. If anything is already being
+written it **refuses** and names the files. A file created after acquire is also refused
+(`state changed during capture`). `-AllowNonQuiescent` captures anyway and labels the archive
+`online-uncoordinated (NOT a consistent snapshot)` in its inventory — that flag makes the
+refusal go away, not the inconsistency. A live SQLite database copied mid-write may need repair
+on restore.
 
 What a backup produces:
 
@@ -186,6 +188,23 @@ case-colliding archive paths, checks the entry set against the inventory, extrac
 is moved aside, never deleted. An archive with no v2 inventory cannot be verified at all and is
 **refused** unless you pass `-AllowUnverifiedLegacyArchive`, in which case the result is
 labelled `NOT VERIFIED`.
+
+### Migrating state from a pre-relocation install
+
+Before this release, runtime state lived inside the install root. It now lives under
+`%LOCALAPPDATA%\SovereignWorkspace`. To copy the old state without touching the old install:
+
+```powershell
+.\tools\release\migrate_legacy_state.ps1 -LegacyInstall "C:\path\to\old\install"
+# review the receipt, then:
+.\tools\release\migrate_legacy_state.ps1 -LegacyInstall "C:\path\to\old\install" -Apply
+```
+
+Without `-Apply` the script only plans and writes a receipt. It never modifies, moves or deletes
+the legacy installation. A conflicting destination is kept (`-OnConflict KeepExisting`, the
+default) or the incoming copy is written alongside (`KeepBoth`). Every legacy file appears in the
+receipt exactly once. Delete the old installation yourself after you have confirmed the migrated
+state works.
 
 ### Upgrading
 
