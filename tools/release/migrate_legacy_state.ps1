@@ -70,7 +70,8 @@ if (-not $StateRoot) {
     }
 }
 $stateRootFull = Get-CanonicalPath $StateRoot
-if ($stateRootFull -eq [IO.Path]::GetPathRoot($stateRootFull)) {
+$volumeRoot = [IO.Path]::GetPathRoot($stateRootFull)
+if ($stateRootFull.TrimEnd('\').Equals($volumeRoot.TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) {
     throw "Refusing a filesystem-root state root: $stateRootFull"
 }
 if ($stateRootFull.StartsWith($legacyRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or

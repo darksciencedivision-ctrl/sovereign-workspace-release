@@ -195,9 +195,9 @@ Before this release, runtime state lived inside the install root. It now lives u
 `%LOCALAPPDATA%\SovereignWorkspace`. To copy the old state without touching the old install:
 
 ```powershell
-.\tools\release\migrate_legacy_state.ps1 -LegacyInstall "C:\path\to\old\install"
+.\tools\release\migrate_legacy_state.ps1 -LegacyInstall ".\old-install"
 # review the receipt, then:
-.\tools\release\migrate_legacy_state.ps1 -LegacyInstall "C:\path\to\old\install" -Apply
+.\tools\release\migrate_legacy_state.ps1 -LegacyInstall ".\old-install" -Apply
 ```
 
 Without `-Apply` the script only plans and writes a receipt. It never modifies, moves or deletes

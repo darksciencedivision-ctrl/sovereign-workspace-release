@@ -305,7 +305,7 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // IPC channel, or authority-release sink is added. Re-counted the actual anchor
 // constant: resume-input CALL x1 (bare signature x2 including its declaration);
 // verified zero CR bytes. Both harnesses must be run on these bytes with byte-identical restores.
-const PINNED_BASELINE = "C43A91A2DD2E35B68FD351B4ED3942EE16883456D7FC77EF751FF0ADFE31010B";
+const PINNED_BASELINE = "8AB5E8BBEE288A30BE07EC3CED287FD329977212428F84BC8C5021CC55C33F90";
 
 let lockFd;
 try {
