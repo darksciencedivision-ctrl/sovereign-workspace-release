@@ -27,6 +27,62 @@ LOCAL_CONDUCTOR_SELECTION_PATH = (
     Path(__file__).resolve().parents[2] / ".runtime" / "conductor-selection.json")
 
 
+def _within_install(candidate: str, root: str) -> bool:
+    """Is `candidate` the install root or a path inside it?
+
+    Compared as canonical path COMPONENTS, never as a string prefix. SW-ORCH-001 §3.1a records
+    why on this operator's disk: `D:\\producttion` is a character-prefix of
+    `D:\\producttion software 2`, so a `startswith` test places an entire product tree "inside" an
+    unrelated Crashpad dump directory. `Path.parts` cannot make that mistake — a component either
+    equals the next one or it does not.
+
+    `resolve()` is what handles junctions and reparse points: both sides are canonicalised before
+    the comparison, so a stored path that reaches the root through a junction is admitted and one
+    that escapes through it is not. A path that cannot be resolved is NOT contained (fail closed) —
+    an unreadable location is not evidence of containment.
+    """
+    try:
+        cand = Path(candidate).resolve()
+        base = Path(root).resolve()
+    except (OSError, ValueError):
+        return False
+    return cand == base or base.parts == cand.parts[:len(base.parts)]
+
+
+def _admissible_workspace(raw_workspace: Any, *, install_root: str) -> tuple[str, str | None]:
+    """The workspace a descriptor may actually use, and the refusal if a stored one was rejected.
+
+    F-13/U78(a) established that a conductor session inheriting whatever directory the shell
+    happened to start in is bound to nothing. SW-ORCH-001 F-22 is the other half of that: a
+    workspace read back from HOST-LOCAL STATE was trusted verbatim, so a selection file copied
+    between installs silently rebound the conductor's ConPTY into a tree the running install does
+    not own. Measured 2026-09-05 — one session had its workers in `production software 3` and its
+    conductor in `producttion software 2`, from one stale absolute literal in
+    `.runtime/conductor-selection.json`.
+
+    The stored value is therefore ADVISORY. It is honoured when it names this install, and refused
+    — not substituted across installs — when it does not. The install root wins, because the
+    workspace is a property of the install that reads the file, not of the file.
+
+    Returns `(workspace, refusal)`. `refusal` is None when nothing was rejected; otherwise it names
+    BOTH paths, because an operator told only "refused" cannot tell which install they are in.
+    """
+    stored = str(raw_workspace or "").strip()
+    if not stored:
+        return install_root, None
+    if _within_install(stored, install_root):
+        return stored, None
+    # Quoted, NOT `!r`. A Windows path through `repr()` comes back with every separator doubled
+    # (`D:\\producttion software 2\\...`), and this string is read by an operator deciding which
+    # install they are looking at. The one place a path must be legible is the message that names
+    # two of them.
+    return install_root, (
+        f'the stored conductor workspace "{stored}" is not inside this install '
+        f'("{install_root}"), so it was refused and this install\'s own root is used instead. '
+        f"A workspace is a property of the install that reads the selection, not of the "
+        f"selection file (SW-ORCH-001 F-22)")
+
+
 def _load_local_conductor_selection() -> dict[str, Any] | None:
     """The operator's stored LOCAL conductor choice, or None. Never raises: a corrupt or
     half-written preference must degrade to "no local preference" rather than take the shell's
@@ -89,6 +145,13 @@ class ConductorDescriptor:
     #: directly, by a caller that knows something this field does not.  It is reported, never
     #: enforced: no code path may refuse a conductor because of what is written here.
     selection_source: str = "unstated"
+    #: SW-ORCH-001 F-22.  Set when a workspace stored in host-local state named a path outside this
+    #: install and was refused in favour of the install's own root; None when nothing was rejected.
+    #: It names BOTH paths.  Like ``selection_source`` it is REPORTED, never enforced — the refusal
+    #: has already been applied to ``workspace`` by the time this is read, and no code path may
+    #: refuse a conductor because this field is set.  It exists so the operator surface can say
+    #: which stored path was ignored instead of silently running somewhere else.
+    workspace_refusal: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
@@ -188,6 +251,7 @@ def resolve_conductor_descriptor(
     workspace: str = DEFAULT_WORKSPACE,
     permission_profile_id: str = CONDUCTOR_PERMISSION_PROFILE,
     selection_source: str = "unstated",
+    workspace_refusal: str | None = None,
     local_verdicts: Iterable[Any] | None = None,
 ) -> ConductorDescriptor:
     match = next(
@@ -219,20 +283,30 @@ def resolve_conductor_descriptor(
         readiness_turns=match.readiness_turns,
         locality=match.locality,
         selection_source=selection_source,
+        workspace_refusal=workspace_refusal,
     )
 
 
 def descriptor_from_mapping(raw: Mapping[str, Any], *, workspace: str = DEFAULT_WORKSPACE,
                             selection_source: str = "unstated") -> ConductorDescriptor:
+    """Build a descriptor from a stored/host-supplied mapping.
+
+    SW-ORCH-001 F-22: the mapping's `workspace` is host-local state, so it is VALIDATED against
+    this install before use rather than passed through. `workspace` (the keyword) remains the
+    fallback for a mapping that carries none, and is itself the containment authority — a caller
+    resolving a descriptor for a particular install passes that install's root here.
+    """
     if not isinstance(raw, Mapping):
         raise ConductorRegistryError("conductor selection must be an object")
+    admitted, refusal = _admissible_workspace(raw.get("workspace"), install_root=str(workspace))
     return resolve_conductor_descriptor(
         str(raw.get("provider_id") or raw.get("provider") or raw.get("adapter_id") or ""),
         str(raw.get("model_id") or raw.get("model_slug") or raw.get("model") or ""),
-        workspace=str(raw.get("workspace") or workspace),
+        workspace=admitted,
         permission_profile_id=str(
             raw.get("permission_profile_id") or CONDUCTOR_PERMISSION_PROFILE),
-        selection_source=selection_source,
+        selection_source=(f"{selection_source}+workspace_refused" if refusal else selection_source),
+        workspace_refusal=refusal,
     )
 
 

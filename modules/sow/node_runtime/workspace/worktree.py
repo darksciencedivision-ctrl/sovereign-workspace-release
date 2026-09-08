@@ -91,11 +91,31 @@ class WorktreeManager:
             raise WorktreeError(f"worktree for {node_id} already exists")
         branch = f"node/{node_id}"
         path = self._worktrees_root / node_id
-        _git(self._base, "worktree", "add", "-b", branch, str(path), self.trunk)
+        # A node BRANCH can outlive its worktree registration, and then `-b` is the wrong verb.
+        #
+        # `ensure` already documents the idempotent-across-restarts case, but it only recognises it
+        # when git still REGISTERS a worktree for the branch. A branch with no registration falls
+        # between the two: `_registered_worktrees()` reports nothing, `ensure` calls `create`, and
+        # `git worktree add -b` dies with "a branch named 'node/<id>' already exists". Measured on
+        # the operator's host after the SW-ORCH-001 F-23 orphan admin records were removed — that
+        # removal released the registrations and left the branches, so every coding pane on those
+        # ids stayed blocked by a second, quieter cause.
+        #
+        # Attaching to the existing branch is what `ensure`'s own contract asks for: the branch is
+        # this node's accumulated work, and a pane reopening should continue it, not be refused
+        # because it exists. Creating is for a node that has none.
+        exists = subprocess.run(
+            ["git", "-C", str(self._base), "rev-parse", "--verify", "--quiet",
+             f"refs/heads/{branch}"], capture_output=True, text=True).returncode == 0
+        if exists:
+            _git(self._base, "worktree", "add", str(path), branch)
+        else:
+            _git(self._base, "worktree", "add", "-b", branch, str(path), self.trunk)
         binding = WorkspaceBinding(path, node_id, on_refusal=lambda kind, **d: self._emit("workspace_escape", **d))
         wt = NodeWorktree(node_id=node_id, branch=branch, path=path, binding=binding)
         self._nodes[node_id] = wt
-        self._emit("worktree_created", node_id=node_id, branch=branch, path=str(path))
+        self._emit("worktree_created", node_id=node_id, branch=branch, path=str(path),
+                   branch_reused=exists)
         return wt
 
     def commit(self, node_id: str, message: str) -> str:
@@ -134,10 +154,10 @@ class WorktreeManager:
         if registered is None:
             return self.create(node_id)
         if Path(registered).resolve() != expected.resolve():
-            raise WorktreeError(
-                f"branch node/{node_id} is already checked out at {registered!r}, not at the "
-                f"managed path {str(expected)!r} — refusing to adopt a worktree this manager does "
-                f"not control (containment, invariant 29)")
+            # The refusal itself is unchanged and non-negotiable (SW-ORCH-001 F-23 contract item 1):
+            # a worktree this manager does not control is never adopted. What is ADDED is saying
+            # which KIND of registration it is, because the two need opposite operator actions.
+            raise WorktreeError(self._describe_unadoptable(node_id, registered, expected))
         if not expected.exists():
             raise WorktreeError(
                 f"git still registers a worktree for node/{node_id} at {str(expected)!r} but the "
@@ -150,6 +170,89 @@ class WorktreeManager:
         self._nodes[node_id] = wt
         self._emit("worktree_adopted", node_id=node_id, branch=wt.branch, path=str(expected))
         return wt
+
+    def _registration_owner(self, registered: str) -> Path | None:
+        """Which repository's admin area does the registered worktree point BACK to?
+
+        A linked worktree's own `.git` is a file reading `gitdir: <repo>/.git/worktrees/<name>`.
+        That backpointer is the authority on ownership, and it is what separates the two ways
+        `ensure` can find a branch checked out somewhere unexpected. Returns None when it cannot be
+        read — the directory is gone, it is not a linked worktree, or the file is unreadable — and
+        None is deliberately NOT "mine": an unanswerable ownership question stays unanswered.
+        """
+        dotgit = Path(registered) / ".git"
+        try:
+            if not dotgit.is_file():
+                return None
+            text = dotgit.read_text(encoding="utf-8").strip()
+        except OSError:
+            return None
+        if not text.startswith("gitdir:"):
+            return None
+        try:
+            return Path(text[len("gitdir:"):].strip()).resolve()
+        except (OSError, ValueError):
+            return None
+
+    def _describe_unadoptable(self, node_id: str, registered: str, expected: Path) -> str:
+        """Why this registration cannot be adopted, and what the operator should do about it.
+
+        SW-ORCH-001 F-23. `ensure` collapsed two different situations into one permanent refusal:
+
+          * CONFLICTING — the branch really is checked out elsewhere in THIS repository. A live
+            claim. Adopting it would hand the pane a directory this manager does not control, and
+            the right answer is the refusal that has always been here.
+          * FOREIGN — the registration is an orphan admin record left behind when a repository was
+            COPIED. `.git/worktrees/<id>/` came along with the copy, and its `gitdir` still points
+            at a directory owned by the other repository. Nothing in this repository is using that
+            branch; the metadata is simply stale. `git worktree prune` does not clear it, because
+            prune removes records whose directory is GONE and this one still exists — in the other
+            tree. Measured on the operator's host 2026-09-05: both `node/worker-pane-2` and
+            `node/worker-pane-3` were in this state, so every coding pane on those ids refused at
+            launch indefinitely, with containment working exactly as designed.
+
+        Removing a foreign record is a Git admin mutation and is therefore the OPERATOR's call, not
+        this manager's (contract item 4). This function detects, classifies, and names the exact
+        remediation; it never runs it.
+        """
+        owner = self._registration_owner(registered)
+        mine = (self._base / ".git").resolve()
+        # Quoted, NOT `!r`. `repr()` of a Windows path doubles every separator
+        # (`'C:\\Users\\...'`), and this message exists to hand an operator two paths and a command
+        # they can act on. `registered` comes back from `git worktree list --porcelain` already
+        # spelled with forward slashes; it is quoted verbatim rather than normalised, because that
+        # is what their own `git worktree list` will show and what the remediation command takes.
+        head = (f'branch node/{node_id} is already checked out at "{registered}", not at the '
+                f'managed path "{expected}" — refusing to adopt a worktree this manager does '
+                f"not control (containment, invariant 29)")
+
+        if owner is not None and owner != mine and mine not in owner.parents:
+            return (
+                f"{head}. That registration is FOREIGN, not a live claim: the worktree's own "
+                f"`.git` points back to {str(owner)!r}, which is not this repository "
+                f"({str(mine)!r}), so it is an orphan admin record left by a repository copy. "
+                f"`git worktree prune` will NOT clear it — prune only removes records whose "
+                f"directory is gone, and this one still exists in the other tree. To release the "
+                f"branch name for this install, an operator deletes THIS repository's stale admin "
+                f'directory: "{self._base / ".git" / "worktrees" / node_id}" — then re-opens the '
+                f"pane. Do NOT use `git worktree remove` here: it deletes the WORKING TREE at "
+                f'"{registered}", which belongs to the other repository, so the command that looks '
+                f"like the tidy one destroys another repository's checkout. Deleting the admin "
+                f"directory touches nothing outside this repository.")
+
+        if owner is None:
+            return (
+                f"{head}. Ownership of that path could not be established — its `.git` backpointer "
+                f"is missing or unreadable, so this manager cannot tell a live claim from an orphan "
+                f"admin record. Refusing rather than guessing: inspect "
+                f'`git -C "{self._base}" worktree list --porcelain` and the contents of '
+                f'"{registered}" before deciding.')
+
+        return (
+            f"{head}. That registration belongs to THIS repository, so the branch is genuinely in "
+            f"use somewhere else in it — a live claim, not stale metadata. Finish or remove that "
+            f"worktree before re-opening this pane; this manager will not take a directory another "
+            f"part of the same repository is holding.")
 
     def _registered_worktrees(self) -> dict[str, str]:
         """`{branch: path}` as GIT reports it — the authority on what already exists.
