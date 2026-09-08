@@ -1,11 +1,11 @@
-# utc: 2026-09-08T04:09:46Z
+# utc: 2026-09-08T15:41:57Z
 # producer: claude-code REM-01
 # proof: H-3 - required security headers on every response
 
-### curl.exe -si http://127.0.0.1:57363/
+### curl.exe -si http://127.0.0.1:52589/
 HTTP/1.1 200 OK
 Server: BaseHTTP/0.6 Python/3.12.10
-Date: Tue, 08 Sep 2026 04:09:46 GMT
+Date: Tue, 08 Sep 2026 15:41:57 GMT
 Content-Type: text/html; charset=utf-8
 Content-Length: 3727
 X-Content-Type-Options: nosniff
@@ -20,7 +20,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <meta name="csrf-nonce" content="8b736d75e2b5b4209f1fb982565398ccb35e28e1f88e3d0f2f055112f9eb24c6">
+  <meta name="csrf-nonce" content="21e710499c96f328fe294fb6a8e669762a0766a64eb808c47da5a8dea0781a47">
   <title>Sovereign Workspace Shell</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/app.js" defer></script>
@@ -98,10 +98,10 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 </body>
 </html>
 
-### curl.exe -si http://127.0.0.1:57363/api/state
+### curl.exe -si http://127.0.0.1:52589/api/state
 HTTP/1.1 200 OK
 Server: BaseHTTP/0.6 Python/3.12.10
-Date: Tue, 08 Sep 2026 04:09:46 GMT
+Date: Tue, 08 Sep 2026 15:41:57 GMT
 Content-Type: application/json
 Content-Length: 3106
 X-Content-Type-Options: nosniff
@@ -110,11 +110,11 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 Cache-Control: no-store
 Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-src http://127.0.0.1:8765; frame-ancestors 'none'; object-src 'none'; base-uri 'none'
 
-{"modules": {"debate": {"id": "debate", "display_name": "Debate Table", "description": "Multi-model debate table (FastAPI, :8700)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "http://127.0.0.1:8700/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/debate/.venv/Scripts/python.exe"}, "distillery": {"id": "distillery", "display_name": "Sovereign Distillery", "description": "Distillery runtime console \u2014 health only, no compute on open", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "http://127.0.0.1:5184/console", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"}, "llamacpp": {"id": "llamacpp", "display_name": "llama.cpp (candidate)", "description": "Pinned llama.cpp router on 5183. Not production default. The paths below are a NEUTRAL PLACEHOLDER, not a real location: the llama.cpp runtime and models ship in no release archive (R2 s3), so no real path exists on any machine. llamacpp is the declared optional adapter and is skipped by the installer; supply a real runtime location before enabling it.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "", "can_open": false, "open_kind": "none", "runtime_present": false, "runtime_path": "C:/sovereign-workspace/optional-runtimes/llama.cpp/current/llama-server.exe"}, "sovereign": {"id": "sovereign", "display_name": "SOVEREIGN", "description": "Operator product service and UI (Flask, :5175)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "http://127.0.0.1:5175/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/sovereign/.venv/Scripts/python.exe"}, "sow": {"id": "sow", "display_name": "Multi-Model Terminal", "description": "Sovereign Orchestration Workspace (Electron + xterm.js)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "", "can_open": false, "open_kind": "focus_window", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe"}, "tokencenter": {"id": "tokencenter", "display_name": "Token Center", "description": "Read-only local usage telemetry. No credentials.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T04:09:44Z", "port": "", "url": "http://127.0.0.1:8765/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"}}}
-### curl.exe -si http://127.0.0.1:57363/static/app.css
+{"modules": {"debate": {"id": "debate", "display_name": "Debate Table", "description": "Multi-model debate table (FastAPI, :8700)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "http://127.0.0.1:8700/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/debate/.venv/Scripts/python.exe"}, "distillery": {"id": "distillery", "display_name": "Sovereign Distillery", "description": "Distillery runtime console \u2014 health only, no compute on open", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "http://127.0.0.1:5184/console", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"}, "llamacpp": {"id": "llamacpp", "display_name": "llama.cpp (candidate)", "description": "Pinned llama.cpp router on 5183. Not production default. The paths below are a NEUTRAL PLACEHOLDER, not a real location: the llama.cpp runtime and models ship in no release archive (R2 s3), so no real path exists on any machine. llamacpp is the declared optional adapter and is skipped by the installer; supply a real runtime location before enabling it.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "", "can_open": false, "open_kind": "none", "runtime_present": false, "runtime_path": "C:/sovereign-workspace/optional-runtimes/llama.cpp/current/llama-server.exe"}, "sovereign": {"id": "sovereign", "display_name": "SOVEREIGN", "description": "Operator product service and UI (Flask, :5175)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "http://127.0.0.1:5175/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/sovereign/.venv/Scripts/python.exe"}, "sow": {"id": "sow", "display_name": "Multi-Model Terminal", "description": "Sovereign Orchestration Workspace (Electron + xterm.js)", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "", "can_open": false, "open_kind": "focus_window", "runtime_present": true, "runtime_path": "D:/production software 3/release-worktree/modules/sow/apps/desktop/node_modules/electron/dist/electron.exe"}, "tokencenter": {"id": "tokencenter", "display_name": "Token Center", "description": "Read-only local usage telemetry. No credentials.", "state_class": "runnable", "state": "STOPPED", "reason": "", "display": "STOPPED", "last_check": "2026-09-08T15:41:56Z", "port": "", "url": "http://127.0.0.1:8765/", "can_open": false, "open_kind": "browser", "runtime_present": true, "runtime_path": "C:/Users/Sslaw/AppData/Local/Programs/Python/Python312/python.exe"}}}
+### curl.exe -si http://127.0.0.1:52589/static/app.css
 HTTP/1.1 200 OK
 Server: BaseHTTP/0.6 Python/3.12.10
-Date: Tue, 08 Sep 2026 04:09:46 GMT
+Date: Tue, 08 Sep 2026 15:41:57 GMT
 Content-Type: text/css
 Content-Length: 12165
 X-Content-Type-Options: nosniff

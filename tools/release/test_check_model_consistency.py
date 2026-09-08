@@ -37,9 +37,26 @@ README = """# t
 - Embedding model: `nomic-embed-text:latest`
 """
 
+# SWS-CORRECTIVE-01 R1. The hierarchy configures the LEGACY synthesis pipeline, which the
+# shipped service never launches, so its roster deliberately differs from the product's. The
+# fixture therefore names models the manifest does not, and the checks below are about the
+# SCOPE DECLARATION and the absence of a product consumer - see check_hierarchy's docstring.
 HIERARCHY = {
-    "king_synthesizer": {"role": "KING_SYNTHESIZER", "model": "qwen3.8:27b"},
-    "cross_channel": {"critique": {"role": "CROSS_CRITIC", "model": "qwen3:8b"}},
+    "schema_version": 3,
+    "scope": {
+        "configures": "legacy-synthesis-pipeline",
+        "consumed_by": ["synthesis/synth_king.py"],
+        "not_consumed_by": "sovereign_product (the shipped service)",
+        "product_roster_source": "SYSTEM_MANIFEST.json MODELS",
+    },
+    "king_synthesizer": {"role": "KING_SYNTHESIZER", "model": "deepseek-r1:8b"},
+    "cross_channel": {"critique": {"role": "CROSS_CRITIC", "model": "dolphin3:8b"}},
+}
+
+PRODUCT_EVIDENCE_ONLY = {
+    "evidence.py": '    "model hierarchy": "synthesis/model_hierarchy.json",\n',
+    "server.py": '            "synthesis/model_hierarchy.json",\n',
+    "executors.py": "# no reference to the legacy hierarchy\n",
 }
 
 
@@ -54,13 +71,18 @@ class ConsistencyTests(unittest.TestCase):
             json.dump(MANIFEST, f)
         self.sov = sov
 
-    def _write(self, readme=README, hierarchy=HIERARCHY):
+    def _write(self, readme=README, hierarchy=HIERARCHY, product=None):
         with open(os.path.join(self.sov, "README_PRODUCTION.md"), "w",
                   encoding="utf-8") as f:
             f.write(readme)
         with open(os.path.join(self.sov, "synthesis", "model_hierarchy.json"),
                   "w", encoding="utf-8") as f:
             json.dump(hierarchy, f)
+        package = os.path.join(self.sov, "sovereign_product")
+        os.makedirs(package, exist_ok=True)
+        for name, body in (product or PRODUCT_EVIDENCE_ONLY).items():
+            with open(os.path.join(package, name), "w", encoding="utf-8") as f:
+                f.write(body)
 
     def test_consistent_passes(self):
         self._write()
@@ -82,13 +104,64 @@ class ConsistencyTests(unittest.TestCase):
         problems = cmc.check_readme(self.tmp, models)
         self.assertTrue(any("Embedding model" in p for p in problems))
 
-    def test_king_mismatch_detected(self):
+    # -- the hierarchy negative controls, replacing the old equality assertion ---------
+    #
+    # The old control planted `king_synthesizer.model = qwen3:14b` and required a mismatch
+    # against MODELS.SYNTHESIZER. That assertion was wrong in kind - it forced two independent
+    # pipelines to share one roster - so it is replaced, not removed, by controls that fail on
+    # the things which actually make the scoped-apart rosters safe.
+
+    def test_a_hierarchy_with_no_scope_declaration_is_rejected(self):
         bad = json.loads(json.dumps(HIERARCHY))
-        bad["king_synthesizer"]["model"] = "qwen3:14b"
+        del bad["scope"]
         self._write(hierarchy=bad)
         models = cmc.load_manifest(self.tmp)
         problems = cmc.check_hierarchy(self.tmp, models)
-        self.assertTrue(any("king_synthesizer" in p for p in problems))
+        self.assertTrue(any("declares no `scope`" in p for p in problems), problems)
+
+    def test_a_hierarchy_claiming_the_product_scope_is_rejected(self):
+        """A roster that says it configures the product must match the product's source."""
+        bad = json.loads(json.dumps(HIERARCHY))
+        bad["scope"]["configures"] = "shipped-product"
+        self._write(hierarchy=bad)
+        models = cmc.load_manifest(self.tmp)
+        problems = cmc.check_hierarchy(self.tmp, models)
+        self.assertTrue(any("scope.configures" in p for p in problems), problems)
+
+    def test_a_wrong_product_roster_source_is_rejected(self):
+        bad = json.loads(json.dumps(HIERARCHY))
+        bad["scope"]["product_roster_source"] = "synthesis/model_hierarchy.json"
+        self._write(hierarchy=bad)
+        models = cmc.load_manifest(self.tmp)
+        problems = cmc.check_hierarchy(self.tmp, models)
+        self.assertTrue(any("product_roster_source" in p for p in problems), problems)
+
+    def test_an_unusable_model_tag_in_the_scoped_roster_is_rejected(self):
+        """Scoping a roster out of the product must not make it a place to put nonsense."""
+        bad = json.loads(json.dumps(HIERARCHY))
+        bad["king_synthesizer"]["model"] = ""
+        self._write(hierarchy=bad)
+        models = cmc.load_manifest(self.tmp)
+        problems = cmc.check_hierarchy(self.tmp, models)
+        self.assertTrue(any("not a usable model tag" in p for p in problems), problems)
+
+    def test_a_product_file_that_consumes_the_hierarchy_is_rejected(self):
+        """The scope declaration is only true while the shipped service ignores the file.
+
+        This is the control that matters: if anything in sovereign_product ever starts
+        resolving a role from the legacy hierarchy, the two rosters are no longer independent
+        and the gate must fail rather than let the declaration paper over it.
+        """
+        product = dict(PRODUCT_EVIDENCE_ONLY)
+        product["executors.py"] = (
+            "hierarchy = json.load(open('synthesis/model_hierarchy.json'))\n"
+            "synth = hierarchy['king_synthesizer']['model']\n"
+        )
+        self._write(product=product)
+        models = cmc.load_manifest(self.tmp)
+        problems = cmc.check_hierarchy(self.tmp, models)
+        self.assertTrue(
+            any("outside the evidence-document allowlist" in p for p in problems), problems)
 
 
 class WorktreeConsistencyTests(unittest.TestCase):

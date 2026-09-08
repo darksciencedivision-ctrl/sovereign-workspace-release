@@ -1,4 +1,4 @@
-# utc: 2026-09-08T04:09:51Z
+# utc: 2026-09-08T15:42:02Z
 # producer: claude-code REM-01
 # proof: H-4 - no dangerous DOM sinks; logs rendered as text
 
@@ -42,13 +42,13 @@ test_payload_is_not_altered_by_redaction (shell.tests.test_frontend.TestFrontend
 Control: the round trip proves escaping, not accidental removal of the payload. ... ok
 test_script_tag_returned_as_json_string (shell.tests.test_frontend.TestFrontendLogRoundTrip.test_script_tag_returned_as_json_string) ... ok
 test_dynamic_text_uses_textcontent (shell.tests.test_frontend.TestFrontendStatic.test_dynamic_text_uses_textcontent)
-§7.3 item 4: log and status text is set as text nodes, not parsed as markup. ... ok
+Â§7.3 item 4: log and status text is set as text nodes, not parsed as markup. ... ok
 test_no_dangerous_dom_sinks (shell.tests.test_frontend.TestFrontendStatic.test_no_dangerous_dom_sinks) ... ok
 test_no_inline_script_or_handlers (shell.tests.test_frontend.TestFrontendStatic.test_no_inline_script_or_handlers)
 CSP is script-src 'self'; inline script or an on* attribute would break it. ... ok
 test_tokencenter_is_embedded_with_a_stopped_fallback (shell.tests.test_frontend.TestFrontendStatic.test_tokencenter_is_embedded_with_a_stopped_fallback) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.547s
+Ran 6 tests in 0.546s
 
 OK

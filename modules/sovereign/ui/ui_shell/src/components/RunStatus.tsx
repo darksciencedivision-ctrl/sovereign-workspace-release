@@ -12,8 +12,15 @@ interface Props {
   onCancel: () => void;
 }
 
+// SWS-CORRECTIVE-01 §7.1. "Accepted" named a bare verdict, and a reader could reasonably
+// take it to mean the answer had been checked for truth. It has not been. The acceptance
+// gate checks three things - the answer's format, that every citation it prints exists in
+// the evidence packet, and that every clause asserting a project fact either carries a
+// citation or is itself an abstention. It does NOT read the cited source to see whether it
+// supports the claim, and it does not judge factual accuracy. The label says which of those
+// it means, and the title attribute carries the rest.
 const STATUS_COPY: Record<JobSnapshot["status"], string> = {
-  accepted: "Accepted",
+  accepted: "Accepted — format and citations checked",
   queued: "Queued",
   running: "Running",
   completed: "Completed",
@@ -43,7 +50,17 @@ export function RunStatus({
     >
       <div className="run-status-heading">
         <div>
-          <span className={`status-chip ${failure ? "failure" : ""}`}>
+          <span
+            className={`status-chip ${failure ? "failure" : ""}`}
+            title={
+              job.status === "accepted"
+                ? "Checked: response format, that every printed citation exists in the " +
+                  "evidence packet, and that every project-fact claim is cited or is an " +
+                  "abstention. NOT checked: whether a cited source actually supports the " +
+                  "claim, and whether the answer is factually correct."
+                : undefined
+            }
+          >
             {STATUS_COPY[job.status]}
           </span>
           {job.route && <span className="route-chip">{job.route}</span>}

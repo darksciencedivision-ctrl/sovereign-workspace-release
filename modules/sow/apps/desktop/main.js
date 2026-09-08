@@ -23,6 +23,24 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
+
+/**
+ * SWS-CORRECTIVE-01 C3. This module's writable state root - never inside the installation.
+ *
+ * The shell sets SOVEREIGN_WORKSPACE_STATE for every module it launches
+ * (`shell/src/adapter.py`, STATE_ROOT_ENV), pointing at that module's own state directory, so
+ * under the shell this is always defined and always agrees with what `shell/modules/sow.json`
+ * declares in `runtime_writes`. The fallback mirrors `workspace_state_root()` in the same file
+ * for a developer running the app directly, so neither path ever writes into the install tree
+ * and neither depends on the installation being writable.
+ */
+function sowStateRoot() {
+  const declared = (process.env.SOVEREIGN_WORKSPACE_STATE || "").trim();
+  if (declared) return declared;
+  const local = (process.env.LOCALAPPDATA || "").trim()
+    || path.join(os.homedir(), "AppData", "Local");
+  return path.join(local, "SovereignWorkspace", "sow");
+}
 const { createMainProcessLogger, redactArgvForLog } = require("./main-process-logger");
 const { SovereignControlServer } = require("./control/sovereign-control-server");
 const { structuredProviderFailure } = require("./control/provider-readiness");
@@ -3294,11 +3312,22 @@ app.whenReady().then(async () => {
       // LOCAL-01 F-6 (OD-34 / N-29). This receipt is written on EVERY normal launch, so writing
       // it into the git-tracked `docs/evidence/receipts` meant that simply USING the product
       // dirtied the release candidate — and it is what made this run's own BOOT find a dirty
-      // tree, as FIXUP-01's did before it. The N-16 remedy: the gitignored `.runtime/` lane,
-      // which is also a rejected runtime lane in package_boundary_gate.py, so this file can
-      // neither be committed nor packaged. `shell/modules/sow.json` readiness.path and
-      // runtime_writes move with it (S-4).
-      const receiptDir = path.join(__dirname, "..", "..", ".runtime", "receipts");
+      // tree, as FIXUP-01's did before it. That was fixed by moving it to a gitignored
+      // `.runtime/` lane INSIDE the installation.
+      //
+      // SWS-CORRECTIVE-01 C3. Inside the installation was still the wrong place. Two things
+      // were wrong with it: `shell/modules/sow.json` declared `${state_root}/.recovery` and
+      // `${state_root}/receipts` and nothing else, so the write every normal launch performs
+      // was declared nowhere; and a normal launch therefore could not survive a non-writable
+      // installation directory, which a per-machine install under Program Files is.
+      //
+      // The receipt now goes to this module's state root, which is the agreed writable
+      // location and the one the adapter declares. `SOVEREIGN_WORKSPACE_STATE` is set for
+      // every module by `shell/src/adapter.py` whether or not its adapter names it, so under
+      // the shell this is always defined. The fallback mirrors `workspace_state_root()` in
+      // that file rather than reaching back into the installation, so a developer running the
+      // app directly also writes outside the install tree.
+      const receiptDir = path.join(sowStateRoot(), "receipts");
       fs.mkdirSync(receiptDir, { recursive: true });
       fs.writeFileSync(path.join(receiptDir, "SHELL-LIVE-READY.json"),
         JSON.stringify({ ok: true, pid: process.pid, bootedAt: new Date().toISOString() }, null, 2));

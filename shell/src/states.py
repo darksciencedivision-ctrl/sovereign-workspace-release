@@ -9,6 +9,7 @@ States: NOT_STARTED, STOPPED, STARTING, READY, DEGRADED, FAILED(reason), EXTERNA
 CONFIG_ERROR(reason).
 """
 import os
+import threading
 import time
 
 from shell.src import probe as probe_mod
@@ -58,8 +59,16 @@ def classify_failure(reason: str) -> str:
 def port_owner_pid(port: int):
     """Return the pid currently LISTENING on the loopback port, or None. G17 pre-check."""
     import subprocess
-    out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
-                         capture_output=True, text=True).stdout
+    try:
+        # Bounded: an unbounded subprocess here would hold a start operation open
+        # indefinitely on a host where netstat wedges.
+        out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
+                             capture_output=True, text=True, timeout=10).stdout
+    except (subprocess.TimeoutExpired, OSError):
+        # Unobservable is not "free". The caller treats None as "no recognised owner", so an
+        # unreadable table must not be reported as an owner either - but it is recorded rather
+        # than silently swallowed.
+        return None
     suffix = ":{}".format(port)
     for line in out.splitlines():
         parts = line.split()
@@ -120,6 +129,14 @@ class ModuleRunner:
         self.last_check = _now_iso()
         self.quota_guard = None
         self.last_start = 0.0
+        # SWS-CORRECTIVE-01 workstream 1.3. Every start/stop/cancel/restart is an OPERATION
+        # with an identity. `_op_lock` guards state transitions and admission only - it is
+        # never held across a probe, a spawn or a process stop, so a 90-second SOW readiness
+        # wait cannot block the shell. `_current_op` names the operation that owns this module
+        # right now; anything else that finishes later is superseded and may publish nothing.
+        self._op_lock = threading.RLock()
+        self._op_seq = 0
+        self._current_op = None
         if "error" in adapter:
             self.state = CONFIG_ERROR
             self.reason = adapter.get("reason", "Unknown")
@@ -136,9 +153,71 @@ class ModuleRunner:
         return self.state
 
     def _set(self, state: str, reason: str = ""):
-        self.state = state
-        self.reason = reason
-        self.last_check = _now_iso()
+        with self._op_lock:
+            self.state = state
+            self.reason = reason
+            self.last_check = _now_iso()
+
+    # -- operation identity -------------------------------------------------
+    def _begin_operation(self) -> int:
+        """Claim this module for a new operation and return its id. Caller holds no lock."""
+        with self._op_lock:
+            self._op_seq += 1
+            self._current_op = self._op_seq
+            return self._op_seq
+
+    def _supersede(self):
+        """Invalidate whatever operation currently owns the module.
+
+        A cancel or a stop is itself an operation: it takes ownership so that the start it
+        interrupted can no longer publish anything, and so that a second cancel is a no-op
+        rather than a second supersession.
+        """
+        with self._op_lock:
+            self._op_seq += 1
+            self._current_op = None
+
+    def _is_current(self, op: int) -> bool:
+        with self._op_lock:
+            return self._current_op == op
+
+    def _checkpoint(self, op: int, where: str) -> bool:
+        """Cancellation checkpoint. True while `op` still owns the module.
+
+        The named checkpoints are the boundaries of the slow steps - `pre_spawn`, `post_spawn`,
+        `post_readiness`, `post_identity` - and they are a method rather than an inline
+        comparison so a test can block at one and drive the exact interleaving it names.
+        """
+        return self._is_current(op)
+
+    def _publish(self, op: int, state: str, reason: str = "") -> bool:
+        """Set state ONLY if `op` still owns the module. Returns whether it was published.
+
+        This is the whole of L3. `start()` used to end in an unconditional `_set(READY)`, so a
+        start that the operator had already cancelled published READY over the cancellation the
+        moment its readiness probe returned.
+        """
+        with self._op_lock:
+            if self._current_op != op:
+                return False
+            self.state = state
+            self.reason = reason
+            self.last_check = _now_iso()
+            return True
+
+    def _stop_owned(self, ph, grace_s: int):
+        """Stop the process THIS operation spawned - never whatever now answers to the id.
+
+        The supervisor keys processes by module id, which is reused across operations. A
+        superseded start that called `supervisor.stop(self.id)` would terminate the process a
+        later start owns; the identity check is what prevents that.
+        """
+        if ph is None:
+            return
+        current = self.supervisor.get_process(self.id)
+        if current is not ph:
+            return
+        self.supervisor.stop(self.id, grace_s)
 
     # -- probes -------------------------------------------------------------
     def _readiness(self, cfg: dict, ph, since: float):
@@ -189,12 +268,22 @@ class ModuleRunner:
 
     # -- transitions --------------------------------------------------------
     def start(self, env_overrides: dict | None = None, readiness_override: dict | None = None):
-        """STOPPED -> STARTING -> READY | FAILED(EXIT|TIMEOUT|IDENTITY|JOB_ASSIGN|QUOTA_GUARD)."""
-        if self.state not in (STOPPED, FAILED):
-            raise ValueError(f"Cannot start from state {self.display}")
+        """STOPPED -> STARTING -> READY | FAILED(EXIT|TIMEOUT|IDENTITY|JOB_ASSIGN|QUOTA_GUARD).
 
-        self.last_start = time.time()
-        self._set(STARTING)
+        Admission and the STARTING transition happen together under `_op_lock`, so two
+        simultaneous requests cannot both pass the state check and both spawn. Everything slow
+        - the spawn, the readiness probe, the identity probe - runs outside the lock, and every
+        result is published through `_publish`, which drops it if the operation has since been
+        cancelled or superseded.
+        """
+        with self._op_lock:
+            if self.state not in (STOPPED, FAILED):
+                raise ValueError(f"Cannot start from state {self.display}")
+            op = self._begin_operation()
+            self.last_start = time.monotonic()
+            self.state = STARTING
+            self.reason = ""
+            self.last_check = _now_iso()
 
         # EPC-01 P4-4. Create this module's declared write targets before spawning it.
         #
@@ -214,7 +303,7 @@ class ModuleRunner:
                 if directory:
                     os.makedirs(directory, exist_ok=True)
         except OSError as exc:
-            self._set(FAILED, "CONFIGURATION_FAILED: state directory")
+            self._publish(op, FAILED, "CONFIGURATION_FAILED: state directory")
             return self.display, f"cannot create declared write target: {exc}"
 
         launch = self.adapter["launch"]
@@ -224,7 +313,7 @@ class ModuleRunner:
         try:
             self.quota_guard = check_quota_guard(self.id, env) or None
         except QuotaGuardError as e:
-            self._set(FAILED, "CONFIGURATION_FAILED: quota guard")
+            self._publish(op, FAILED, "CONFIGURATION_FAILED: quota guard")
             return self.display, str(e)
 
         # G17: port-conflict pre-check - its own class, naming the owning pid, before
@@ -236,10 +325,15 @@ class ModuleRunner:
             if m:
                 owner = port_owner_pid(int(m.group(1)))
                 if owner:
-                    self._set(FAILED,
-                              "PORT_UNAVAILABLE (owned by pid %s)" % owner)
+                    self._publish(op, FAILED,
+                                  "PORT_UNAVAILABLE (owned by pid %s)" % owner)
                     return self.display, "port %s already owned by pid %s" % (
                         m.group(1), owner)
+
+        # Cancellation is checked immediately before CreateProcessW. A cancel that lands in the
+        # window between admission and spawn must stop the start, not race it.
+        if not self._checkpoint(op, "pre_spawn"):
+            return self.display, "start superseded before spawn"
 
         since = time.time()
         try:
@@ -257,51 +351,94 @@ class ModuleRunner:
                       else "PROCESS_START_FAILED: spawn failed")
             if detail and "JOB_ASSIGN" not in detail:
                 reason = f"{reason} ({detail[:200]})"
-            self._set(FAILED, reason)
+            self._publish(op, FAILED, reason)
             return self.display, detail
+
+        grace = self.adapter.get("stop", {}).get("grace_s", 5)
+
+        # The spawn succeeded. If the operation was cancelled while CreateProcessW was in
+        # flight, the process this operation owns is stopped here - and only that one.
+        if not self._checkpoint(op, "post_spawn"):
+            self._stop_owned(ph, grace)
+            return self.display, "start superseded during spawn"
 
         cfg = readiness_override or self.adapter["readiness"]
         ready, _lat, err = self._readiness(cfg, ph, since)
+
+        # The readiness probe is the long wait, and the window the recorded L3 reproduction
+        # lands in. Nothing measured across it may be published if the operation is no longer
+        # the current one.
+        if not self._checkpoint(op, "post_readiness"):
+            self._stop_owned(ph, grace)
+            return self.display, "start superseded during readiness"
+
         if not ready:
             alive = ph.is_alive()
-            self.supervisor.stop(self.id, self.adapter.get("stop", {}).get("grace_s", 5))
-            self._set(FAILED,
-                      ("HEALTH_CHECK_FAILED: readiness probe not satisfied"
-                       if alive else "PROCESS_START_FAILED: exited before ready"))
+            self._stop_owned(ph, grace)
+            self._publish(op, FAILED,
+                          ("HEALTH_CHECK_FAILED: readiness probe not satisfied"
+                           if alive else "PROCESS_START_FAILED: exited before ready"))
             return self.display, err
 
         ok, ierr = self._identity(self.adapter["identity"], ph)
+        if not self._checkpoint(op, "post_identity"):
+            self._stop_owned(ph, grace)
+            return self.display, "start superseded during identity check"
         if not ok:
-            self.supervisor.stop(self.id, self.adapter.get("stop", {}).get("grace_s", 5))
-            self._set(FAILED, "IDENTITY_MISMATCH: " + ierr)
+            self._stop_owned(ph, grace)
+            self._publish(op, FAILED, "IDENTITY_MISMATCH: " + ierr)
             return self.display, ierr
 
-        self._set(READY)
+        if not self._publish(op, READY):
+            # Superseded between the identity check and here.
+            self._stop_owned(ph, grace)
+            return self.display, "start superseded before publication"
         return self.display, ""
 
     def stop(self):
-        """READY | DEGRADED | STARTING | EXTERNAL -> STOPPED."""
-        if self.state == EXTERNAL:
+        """READY | DEGRADED | STARTING | EXTERNAL -> STOPPED.
+
+        Stop is the last accepted operation: it supersedes any outstanding start FIRST, so a
+        start still inside its readiness probe can publish nothing afterwards, and so a stop
+        issued during startup is terminal rather than a no-op the start then undoes.
+        """
+        with self._op_lock:
+            if self.state in (STOPPED, NOT_STARTED, CONFIG_ERROR):
+                return self.display
+            was_external = self.state == EXTERNAL
+            self._supersede()
+        if was_external:
             # H-9: an externally started process is never touched. Only our view of it resets.
             self._set(STOPPED)
-            return self.display
-        if self.state in (STOPPED, NOT_STARTED, CONFIG_ERROR):
             return self.display
         self.supervisor.stop(self.id, self.adapter.get("stop", {}).get("grace_s", 10))
         self._set(STOPPED)
         return self.display
 
     def cancel(self):
-        """STARTING -> STOPPED (operator cancels)."""
-        if self.state != STARTING:
-            return self.display
+        """STARTING -> STOPPED (operator cancels).
+
+        Supersession happens before the process is stopped, so the outstanding start observes
+        that it no longer owns the module at its next checkpoint and publishes nothing.
+        """
+        with self._op_lock:
+            if self.state != STARTING:
+                return self.display
+            self._supersede()
         self.supervisor.stop(self.id, self.adapter.get("stop", {}).get("grace_s", 5))
         self._set(STOPPED)
         return self.display
 
     def poll(self):
-        """Periodic re-probe. Implements the READY/DEGRADED/EXTERNAL rows of §7.4."""
-        if self.state in (NOT_STARTED, CONFIG_ERROR):
+        """Periodic re-probe. Implements the READY/DEGRADED/EXTERNAL rows of §7.4.
+
+        Polling is an observer, never an operation. It must not overwrite a transition that is
+        still in flight, and it must not erase a diagnostic failure merely because the port has
+        since been released - the operator needs to read WHY the last start failed.
+        """
+        if self.state in (NOT_STARTED, CONFIG_ERROR, STARTING):
+            # STARTING belongs to an operation that is still running. A poll that touched it
+            # would race the start's own publication.
             return self.display
         ph = self.supervisor.get_process(self.id)
 
@@ -346,7 +483,14 @@ class ModuleRunner:
 
         occupied, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 500)
         if not occupied:
-            if self.state in (EXTERNAL, FAILED):
+            # EXTERNAL and PORT_OCCUPIED_UNRECOGNIZED are observations ABOUT THE PORT: once it
+            # is free they are simply no longer true, so they clear. Every other FAILED reason
+            # is the diagnosis of this shell's own last start attempt - HEALTH_CHECK_FAILED,
+            # IDENTITY_MISMATCH, PROCESS_START_FAILED - and a free port says nothing about it.
+            # Clearing those was how a useful cause disappeared five seconds after it appeared.
+            # They survive until an explicit new operation replaces them.
+            if self.state == EXTERNAL or (
+                    self.state == FAILED and self.reason == PORT_OCCUPIED_UNRECOGNIZED):
                 self._set(STOPPED)
             else:
                 self.last_check = _now_iso()

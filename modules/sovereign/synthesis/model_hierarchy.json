@@ -1,5 +1,16 @@
 {
   "schema_version": "1.0",
+  "scope": {
+    "configures": "legacy-synthesis-pipeline",
+    "consumed_by": [
+      "synthesis/synth_king.py",
+      "synthesis/live_orchestrator.py",
+      "cycle_runner_v3.py"
+    ],
+    "not_consumed_by": "sovereign_product (the shipped service)",
+    "product_roster_source": "SYSTEM_MANIFEST.json MODELS",
+    "note": "SWS-CORRECTIVE-01 R1. This file configures the legacy synth_king / live_orchestrator pipeline, which the shipped product does not launch: shell/modules/sovereign.json starts sovereign_product.server, whose QUICK and DEEP executors both resolve every model role from SYSTEM_MANIFEST.json MODELS. The rosters below therefore differ from the product's on purpose and are NOT the answer to 'what model is configured?'. sovereign_product opens this file only as an evidence document, so the declaration is stated here rather than only in a comment elsewhere: a reader handed this text as evidence must be able to see what it does and does not govern."
+  },
   "updated_at": "2026-08-28T03:24:00Z",
   "reconciliation_note": "B2-6 (M-5/M-6, SWS-REM-DIR-20260828 R2): king_synthesizer.model reconciled to SYSTEM_MANIFEST.json MODELS.SYNTHESIZER. synth_king.py uses the hierarchy value first (king_cfg.get('model', args.model_synth)) with the manifest SYNTHESIZER only as fallback, so the previous value silently overrode the package-level synthesis assignment. All other hierarchy roles have no SYSTEM_MANIFEST counterpart and are unchanged.",
   "king_synthesizer": {

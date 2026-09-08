@@ -42,10 +42,32 @@ jobs:
           # and package_boundary_gate --from-commit needs real history rather than a graft.
           fetch-depth: 0
 
+      # SWS-CORRECTIVE-01 C2. The lane provisioned 3.12 ONLY, while tools/release/install.ps1
+      # runs `py -3.14 -m venv` for the Debate module and aborts without it. The clean-room
+      # stage could therefore never have passed on a runner. Both interpreters are required
+      # for an install, and docs/SUPPORT-POLICY.md records why the split exists.
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # `py -3.12` / `py -3.14` must both resolve. setup-python puts the interpreters on PATH
+      # but does not register them with the launcher, so the lane asserts the exact invocation
+      # the installer uses rather than discovering the gap inside the clean-room stage.
+      - name: Assert both interpreters resolve through the py launcher
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($v in @('-3.12', '-3.14')) {
+            & py $v --version
+            if ($LASTEXITCODE -ne 0) { Write-Host "py $v is not available"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
 
       - name: Set up Node 24
         uses: actions/setup-node@v4

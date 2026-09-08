@@ -1,4 +1,4 @@
-# utc: 2026-09-08T04:09:43Z
+# utc: 2026-09-08T15:41:54Z
 # producer: claude-code REM-01
 # proof: H-11 - shell has zero third-party runtime dependencies (HC-8)
 
@@ -35,7 +35,7 @@ probe.py             ctypes, importlib, json, modules, os, pathlib, shutil, sock
 redact.py            re
 server.py            argparse, http, json, os, re, shell, sys, threading, time, urllib
 startup_test.py      datetime, json, os, shell, time
-states.py            os, re, shell, subprocess, time
+states.py            os, re, shell, subprocess, threading, time
 supervisor.py        ctypes, threading, time
 
 Every name above is checked against sys.stdlib_module_names or the first-party 'shell'/'modules' packages.
@@ -54,17 +54,17 @@ Both isolated forms below were run instead. Each keeps -I or -E together with -S
 site-packages, user site and PYTHONPATH are all out of play; shell/src/__main__.py
 derives the workspace root from __file__ and inserts it explicitly.
 
-### form A: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -I -S -B D:\production software 3\release-worktree\shell\src\__main__.py --port 57359 --selftest
+### form A: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -I -S -B D:\production software 3\release-worktree\shell\src\__main__.py --port 52585 --selftest
 exit code: 0
-    SELFTEST: listening on http://127.0.0.1:57359
+    SELFTEST: listening on http://127.0.0.1:52585
     SELFTEST: GET / -> 200, 3727 bytes
     SELFTEST: sys.modules with a __file__ checked: 137
     SELFTEST: modules originating in site-packages: 0
     SELFTEST: PASS - served one request, zero site-packages modules
 
-### form B: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -E -S -B -m shell.src --port 57361 --selftest
+### form B: C:\Users\Sslaw\AppData\Local\Programs\Python\Python312\python.exe -E -S -B -m shell.src --port 52587 --selftest
 exit code: 0
-    SELFTEST: listening on http://127.0.0.1:57361
+    SELFTEST: listening on http://127.0.0.1:52587
     SELFTEST: GET / -> 200, 3727 bytes
     SELFTEST: sys.modules with a __file__ checked: 145
     SELFTEST: modules originating in site-packages: 0

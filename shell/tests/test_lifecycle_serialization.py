@@ -93,6 +93,14 @@ class _GatedRunner(ModuleRunner):
         self.release_identity = threading.Event()
         self.identity_result = (True, "")
 
+    def __init_checkpoint_gate__(self):
+        pass
+
+    #: Name of a cancellation checkpoint to block at, and the events that drive it.
+    gate_at = None
+    at_gate = None
+    release_gate = None
+
     def _readiness(self, cfg, ph, since):
         self.in_readiness.set()
         self.release_readiness.wait(10)
@@ -102,6 +110,12 @@ class _GatedRunner(ModuleRunner):
         self.in_identity.set()
         self.release_identity.wait(10)
         return self.identity_result
+
+    def _checkpoint(self, op, where):
+        if where == self.gate_at:
+            self.at_gate.set()
+            self.release_gate.wait(10)
+        return super()._checkpoint(op, where)
 
 
 class LifecycleSerialisationTests(unittest.TestCase):
@@ -156,27 +170,50 @@ class LifecycleSerialisationTests(unittest.TestCase):
                 self.runner.display))
 
     def test_cancel_before_spawn_never_spawns(self):
-        """A cancel that lands before CreateProcess must stop the start, not race it."""
-        gate = threading.Event()
-        sup = _FakeSupervisor(spawn_gate=gate)
+        """A cancel that lands at the pre_spawn checkpoint must prevent CreateProcess."""
+        sup = _FakeSupervisor()
         runner = _GatedRunner("fix", _adapter(), sup)
+        runner.gate_at = "pre_spawn"
+        runner.at_gate = threading.Event()
+        runner.release_gate = threading.Event()
+        runner.release_readiness.set()
+        runner.release_identity.set()
         self.extra_runners.append(runner)
         self._start_async(runner)
 
-        # Wait until start() has published STARTING, then cancel while spawn is gated.
+        self.assertTrue(runner.at_gate.wait(10), "start() never reached the pre_spawn checkpoint")
+        self.assertEqual(runner.state, STARTING)
+        runner.cancel()
+        runner.release_gate.set()
+        for t in self.threads:
+            t.join(10)
+
+        self.assertEqual(runner.state, STOPPED)
+        self.assertEqual(sup.spawned, [], "a cancelled start spawned a process anyway")
+
+    def test_cancel_during_spawn_stops_the_process_it_created(self):
+        """A cancel that lands while CreateProcess is in flight must not leak the process."""
+        gate = threading.Event()
+        sup = _FakeSupervisor(spawn_gate=gate)
+        runner = _GatedRunner("fix", _adapter(), sup)
+        runner.release_readiness.set()
+        runner.release_identity.set()
+        self.extra_runners.append(runner)
+        self._start_async(runner)
+
         deadline = time.time() + 10
         while runner.state != STARTING and time.time() < deadline:
             time.sleep(0.01)
         self.assertEqual(runner.state, STARTING)
         runner.cancel()
         gate.set()
-        runner.release_readiness.set()
-        runner.release_identity.set()
         for t in self.threads:
             t.join(10)
 
         self.assertEqual(runner.state, STOPPED)
-        self.assertEqual(sup.spawned, [], "a cancelled start spawned a process anyway")
+        self.assertEqual(len(sup.spawned), 1)
+        self.assertIsNone(sup.get_process("fix"),
+                          "a cancelled start left the process it created running")
 
     def test_cancelled_start_does_not_publish_failed(self):
         """A stale failure must not overwrite the cancellation either."""

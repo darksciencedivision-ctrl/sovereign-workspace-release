@@ -34,7 +34,7 @@
   },
   "readiness": {
     "kind": "receipt_file",
-    "path": "${root}/.runtime/receipts/SHELL-LIVE-READY.json",
+    "path": "${state_root}/receipts/SHELL-LIVE-READY.json",
     "timeout_s": 90,
     "poll_ms": 1000
   },

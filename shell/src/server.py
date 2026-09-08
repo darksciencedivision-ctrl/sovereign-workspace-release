@@ -319,20 +319,26 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         # H-7 is checked BEFORE the state check. A second Start gesture inside the window is
         # rate-limited as such; reporting "cannot start from state STARTING" instead would hide
         # the rate limit behind a race with the first Start's own transition.
-        with self.lock:
-            elapsed = time.time() - runner.last_start
+        #
+        # SWS-CORRECTIVE-01 1.3: admission is atomic with the runner's own STARTING transition.
+        # The rate-limit window and the state check are taken under the RUNNER's operation lock,
+        # not only the handler lock, so two simultaneous requests cannot both be admitted and
+        # both spawn. `runner.start()` re-checks and raises if it was beaten to it; the loser is
+        # answered 429/400 rather than silently creating a second owned process.
+        #
+        # last_start is monotonic. Wall-clock elapsed can go backwards across a clock
+        # adjustment, which would either disable the rate limit or wedge it.
+        with runner._op_lock:
+            elapsed = time.monotonic() - runner.last_start
             if elapsed < START_RATE_LIMIT_S:
                 self._send_error(
                     f"Rate limited: {START_RATE_LIMIT_S - elapsed:.1f}s remaining", 429)
                 return
-
-        allowed, status, message = runner.can_start()
-        if not allowed:
-            self._send_error(message, status)
-            return
-
-        with self.lock:
-            runner.last_start = time.time()
+            allowed, status, message = runner.can_start()
+            if not allowed:
+                self._send_error(message, status)
+                return
+            runner.last_start = time.monotonic()
 
         threading.Thread(target=self._start_worker, args=(runner,), daemon=True).start()
         self._send_json({"status": "accepted", "id": module_id})
@@ -341,6 +347,11 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
     def _start_worker(runner):
         try:
             runner.start()
+        except ValueError:
+            # The module was claimed by another operation between admission and start(). That
+            # is the correct outcome of a race, not a failure of this module: publishing FAILED
+            # here would overwrite the state the winning operation is establishing.
+            pass
         except Exception as e:  # noqa: BLE001 - a runner failure must not kill the thread quietly
             runner._set(FAILED, f"PROCESS_START_FAILED: {e}")
 
@@ -379,10 +390,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         if runner is None:
             self._send_error("Unknown module", 400)
             return
-        if runner.state == STARTING:
-            runner.cancel()
-        else:
-            runner.stop()
+        # stop() supersedes an outstanding start itself, so the STARTING branch is no longer a
+        # separate code path that could race the state it is reading.
+        runner.stop()
         self._send_json({"status": "stopped", "id": module_id, "state": runner.display})
 
     def _handle_restart(self, body: dict):
@@ -390,9 +400,11 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         if runner is None:
             self._send_error("Unknown module", 400)
             return
-        if runner.state in (READY, STARTING, DEGRADED):
-            runner.stop()
-        runner.last_start = 0.0  # a restart is one operator gesture, not two Starts
+        # A restart is one operator gesture: stop() supersedes whatever was running or starting,
+        # and the rate-limit window is cleared so the Start half is not refused as a second
+        # gesture. last_start is monotonic, so 0.0 reliably means "long ago".
+        runner.stop()
+        runner.last_start = 0.0
         self._handle_start(body)
 
     def _handle_startup_test(self, body: dict):

@@ -9,7 +9,10 @@ a previous session left anything in place.
 ## Requirements
 
 - Windows 10/11
-- Python 3.12, reachable as `py -3.12`
+- Python 3.12, reachable as `py -3.12` — the shell and the SOVEREIGN and SOW modules
+- Python 3.14, reachable as `py -3.14` — the Debate module, which `tools\release\install.ps1`
+  provisions from its own lock. The installer fails without it. The split is deliberate and
+  recorded in `docs\SUPPORT-POLICY.md`; both interpreters are required for an install.
 - Node 24 and npm 11
 - [Ollama](https://ollama.com) for the local model slate
 
@@ -47,10 +50,21 @@ existing shortcut.
 `verify_install.ps1` re-hashes every path in the install manifest. `uninstall.ps1` removes
 exactly what the manifest records.
 
-> **Known limitation.** `uninstall.ps1` currently compares the whole install tree against the
-> manifest and refuses to run if anything was added — which includes the runtime state the
-> product itself writes. It therefore succeeds only on an installation that has not been used.
-> Tracked as P0-5; see `docs\RELEASE-ASSURANCE.md`.
+`uninstall.ps1` keeps the operator's state by default. State lives outside the install root
+(under `%LOCALAPPDATA%\SovereignWorkspace`, or `SOVEREIGN_WORKSPACE_STATE` if set), so removing
+the installation does not remove your work:
+
+- `-KeepData` (the default) leaves the state root untouched.
+- `-PurgeData` removes it as well, after naming exactly what it will delete.
+
+The install-tree path-set check remains strict: uninstall refuses if anything inside the
+installation differs from the manifest, and it never deletes a path the manifest does not
+record. Reinstall-then-restore is the supported recovery route; see `docs\OPERATIONS.md`.
+
+> Historical note: the README previously described P0-5 — uninstall refusing on any
+> installation that had been used, because the product's own runtime state counted as an
+> unexpected addition. That was fixed when runtime state moved out of the install root; the
+> record is in `docs\RELEASE-ASSURANCE.md`. The limitation above is the current behaviour.
 
 ## Run
 
@@ -62,13 +76,29 @@ Open <http://127.0.0.1:5180>. Override the port with `--port <n>` if 5180 is tak
 
 ## Test
 
+The supported run is the whole product, from the repository root:
+
 ```powershell
-py -3.12 -B -m unittest discover -s shell/tests -v
+py -3.12 -m pytest -q
+```
+
+`tools\ci\run_ci.ps1` runs that plus every release gate, the boundary gate, the Node suites,
+and — with `-IncludeCleanRoom` — a release build followed by a clean-room install and verify.
+CI invokes the same script, so a developer run and the lane check the same things.
+
+To run only the shell's own suite:
+
+```powershell
+py -3.12 -m pytest shell/tests -q
 ```
 
 The suite starts and stops its own shell instance on an ephemeral loopback port, so no server
-needs to be running and no port is assumed. It also regenerates `shell\BUILD-MANIFEST.txt` and the
-artifacts under `evidence\hardening\`. `-B` keeps `__pycache__` out of `shell\`.
+needs to be running and no port is assumed. It writes the artifacts under `evidence\hardening\`
+and a run-stamped copy of the build manifest into the gitignored `.runtime\` lane.
+
+It does **not** rewrite `shell\BUILD-MANIFEST.txt`. That is a tracked release input, generated
+deliberately by `tools\release\generate_build_manifest.py --write` and pinned by
+`tools\release\sync_release_manifest.py --write`; running the tests leaves the tree clean.
 
 `shell\src\__main__.py` accepts `--selftest`, used only by the H-11 dependency proof: it serves
 exactly one request to `/`, asserts that no loaded module came from `site-packages`, prints the

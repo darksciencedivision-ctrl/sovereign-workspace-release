@@ -10,6 +10,54 @@ watching for problems.
 
 ---
 
+## Launchers — one preflight, three ways in
+
+There is **one** launcher and **one** preflight implementation: `Start-Shell.ps1`, inside the
+workspace. Everything else delegates to it, so every entry point agrees on prerequisites,
+blocking conditions, readiness and shutdown.
+
+| Entry point | Where it lives | Supports | What it does |
+|---|---|---|---|
+| `Sovereign Workspace.bat` | beside the checkout | source checkout | forwards its arguments to `Start-Sovereign.ps1` and propagates the exit code |
+| `Start-Sovereign.ps1` | beside the checkout | source checkout | locates `release-worktree\Start-Shell.ps1` and forwards to it |
+| `Start-Shell.ps1` | inside the workspace | **source checkout and installed artifact** | the preflight and the launch |
+
+All three accept `-Port <n>`, `-NoBrowser` and `-CheckOnly`, and paths containing spaces work
+through every one of them.
+
+**Installing the two external launchers.** `Sovereign Workspace.bat` and `Start-Sovereign.ps1`
+are operator tooling, not product files. They are not inside the release archive and
+`tools\release\install.ps1` does not place them. To use them, copy both into the folder that
+*contains* the checkout directory — the layout they expect is:
+
+```
+D:\production software 3\
+    Sovereign Workspace.bat
+    Start-Sovereign.ps1
+    release-worktree\           <- the checkout, containing Start-Shell.ps1
+```
+
+For an **installed** copy there is no outer launcher: run `Start-Shell.ps1` from inside the
+installation directory, or use the Start Menu shortcut `install.ps1 -TargetDir` creates.
+
+**Blocking versus advisory.** A blocking condition stops the launch and produces a non-zero
+exit code. An advisory is printed and does not.
+
+- Blocking: `shell\src\__main__.py` missing; no `py` launcher; `py -3.12` unavailable; the
+  requested port already held.
+- Advisory: Windows in light mode; `py -3.14` missing (the shell runs; the Debate module
+  cannot be installed); a module port held by something else; no NVIDIA tooling; an
+  unreadable GPU census.
+
+`-CheckOnly` starts nothing at all and its exit code reports the result: **0** clear, **1**
+blocked. Windows' theme is reported and never changed; light mode has never blocked startup,
+whatever earlier versions of this document and of `Start-Sovereign.ps1` said.
+
+Readiness is checked by asking `/api/shell-info` for the shell's own identity, not by finding
+something listening on the port.
+
+---
+
 ## Checking that the system is healthy
 
 Each service answers a health endpoint on loopback. These are the exact probes and the exact
@@ -95,11 +143,72 @@ If you want to reset the Debate Table's configuration to the shipped defaults, d
 .\tools\release\backup_state.ps1
 ```
 
-Writes one archive with a SHA-256 sidecar and prints both paths. Restore with
-`restore_state.ps1 -Archive <path>`, which verifies the sidecar before writing anything and
-never deletes the state it replaces.
+**Stop the shell and every module first.** This is an **offline** snapshot contract, and the
+tool proves it rather than trusting you: it opens each file denying other writers, and if
+anything is being written it **refuses** and names the files. `-AllowNonQuiescent` captures
+anyway and labels the archive `online-uncoordinated (NOT a consistent snapshot)` in its
+inventory — that flag makes the refusal go away, not the inconsistency. A live SQLite database
+copied mid-write may need repair on restore.
 
-`upgrade.ps1` takes a state backup automatically before it does anything else.
+What a backup produces:
+
+| File | Contents |
+|---|---|
+| `<name>.zip` | operator state under a `state/` prefix, plus `STATE-BACKUP-INVENTORY.json` at the archive root |
+| `<name>.zip.sha256` | integrity sidecar |
+| `<name>.zip.inventory.json` | the same inventory, readable without opening the archive |
+
+The inventory records the relative path, byte length, SHA-256 and attributes of **every** entry
+plus the directories, the product version and the snapshot method. Hidden and system files are
+captured; required-but-empty directories survive; a reparse point (junction or symbolic link) is
+**refused** rather than silently followed or dropped. The archive is built under a `.partial`
+name, reopened and verified entry by entry, and only then given its final name, so a capture
+that does not verify never occupies the successful-backup name.
+
+> **Integrity is not authenticity.** The `.sha256` sidecar proves the archive has not been
+> corrupted or truncated. It does **not** prove who produced it: anyone who can rewrite the
+> archive can rewrite the sidecar. This product ships no signing infrastructure and claims none.
+
+Restore:
+
+```powershell
+.\tools\release\restore_state.ps1 -Archive <path>          # into an empty state root
+.\tools\release\restore_state.ps1 -Archive <path> -Force   # over live state
+```
+
+Restore verifies the sidecar, reads the inventory, rejects escaping, absolute, duplicate and
+case-colliding archive paths, checks the entry set against the inventory, extracts to a
+**staging directory**, re-hashes every file, and only then displaces the existing state — which
+is moved aside, never deleted. An archive with no v2 inventory cannot be verified at all and is
+**refused** unless you pass `-AllowUnverifiedLegacyArchive`, in which case the result is
+labelled `NOT VERIFIED`.
+
+### Upgrading
+
+```powershell
+.\tools\release\upgrade.ps1 -Dest "C:\SovereignWorkspace" -Artifact <path-to-install.zip>
+```
+
+The upgrade is a journalled transaction. It stages its controller outside both the outgoing and
+the incoming installation, so it survives replacing the very directory it was started from, and
+it checks everything that could fail *after* the move *before* it: interpreters, disk space,
+write permissions, quiescence of the outgoing install, a rollback route on the same volume, and
+state-schema compatibility. It takes a state snapshot automatically unless you pass
+`-NoStateBackup`.
+
+If the install or the post-cutover verification fails, it rolls back automatically: the failed
+incoming tree is preserved as evidence and the previous installation is moved back. No success
+line is printed before verification passes. Exit codes: **0** upgraded, **2** refused before any
+change, **3** failed before the cutover (nothing moved), **4** failed and rolled back,
+**5** rollback itself failed — in which case it prints the exact surviving paths and what to do
+with them. Every phase is recorded in `upgrade-journal.jsonl` under the transaction root, so an
+interrupted upgrade can be diagnosed without guessing which move completed.
+
+**State-schema compatibility.** `VERSION.json` may declare a `state_schema`. If the incoming
+build declares a different one, the upgrade **refuses** until you pass
+`-AcceptStateSchemaChange`, because moving the previous installation back does **not** reverse a
+state migration. When a schema changes, the pre-upgrade state snapshot is the only route back,
+and the upgrade says so on completion.
 
 ---
 

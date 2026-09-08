@@ -74,10 +74,40 @@ def test_the_selfcheck_flag_is_still_set() -> None:
     assert _sow()["startup_test"]["env_set"]["SHELL_SELFCHECK"] == "1"
 
 
-def test_the_normal_launch_readiness_is_untouched() -> None:
-    """Only the startup-test lane moved. The module's own readiness receipt is not this finding."""
+def test_the_normal_launch_readiness_uses_the_declared_state_lane() -> None:
+    """SWS-CORRECTIVE-01 C3: the normal-launch receipt moved out of the installation too.
+
+    The startup-test lane moved to `${state_root}/receipts` under SW-REMED-001; the NORMAL
+    launch receipt was left writing `${root}/.runtime/receipts/SHELL-LIVE-READY.json`, i.e.
+    inside the installation. Two consequences: `runtime_writes` declared only
+    `${state_root}/.recovery` and `${state_root}/receipts`, so the write performed on every
+    single launch was declared nowhere; and a normal launch could not succeed under a
+    non-writable installation directory. Writer, reader and declaration now name one lane.
+    """
     sow = _sow()
-    assert _norm(sow["readiness"]["path"]).endswith("/.runtime/receipts/SHELL-LIVE-READY.json")
+    path = _norm(sow["readiness"]["path"])
+    assert path.endswith("/receipts/SHELL-LIVE-READY.json"), path
+    assert "/.runtime/" not in path, (
+        "the normal-launch readiness receipt is still written inside the installation: " + path)
+
+
+def test_the_normal_launch_receipt_is_inside_a_declared_write_target() -> None:
+    """Declared writes must cover the write the product actually performs (C3)."""
+    sow = _sow()
+    receipt = _norm(sow["readiness"]["path"])
+    declared = [_norm(w).rstrip("/") for w in sow["runtime_writes"]]
+    assert any(receipt.startswith(target + "/") for target in declared), (
+        "readiness receipt {!r} is not inside any declared runtime_writes target {!r}"
+        .format(receipt, declared))
+
+
+def test_no_declared_write_target_is_inside_the_installation() -> None:
+    """The acceptance workflow must survive a read-only install directory (C3)."""
+    sow = _sow()
+    root = _norm(sow["root"]).rstrip("/")
+    for target in sow["runtime_writes"]:
+        assert not _norm(target).startswith(root + "/"), (
+            "runtime_writes names a path inside the installation: " + target)
 
 
 def test_the_timeout_was_not_extended_as_a_substitute() -> None:

@@ -27,7 +27,7 @@
         "kind": "candidate_tree_module",
         "content_digest_sha256": "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a",
         "content_file_count": 55,
-        "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417… [U]"
+        "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417\u2026 [U]"
       },
       "version": "v1.2.1-hardening",
       "locks": [
@@ -214,7 +214,7 @@
     },
     {
       "path": "Start-Shell.ps1",
-      "sha256": "bd95eff8cb30d4d7914565d23ff75b78781de87ee38478a713b3412bf7b42e97"
+      "sha256": "65d0ba5200c213f9641a5766e01020cbb5738516276e3a0277babeaf95079f85"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -270,7 +270,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "6d713ad1ec67f1d1bb70f5288b09ef6cad4f46431245da320ec4b0fd652be3a0"
+      "sha256": "71462b2e7a3149fed9558360129e4c96814fd24058469355ce10078953e30c52"
     },
     {
       "path": "shell/config/install.json",
@@ -403,14 +403,14 @@
       {
         "path": "bundles/PHASE0/WORKTREE-RECIPE.md",
         "named_at": "$.candidate.construction_recipe",
-        "reason": "DOES NOT EXIST, and never did — measured: no commit in this repository has ever added it, and bundles/ is not present in the worktree. The field was a forward reference to a document that was never written. It is declared here rather than silently deleted so the gap stays visible: the construction record that DOES exist is the operator's custody folder outside this repository, and a recipe that reproduces the worktree from a commit has still not been written.",
-        "obtainable_from": "NOTHING — this is an open gap, not an external artifact",
+        "reason": "DOES NOT EXIST, and never did \u2014 measured: no commit in this repository has ever added it, and bundles/ is not present in the worktree. The field was a forward reference to a document that was never written. It is declared here rather than silently deleted so the gap stays visible: the construction record that DOES exist is the operator's custody folder outside this repository, and a recipe that reproduces the worktree from a commit has still not been written.",
+        "obtainable_from": "NOTHING \u2014 this is an open gap, not an external artifact",
         "open_gap": true
       }
     ]
   },
   "generated_artifacts": {
-    "_note": "EPC-01. Artifacts that SHIP but carry a generation timestamp, so their whole-file hash necessarily changes on every regeneration while their content does not. shell/BUILD-MANIFEST.txt opens with `# utc: <ISO8601>` (required by the evidence convention) and the shell suite regenerates it on every run — measured: two consecutive regenerations differed in that ONE line and in nothing else, while the whole-file hash moved both times. A whole-file pin on such a file can never hold. release_manifest_check hashes these WITHOUT their `# utc:` lines, so every content guarantee is kept and only the part guaranteed to move is dropped.",
+    "_note": "EPC-01. Artifacts that SHIP but carry a generation timestamp, so their whole-file hash necessarily changes on every regeneration while their content does not. shell/BUILD-MANIFEST.txt opens with `# utc: <ISO8601>` (required by the evidence convention) and the shell suite regenerates it on every run \u2014 measured: two consecutive regenerations differed in that ONE line and in nothing else, while the whole-file hash moved both times. A whole-file pin on such a file can never hold. release_manifest_check hashes these WITHOUT their `# utc:` lines, so every content guarantee is kept and only the part guaranteed to move is dropped.",
     "paths": [
       "shell/BUILD-MANIFEST.txt"
     ]

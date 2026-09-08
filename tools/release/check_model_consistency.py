@@ -70,7 +70,41 @@ def check_readme(root: str, models: dict) -> list:
     return problems
 
 
+#: Files that make up the shipped service. If any of them ever resolves a model role from the
+#: legacy hierarchy, the scope declaration below stops being true and this gate must fail.
+PRODUCT_PACKAGE = os.path.join("modules", "sovereign", "sovereign_product")
+
+#: The one legitimate reason the product opens the hierarchy: it offers it to the model as an
+#: evidence document. Any other reference is a role resolution and is a finding.
+EVIDENCE_ONLY_REFERENCES = {
+    ("evidence.py", "model hierarchy"),
+    ("evidence.py", "synthesis/model_hierarchy.json"),
+    ("server.py", "synthesis/model_hierarchy.json"),
+}
+
+
 def check_hierarchy(root: str, models: dict) -> list:
+    """Verify the hierarchy's SCOPE, not equality with the product roster.
+
+    SWS-CORRECTIVE-01 R1. This function used to assert
+    `king_synthesizer.model == MODELS.SYNTHESIZER`, which forced two independent pipelines to
+    share one value. Tracing the actual consumers on this candidate:
+
+      * `SYSTEM_MANIFEST.json MODELS` is the ONLY source the shipped service reads for role
+        assignment - `ProductService._quick_executor` and `_deep_executor_from_manifest`.
+      * `synthesis/model_hierarchy.json` configures the legacy synth_king /
+        live_orchestrator pipeline, which the shipped product never launches.
+
+    Two different pipelines may legitimately run different rosters, so equality was the wrong
+    assertion. What must hold - and what is checked here instead - is stronger and falsifiable:
+    the hierarchy DECLARES which pipeline it configures and where the product's roster lives,
+    that declaration names the product's real source, and no file in the shipped service
+    resolves a model role from the hierarchy. The last check is the one that matters: if the
+    product ever starts consuming this file, the declaration becomes a lie and this gate fails.
+
+    Retargeting the legacy pipeline's rosters to the product's 3B set is a product decision
+    with no evidence in the tree either way, so it is NOT made here.
+    """
     problems = []
     path = os.path.join(root, "modules", "sovereign", "synthesis",
                         "model_hierarchy.json")
@@ -79,20 +113,75 @@ def check_hierarchy(root: str, models: dict) -> list:
             doc = json.load(f)
     except (OSError, ValueError) as exc:
         return [f"model_hierarchy.json unreadable: {exc}"]
-    king = (doc.get("king") or doc.get("king_synthesizer") or {})
-    king_model = king.get("model")
-    want_synth = models.get("SYNTHESIZER")
-    if king_model != want_synth:
+
+    scope = doc.get("scope")
+    if not isinstance(scope, dict):
+        return ["hierarchy: model_hierarchy.json declares no `scope`. A roster that differs "
+                "from SYSTEM_MANIFEST MODELS must say which pipeline it configures, because "
+                "the product serves this file to the model as evidence."]
+
+    if scope.get("product_roster_source") != "SYSTEM_MANIFEST.json MODELS":
         problems.append(
-            f"hierarchy: king_synthesizer.model = `{king_model}` but "
-            f"SYSTEM_MANIFEST MODELS.SYNTHESIZER = `{want_synth}`")
-    critique = (doc.get("cross_channel") or {}).get("critique") or {}
-    critique_model = critique.get("model")
-    want_critic = models.get("CRITIC")
-    if critique_model != want_critic:
+            "hierarchy: scope.product_roster_source = "
+            f"`{scope.get('product_roster_source')}`, but the shipped service resolves every "
+            "model role from SYSTEM_MANIFEST.json MODELS")
+
+    if scope.get("configures") != "legacy-synthesis-pipeline":
         problems.append(
-            f"hierarchy: cross_channel.critique.model = `{critique_model}` "
-            f"but SYSTEM_MANIFEST MODELS.CRITIC = `{want_critic}`")
+            f"hierarchy: scope.configures = `{scope.get('configures')}`; this gate only "
+            "recognises `legacy-synthesis-pipeline`. If the product now consumes this file, "
+            "the roster must be reconciled with SYSTEM_MANIFEST MODELS instead of scoped away.")
+
+    # Every model the hierarchy names must still be a usable tag, so a scoped-out roster is
+    # not a place where nonsense can accumulate unchecked.
+    def walk(node, trail):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "model":
+                    if not isinstance(value, str) or not value.strip():
+                        problems.append(
+                            f"hierarchy: {trail}.model is not a usable model tag: {value!r}")
+                else:
+                    walk(value, f"{trail}.{key}")
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, f"{trail}[{index}]")
+
+    for key in ("king_synthesizer", "alpha_wing", "beta_wing", "wing_reconciliation",
+                "cross_channel", "clu_roles"):
+        if key in doc:
+            walk(doc[key], key)
+
+    problems.extend(check_product_does_not_consume_hierarchy(root))
+    return problems
+
+
+def check_product_does_not_consume_hierarchy(root: str) -> list:
+    """The scope declaration is only true while the shipped service ignores the hierarchy."""
+    problems = []
+    package = os.path.join(root, PRODUCT_PACKAGE)
+    if not os.path.isdir(package):
+        return [f"product package not found at {PRODUCT_PACKAGE}"]
+    for entry in sorted(os.listdir(package)):
+        if not entry.endswith(".py"):
+            continue
+        try:
+            with open(os.path.join(package, entry), "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+        except OSError as exc:
+            problems.append(f"{PRODUCT_PACKAGE}/{entry} unreadable: {exc}")
+            continue
+        for number, line in enumerate(lines, 1):
+            if "model_hierarchy" not in line and "model hierarchy" not in line:
+                continue
+            if any(entry == name and token in line
+                   for name, token in EVIDENCE_ONLY_REFERENCES):
+                continue
+            problems.append(
+                f"hierarchy: {PRODUCT_PACKAGE}/{entry}:{number} references the legacy model "
+                "hierarchy outside the evidence-document allowlist. The shipped service must "
+                "resolve model roles from SYSTEM_MANIFEST MODELS only; if this is a new "
+                "consumer, the two rosters must be reconciled rather than scoped apart.")
     return problems
 
 

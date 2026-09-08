@@ -20,7 +20,11 @@ param(
     # Skip the Node suites when node_modules has not been provisioned.
     [switch]$SkipNode,
     [string]$Python = 'py',
-    [string]$PythonVersion = '-3.12'
+    [string]$PythonVersion = '-3.12',
+    # The commit the release artifact is cut from. SWS-CORRECTIVE-01 workstream 2.5: the
+    # version, the manifest and the packaged bytes must all come from ONE candidate, so the
+    # commit is named once here and the summary reports which one it was.
+    [string]$BuildCommit = 'HEAD'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -40,8 +44,22 @@ function Invoke-Stage {
     }
     Write-Host ("---- {0}" -f $Name)
     $started = Get-Date
-    & $Body
-    $code = $LASTEXITCODE
+    $script:StageExit = $null
+    try {
+        & $Body
+        # SWS-CORRECTIVE-01 workstream 2. `& script.ps1` does NOT set $LASTEXITCODE, so a stage
+        # that invoked a PowerShell script read whatever the PREVIOUS external command had left
+        # there - the same stale-status defect as L1 in upgrade.ps1. A stage body that runs a
+        # .ps1 now sets $script:StageExit itself through Invoke-Script; only bodies that end in
+        # a genuine external command fall through to $LASTEXITCODE.
+        if ($null -ne $script:StageExit) { $code = $script:StageExit }
+        elseif ($null -eq $LASTEXITCODE) { $code = 0 }
+        else { $code = $LASTEXITCODE }
+    }
+    catch {
+        Write-Host ("      terminating error: {0}" -f $_.Exception.Message)
+        $code = 1
+    }
     $seconds = [math]::Round(((Get-Date) - $started).TotalSeconds, 1)
     if ($code -eq 0) {
         Write-Host ("PASS  {0} ({1}s)" -f $Name, $seconds)
@@ -57,19 +75,60 @@ function Invoke-Py {
     & $Python $PythonVersion @ScriptArgs
 }
 
+function Invoke-Script {
+    <#
+      Run a PowerShell script as a CHILD PROCESS and record its REAL exit code.
+
+      A stage body cannot use `& script.ps1` and then read $LASTEXITCODE: that variable belongs
+      to the last external command, and a .ps1 invoked with `&` never sets it. A child
+      powershell.exe does.
+    #>
+    param([string]$Script, [string[]]$ScriptArgs)
+    $psExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    if (-not (Test-Path -LiteralPath $psExe -PathType Leaf)) { $psExe = 'powershell.exe' }
+    $quoted = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $Script + '"'))
+    foreach ($a in $ScriptArgs) {
+        if ($a -match '[\s"]') { $quoted += '"' + ($a -replace '"', '\"') + '"' }
+        else { $quoted += $a }
+    }
+    $p = Start-Process -FilePath $psExe -ArgumentList $quoted -NoNewWindow -Wait -PassThru
+    $script:StageExit = [int]$p.ExitCode
+}
+
 Write-Host ("Sovereign Workspace CI - {0}" -f $repoRoot)
-Write-Host ("commit: {0}" -f (& git -C $repoRoot rev-parse HEAD))
+$headCommit = (& git -C $repoRoot rev-parse HEAD).Trim()
+$resolvedBuildCommit = (& git -C $repoRoot rev-parse $BuildCommit).Trim()
+Write-Host ("working checkout: {0}" -f $headCommit)
+Write-Host ("build commit:     {0}" -f $resolvedBuildCommit)
+if ($resolvedBuildCommit -ne $headCommit) {
+    # Workstream 2.5: the artifact and the tests must describe ONE candidate. If they cannot,
+    # say so at the top rather than letting a green summary imply they did.
+    Write-Host ""
+    Write-Host ("WARNING: the artifact will be cut from {0} while these tests run against the " -f $resolvedBuildCommit)
+    Write-Host  "         working checkout. Those are different candidates; this run cannot"
+    Write-Host  "         qualify the artifact. Check out the build commit and re-run."
+}
 Write-Host ""
 
 # --- 1. release gates -------------------------------------------------------------------------
 # These are the checks the build itself must pass, and they are cheap, so they run first: a
 # manifest that does not describe the tree makes every later result questionable.
+# SWS-CORRECTIVE-01 workstream 2.6: the list is the WHOLE set of release gates, not the subset
+# that happened to be here. generate_build_manifest and sync_release_manifest are new and close
+# R2 at its source - the first fails when shell/BUILD-MANIFEST.txt stops describing the tracked
+# tree, the second when its pin in RELEASE-MANIFEST.json stops describing the manifest. The
+# provenance, innerhtml and model-projection gates existed and were simply never run here.
 $gates = @(
+    'tools\release\generate_build_manifest.py --check',
+    'tools\release\sync_release_manifest.py --check',
     'tools\release\release_manifest_check.py',
+    'tools\release\generate_model_projection.py --check',
     'tools\release\check_model_consistency.py',
     'tools\release\check_governance_bom.py',
     'tools\release\generate_sbom.py --check',
-    'tools\release\generate_notice.py --check'
+    'tools\release\generate_notice.py --check',
+    'tools\release\provenance_cross_hash_check.py --registry tools/release/module_source_registry.json',
+    'tools\release\innerhtml_sink_audit.py --file modules/sow/apps/desktop/renderer/renderer.js --ledger tools/release/innerhtml_audit.json'
 )
 foreach ($gate in $gates) {
     $parts = $gate -split ' '
@@ -123,19 +182,42 @@ foreach ($tree in $nodeTrees) {
     }
 }
 
-# --- 5. the clean-room install (V-1) -----------------------------------------------------------
-# Installs into a temporary destination and re-hashes every path in the resulting manifest.
-# OFF by default because it provisions packages; the lane turns it on.
+# --- 5. the release artifact, then the clean-room install (V-1) ---------------------------------
+#
+# SWS-CORRECTIVE-01 workstream 2.4. The clean-room stage ran `install.ps1 -Dest <temp>` with no
+# -Artifact, so install.ps1 resolved `release-artifacts\sovereign-workspace-<version>-install.zip`
+# - a path nothing in this script or in .github/workflows/windows.yml ever produced, and one that
+# `release-artifacts/` being untracked build output guarantees is absent on a fresh checkout. The
+# stage consumed an artifact its own run never built. It is built here first, from the SAME
+# commit the rest of the run verified, and the install is pointed at it explicitly so it can
+# never silently pick up a stale archive left in the output directory.
 $cleanRoomSkip = $null
 if (-not $IncludeCleanRoom) {
-    $cleanRoomSkip = 'not requested; pass -IncludeCleanRoom (installs Python and Node packages)'
+    $cleanRoomSkip = 'not requested; pass -IncludeCleanRoom (builds the artifact, installs Python and Node packages)'
+}
+
+$artifactDir = Join-Path ([IO.Path]::GetTempPath()) ("sovereign-artifacts-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$version = (Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'VERSION.json') | ConvertFrom-Json).version
+$artifact = Join-Path $artifactDir "sovereign-workspace-$version-install.zip"
+
+Invoke-Stage -Name 'build the release artifact' -SkipReason $cleanRoomSkip -Body {
+    Invoke-Script (Join-Path $repoRoot 'tools\release\build_release.ps1') `
+                  @('-OutputDir', $artifactDir, '-Commit', $BuildCommit)
+}
+
+$installSkip = $cleanRoomSkip
+if (-not $installSkip -and -not (Test-Path -LiteralPath $artifact)) {
+    # A release-required stage that cannot run is NOT a pass. It is recorded as a skip with the
+    # exact reason, and the summary refuses to qualify the run.
+    $installSkip = "the release artifact was not produced at $artifact"
 }
 $destination = Join-Path ([IO.Path]::GetTempPath()) ("sovereign-cleanroom-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-Invoke-Stage -Name 'clean-room install' -SkipReason $cleanRoomSkip -Body {
-    & (Join-Path $repoRoot 'tools\release\install.ps1') -Dest $destination
+Invoke-Stage -Name 'clean-room install' -SkipReason $installSkip -Body {
+    Invoke-Script (Join-Path $repoRoot 'tools\release\install.ps1') `
+                  @('-Dest', $destination, '-Artifact', $artifact)
 }
-Invoke-Stage -Name 'clean-room verify' -SkipReason $cleanRoomSkip -Body {
-    & (Join-Path $repoRoot 'tools\release\verify_install.ps1') -Dest $destination
+Invoke-Stage -Name 'clean-room verify' -SkipReason $installSkip -Body {
+    Invoke-Script (Join-Path $repoRoot 'tools\release\verify_install.ps1') @('-Dest', $destination)
 }
 
 # --- summary -----------------------------------------------------------------------------------
@@ -151,6 +233,34 @@ if ($skipped.Count -gt 0) {
     Write-Host ""
     Write-Host "SKIPPED-WITH-RECORD (these did NOT run, and this run does not vouch for them):"
     $skipped | ForEach-Object { Write-Host ("  {0}: {1}" -f $_.Stage, $_.Detail) }
+}
+
+# --- release qualification, stated separately from the exit code --------------------------------
+# SWS-CORRECTIVE-01 workstream 2.7. A skipped release-required stage prevents release
+# qualification even when an optional developer run may legitimately finish with recorded skips.
+# The two verdicts are printed separately so a green developer run is never mistaken for one.
+$releaseRequired = @(
+    'gate: generate_build_manifest.py', 'gate: sync_release_manifest.py',
+    'gate: release_manifest_check.py', 'gate: generate_model_projection.py',
+    'gate: check_model_consistency.py', 'gate: check_governance_bom.py',
+    'gate: generate_sbom.py', 'gate: generate_notice.py',
+    'gate: provenance_cross_hash_check.py', 'gate: innerhtml_sink_audit.py',
+    'gate: check_node_advisories', 'boundary gate (distribution)',
+    'pytest (whole product, from repo root)',
+    'build the release artifact', 'clean-room install', 'clean-room verify'
+)
+$blockers = @($results | Where-Object {
+    $releaseRequired -contains $_.Stage -and $_.Result -ne 'PASS'
+})
+$missing = @($releaseRequired | Where-Object { $name = $_; -not ($results | Where-Object { $_.Stage -eq $name }) })
+
+Write-Host ""
+if ($blockers.Count -eq 0 -and $missing.Count -eq 0) {
+    Write-Host ("RELEASE-QUALIFYING: yes, for commit {0}" -f $resolvedBuildCommit)
+} else {
+    Write-Host "RELEASE-QUALIFYING: NO. This run does not qualify a release."
+    $blockers | ForEach-Object { Write-Host ("  {0} {1}: {2}" -f $_.Result, $_.Stage, $_.Detail) }
+    $missing | ForEach-Object { Write-Host ("  ABSENT {0}: the stage did not run at all" -f $_) }
 }
 
 if ($failed.Count -gt 0) { exit 1 }

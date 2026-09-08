@@ -477,13 +477,26 @@ def compile_adapter(adapter: dict) -> dict:
             if "url" not in readiness:
                 raise AdapterError("http readiness requires url")
         if readiness["kind"] == "receipt_file":
-            # CP-M1 G15: module-level receipt readiness. Path is ${root}-relative and must
-            # stay inside the root (H-5), mirroring the startup_test override handling.
+            # CP-M1 G15: module-level receipt readiness.
+            #
+            # SWS-CORRECTIVE-01 C3. This resolved against the install root ONLY, so a module's
+            # normal-launch readiness receipt was forced to live inside the installation. SOW's
+            # did: `main.js` wrote `${root}/.runtime/receipts/SHELL-LIVE-READY.json` on every
+            # normal launch, a path `runtime_writes` declared nowhere, and one that a
+            # non-writable installation directory makes impossible.
+            #
+            # `${state_root}` now resolves here on exactly the terms `runtime_writes` and the
+            # startup_test override already use: two exact locations, resolved canonically,
+            # with anything escaping both refused. H-5's invariant is unchanged.
             if not readiness.get("path"):
                 raise AdapterError("receipt_file readiness requires path")
-            readiness["path"] = _resolve_path(readiness["path"], compiled["root"])
-            if not is_contained(compiled["root"], readiness["path"]):
-                raise AdapterError("readiness.path escapes root (H-5): " + readiness["path"])
+            readiness["path"] = _resolve_path(
+                readiness["path"], compiled["root"], compiled["state_root"])
+            if not (is_contained(compiled["root"], readiness["path"])
+                    or is_contained(compiled["state_root"], readiness["path"])):
+                raise AdapterError(
+                    "readiness.path escapes both the install root and this module's state "
+                    "root (H-5): " + readiness["path"])
         compiled["readiness"] = readiness
 
         # Compile identity. For process_image the expected value is the compiled argv[0], so
