@@ -256,7 +256,43 @@ const PINS = {
   // orphaned by those eight commits, and no guard mutated here has stopped catching its defect. A
   // mutation whose anchor HAD gone stale would announce itself the way U179 does in
   // `disarm_authority_mutations.js`: "its anchor matched 0 times".
-  [MAIN]: "693FFDDAF5CAF7897486A23D98489394E58BACE60D4A54FE10207BF7FCCB4613",
+  // Re-pinned at SW-ORCH-001 F-21 (operator-authorized 2026-09-05): two field-name
+  // corrections inside `runObjective` (the {ok,feed} wrapper unwrap and rec.nodeId). Both
+  // are downstream of authenticated app delivery and touch no system-pane write path, no
+  // modal gate and no anchor this harness splices against. Re-run against these exact
+  // bytes below: all mutations CAUGHT, restore BYTE-IDENTICAL.
+// Re-pinned for SW-JOURNAL-001 v1.2 F-28. Conversational delivery supplies a bounded store
+// view through the existing guarded deliverConductorChat writer, with model attribution and
+// a transcript notice. The response deadline binding is mutable because the existing loop
+// extends it. No new PTY implementation, IPC channel or release call was added, so these
+// edits cannot enter pane:input or any authority-release sink. Zero CR bytes; splice anchors
+// re-counted: IN_HANDLER x1, HANDLER_TOP x1, makeWindow x1, resume-input CALL x1 (raw signature
+// x2 including its declaration, unchanged from preimage), REAL_DISARM x1, residue name x4.
+// Both harnesses must be re-run on these exact bytes; the pin alone asserts no outcome.
+// Re-pinned for SW-JOURNAL-002 v1.1 F-32/F-35/F-36. runObjective now starts a new journal
+// session on options.new_session, records the plan as conductor reasoning, and selects
+// recipients from live worker panes rather than feed.assignments. Conversational delivery
+// still uses retrieveAndDeliver + deliverConductorChat. No new PTY implementation, IPC
+// channel or release call was added, so these edits cannot enter pane:input or any
+// authority-release sink. Zero CR bytes; splice anchors re-counted: IN_HANDLER x1,
+// HANDLER_TOP x1, makeWindow x1, resume-input CALL x1 (raw signature x2 including its
+// declaration, unchanged from preimage), REAL_DISARM x1, residue name x4.
+// Both harnesses must be re-run on these exact bytes; the pin alone asserts no outcome.
+// Re-pinned for SW-JOURNAL-002-A1, narrowed to F-37/F-38. main.js now shares the
+// measured roster/view accompaniment between typed and classified voice chat, retains each
+// turn's view notice, and counts returned observed answers for the session roster. Delegation
+// arguments/results and journal writers are unchanged. Chat still calls the existing guarded
+// deliverConductorChat; no new PTY write, pane:input edge, or authority-release sink is added.
+// Re-counted the actual anchor constants (each x1), residue name x4, and all splice sequences;
+// verified zero CR bytes. Both harnesses must be run on these bytes with byte-identical restores.
+  // Re-pinned for SW-CONDUCTOR-001. main.js gained objective addressing at the
+  // selectObjectiveRecipients call site and conductor-bridge attach/detach around
+  // launchConductorSession. Writes still go through writePanePrompt / paneWriteRefusalFor;
+  // no new manager.write site, no new IPC, no modal-gate change. pane-writer.js,
+  // conductor-readiness.js, worker-readiness.js and modal-affordance.js are unchanged.
+  // Re-counted resume-input CALL x1 (bare signature x2); zero CR bytes. Both harnesses
+  // must be run on these bytes with byte-identical restores.
+  [MAIN]: "C43A91A2DD2E35B68FD351B4ED3942EE16883456D7FC77EF751FF0ADFE31010B",
   // Added at 19.9 with M3. Its suite drives a modal refusal and proves zero prompt writes,
   // replacing the old circular source-order assertion over main.js.
   [CONDUCTOR_READINESS]: "B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49",

@@ -67,7 +67,13 @@ const { sourceApprovalDrawerFeed, routeApprovalDecision, unavailableApprovalFeed
 const { SessionApprovalLog } = require("./approvals/session-events");
 const { conductorBadge, conductorSuccessionControl } = require("../../terminal/compositor/conductor-pane");
 const { conductorDispatchSummary } = require("../../terminal/compositor/conductor-dispatch");
-const { delegateToPane } = require("./control/conductor-delegation");
+const { delegateToPane, selectObjectiveRecipients } = require("./control/conductor-delegation");
+// SW-CONDUCTOR-001 Phase 3: the conductor pane's MCP harness. `ollama run` is a REPL with no MCP
+// client of its own — control/local-mcp-bridge.js is that client, shell-side, because the PTY is
+// the only surface a REPL exposes. Wiring lives with the conductor lifecycle below.
+const { createLocalMcpBridge, createLoopbackRequest } = require("./control/local-mcp-bridge");
+const { retrieveAndDeliver, createAnswerTally } = require("./control/conductor-view");
+const { runtimeJournal, createStore, configureJournalModelSource, startJournalSession } = require("./control/journal-runtime");
 const { buildApprovalDrawer, summarizeApprovalDrawer } = require("../../terminal/compositor/approval-drawer");
 const {
   voiceControl, voiceOutcomeBadge, summarizeVoice, voiceTurnIndicator,
@@ -841,6 +847,108 @@ async function reconcileConductorTerminalRelease(sessionId, why) {
   return res;
 }
 
+// ---- SW-CONDUCTOR-001 Phase 3: the LOCAL MCP BRIDGE wiring ---------------------------------------
+// A local conductor pane runs `ollama run <tag>` — a chat REPL, not an agent. It has no MCP
+// client, so no request ever arrived from it at the control gateway, connectionState stayed
+// `configured` (a credential issued and nothing ever arrived), and conductor readiness gate 1
+// (waitForNodeMcp) timed out on every launch — the measured STALLED badge. control/local-mcp-
+// bridge.js is that pane's MCP harness, and this is its only wiring: ONE bridge per governed
+// launch, bound to the node id the launch ticket minted, attached after the governed spawn
+// succeeded and before readiness runs, detached on session end, on launch failure, and on quit.
+//
+// THE HONESTY BOUNDARY (standing rule 6, and the bridge module's own design): the bridge may make
+// the ATTACHMENT claim on the node's behalf — the one `identity` call, which the control server
+// deliberately does NOT record as an operation (sovereign-control-server.js) — but every tool call
+// it relays is one the model actually emitted into the pane, read back through the SAME bounded
+// window conductor delegation reads through (readinessWindow). It never synthesizes a call, never
+// retries one the model did not make, and never relays after the session died. A mute model still
+// STALLS with readiness's own honest reason: gate 2 counts server-recorded get_worker_status
+// operations, and attachment cannot raise that count.
+//
+// Every byte the bridge writes into the pane (the preamble, result fences) goes through the
+// U328-gated writePanePrompt — the bridge has no raw write path, and a gate that holds makes the
+// bridge hold. The control token is a credential: it travels from the childEnv mint straight into
+// the bridge instance and never into conductorLaunch, pushConductor state, or a log line.
+let conductorBridge = null;
+let conductorBridgeRun = null;
+
+/** Handle-level session liveness — the same fact `manager.write` guards on. A registry record
+ *  outlives its process (an ended session still answers `registry.has`), so liveness is: the
+ *  record is still RUNNING AND this PTY generation has not confirmed exit. */
+function conductorSessionAlive(paneId) {
+  if (!manager || !paneId) return false;
+  const session = manager.registry.has(paneId) ? manager.registry.get(paneId) : null;
+  return Boolean(session && session.state === "RUNNING" && manager.processIdentity(paneId));
+}
+
+/** Attach a fresh bridge for THIS launch's node. Fail-closed: every refusal path logs honestly
+ *  and returns false — readiness then produces its own STALLED verdict on its own reason, which
+ *  is the pre-existing behavior for a conductor no request ever arrived from. */
+async function attachConductorBridge(nodeId, token) {
+  detachConductorBridge("a new conductor launch is attaching");
+  if (!nodeId || !token) {
+    log("conductor bridge: not attached — no ticket-minted node id or no control credential for it");
+    return false;
+  }
+  if (!conductorPaneId || !sovereignControl || !sovereignControl.port) {
+    log("conductor bridge: not attached — the conductor pane or the control gateway is unavailable");
+    return false;
+  }
+  const bridge = createLocalMcpBridge({
+    nodeId,
+    paneId: conductorPaneId,
+    port: sovereignControl.port,
+    token,
+    request: createLoopbackRequest(),
+    sessionAlive: conductorSessionAlive,
+    window: readinessWindow,
+    writePrompt: writePanePrompt,
+    writeRefusal: paneWriteRefusalFor,
+    log,
+  });
+  let out = null;
+  try {
+    out = await bridge.attach();
+  } catch (e) {
+    log(`conductor bridge: attach failed for node ${nodeId}: ${e.message}`);
+    return false;
+  }
+  if (!out || out.attached !== true) {
+    log(`conductor bridge: NOT attached for node ${nodeId} — `
+      + `${(out && out.reason) || "unknown reason"}; readiness will report its own verdict`);
+    return false;
+  }
+  conductorBridge = bridge;
+  const taught = await bridge.teach().catch((e) => {
+    log(`conductor bridge: the preamble write failed: ${e.message}`);
+    return false;
+  });
+  conductorBridgeRun = bridge.run({ pollMs: 500, heartbeatMs: 5000 });
+  log(`conductor bridge: attached for node ${nodeId} on pane ${conductorPaneId}`
+    + (taught === true
+      ? "; preamble written through the gated writer"
+      : "; preamble NOT written (the gated writer withheld or refused it) — the model was not "
+        + "taught the fence grammar for this launch"));
+  return true;
+}
+
+/** Idempotent detach: stop the poll loop (which detaches internally) and drop the instance.
+ *  Never throws — it is called from session-end, launch-failure and teardown paths. */
+function detachConductorBridge(why) {
+  const bridge = conductorBridge;
+  const run = conductorBridgeRun;
+  conductorBridge = null;
+  conductorBridgeRun = null;
+  if (!bridge && !run) return false;
+  const reason = why || "unspecified";
+  try {
+    if (run) run.stop(reason);
+    else bridge.detach(reason);
+  } catch { /* a teardown path must not fail on its own cleanup */ }
+  log(`conductor bridge: detached (${reason})`);
+  return true;
+}
+
 /**
  * Launch (or re-launch) the real interactive `claude` conductor session in pane 1's ConPTY.
  * Returns an observable result; never throws into a caller. One session at a time — the operator's
@@ -978,13 +1086,17 @@ async function launchConductorSession({ reason = "operator control" } = {}) {
     if (!sovereignControl || !sovereignControl.port) {
       throw new Error("Sovereign application-control MCP gateway is not ready");
     }
-    env = sovereignControl.childEnv({
+    // SW-CONDUCTOR-001 Phase 3: the mint returns { env, token } — the token is the node's own
+    // bearer for the local MCP bridge attached after the spawn. It travels from this mint
+    // straight into the bridge instance, never into observable launch state.
+    const controlMint = sovereignControl.childEnv({
       node_id: identity.node_id, role: "conductor", project_id: "proj",
       provider_id: (ticket.conductor_descriptor || {}).provider_id || null,
       model_id: (ticket.conductor_descriptor || {}).model_id || null,
       pane_id: conductorPaneId, session_id: sessionId,
       store_root: path.join(REPO_ROOT, ".sovereign_store"),
-    }, env).env;
+    }, env);
+    env = controlMint.env;
     // ---- W-32 stage 4: assert on the environment ACTUALLY handed to the child -------------------
     // Placed after BOTH minting steps (the voice authority above and the control server just now),
     // because stage 3 having run is not the same fact as the child being clean — that is the
@@ -1049,10 +1161,19 @@ async function launchConductorSession({ reason = "operator control" } = {}) {
     log(`conductor: LIVE session running in pane 1 — ${redactArgvForLog(argv)} (pid ${conductorLaunch.pid}, `
       + `cwd ${launch.cwd}, ${conductorLaunch.scrubbedCount} credential var(s) scrubbed, `
       + `durable terminal ${lease.lease_id} ${lease.in_use}/${lease.allowance})`);
+
+    // SW-CONDUCTOR-001 Phase 3: attach the pane's MCP harness BEFORE readiness runs — the
+    // bridge's identity call is the first arrival that flips connectionState `configured` →
+    // `connected` (readiness gate 1), and its preamble must be in the pane before readiness
+    // gate 2 asks the model to call get_worker_status. Fail-closed: a refused attach only
+    // logs; readiness then stalls on its own honest reason.
+    await attachConductorBridge(identity.node_id, controlMint.token);
+
     const readiness = await runConductorReadiness();
     return { launched: true, sessionId, leaseId: conductorLaunch.leaseId, pid: conductorLaunch.pid,
       argv, ready: readiness.ready, readiness };
   } catch (e) {
+    detachConductorBridge("the governed conductor launch failed");
     if (sovereignControl && identity.node_id) sovereignControl.revokeNode(identity.node_id);
     // Supervision denial may occur after ConPTY birth, while construction failure may be pre-birth.
     // Retain the terminal for an identified terminating process; release immediately only when no
@@ -1110,6 +1231,11 @@ function onConductorSessionEnded(event) {
   const sessionId = conductorLaunch.sessionId;
   const nodeId = conductorLaunch.nodeId;
   conductorLaunch = transition.launch;
+  // SW-CONDUCTOR-001 Phase 3: the pane session the bridge was attached to is ending — this
+  // point is only reached for the REAL conductor session (non-matching events returned
+  // "ignore" above). Stop the relay now; the credential is revoked just below, and a bridge
+  // must not outlive either.
+  detachConductorBridge("the conductor session ended");
   if (transition.action === "await_process_exit") {
     pushConductor();
     return null;
@@ -1565,6 +1691,40 @@ function startOperatorTextDriver() {
 if (process.env.SOW_OPERATOR_TEXT_DRIVER_PORT) startOperatorTextDriver();
 ipcMain.handle("conductor:operator-text", (_e, payload) => handleOperatorText(payload));
 
+// Journal attribution reads the same model chrome as the conversational surface; no launch or gate.
+configureJournalModelSource((paneId) => (paneChrome.get(paneId) || {}).model_slug || null);
+const answerTally = createAnswerTally();
+function paneAnswerCount(paneId) {
+  try { return answerTally.count(runtimeJournal(), paneId); }
+  catch { return null; } // unknown is not a fabricated zero
+}
+
+
+async function deliverConductorConversation(text) {
+  return retrieveAndDeliver({ message: text,
+      journalSource: runtimeJournal,
+      budgetSource: () => createStore().budget(),
+      write: (body) => deliverConductorChat(body),
+      window: readinessWindow,
+      panes: Array.from(panes.panes.keys()).filter(id => id !== conductorPaneId).map(id => ({
+        pane_id: id, node_id: (liveWorkerRecords().find(r => r.paneId === id) || {}).nodeId
+          || "(not registered)", model: (paneChrome.get(id) || {}).model_slug || "(not reported)",
+        live: liveWorkerRecords().some(r => r.paneId === id),
+        answer_count: paneAnswerCount(id),
+      })), log,
+    });
+}
+
+function recordConversationContext(outTurn, res) {
+    if (res.context && res.context.notice) {
+      outTurn.workspace_view = { state: res.context.state, notice: res.context.notice,
+        entry_ids: res.context.entry_ids, pane_ids: res.context.pane_ids,
+        truncated: res.context.truncated, roster_attached: res.context.roster_attached,
+        source: "observed_pane_output", self_published: false };
+      pushTranscriptTurn({ utc: new Date().toISOString(), dir: "sys", text: res.context.notice });
+    }
+}
+
 async function handleOperatorText(payload) {
   const p = payload && typeof payload === "object" ? payload : {};
   const text = String(p.text || "").trim();
@@ -1581,7 +1741,10 @@ async function handleOperatorText(payload) {
   const turnModel = cdesc.model_id || null;
   const outTurn = { utc: new Date().toISOString(), dir: "out", text,
                     provider: turnProvider, model: turnModel,
-                    delivered: false, submitted: false, reason: "" };
+                    delivered: false, submitted: false, reason: "",
+                    workspace_view: { state: "not_attached", source: "observed_pane_output",
+                      self_published: false,
+                      notice: "No worker view attached yet. Use /workspace to request the full recent view." } };
   pushTranscriptTurn(outTurn);
 
   // OPTION C, the operator's ruling (ENTRY 017 / OD-32): the Conductor launches, accepts typing,
@@ -1604,7 +1767,8 @@ async function handleOperatorText(payload) {
   const fromPos = paneStreamPosition(conductorPaneId);
   let res;
   try {
-    res = await deliverConductorChat(text);
+    res = await deliverConductorConversation(text);
+    recordConversationContext(outTurn, res);
   } catch (e) {
     res = { written: false, submitted: false, reason: (e && e.message) || String(e) };
   }
@@ -1619,7 +1783,7 @@ async function handleOperatorText(payload) {
   }
   // Response capture: snapshot what the ConPTY appended after the submit was admitted,
   // bounded quiet-window so a long generation still lands in THIS transcript turn.
-  const deadline = Date.now() + 6000;
+  let deadline = Date.now() + 6000;
   let last = "";
   await new Promise((r) => setTimeout(r, 800));
   while (Date.now() < deadline) {
@@ -2004,9 +2168,16 @@ function registerIpc() {
       refreshApprovalModel().then(() => pushApprovals()).catch(() => {});
     }
     const decision = decideDelivery(feed);
-    const write = decision.shouldDeliver
-      ? await deliverConductorChat(decision.text)
-      : { written: false, submitted: false, reason: decision.reason };
+    let write = { written: false, submitted: false, reason: decision.reason };
+    if (decision.shouldDeliver) {
+      const turn = { utc: new Date().toISOString(), dir: "out", text: decision.text,
+        channel: "voice", delivered: false, submitted: false };
+      pushTranscriptTurn(turn);
+      write = await deliverConductorConversation(decision.text);
+      turn.delivered = write.written === true;
+      turn.submitted = write.submitted === true;
+      recordConversationContext(turn, write);
+    }
     lastVoiceWrite = write;   // the badge is drawn from this too (never from the routing verdict alone)
     const result = buildCaptureResult(feed, write);
     result.capture = captureMeta;
@@ -2450,12 +2621,18 @@ async function notifyNode(nodeId, prompt) {
  * (L5-5, parked with its dossier).
  */
 async function delegateToWorkerPane(paneId, nodeId, task, options = {}) {
-  return delegateToPane({
+  // Read-side count only: the existing delegation, journal writes and returned result are unchanged.
+  let countedJournal = null;
+  try { countedJournal = runtimeJournal(); } catch { /* journal absence belongs to the existing path */ }
+  const countedSession = countedJournal && countedJournal.sessionId;
+  const result = await delegateToPane({
     window: readinessWindow,
     writePrompt: (id, body) => paneWriter.writePrompt(id, body),
     sleep: pause,
     log,
   }, { paneId, nodeId, task, ...options });
+  if (countedJournal) answerTally.note(countedJournal, countedSession, paneId, result);
+  return result;
 }
 
 /**
@@ -2482,17 +2659,45 @@ async function delegateToWorkerPane(paneId, nodeId, task, options = {}) {
  * a pane whose write gate refuses are each REPORTED, never worked around.
  */
 async function runObjective(objective, options = {}) {
+  if (options && options.new_session === true) {
+    const rotated = startJournalSession();
+    conductorTranscript.length = 0;
+    try {
+      const w = Array.from(require("electron").BrowserWindow.getAllWindows())[0];
+      if (w && !w.isDestroyed()) w.webContents.send("shell:conductor-transcript", []);
+    } catch { /* no window yet */ }
+    return { ok: true, deleted: false, ...rotated };
+  }
   const text = String(objective || "").trim();
   if (!text) return { ok: false, reason: "empty objective" };
 
-  let feed;
+  // `sourceConductorDispatchFeed` returns the DISPLAY WRAPPER `{ok, feed, error}`, never the feed
+  // itself — its own contract says so, and `sourceConductorDispatch()` above unwraps it correctly
+  // (`conductorDispatch.ok`, `conductorDispatch.feed.dispatched`). This path did not: it bound the
+  // wrapper to a variable named `feed` and then read `feed.dispatched` and `feed.reason` off it.
+  // Both are undefined on a wrapper, so the guard was ALWAYS taken and the reason was ALWAYS the
+  // fallback string — meaning runObjective could never dispatch, for any objective, on any host,
+  // since EPC-03 joined the loop. Measured on the operator's host 2026-09-05: the emitter run by
+  // hand with the same objective returns `dispatched: true` with two assignments, while the app
+  // reported "the governed dispatch did not run" from this line.
+  let src;
   try {
-    feed = await sourceConductorDispatchFeed({ cwd: REPO_ROOT, objective: text });
+    src = await sourceConductorDispatchFeed({ cwd: REPO_ROOT, objective: text });
   } catch (e) {
     log(`objective: governed dispatch unavailable (fail-closed, nothing delegated): ${e.message}`);
     return { ok: false, reason: `dispatch unavailable: ${e.message}`, delegations: [] };
   }
+  const feed = src && src.feed;
+  if (!src || src.ok !== true) {
+    // The emitter could not be reached or parsed. Its own error is the honest reason; the
+    // unavailable feed rides along so callers still have a shape to fold.
+    const why = (src && src.error) || "the conductor dispatch feed could not be sourced";
+    log(`objective: dispatch feed unavailable (fail-closed): ${why}`);
+    return { ok: false, reason: why, feed: feed || null, delegations: [] };
+  }
   if (!feed || feed.dispatched !== true) {
+    // A governed NON-dispatch: the emitter ran and declined, e.g. a plan-gate block. Surfaced as
+    // its own reason, never as a fabricated dispatch.
     const why = (feed && feed.reason) || "the governed dispatch did not run";
     log(`objective: not dispatched (fail-closed): ${why}`);
     return { ok: false, reason: why, feed, delegations: [] };
@@ -2500,34 +2705,45 @@ async function runObjective(objective, options = {}) {
 
   // Only assignments naming a pane that is actually up. An assignment to an id with no live pane
   // is reported rather than written into whatever pane happens to be nearest.
-  const live = new Map();
-  for (const rec of liveWorkerRecords()) {
-    if (rec && rec.node_id && rec.paneId) live.set(rec.node_id, rec.paneId);
-  }
+  // `nodeId`, NOT `node_id`. A worker record is minted by `worker-spawn.emptyRecord` in camelCase
+  // (`nodeId: identity.node_id` — the snake_case name belongs to the Python identity payload, not
+  // to the record built from it), and every other reader in this codebase gets it right:
+  // `application-control.deliverableNodeIds` and `operational-state.operationalNodeStatus` both
+  // read `rec.nodeId`. This line alone read the Python spelling, so the lookup was undefined on
+  // every record, the map was always empty, and EVERY assignment reported "no live pane is
+  // registered for this assignment" — including for panes the same log had just recorded as LIVE
+  // under exactly that node id. Measured on the operator's host 2026-09-05: dispatch produced two
+  // assignments to worker-pane-2/worker-pane-3 while worker-pane-2 was live in this very session.
+  const objectiveId = require("node:crypto").randomUUID();
+  const registered = workerLauncherInstance ? workerLauncher().records() : [];
+  const selected = selectObjectiveRecipients(liveWorkerRecords(), registered, text);
+  try {
+    await runtimeJournal().record({
+      node_id: "conductor", pane_id: "conductor", model: "(plan)",
+      status: "conductor_reasoning", prompt: text, task_id: objectiveId, objective: text,
+      answer: "plan recorded as conductor reasoning; recipients are live worker panes",
+      reason: "plan is the conductor's reasoning record; it does not select recipients",
+      self_published: false, source: "observed_pane_output",
+    });
+  } catch { /* journal absence is reported on the worker turns */ }
 
-  const delegations = [];
-  for (const assignment of feed.assignments || []) {
-    const nodeId = assignment && assignment.node;
-    const paneId = live.get(nodeId);
-    if (!paneId) {
-      delegations.push({ node_id: nodeId, pane_id: null, delivered: false,
-                         reason: "no live pane is registered for this assignment" });
-      continue;
-    }
-    const result = await delegateToWorkerPane(paneId, nodeId, {
-      task_id: assignment.task,
+  const delegations = selected.skipped.map((row) => ({ ...row, objective_id: objectiveId, task_id: objectiveId }));
+  for (const rec of selected.recipients) {
+    const result = await delegateToWorkerPane(rec.pane_id, rec.node_id, {
+      task_id: objectiveId,
       objective: text,
       expected_output: "a concise, complete answer",
     }, options);
-    delegations.push(result);
-    log(`objective: ${nodeId} (${paneId}) delivered=${result.delivered} answered=${result.answered}`
+    delegations.push({ ...result, objective_id: objectiveId, pane_number: rec.pane_number });
+    log(`objective: ${rec.node_id} (${rec.pane_id}) delivered=${result.delivered} answered=${result.answered}`
       + (result.reason ? ` — ${result.reason}` : ""));
   }
 
   return {
     ok: true,
     objective: text,
-    assigned: (feed.assignments || []).length,
+    objective_id: objectiveId,
+    assigned: selected.recipients.length,
     answered: delegations.filter((d) => d.answered).length,
     // Carried verbatim so a caller cannot mistake this for an acceptance: the legs are the feed's.
     legs: feed.legs,
@@ -3003,6 +3219,10 @@ async function teardownSelfCheck() {
 
 let normalQuitStarted = false;
 async function completeNormalQuit(faultKind = null) {
+  // SW-CONDUCTOR-001 Phase 3: stop the conductor bridge before the sessions it writes to are
+  // torn down — explicitly, not relying on the kill events to deliver onConductorSessionEnded
+  // on a quit or fault path.
+  detachConductorBridge("the shell is quitting");
   teardown();
   const sessions = manager
     ? await manager.shutdown(15000)

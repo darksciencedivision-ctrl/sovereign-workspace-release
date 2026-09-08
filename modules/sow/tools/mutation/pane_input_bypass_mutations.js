@@ -256,7 +256,56 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // no code, touches no anchor, and main.js still parses. Re-run and every mutation CAUGHT.
 // Previous baselines: A390F892... (parent seal), 3AC7720D... (transcript labels),
 // BB350F20... (option-C deferred startup), 54153697... (pre-P0-2), 5F79A2C1... (pre-BOM-removal)
-const PINNED_BASELINE = "693FFDDAF5CAF7897486A23D98489394E58BACE60D4A54FE10207BF7FCCB4613";
+// Re-pinned at SW-ORCH-001 F-21 (operator-authorized 2026-09-05). main.js changed by TWO edits,
+// both inside `runObjective`, both field-name corrections against shapes the neighbouring code
+// already reads correctly:
+//   * the dispatch result is the DISPLAY WRAPPER `{ok, feed, error}` and was being read as the feed
+//     itself (`feed.dispatched` / `feed.reason` off the wrapper, always undefined), so every
+//     objective was refused with the fallback reason. `sourceConductorDispatch()` four lines away
+//     had always unwrapped it correctly.
+//   * the live-pane lookup read `rec.node_id`; a worker record is minted camelCase by
+//     `worker-spawn.emptyRecord` (`nodeId`), which is what `application-control.deliverableNodeIds`
+//     and `operational-state.operationalNodeStatus` both read. The map was therefore always empty
+//     and every assignment reported "no live pane is registered".
+// Neither edit touches `pane:input`, any voice-authority release sink, `makeWindow`,
+// `handleOperatorResumeInput`, or any path out of the input handler — `runObjective` is downstream
+// of authenticated app delivery, the same class as the `writePanePrompt` re-pin above. Anchors
+// re-counted against the new tree BEFORE re-pinning: `IN_HANDLER` x1, `HANDLER_TOP` x1,
+// `function makeWindow() {` x1, `handleOperatorResumeInput(event, input)` x1 (the call site this
+// anchor names), `REAL_DISARM` x1, `clearConductorInputResidue` x4 — every count identical to the
+// 18C/18D notes above. Worktree copy verified to carry zero CR bytes before re-pinning (U274).
+// Each mutation re-read against the new tree and re-run: all CAUGHT, restore BYTE-IDENTICAL.
+// Re-pinned for SW-JOURNAL-001 v1.2 F-28. Conversational delivery supplies a bounded store
+// view through the existing guarded deliverConductorChat writer, with model attribution and
+// a transcript notice. The response deadline binding is mutable because the existing loop
+// extends it. No new PTY implementation, IPC channel or release call was added, so these
+// edits cannot enter pane:input or any authority-release sink. Zero CR bytes; splice anchors
+// re-counted: IN_HANDLER x1, HANDLER_TOP x1, makeWindow x1, resume-input CALL x1 (raw signature
+// x2 including its declaration, unchanged from preimage), REAL_DISARM x1, residue name x4.
+// Both harnesses must be re-run on these exact bytes; the pin alone asserts no outcome.
+// Re-pinned for SW-JOURNAL-002 v1.1 F-32/F-35/F-36. runObjective now starts a new journal
+// session on options.new_session, records the plan as conductor reasoning, and selects
+// recipients from live worker panes rather than feed.assignments. Conversational delivery
+// still uses retrieveAndDeliver + deliverConductorChat. No new PTY implementation, IPC
+// channel or release call was added, so these edits cannot enter pane:input or any
+// authority-release sink. Zero CR bytes; splice anchors re-counted: IN_HANDLER x1,
+// HANDLER_TOP x1, makeWindow x1, resume-input CALL x1 (raw signature x2 including its
+// declaration, unchanged from preimage), REAL_DISARM x1, residue name x4.
+// Both harnesses must be re-run on these exact bytes; the pin alone asserts no outcome.
+// Re-pinned for SW-JOURNAL-002-A1, narrowed to F-37/F-38. main.js now shares the
+// measured roster/view accompaniment between typed and classified voice chat, retains each
+// turn's view notice, and counts returned observed answers for the session roster. Delegation
+// arguments/results and journal writers are unchanged. Chat still calls the existing guarded
+// deliverConductorChat; no new PTY write, pane:input edge, or authority-release sink is added.
+// Re-counted the actual anchor constants (each x1), residue name x4, and all splice sequences;
+// verified zero CR bytes. Both harnesses must be run on these bytes with byte-identical restores.
+// Re-pinned for SW-CONDUCTOR-001. main.js now passes the objective into
+// selectObjectiveRecipients (Phase 1) and attaches local-mcp-bridge on conductor spawn
+// with detach on session end and quit (Phase 3). No new PTY write, pane:input edge,
+// IPC channel, or authority-release sink is added. Re-counted the actual anchor
+// constant: resume-input CALL x1 (bare signature x2 including its declaration);
+// verified zero CR bytes. Both harnesses must be run on these bytes with byte-identical restores.
+const PINNED_BASELINE = "C43A91A2DD2E35B68FD351B4ED3942EE16883456D7FC77EF751FF0ADFE31010B";
 
 let lockFd;
 try {

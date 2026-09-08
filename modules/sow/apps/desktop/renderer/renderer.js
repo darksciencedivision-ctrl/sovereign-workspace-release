@@ -23,6 +23,16 @@ const meta = new Map();       // paneId -> { title, sessionState } (from shell:s
 let focusedId = null;
 let maximizedId = null;
 let conductor = null;         // conductor-first pane state (badge + Resume→Select), from shell:conductor
+//: Live session ids from the last `shell:state` push. Held because SW-ORCH-001 F-21's delegate
+//: control must know whether any WORKER pane is up, and "a session that is not the conductor's" is
+//: the only honest answer this surface can give — main owns the worker registry, not the renderer.
+let liveSessionIds = [];
+
+/** How many live panes are workers, i.e. not the conductor's own pane. */
+function liveWorkerPaneCount() {
+  const cid = conductor && conductor.paneId;
+  return liveSessionIds.filter((id) => id !== cid).length;
+}
 const paneBadges = new Map(); // paneId -> chrome preview (Phase 16B picker selection)
 let lastPicker = null;        // last fetched picker model {ok, picker, error}
 let pickerTarget = null;      // pane id the next picker selection spawns into (null = a new pane)
@@ -39,7 +49,7 @@ function ensurePane(id) {
   el.dataset.id = id;
   el.innerHTML = `
     <div class="bar">
-      <span class="title"></span><span class="cbadge"></span><span class="cdispatch"></span><span class="mbadge"></span><span class="state"></span>
+      <span class="pnum"></span><span class="title"></span><span class="cbadge"></span><span class="cdispatch"></span><span class="mbadge"></span><span class="state"></span>
       <span class="spacer"></span>
       <button data-act="model" class="cmodel" title="Pick this pane's model (provider × model × role)">model ▾</button>
       <button data-act="ptt" class="cptt" title="Push to talk — speak to the conductor (STT-only, no TTS)">🎤 talk</button>
@@ -146,6 +156,9 @@ function applyChrome(id) {
   const info = meta.get(id) || {};
   rec.el.classList.toggle("focused", id === focusedId);
   rec.el.classList.toggle("maximized", !!maximizedId && id === maximizedId);
+  const n = String(id || "").match(/(\d+)$/);
+  const pnum = rec.el.querySelector(".pnum");
+  if (pnum) pnum.textContent = n ? "#" + n[1] : "";
   rec.el.querySelector(".title").textContent = info.title || id;
   const stEl = rec.el.querySelector(".state");
   stEl.textContent = info.sessionState || "";
@@ -483,6 +496,10 @@ S.onState((state) => {
     m.sessionState = s.state;
     meta.set(s.id, m);
   }
+  liveSessionIds = state.sessions.map((s) => s.id);
+  // F-21: the delegate control is disabled with its reason whenever no worker pane is up, so it
+  // has to be re-evaluated on the push that changes that — not only when the bar was built.
+  if (window.__sovRefreshDelegate) window.__sovRefreshDelegate();
 
   for (const id of terms.keys()) applyChrome(id);
 
@@ -584,7 +601,13 @@ S.onLog((line) => console.log(line));
 // conductor-first pane (§13/§12.4): store the CONDUCTOR badge + Resume→Select state and restyle the
 // panes that already exist (chrome-only; no reflow). The conductor pane may not be built yet on the
 // first push — applyChrome re-reads `conductor` when the pane's view is created by the layout plan.
-S.onConductor((state) => { conductor = state; for (const id of terms.keys()) applyChrome(id); refreshVoice(); });
+S.onConductor((state) => {
+  conductor = state;
+  for (const id of terms.keys()) applyChrome(id);
+  refreshVoice();
+  // F-21: `conductor.live` gates the delegate control, so this push must re-evaluate it too.
+  if (window.__sovRefreshDelegate) window.__sovRefreshDelegate();
+});
 // Phase 17C `.probe` (U74): main pushes the voice state when the ASYNCHRONOUS STT probe settles. The
 // badge flips from "probing…" to the real answer with no operator action — the probe answers on its own
 // schedule (7–18 s here), and a chrome that only repainted on click would keep showing a stale question.
@@ -608,15 +631,97 @@ document.getElementById("btn-new").addEventListener("click", async () => {
 });
 
 // ---- G25: persistent Conductor typing surface ------------------------------
+function workspaceViewNotice(turn) {
+  return turn && turn.dir === "out" && turn.workspace_view
+    ? String(turn.workspace_view.notice || "") : "";
+}
+function workspaceViewSummary(turn) {
+  if (!workspaceViewNotice(turn)) return "";
+  const state = turn.workspace_view.state;
+  if (state === "journal_unavailable") return "Journal unavailable";
+  if (state === "attached_empty") return "View attached but empty";
+  if (state === "budget_unmeasurable") return "Sent · no context (budget unmeasured)";
+  if (state === "attached") return turn.workspace_view.truncated ? "View TRUNCATED" : "View attached";
+  return "No view · /workspace";
+}
 (function wireConductorBar() {
   const input = document.getElementById("conductor-input");
   const sendBtn = document.getElementById("conductor-send");
   const list = document.getElementById("conductor-transcript");
-  if (!input || !sendBtn || !list) return;
+  const transcriptToggle = document.getElementById("conductor-transcript-toggle");
+  if (!input || !sendBtn || !list || !transcriptToggle) {
+    // THE WHOLE BAR WAS DEAD, and had been since G25 shipped. `index.html` loads this script at
+    // line 236 and declares `#conductor-bar` at line 281 — the markup this block wires does not
+    // exist yet when the block runs, so all three lookups returned null and the guard below
+    // returned every time. Nothing here was ever attached: not the submit handler, not the
+    // transcript subscription, not the delegate control added on top of it later.
+    //
+    // The guard itself is right and stays — a surface that cannot find its elements must not
+    // half-wire itself. What was missing is that "not yet" is not "not at all": during parsing the
+    // elements are merely still ahead of us in the document. Re-run once the DOM is complete, and
+    // keep returning for the genuinely-absent case (a harness that loads this script with no bar).
+    //
+    // Found only after the operator pressed Delegate five times and the durable log stayed silent:
+    // every static check passed because the code IS correct, and none of it ever ran.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", wireConductorBar, { once: true });
+    }
+    return;
+  }
 
+  // Both explicit toggles and other bar height changes refit the existing terminal addons.
+  let fitPending = false;
+  function refitConductorTerminals() {
+    if (fitPending) return;
+    fitPending = true;
+    requestAnimationFrame(() => {
+      fitPending = false;
+      for (const { fit } of terms.values()) { try { fit.fit(); } catch { /* pane may be closing */ } }
+    });
+  }
+  const conductorBar = document.getElementById("conductor-bar");
+  if (conductorBar && typeof ResizeObserver === "function") {
+    const barResize = new ResizeObserver(refitConductorTerminals);
+    barResize.observe(conductorBar);
+  }
+
+  let transcriptCollapsed = true;
+  let transcriptResults = 0, transcriptRefusals = 0, transcriptNotices = 0, transcriptLines = 0;
+  let transcriptChatRefusals = 0, transcriptChatNotices = 0;
+  let latestWorkspaceSummary = "";
+  // A single optional preference, never journal authority. Storage denial keeps the launch default.
+  try { transcriptCollapsed = localStorage.getItem("conductor-transcript-state") !== "expanded"; }
+  catch { /* default collapsed */ }
+  function updateTranscriptSummary() {
+    transcriptToggle.textContent = (latestWorkspaceSummary ? latestWorkspaceSummary + " | " : "")
+      + `${transcriptResults} results | ${transcriptRefusals + transcriptChatRefusals} refused | `
+      + `${transcriptNotices + transcriptChatNotices} notices | Transcript (${transcriptLines} lines) | `
+      + (transcriptCollapsed ? "Expand: more details + markers" : "Collapse: details + markers below");
+    transcriptToggle.title = transcriptToggle.textContent;
+  }
+  function setTranscriptCollapsed(collapsed) {
+    transcriptCollapsed = collapsed;
+    list.hidden = collapsed;
+    transcriptToggle.setAttribute("aria-expanded", String(!collapsed));
+    updateTranscriptSummary();
+    refitConductorTerminals();
+  }
+  transcriptToggle.addEventListener("click", () => {
+    setTranscriptCollapsed(!transcriptCollapsed);
+    try { localStorage.setItem("conductor-transcript-state", transcriptCollapsed ? "collapsed" : "expanded"); }
+    catch { /* preference persistence is optional */ }
+  });
+  setTranscriptCollapsed(transcriptCollapsed);
+
+  let lastTranscriptTurns = [];
+  const delegationTurns = [];
   function render(turns) {
+    lastTranscriptTurns = turns;
     list.textContent = "";
-    for (const turn of turns) {
+    const combined = [...turns, ...delegationTurns].sort((a, b) =>
+      String(a.utc || "").localeCompare(String(b.utc || "")));
+    for (const turn of combined) {
+      if (turn.row) { list.appendChild(turn.row); continue; }
       const row = document.createElement("div");
       row.className = "turn " + (turn.dir === "in" ? "in" : turn.dir === "sys" ? "sys" : "out");
       const who = document.createElement("span");
@@ -627,8 +732,23 @@ document.getElementById("btn-new").addEventListener("click", async () => {
       body.textContent = " " + String(turn.text || "");
       row.appendChild(who);
       row.appendChild(body);
+      const notice = workspaceViewNotice(turn);
+      if (notice) {
+        const contextLine = document.createElement("div");
+        contextLine.className = "readfrom";
+        contextLine.textContent = notice;
+        row.appendChild(contextLine);
+      }
       list.appendChild(row);
     }
+    const latestOut = [...turns].reverse().find(t => t.dir === "out");
+    latestWorkspaceSummary = workspaceViewSummary(latestOut);
+    const contextNotice = document.getElementById("conductor-context-notice");
+    if (contextNotice) contextNotice.textContent = workspaceViewNotice(latestOut);
+    transcriptChatRefusals = turns.filter(t => t.dir === "out" && t.error && t.submitted !== true).length;
+    transcriptChatNotices = turns.filter(t => t.dir === "sys").length;
+    transcriptLines = combined.length;
+    updateTranscriptSummary();
     list.scrollTop = list.scrollHeight;
   }
 
@@ -641,6 +761,192 @@ document.getElementById("btn-new").addEventListener("click", async () => {
     input.value = "";
     try { await S.sendOperatorText(text); }
     catch (e) { console.error("operator text refused:", e); }
+  });
+
+  // ---- EPC-03 / SW-ORCH-001 F-21: the DELEGATE affordance -----------------------------------
+  //
+  // `runObjective` has been implemented, registered on `conductor:run-objective`, and exposed in
+  // the preload since EPC-03. Nothing in this renderer ever called it — the only reference was
+  // `channel-sweep.js`, a channel-closure probe — so the loop main.js describes as joined had no
+  // operator-reachable entry point, and `delegateToPane` sat wired and uninvoked. That is the
+  // whole of F-21: the policy was right and the button was missing.
+  //
+  // EXPLICIT, NOT AUTOMATIC, and that is preserved deliberately. This is a separate button with
+  // `type="button"`, so Enter in the composer still SENDS. Most messages are conversation, and
+  // decomposing each one would spend model time on the operator's behalf without being asked.
+  //
+  // It adds no delegation semantics. Every governed decision — whether a dispatch runs, which
+  // node an assignment names, whether a pane write is permitted — stays in main and Python. This
+  // reads the operator's text, calls the existing channel, and paints what comes back.
+  const delegateBtn = document.getElementById("conductor-delegate");
+  const whyEl = document.getElementById("conductor-delegate-why");
+  let delegateInFlight = false;
+
+  /** Why the control is unavailable right now, or null. Derived from state the renderer already
+   *  holds — never a guess, and never a reason invented here. */
+  function delegateBlockedReason() {
+    // Each reason names the REMEDY, not just the condition. "the conductor is not running" is
+    // true and useless; the operator's next question is always "so what do I press?", and the
+    // answer is knowable from this state. The deferred-conductor case in particular is easy to
+    // mistake for a broken control: pane 1 exists and looks ready, but `session deferred
+    // (option C)` means nothing spawned yet because no message has been sent to it.
+    if (delegateInFlight) return "a delegation is already in flight — wait for it to finish";
+    if (!conductor || conductor.live !== true) {
+      return "the conductor is not running — send it a message with Send, or press ▶ live in "
+        + "pane 1, then delegate";
+    }
+    if (liveWorkerPaneCount() < 1) {
+      return "no live worker pane is registered — open a pane and pick a model for it first";
+    }
+    return null;
+  }
+
+  function refreshDelegateControl() {
+    if (!delegateBtn) return;
+    const why = delegateBlockedReason();
+    // DELIBERATELY NOT `delegateBtn.disabled`. A disabled button dispatches no click event, so the
+    // handler below — including its refusal line — never runs, and pressing the control produces
+    // absolutely nothing. That is what the operator hit: "I put two plus two in the objective and
+    // press delegate, but nothing happens", with the conductor unstarted and the reason parked in
+    // a title attribute. §7.4 asks for the reason STATED; a tooltip is not stated, and silence is
+    // the one answer a governed surface must never give. The control stays clickable, carries
+    // `aria-disabled` for assistive tech, and the reason is rendered beside it.
+    delegateBtn.setAttribute("aria-disabled", why !== null ? "true" : "false");
+    delegateBtn.title = why
+      ? `Delegate unavailable — ${why}`
+      : "Run this message as an OBJECTIVE: governed dispatch, then delegate to the live worker panes";
+    if (whyEl) whyEl.textContent = why ? `— ${why}` : "";
+  }
+  // Re-evaluated on every state and conductor push, so the control reflects the shell rather than
+  // whatever was true when the bar was built.
+  window.__sovRefreshDelegate = refreshDelegateControl;
+  refreshDelegateControl();
+
+  function line(cls, text, refused = false) {
+    if (refused) transcriptRefusals += 1;
+    if (cls === "warn" || cls === "bad") transcriptNotices += 1;
+    const row = document.createElement("div");
+    row.className = "turn sys dg";
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = "Conductor workspace · observed: ";
+    row.appendChild(who);
+    const span = document.createElement("span");
+    if (cls) span.className = cls;
+    span.textContent = text;
+    row.appendChild(span);
+    delegationTurns.push({ utc: new Date().toISOString(), row });
+    if (delegationTurns.length > 200) delegationTurns.shift();
+    render(lastTranscriptTurns);
+    return row;
+  }
+
+  const clearBtn = document.getElementById("btn-clear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", async () => {
+      const ok = window.confirm("Clear starts a new session. Live worker terminals will be torn down. The journal is kept.");
+      if (ok !== true) return;
+      const cid = conductor && conductor.paneId;
+      const ids = [...terms.keys()].filter((id) => id !== cid);
+      const failed = [];
+      for (const id of ids) {
+        try { await S.close(id); }
+        catch { failed.push(id); }
+      }
+      try { await S.runObjective({ options: { new_session: true } }); }
+      catch { /* rotation uses the existing objective channel; teardown used pane:close */ }
+      transcriptResults = 0; transcriptRefusals = 0; transcriptNotices = 0; transcriptLines = 0;
+      transcriptChatRefusals = 0; transcriptChatNotices = 0;
+      lastTranscriptTurns = [];
+      delegationTurns.length = 0;
+      setTranscriptCollapsed(true);
+      try { localStorage.setItem("conductor-transcript-state", "collapsed"); }
+      catch { /* preference persistence is optional */ }
+      render([]);
+      if (failed.length) line("warn", "Clear partial: panes that would not tear down: " + failed.join(", "));
+      refitConductorTerminals();
+    });
+  }
+
+  function renderDelegationResult(res) {
+    transcriptResults += (res && res.delegations || []).filter(d => d.answered === true).length;
+    line("warn", "source: observed_pane_output; self_published: false; U58 OWED");
+    if (!res || res.ok !== true) {
+      // A governed non-dispatch is a well-formed answer with a reason, not an error. Surface it
+      // verbatim (s7.6) — never collapsed into "delegation failed".
+      line("warn", `not dispatched — ${(res && res.reason) || "no reason reported"}`, true);
+      return;
+    }
+    line("", `objective dispatched — ${res.assigned} assignment(s), ${res.answered} answered`);
+    for (const d of res.delegations || []) {
+      const node = d.node_id || "(unnamed node)";
+      if (d.journal_error) line("warn", d.journal_error);
+      if ((d.candidate && d.candidate.truncated) || (d.observation && d.observation.truncated)) {
+        line("warn", `  ${node}: TRUNCATED observed pane output`);
+      }
+      if (d.candidate) line("warn", `  ${node}: redactions=${d.candidate.redactions || 0}; `
+        + `kinds=${JSON.stringify(d.candidate.redaction_kinds || [])}`);
+      if (d.refused) {
+        line("bad", `  ${node}: pane write REFUSED — ${d.refused.reason}`, true);
+        continue;
+      }
+      if (d.delivered !== true) {
+        line("warn", `  ${node}: not delivered — ${d.reason || "no reason reported"}`, true);
+        continue;
+      }
+      if (d.answered !== true) {
+        line("warn", `  ${node}: delivered, no answer — ${d.reason || "the pane produced nothing"}`);
+        continue;
+      }
+      const row = line("node", `  ${node} answered:`);
+      const body = document.createElement("div");
+      body.textContent = "    " + String((d.candidate && d.candidate.content) || "").trim();
+      row.appendChild(body);
+      // s7.5. `self_published:false` / `source:"observed_pane_output"` are the two fields that keep
+      // this honest, and they must survive to the surface: a candidate the shell READ off a screen
+      // is not a candidate the node ASSERTED, and a reviewer looking at this pane must be able to
+      // tell which one they are reading.
+      if (d.candidate && d.candidate.self_published === false) {
+        const note = document.createElement("div");
+        note.className = "readfrom";
+        note.textContent = `    ↳ read from the pane's output (self_published: false, source: `
+          + `${d.candidate.source}) — weaker evidence than the node's own publication`;
+        row.appendChild(note);
+      }
+    }
+    // The OWED live-worker leg is not discharged by a delegation and keeps saying so (s7.7).
+    if (res.live_workers_owed && res.live_workers_owed.owed === true) {
+      line("warn", `  live worker leg still OWED (${res.live_workers_owed.issue})`);
+    }
+  }
+
+  delegateBtn.addEventListener("click", async () => {
+    const why = delegateBlockedReason();
+    if (why) { line("warn", `delegate unavailable — ${why}`, true); return; }
+    const text = input.value.trim();
+    if (!text) {
+      // The empty box is not an edge case here, it is the COMMON mistake: the Delegate control
+      // reads the same field as Send, and an operator looking for a separate "objective" line
+      // presses Delegate against an empty box. Saying so in the strip was not enough — the strip
+      // is above the composer and easy to miss. Put the cursor where the text has to go, so the
+      // answer is where the operator is already looking.
+      line("warn", "delegate needs an objective — type it in the message box below, then press "
+        + "Delegate (it reads the same box as Send)", true);
+      try { input.focus(); } catch { /* focus is a convenience, never a failure */ }
+      return;
+    }
+    input.value = "";
+    delegateInFlight = true;
+    refreshDelegateControl();
+    line("", `▸ objective: ${text}`);
+    try {
+      renderDelegationResult(await S.runObjective({ objective: text }));
+    } catch (e) {
+      line("bad", `delegation channel refused: ${(e && e.message) || e}`, true);
+    } finally {
+      delegateInFlight = false;
+      refreshDelegateControl();
+    }
   });
 })();
 
