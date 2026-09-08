@@ -1,0 +1,19 @@
+{
+  "name": "spike-compositor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phase 1 throwaway spike rig - Electron + xterm.js + node-pty (ConPTY). NOT product code.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
