@@ -277,3 +277,138 @@ class SnapshotContract(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuiescenceRefusal(unittest.TestCase):
+    """The live-writer case, which is the whole reason the contract is offline.
+
+    SWS-CORRECTIVE-01 workstream 1.2. The directive asks for the live SQLite/WAL case handled
+    "according to the chosen contract". The chosen contract is OFFLINE: this build does not
+    implement database-aware snapshots, so the honest behaviour is to detect that state is being
+    written and refuse, rather than copy a database mid-write and call the result a backup.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp(prefix="sov-quiesce-")
+        self.state = Path(self.tmp) / "SovereignWorkspace"
+        (self.state / "tokencenter" / "data").mkdir(parents=True)
+        self.db = self.state / "tokencenter" / "data" / "piggybank.sqlite"
+
+    def tearDown(self) -> None:
+        conn = getattr(self, "conn", None)
+        if conn is not None:
+            try:
+                conn.rollback()
+                conn.close()
+            except Exception:  # noqa: BLE001
+                pass
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_a_live_sqlite_writer_in_wal_mode_is_refused(self) -> None:
+        import sqlite3
+
+        self.conn = sqlite3.connect(str(self.db))
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("CREATE TABLE t (k TEXT PRIMARY KEY, v TEXT)")
+        self.conn.execute("INSERT INTO t VALUES ('a', 'committed')")
+        self.conn.commit()
+        # An OPEN write transaction: the database is being written right now.
+        self.conn.execute("BEGIN IMMEDIATE")
+        self.conn.execute("INSERT INTO t VALUES ('b', 'uncommitted')")
+
+        archive = Path(self.tmp) / "live.zip"
+        made = _ps(BACKUP, "-StateRoot", str(self.state), "-Out", str(archive))
+        out = made.stdout + made.stderr
+
+        self.assertNotEqual(
+            made.returncode, 0,
+            "backup captured a database that was being written and reported success:\n"
+            + out[-1500:])
+        self.assertIn("not quiescent", out.lower())
+        self.assertFalse(archive.exists(),
+                         "a refused backup still produced an archive")
+
+    def test_allownonquiescent_alone_still_refuses_state_it_cannot_read(self) -> None:
+        """The two overrides mean different things, and neither implies the other.
+
+        A locked SQLite database is not merely being written, it cannot be READ: opening it
+        while denying other writers fails. `-AllowNonQuiescent` says "capture despite writers";
+        it does not say "capture despite being unable to read the data". Producing an archive
+        that silently lacks the database would be L2 again in a new costume, so the second
+        override has to be asked for separately.
+        """
+        import sqlite3
+
+        self.conn = sqlite3.connect(str(self.db))
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("CREATE TABLE t (k TEXT PRIMARY KEY)")
+        self.conn.commit()
+        self.conn.execute("BEGIN IMMEDIATE")
+        self.conn.execute("INSERT INTO t VALUES ('x')")
+
+        archive = Path(self.tmp) / "live2.zip"
+        made = _ps(BACKUP, "-StateRoot", str(self.state), "-Out", str(archive),
+                   "-AllowNonQuiescent")
+        out = made.stdout + made.stderr
+        self.assertNotEqual(made.returncode, 0, out[-1500:])
+        self.assertIn("could not read", out.lower())
+        self.assertIn("piggybank.sqlite", out)
+        self.assertFalse(archive.exists())
+
+    def test_both_overrides_capture_but_label_and_record_what_was_lost(self) -> None:
+        """With both overrides the capture proceeds - and says exactly what it is."""
+        import sqlite3
+
+        self.conn = sqlite3.connect(str(self.db))
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("CREATE TABLE t (k TEXT PRIMARY KEY)")
+        self.conn.commit()
+        self.conn.execute("BEGIN IMMEDIATE")
+        self.conn.execute("INSERT INTO t VALUES ('x')")
+        # Something readable, so the archive is not empty and the omission stands out.
+        (self.state / "sovereign").mkdir(parents=True, exist_ok=True)
+        (self.state / "sovereign" / "notes.txt").write_bytes(b"readable\n")
+
+        archive = Path(self.tmp) / "live3.zip"
+        made = _ps(BACKUP, "-StateRoot", str(self.state), "-Out", str(archive),
+                   "-AllowNonQuiescent", "-AllowIncomplete")
+        out = made.stdout + made.stderr
+        self.assertEqual(made.returncode, 0, out[-1500:])
+
+        inv = json.loads(Path(str(archive) + ".inventory.json").read_text(encoding="utf-8"))
+        self.assertIn(
+            "NOT a consistent snapshot", inv["snapshot_method"],
+            "an override capture was labelled as though it were a consistent snapshot")
+        self.assertTrue(
+            any("piggybank.sqlite" in p for p in inv["omitted"]),
+            "the inventory does not record which state was left out: " + repr(inv["omitted"]))
+
+    def test_a_quiesced_database_is_captured_and_reopens(self) -> None:
+        """The other half: once the writer is gone, the capture is real and the db reopens."""
+        import sqlite3
+
+        conn = sqlite3.connect(str(self.db))
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE t (k TEXT PRIMARY KEY, v TEXT)")
+        conn.execute("INSERT INTO t VALUES ('a', 'committed')")
+        conn.commit()
+        conn.close()  # quiesced
+
+        archive = Path(self.tmp) / "quiet.zip"
+        made = _ps(BACKUP, "-StateRoot", str(self.state), "-Out", str(archive))
+        self.assertEqual(made.returncode, 0, (made.stdout + made.stderr)[-1500:])
+
+        target = Path(self.tmp) / "restored"
+        back = _ps(RESTORE, "-Archive", str(archive), "-StateRoot", str(target))
+        self.assertEqual(back.returncode, 0, (back.stdout + back.stderr)[-1500:])
+
+        # Reopen the restored database and check it, rather than counting files.
+        restored = target / "tokencenter" / "data" / "piggybank.sqlite"
+        self.assertTrue(restored.is_file())
+        conn = sqlite3.connect(str(restored))
+        try:
+            self.assertEqual(conn.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            self.assertEqual(conn.execute("SELECT v FROM t WHERE k='a'").fetchone()[0],
+                             "committed")
+        finally:
+            conn.close()
