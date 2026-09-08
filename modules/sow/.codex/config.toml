@@ -16,7 +16,23 @@ env_vars = ["SOVEREIGN_CONTROL_PORT", "SOVEREIGN_CONTROL_TOKEN", "SOVEREIGN_STOR
 # SHIPS (two entries in the release archive), so a recipient received the same dead path.
 # tools/release/rebase_adapters.py now rewrites it at install time, the same way it rewrites
 # shell/modules/*.json, so an installed copy points at its own root rather than at this one.
-cwd = "D:/producttion software 2/release-worktree/modules/sow"
+#
+# SW-ORCH-001 F-24, 2026-09-05. It happened a THIRD time, and the same way: this tree was created
+# by COPYING `D:\producttion software 2\release-worktree` rather than by installing, so the pin
+# arrived naming the tree it was copied from. `tests/unit/test_mcp_registration_provenance.py::
+# test_the_codex_registration_pins_the_mcp_server_working_directory` failed on this host for
+# exactly that reason, and it failed quietly in operation — the comment above promises the pin
+# "fails loudly if the repo moves", and P1-8 already recorded that it does not, because nothing
+# starts the server to fail.
+#
+# The rebaser could not repair it here: it fails closed while `shell/config/install.json` still
+# holds `<set-by-installer>`, which it does, because the install never ran. That refusal is
+# correct and is left alone. This pin is corrected by hand to the value the rebaser would have
+# written — the file is designed to carry an absolute host-specific path, and the rebaser only
+# automates writing it — but the pin is a SYMPTOM. The cause is an uninstalled tree, and the same
+# cause produced the stale conductor workspace (F-22), the foreign worktree records (F-23) and the
+# unrebased install.json itself. Completing the install is the real repair and is owed.
+cwd = "D:/production software 3/release-worktree/modules/sow"
 enabled = true
 required = false
 startup_timeout_sec = 120

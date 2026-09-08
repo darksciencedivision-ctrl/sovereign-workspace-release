@@ -19,6 +19,8 @@ enforced by the caller through the ResidencyPlanner before this argv is ever lau
 """
 from __future__ import annotations
 
+from typing import Any
+
 OLLAMA_LOCAL_ADAPTER = "ollama_local"
 OLLAMA_RUN_SUBCOMMAND = "run"
 
@@ -48,3 +50,103 @@ def build_interactive_ollama_command(executable: str = "ollama", *, model: str) 
             "an interactive local session needs a resolved executable — a blank one would be "
             "PATH-searched at spawn time, deciding what runs after the gate ran (fail closed)")
     return [executable.strip(), OLLAMA_RUN_SUBCOMMAND, tag]
+
+
+# --- SW-ORCH-001 F-20: what the session ACTUALLY got, after it started -------------------------
+#
+# THE DEFECT, measured on the operator's host 2026-09-05. A 2.2 GB 3B model opened by
+# `build_interactive_ollama_command` loaded at **13 GB** with a **131072** context, 56% of it
+# resident in system RAM, on a card with 8151 MiB. The daemon sizes an unspecified session to the
+# model's architectural maximum, and nothing in this product noticed: the residency gate that
+# admitted the pane priced it from `api/tags` DISK size, which carries no KV cache at all. So the
+# pane was priced at effectively zero context and ran at 131072, and the operator's report was that
+# smaller models were SLOWER than larger ones — which is exactly what a bigger KV spill produces.
+#
+# WHY THIS IS A VERIFIER AND NOT A COMMAND. `ollama run` exposes no context flag (measured on
+# 0.33.3), `/set parameter num_ctx` does not change an already-loading session (measured, twice,
+# the second time from a confirmed-cold daemon), and `OLLAMA_CONTEXT_LENGTH` belongs to
+# `ollama serve` — a daemon this product ATTACHES to and never spawns. The product therefore cannot
+# command the context. What it can do, and what invariant 27 says it must, is OBSERVE the result
+# and refuse to present a pane whose session is not what was priced.
+#
+# Measured for the record, same host, same model, same `ollama run` path, against a daemon started
+# with `OLLAMA_CONTEXT_LENGTH=4096`:
+#
+#     unpinned : context 131072 | 13.0 GB | 56%/44% CPU/GPU   <- what the operator had
+#     pinned   : context   4096 |  2.5 GB | 100% GPU          <- fully resident
+#
+# So the honest posture is: the host is configured, and the product PROVES it per pane rather than
+# assuming it. A session that comes back wrong is torn down and refused with both numbers named,
+# never left running at an unpriced context.
+
+#: What `/api/ps` must agree on before a local pane is offered to the operator. Exact, not a
+#: tolerance: `size_vram < size` is the daemon's own report that part of the model is in system
+#: RAM, and "nearly resident" is the state that produced the measurements above.
+RESIDENCY_FIELDS = ("name", "model", "size", "size_vram", "context_length")
+
+
+def classify_session_residency(payload: Any, *, model: str,
+                               expected_num_ctx: int) -> dict[str, Any]:
+    """Does the running session match what the admission gate priced? Pure, over an `/api/ps` body.
+
+    Pure so the whole decision is pinned headlessly; the caller owns the HTTP read and the teardown.
+    Every refusal names the measured numbers, because "the pane did not open" is not an answer an
+    operator can act on and "context 131072, 56% on CPU, expected 4096" is.
+
+    Returns a verdict mapping. `ok` is True only when the model is resident, ENTIRELY in VRAM, and
+    at exactly the context it was priced at.
+    """
+    tag = str(model or "").strip()
+    if not tag:
+        return {"ok": False, "reason": "no model tag to verify — fail closed", "found": False}
+    try:
+        want_ctx = int(expected_num_ctx)
+    except (TypeError, ValueError):
+        want_ctx = 0
+    if want_ctx <= 0:
+        # An unpriced pane cannot be verified, and a verifier that passes when it was given nothing
+        # to check is worse than no verifier: it manufactures the assurance it exists to provide.
+        return {"ok": False, "found": False,
+                "reason": ("no expected context was supplied, so nothing could be verified — a "
+                           "local pane must be priced before it is checked (fail closed)")}
+
+    models = (payload or {}).get("models") if isinstance(payload, dict) else None
+    if not isinstance(models, list):
+        return {"ok": False, "found": False,
+                "reason": "the daemon's /api/ps answer had no readable model list — fail closed"}
+
+    row = next((m for m in models
+                if isinstance(m, dict)
+                and tag in (str(m.get("name") or ""), str(m.get("model") or ""))), None)
+    if row is None:
+        return {"ok": False, "found": False,
+                "reason": f"the daemon reports no running session for {tag!r} — fail closed"}
+
+    size = int(row.get("size") or 0)
+    size_vram = int(row.get("size_vram") or 0)
+    got_ctx = int(row.get("context_length") or 0)
+    cpu_split = size > 0 and size_vram < size
+    pct = round(100 * size_vram / size) if size else 0
+
+    verdict = {"ok": False, "found": True, "model": tag,
+               "expected_num_ctx": want_ctx, "context_length": got_ctx,
+               "size": size, "size_vram": size_vram, "pct_in_vram": pct, "cpu_split": cpu_split}
+
+    if got_ctx != want_ctx:
+        verdict["reason"] = (
+            f"{tag} is running at context {got_ctx}, not the {want_ctx} it was priced at. The "
+            f"daemon decides a session's context and this product does not spawn it, so the fix is "
+            f"on the host: start the Ollama service with OLLAMA_CONTEXT_LENGTH={want_ctx}. "
+            f"Refusing rather than running a pane whose cost nobody measured")
+        return verdict
+    if cpu_split:
+        verdict["reason"] = (
+            f"{tag} is loaded but only {pct}% of it is in VRAM ({size_vram} of {size} bytes) — the "
+            f"rest is in system RAM, which is the silent spill that makes a small model slower than "
+            f"a large one. Refusing rather than presenting a pane that will crawl")
+        return verdict
+
+    verdict["ok"] = True
+    verdict["reason"] = (f"{tag} is fully resident ({size_vram} bytes, 100% VRAM) at the "
+                         f"{got_ctx} context it was priced at")
+    return verdict
