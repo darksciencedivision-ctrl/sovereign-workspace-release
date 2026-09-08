@@ -75,12 +75,29 @@ def test_period_reset_restores_quota() -> None:
 
 def test_unsupported_assertion_marked() -> None:
     em = EvidenceManager(resolver=lambda ref: ref == "m-real@1")
-    supported = em.classify_assertion("claim A", ["m-real@1"])
-    unsupported = em.classify_assertion("claim B", ["m-missing@1"])
+    resolved = em.classify_assertion("claim A", ["m-real@1"])
+    unresolved = em.classify_assertion("claim B", ["m-missing@1"])
     novote = em.classify_assertion("just an opinion", [])  # a model vote is not evidence
-    assert supported["status"] == "SUPPORTED" and supported["resolving_refs"] == ["m-real@1"]
-    assert unsupported["status"] == "UNSUPPORTED" and unsupported["unresolved_refs"] == ["m-missing@1"]
-    assert novote["status"] == "UNSUPPORTED"
+    assert resolved["status"] == "REFERENCE_RESOLVED" and resolved["resolving_refs"] == ["m-real@1"]
+    assert resolved["reference_resolved"] is True
+    assert "supported" not in resolved
+    assert unresolved["status"] == "UNRESOLVED" and unresolved["unresolved_refs"] == ["m-missing@1"]
+    assert novote["status"] == "UNRESOLVED"
+
+
+def test_contradictory_assertion_with_resolvable_citation_is_not_supported() -> None:
+    em = EvidenceManager(resolver=lambda ref: ref == "m-real@1")
+    result = em.classify_assertion("the moon is made of cheese", ["m-real@1"])
+    assert result["status"] == "REFERENCE_RESOLVED"
+    assert result["status"] != "SUPPORTED"
+    assert "supported" not in result
+
+
+def test_true_assertion_with_missing_citation_is_unresolved() -> None:
+    em = EvidenceManager(resolver=lambda ref: False)
+    result = em.classify_assertion("water is H2O", ["m-missing@1"])
+    assert result["status"] == "UNRESOLVED"
+    assert result["reference_resolved"] is False
 
 
 # ---------- round manager ----------

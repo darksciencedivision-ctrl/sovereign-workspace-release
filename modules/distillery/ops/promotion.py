@@ -17,9 +17,11 @@ from typing import Any
 
 from distillery.common import ContractError, canonical_bytes, utc_now
 from ops.bundle import verify_bundle
+from train.runner import assert_measured_evidence
 
 
 TERMINAL_STATES = {"PROMOTED", "ROLLED_BACK", "ROLLBACK_FAILED", "PROMOTION_WRITE_FAILED"}
+PROMOTION_AUTHORITY_UNAVAILABLE = "PROMOTION_AUTHORITY_UNAVAILABLE"
 
 
 class PromotionRouter:
@@ -43,9 +45,9 @@ class PromotionRouter:
         verify_bundle(candidate)
         if not hg7_evidence.get("finalized") or not hg7_evidence.get("passed") or hg7_evidence.get("bundle_hash") != candidate["bundle_hash"]:
             raise ContractError("HG-7 must be finalized for the exact candidate bundle")
-        if human_decision.get("decision") != "PROMOTE" or not human_decision.get("authority"):
-            raise ContractError("explicit human PROMOTE authority is mandatory")
-        next_state = {"bundle": candidate, "promoted_at": utc_now(), "authority": human_decision["authority"]}
+        assert_measured_evidence(candidate, context="promotion gate")
+        self._require_trusted_promotion_authority(candidate, prior, human_decision)
+        next_state = {"bundle": candidate, "promoted_at": utc_now(), "authority": human_decision.get("authority")}
         try:
             self._atomic_write(next_state)
         except Exception as exc:
@@ -79,6 +81,14 @@ class PromotionRouter:
             "active_bundle_hash": candidate["bundle_hash"],
             "prior_bundle_hash": prior["bundle"]["bundle_hash"],
         }
+
+    @staticmethod
+    def _require_trusted_promotion_authority(candidate: dict, prior: dict, human_decision: dict) -> None:
+        if human_decision.get("decision") != "PROMOTE":
+            raise ContractError("explicit human PROMOTE authority is mandatory")
+        # Bound names so a future verifier can use them; a non-empty string is not authority.
+        _ = (candidate.get("bundle_hash"), prior["bundle"]["bundle_hash"], human_decision.get("authority"))
+        raise ContractError(PROMOTION_AUTHORITY_UNAVAILABLE)
 
     def rollback(self, prior: dict) -> dict:
         verify_bundle(prior["bundle"])

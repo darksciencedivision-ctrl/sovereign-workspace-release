@@ -96,7 +96,7 @@ def test_statement_parses_from_a_fenced_or_prose_wrapped_reply() -> None:
 def test_unparseable_reply_refuses_and_NEVER_fabricates_a_citation(raw) -> None:
     """The load-bearing rule: junk in must not become a supported assertion.
 
-    A refusal carries NO evidence_refs, so the EvidenceManager classifies it UNSUPPORTED — a
+    A refusal carries NO evidence_refs, so the EvidenceManager classifies it UNRESOLVED — a
     model vote is not evidence (Plan §19.3 prohibited drift).
     """
     st = parse_statement(raw, allowed_evidence=ALLOWED)
@@ -134,7 +134,7 @@ def test_citations_outside_the_scoped_set_are_DROPPED_and_NOTED_not_silently_kep
 def test_a_statement_whose_every_citation_is_out_of_scope_keeps_the_position_but_loses_support() -> None:
     st = parse_statement('{"position": "p", "evidence_refs": ["m-999"]}', allowed_evidence=ALLOWED)
     assert st.refused is False and st.position == "p"
-    assert st.evidence_refs == ()          # -> UNSUPPORTED downstream, never quietly supported
+    assert st.evidence_refs == ()          # -> UNRESOLVED downstream, never quietly supported
     assert st.notes
 
 

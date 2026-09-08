@@ -186,7 +186,7 @@ def test_the_published_record_is_a_readable_CANDIDATE_debate_entry_in_MCP(srv, a
 
 
 def test_a_citation_that_resolves_in_MCP_is_SUPPORTED_and_a_fabricated_one_is_not(srv, auth_cfg) -> None:
-    """Evidence-based, not a popularity contest: support comes from a ref that actually resolves."""
+    """Citation resolution is not entailment: a resolving ref is REFERENCE_RESOLVED."""
     ref = _seed_evidence(srv)
     out = _run(srv, auth_cfg,
                specs=_specs(_ScriptedCliMock("backed", [ref], "A"),
@@ -194,8 +194,10 @@ def test_a_citation_that_resolves_in_MCP_is_SUPPORTED_and_a_fabricated_one_is_no
                evidence_refs=[ref, "m-does-not-exist"])
 
     emap = out.report["evidence_map"]
-    assert emap["worker-A@r1"]["status"] == "SUPPORTED"
-    assert emap["worker-B@r1"]["status"] == "UNSUPPORTED"
+    assert emap["worker-A@r1"]["status"] == "REFERENCE_RESOLVED"
+    assert emap["worker-A@r1"]["reference_resolved"] is True
+    assert "supported" not in emap["worker-A@r1"]
+    assert emap["worker-B@r1"]["status"] == "UNRESOLVED"
     assert emap["worker-B@r1"]["unresolved_refs"] == ["m-does-not-exist"]
 
 

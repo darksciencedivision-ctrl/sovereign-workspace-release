@@ -62,7 +62,7 @@ class RoundManager:
                 cls = self._evidence.classify_assertion(position, refs)
                 evidence_map[f"{d.node_id}@r{round_no}"] = {"position": position, **cls}
                 entry = {"node": d.node_id, "position": position, "evidence_refs": refs,
-                         "round": round_no, "supported": cls["supported"]}
+                         "round": round_no, "reference_resolved": cls["reference_resolved"]}
                 round_positions.append(entry)
                 latest[d.node_id] = entry
             transcript.append({"round": round_no, "positions": round_positions})
@@ -87,5 +87,5 @@ class RoundManager:
         if len(latest) < 2:
             return False  # a single voice is not concurrence
         positions = {e["position"] for e in latest.values()}
-        # convergence requires alignment AND that it rests on at least one supported position
-        return len(positions) == 1 and any(e["supported"] for e in latest.values())
+        # convergence requires aligned positions plus at least one resolved reference
+        return len(positions) == 1 and any(e["reference_resolved"] for e in latest.values())
