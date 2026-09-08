@@ -268,8 +268,29 @@ def run_condition(condition, task, dataset, packet, models, client, artifact_roo
 
 
 def _disable_stage(executor, stage: str) -> None:
-    """Neutralise one stage of the DEEP pipeline for an ablation condition."""
-    executor._benchmark_disabled_stage = stage
+    """Neutralise one stage of the DEEP pipeline for an ablation condition.
+
+    NOT IMPLEMENTED, and deliberately loud about it.
+
+    `SemanticDeepExecutor` has no switch for skipping the critic or the verifier: the stages are
+    inline in `execute`, and each one's output feeds the next. Ablating them properly means
+    adding a real, reversible off-switch to the product - which is a product change, and
+    PROTOCOL.md is explicit that a simplification is implemented only where the numbers support
+    it, not in order to measure it.
+
+    The dangerous version of this function is the one that quietly does nothing. A C1 or C2 run
+    against an executor that still ran every stage would produce results IDENTICAL to B_full,
+    and `analyze.py` would faithfully report "this stage has not demonstrated benefit" about a
+    stage that had never been removed. That is a fabricated finding, and it is exactly the shape
+    of the claim this whole workstream exists to avoid making.
+
+    So it raises. An ablation condition cannot be run until the switch it needs actually exists.
+    """
+    raise NotImplementedError(
+        "ablation condition '{}' cannot run: SemanticDeepExecutor has no switch for skipping "
+        "that stage, so this condition would silently re-run B_full and report a difference of "
+        "zero as evidence that the stage is worthless. Add an explicit, reversible off-switch "
+        "to the product first, then re-run. See PROTOCOL.md section 2.".format(stage))
 
 
 def _harvest(result, calls):

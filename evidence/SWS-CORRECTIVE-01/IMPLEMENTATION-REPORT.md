@@ -371,3 +371,19 @@ gate will keep passing. If the answer is "leave it", nothing further is needed.
    their output honestly, and both let an operator produce something less trustworthy than the
    default. That is the intended trade; it is documented rather than hidden.
 
+---
+
+## 11. Final acceptance matrix — the real outcome for A–E
+
+| Gate | Outcome | On what evidence |
+|---|---|---|
+| **A — Lifecycle** | **PASS** | 20 upgrade-transaction cases with fault injection at preparation, cutover, postcheck and rollback; 15 backup/restore cases including the recorded hidden-file reproduction and a byte-for-byte round trip; 8 lifecycle-serialisation cases driven by events with real fixture-process ownership tests alongside. All three recorded reproductions (L1, L2, L3) fail before the fix and pass after it. |
+| **B — Release** | **PASS with a stated condition** | All twelve required gates pass on candidate `45751ac`; the whole-product Python suite finished (4247 passed) with its three failures fixed in the candidate; the build is reproducible (8/8 artifacts byte-identical across two isolated builds) and refuses a stale artifact; ten planted defects still fail. **The condition:** the one recorded full-suite run predates the candidate by four commits, and its own RELEASE-QUALIFYING verdict was NO because `-SkipNode` and the absence of `-IncludeCleanRoom` left six stages skipped. A qualifying run needs `run_ci.ps1 -IncludeCleanRoom` on `45751ac` with the Node trees provisioned. |
+| **C — Contract** | **PASS** | One launcher implementation; `-CheckOnly` exercised through all three entry points with blocking exit codes propagating through both delegation layers; the shell launched and served `SWS-UI-001 v1.2`; SOW's declared writes now cover the write it actually performs, with a test asserting no declared write target is inside the installation. |
+| **D — Acceptance** | **BLOCKED** | No fresh Windows VM or clean host was available. §8.1 names the exact missing resource. FIXTURE evidence exists for the mechanism and is labelled FIXTURE everywhere it appears. |
+| **E — Value** | **PRELIMINARY** | The protocol, the frozen 30-task dataset, the harness and the analysis are delivered and executable. Condition A is complete (90 executions). The orchestration conditions are under-powered against the protocol, for a measured resource reason. `05-benchmark/RESULTS.md` states the coverage and the decision it does and does not support. |
+
+**This directive is not complete.** Gate D is blocked on a resource this session did not have, and
+gate E is preliminary. Saying otherwise would be the failure the directive spends its length
+guarding against.
+

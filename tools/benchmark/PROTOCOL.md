@@ -41,6 +41,19 @@ copy.
 C1 and C2 are the ablations of the two stages whose value is least established: both are extra
 model calls whose output is not the answer the operator reads.
 
+> **C1 and C2 cannot be run yet, and the harness refuses rather than pretending.**
+> `SemanticDeepExecutor` has no switch for skipping the critic or the verifier — the stages are
+> inline in `execute` and each feeds the next. A harness that "disabled" a stage by setting a
+> flag nothing reads would re-run B_full under a different label, and the analysis would then
+> report a difference of zero as evidence that the stage is worthless. That is a fabricated
+> finding of exactly the kind this workstream exists to prevent, so `_disable_stage` raises
+> `NotImplementedError` and names what is missing.
+>
+> Adding a real, reversible off-switch to the product is itself a product change, and §7 is
+> explicit that a simplification is implemented where the numbers support it — not in order to
+> obtain the numbers. The switch therefore has to be added deliberately, as its own decision,
+> before either ablation can be measured.
+
 **Roster.** Exactly what `SYSTEM_MANIFEST.json MODELS` declares — the assignments the shipped
 product uses. No model is substituted to make a condition look better.
 
