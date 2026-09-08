@@ -382,7 +382,7 @@ gate will keep passing. If the answer is "leave it", nothing further is needed.
 | Gate | Outcome | On what evidence |
 |---|---|---|
 | **A — Lifecycle** | **PASS** | 20 upgrade-transaction cases with fault injection at preparation, cutover, postcheck and rollback; 15 backup/restore cases including the recorded hidden-file reproduction and a byte-for-byte round trip; 8 lifecycle-serialisation cases driven by events with real fixture-process ownership tests alongside. All three recorded reproductions (L1, L2, L3) fail before the fix and pass after it. |
-| **B — Release** | **NOT YET QUALIFIED** | A prior whole-product run reported 4247 passed / 3 failed / 5 skipped with **RELEASE-QUALIFYING: NO**. That run predates later commits and untracked migration work. `generate_build_manifest.py --check` failed at handoff because `test_state_snapshot_contract.py` changed. No qualifying `run_ci.ps1 -IncludeCleanRoom` has been re-run on the continuation HEAD. Do not inherit PASS. |
+| **B — Release** | **NOT YET QUALIFIED** | See addendum: gates and Node suites passed; whole-product pytest was 4280 passed / 1 failed before the drive-letter fix; clean-room install+verify passed on the later artifact. No single `run_ci.ps1 -IncludeCleanRoom` on final HEAD was RELEASE-QUALIFYING. |
 | **C — Contract** | **PASS** | One launcher implementation; `-CheckOnly` exercised through all three entry points with blocking exit codes propagating through both delegation layers; the shell launched and served `SWS-UI-001 v1.2`; SOW's declared writes now cover the write it actually performs, with a test asserting no declared write target is inside the installation. |
 | **D — Acceptance** | **BLOCKED** | No fresh Windows VM or clean host was available. §8.1 names the exact missing resource. FIXTURE evidence exists for the mechanism and is labelled FIXTURE everywhere it appears. |
 | **E — Value** | **PRELIMINARY** | The protocol, the frozen 30-task dataset, the harness and the analysis are delivered and executable. Condition A is complete (90 executions). The orchestration conditions are under-powered against the protocol, for a measured resource reason. `05-benchmark/RESULTS.md` states the coverage and the decision it does and does not support. |
@@ -421,16 +421,33 @@ still alive (venv wrapper + Python 3.12 child): PIDs 10760/38704 (11:21:50), 200
   harvest, independent `unsupported_claims`, CI-based ablation rule, measurement-only critic/
   verifier skip on `SemanticDeepExecutor` (production default unchanged).
 
-### Still unresolved (exact)
+### Measured continuation results (2026-09-08)
 
-1. **No local commit** of these changes yet (not requested).
-2. **Gate B:** no current release-qualifying CI on the continuation tree; BUILD-MANIFEST will
-   need regeneration after the new files are tracked.
-3. **Gate D:** no fresh Windows VM/clean host.
-4. **Gate E:** no valid paired SWS-BENCH-02 run. Do not start one while other GPU work is live;
-   use a new `--out` path, never `B-1run.jsonl`.
-5. **Installed-artifact acceptance** of the HTTP workflow has not been executed against a new
-   candidate artifact.
-6. **Successful upgrade + post-upgrade workflow** is still not a completed acceptance step
-   (rollback injection remains; success path not added as a separate recorded step).
+**Final source:** `b74d585753e575586018fe501bf1777c17ec9ed5` (local commits only; not pushed).
+**External launchers:** unchanged.
+**Install artifact:** `C:\Users\Sslaw\AppData\Local\Temp\opencode\sws-corrective-01\artifacts-b74d585\sovereign-workspace-1.0.0-rc.1-install.zip`
+SHA-256 `0e50cf43cc95e7298e5a8b987d4d71acc8cc38ee6eb89cb41dab2db6adb908dc`
+(built from that SHA; `release-build-manifest.json` is beside it).
+
+| Check | Result |
+|---|---|
+| Local commits | 775d31b … b74d585 (lifecycle, migration, acceptance, SWS-BENCH-02, evidence, gates, drive-letter refuse) |
+| `generate_build_manifest --check` / `sync --check` / `release_manifest_check` | PASS on the pin commit |
+| pytest whole product (pre-b74d585) | **4280 passed, 1 failed**, 5 skipped, 495 subtests, 1256.86s. Failure: filesystem-root `C:` vs `C:\`. Fixed in b74d585; 12 migration tests then passed. Full suite not re-run on b74d585. |
+| npm test SOW desktop | **1325 passed, 0 failed** after re-pinning and re-running `test:falsify` (all mutations caught, main.js restored) |
+| npm test + typecheck ui_shell | PASS (26 tests) |
+| `build_release.ps1` | PASS, 8 artifacts |
+| clean-room `install.ps1` + `verify_install.ps1` | **PASS** (20967 file hashes) |
+| `run_ci.ps1 -IncludeCleanRoom` as one invocation on final HEAD | **not RELEASE-QUALIFYING** (pytest fail + dirty tree + SOW pin on the earlier SHA) |
+| FIXTURE acceptance run `73a481028fee` | step 1 PASS; step 2 PASS (`-CheckOnly` only); steps 3–5 FAIL (`timed out waiting for http://127.0.0.1:15180/api/shell-info`); step 6 PASS; step 7 incomplete (parent timed out during upgrade). HTTP is **not** assembled-UI evidence. |
+| SWS-BENCH-02 paired comparison | **not run**. B-1run.jsonl remains invalid. A-3runs.jsonl is historical A-only. |
+| Gate D | **BLOCKED** — no fresh Windows VM/clean host |
+
+### Genuine remaining blockers
+
+1. **Gate D:** a fresh Windows VM or clean host.
+2. **Gate E:** a valid SWS-BENCH-02 run on an idle GPU with a new exclusive `--out` (30×4×3). Hours of local GPU time.
+3. **Gate B:** one `run_ci.ps1 -IncludeCleanRoom` on `b74d585` with a clean working tree after pytest (pytest currently rewrites tracked `evidence/hardening/*`).
+4. **FIXTURE live shell:** `exercise_live.ps1` never reached `/api/shell-info` on 15180 within 90s; stdout from `Start-Shell.ps1` was not captured. Not a clean-host problem.
+5. **Assembled UI (Electron) E2E** was not driven. HTTP-only even if launch had worked.
 
