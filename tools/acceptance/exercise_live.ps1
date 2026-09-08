@@ -10,13 +10,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'http_json.ps1')
+. (Join-Path $PSScriptRoot 'process_ownership.ps1')
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 $installRoot = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $stateRoot = [IO.Path]::GetFullPath($StateRoot).TrimEnd('\')
+$expectedSovRoot = Get-ExpectedSovereignRoot $installRoot
 $env:SOVEREIGN_WORKSPACE_STATE = $stateRoot
 $env:PYTHONPATH = ''
 $query = 'Using only the supplied project evidence, state which model is configured as the primary reasoner and where runtime state is kept. Cite each fact.'
-$ownedPids = New-Object System.Collections.Generic.List[int]
+$owned = New-OwnedProcessTracker
+$launcherPid = 0
+$launcherCreated = $null
 
 function Get-Listener {
     param([int]$Port)
@@ -48,6 +52,27 @@ function Wait-Job {
     throw "job $JobId still $([string]$job.Json.status) after ${Seconds}s"
 }
 
+function Assert-OwnedSovereignListener {
+    param([int]$Port)
+    $listen = Get-Listener $Port
+    if (-not $listen) { Write-Output "no listener on $Port"; exit 2 }
+    $ownership = Resolve-FixtureListenerOwnership `
+        -ListenerPid ([int]$listen.OwningProcess) `
+        -ExpectedRoot $expectedSovRoot `
+        -LauncherPid $launcherPid `
+        -LauncherCreated $launcherCreated
+    if (-not $ownership.Owned) {
+        Write-Output $ownership.Diagnostic
+        exit 2
+    }
+    Add-OwnedProcessInstance -Tracker $owned -ProcessId ([int]$listen.OwningProcess)
+    if ($ownership.Pid -gt 0) {
+        $ev = Get-ProcessRootEvidence -ProcessId $ownership.Pid
+        if ($ev) { Add-OwnedProcessInstance -Tracker $owned -ProcessId ([int]$ev.Pid) }
+    }
+    return @{ Listen = $listen; Ownership = $ownership }
+}
+
 $launcher = Join-Path $installRoot 'Start-Shell.ps1'
 if (-not (Test-Path -LiteralPath $launcher)) { Write-Output 'no launcher'; exit 2 }
 if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json'))) {
@@ -76,12 +101,22 @@ try {
         -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $launcher,
                         '-Port', "$ShellPort", '-NoBrowser')
-    $ownedPids.Add([int]$proc.Id)
+    $launcherPid = [int]$proc.Id
+    Add-OwnedProcessInstance -Tracker $owned -ProcessId $launcherPid
+    $cimLaunch = Get-CimInstance Win32_Process -Filter "ProcessId=$launcherPid" -ErrorAction SilentlyContinue
+    if ($cimLaunch) { $launcherCreated = $cimLaunch.CreationDate }
     $info = Wait-Url -Url "http://127.0.0.1:$ShellPort/api/shell-info" -Seconds 90 -Child $proc
     if (-not ($info.Json.version -like 'SWS-UI-001*')) {
         Write-Output "unexpected shell-info: $($info.Text)"
         exit 1
     }
+    $shellListen = Get-Listener $ShellPort
+    if (-not $shellListen) { Write-Output "no shell listener on $ShellPort"; exit 2 }
+    if (-not (Test-ProcessDescendsFrom -ChildProcessId ([int]$shellListen.OwningProcess) -AncestorProcessId $launcherPid)) {
+        Write-Output "shell listener PID $($shellListen.OwningProcess) is not a descendant of launcher $launcherPid"
+        exit 2
+    }
+    Add-OwnedProcessInstance -Tracker $owned -ProcessId ([int]$shellListen.OwningProcess)
     $html = Invoke-Json -Method GET -Url "http://127.0.0.1:$ShellPort/"
     $nonce = $null
     if ($html.Text -match 'csrf-nonce" content="([^"]+)"') { $nonce = $Matches[1] }
@@ -104,15 +139,8 @@ try {
     if (-not $sov) { $sov = "http://127.0.0.1:5175/" }
     $sov = $sov.TrimEnd('/')
     $sovUri = [Uri]$sov
-    $listen = Get-Listener $sovUri.Port
-    if (-not $listen) { Write-Output "no listener on $($sovUri.Port)"; exit 2 }
-    $sovOwner = Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $listen.OwningProcess)
-    if (-not $sovOwner -or -not $sovOwner.CommandLine -or
-        -not $sovOwner.CommandLine.ToLower().Contains($installRoot.ToLower())) {
-        Write-Output "sovereign listener is not the fixture install at $installRoot"
-        exit 2
-    }
-    $ownedPids.Add([int]$sovOwner.ProcessId)
+    $ownedListen = Assert-OwnedSovereignListener -Port $sovUri.Port
+    $sovOwnerPid = [int]$ownedListen.Ownership.Pid
     Wait-Url -Url "$sov/v1/health" -Seconds 45 | Out-Null
     $py = Join-Path $installRoot 'modules\sovereign\.venv\Scripts\python.exe'
     if (-not (Test-Path -LiteralPath $py)) { Write-Output "missing $py"; exit 2 }
@@ -218,9 +246,11 @@ print('persisted', job_id)
             exit 1
         }
         if (-not (Test-Path -LiteralPath $db)) { Write-Output "no db at checkpoint"; exit 1 }
-        $pidToKill = [int]$sovOwner.ProcessId
-        Stop-Process -Id $pidToKill -Force
-        $ownedPids.Remove($pidToKill) | Out-Null
+        $pidToKill = $sovOwnerPid
+        $killRec = Get-CimInstance Win32_Process -Filter "ProcessId=$pidToKill" -ErrorAction SilentlyContinue
+        if ($killRec) {
+            Stop-Process -Id $pidToKill -Force
+        }
         Start-Sleep -Seconds 2
         $start2 = Invoke-Json -Method POST -Url "$origin/api/start" -Body '{"id":"sovereign"}' -Headers $csrf
         if ($start2.Code -ne 200) { Write-Output "restart failed $($start2.Code) $($start2.Text)"; exit 1 }
@@ -232,8 +262,7 @@ print('persisted', job_id)
             Start-Sleep -Seconds 1
         }
         if (-not $up) { Write-Output 'sovereign did not return to READY after crash'; exit 1 }
-        $listen2 = Get-Listener $sovUri.Port
-        if ($listen2) { $ownedPids.Add([int]$listen2.OwningProcess) }
+        Assert-OwnedSovereignListener -Port $sovUri.Port | Out-Null
         $probe = @"
 import sqlite3, sys
 c = sqlite3.connect(sys.argv[1])
@@ -269,7 +298,5 @@ catch {
     exit 1
 }
 finally {
-    foreach ($id in @($ownedPids)) {
-        try { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } catch { }
-    }
+    Stop-OwnedProcessTree -Tracker $owned -LauncherPid $launcherPid -LauncherCreated $launcherCreated
 }
