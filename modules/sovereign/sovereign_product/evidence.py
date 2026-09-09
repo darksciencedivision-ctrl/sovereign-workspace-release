@@ -376,11 +376,21 @@ def _fit_text(
     byte_limit: int,
     token_limit: int,
     token_counter: TokenCounter,
+    query: str = "",
 ) -> str:
     if byte_limit <= 0 or token_limit <= 0 or not text:
         return ""
     if len(text.encode("utf-8")) <= byte_limit and token_counter(text) <= token_limit:
         return text
+    window = _query_relevant_excerpt(
+        text,
+        query=query,
+        byte_limit=byte_limit,
+        token_limit=token_limit,
+        token_counter=token_counter,
+    )
+    if window:
+        return window
     low = 0
     high = len(text)
     while low < high:
@@ -394,6 +404,55 @@ def _fit_text(
         else:
             high = midpoint - 1
     return text[:low]
+
+
+def _query_relevant_excerpt(
+    text: str,
+    *,
+    query: str,
+    byte_limit: int,
+    token_limit: int,
+    token_counter: TokenCounter,
+) -> str:
+    """Keep query-matching paragraphs when a file must be truncated."""
+
+    normalized_query = EvidenceBuilder._normalized_relevance_text(query)
+    terms = {
+        token
+        for token in normalized_query.split()
+        if token and token not in _RELEVANCE_STOPWORDS
+    }
+    if not terms:
+        return ""
+    paragraphs = [part for part in re.split(r"\n\s*\n", text) if part.strip()]
+    if not paragraphs:
+        return ""
+    scored: list[tuple[int, int]] = []
+    for index, paragraph in enumerate(paragraphs):
+        words = set(EvidenceBuilder._normalized_relevance_text(paragraph).split())
+        overlap = len(terms & words)
+        if overlap:
+            scored.append((overlap, index))
+    if not scored:
+        return ""
+    selected: set[int] = set()
+    for _overlap, index in sorted(scored, key=lambda item: (-item[0], item[1])):
+        trial = selected | {index}
+        excerpt = "\n\n".join(paragraphs[i] for i in sorted(trial))
+        if (
+            len(excerpt.encode("utf-8")) <= byte_limit
+            and token_counter(excerpt) <= token_limit
+        ):
+            selected.add(index)
+    if not selected:
+        best = paragraphs[max(scored, key=lambda item: (item[0], -item[1]))[1]]
+        return _fit_text(
+            best,
+            byte_limit=byte_limit,
+            token_limit=token_limit,
+            token_counter=token_counter,
+        )
+    return "\n\n".join(paragraphs[i] for i in sorted(selected))
 
 
 class EvidenceBuilder:
@@ -682,14 +741,16 @@ class EvidenceBuilder:
             raise EvidenceError("approved evidence source is not a regular file")
         digest = hashlib.sha256()
         prefix = bytearray()
+        # Read enough to select a query-relevant window, not only the file prefix.
+        read_cap = max(self.max_source_bytes, 65_536)
         with path.open("rb") as handle:
             while True:
                 chunk = handle.read(65_536)
                 if not chunk:
                     break
                 digest.update(chunk)
-                if len(prefix) < self.max_source_bytes:
-                    needed = self.max_source_bytes - len(prefix)
+                if len(prefix) < read_cap:
+                    needed = read_cap - len(prefix)
                     prefix.extend(chunk[:needed])
         after = path.stat()
         if (
@@ -1088,6 +1149,7 @@ class EvidenceBuilder:
                 byte_limit=snippet_byte_limit,
                 token_limit=snippet_token_limit,
                 token_counter=self.token_counter,
+                query=query,
             )
             # A custom token counter is not necessarily additive. Tighten the
             # candidate against the complete rendered packet, not an estimate.

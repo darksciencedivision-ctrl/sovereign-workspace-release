@@ -91,6 +91,15 @@ $artifactHash = if (Test-Path -LiteralPath $artifactPath) {
 } else { $null }
 # Checkout SHA is NOT proof the zip was built from that SHA.
 $artifactBuiltFromSha = $null
+$buildManifestPath = Join-Path (Split-Path -Parent $artifactPath) 'release-build-manifest.json'
+if (Test-Path -LiteralPath $buildManifestPath -PathType Leaf) {
+    $buildManifest = Get-Content -Raw -LiteralPath $buildManifestPath | ConvertFrom-Json
+    $named = @($buildManifest.artifacts | Where-Object { $_.name -eq [IO.Path]::GetFileName($artifactPath) })
+    if ($named.Count -eq 1 -and $named[0].sha256 -eq $artifactHash) {
+        $artifactBuiltFromSha = [string]$named[0].cut_from
+        if (-not $artifactBuiltFromSha) { $artifactBuiltFromSha = [string]$buildManifest.source_commit }
+    }
+}
 
 function Write-Record {
     param([string]$Step, [string]$Name, [string]$Verdict, [string]$Reason,
@@ -274,8 +283,11 @@ if not row:
 print(row[0])
 print(hashlib.sha256(row[1].encode("utf-8")).hexdigest())
 '@, $utf8NoBom)
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
         $cap = & $pyLive $capturePy $dbLive 2>&1 | Out-String
-        $capCode = $LASTEXITCODE
+        $capCode = if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
+        $ErrorActionPreference = $prevEap
         Remove-Item -LiteralPath $capturePy -Force -ErrorAction SilentlyContinue
         if ($capCode -ne 0) {
             $reason = "live database probe failed: $cap"
@@ -325,8 +337,11 @@ if "qwen2.5:3b-instruct" not in row[0] or "SovereignWorkspace" not in row[0]:
     raise SystemExit("restored answer missing required facts")
 print("ok")
 '@, $utf8NoBom)
+                $prevEap2 = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
                 $chkOut = & $pyLive $checkPy $restoredDb $liveJob $liveHash 2>&1 | Out-String
-                $chkCode = $LASTEXITCODE
+                $chkCode = if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
+                $ErrorActionPreference = $prevEap2
                 Remove-Item -LiteralPath $checkPy -Force -ErrorAction SilentlyContinue
                 if ($chkCode -ne 0) {
                     $reason = "restored database check failed: $chkOut"

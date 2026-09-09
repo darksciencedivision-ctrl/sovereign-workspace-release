@@ -40,6 +40,20 @@ class FrozenQueryRetrievesProductEvidence(unittest.TestCase):
         self.assertIn("SovereignWorkspace", packet.text)
         self.assertGreater(packet.total_bytes, 0)
 
+    def test_live_source_budget_still_keeps_state_location(self) -> None:
+        present = [p for p in APPROVED if (SOV / p).is_file() and (SOV / p).stat().st_size > 0]
+        tight = EvidenceBuilder(
+            SOV,
+            approved_paths=present,
+            query_relevance=True,
+            max_bytes=8192,
+            max_tokens=4096,
+            max_source_bytes=2048,
+        )
+        packet = tight.build("sess-tight", query=FROZEN)
+        self.assertIn("qwen2.5:3b-instruct", packet.text)
+        self.assertIn("SovereignWorkspace", packet.text)
+
     def test_which_model_is_the_synthesizer(self) -> None:
         locators = self._locators("Which model is configured as the synthesizer?")
         self.assertIn("SYSTEM_MANIFEST.json", locators)

@@ -508,7 +508,7 @@ class ProductService:
             message_source=self.store,
             max_bytes=8_192,
             max_tokens=4_096,
-            max_source_bytes=2_048,
+            max_source_bytes=4_096,
             query_relevance=True,
         )
         self.deep_executor = deep_executor or self._default_deep_executor()

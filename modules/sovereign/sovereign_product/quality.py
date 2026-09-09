@@ -341,7 +341,8 @@ def build_quick_prompt(query: str, evidence: EvidencePacket | None) -> str:
             "- These are the only citations that exist. Copy one exactly, "
             "character for character:\n"
             + "".join(f"    {token}\n" for token in tokens)
-            + "- Put the citation immediately after each claim it supports.\n"
+            +             "- Put the citation immediately after each claim it supports, "
+            f"for example: observed fact {tokens[0]}\n"
             "- Every claim about SOVEREIGN, project files, or earlier "
             "conversation needs one.\n"
             "- Do not invent, abbreviate, reformat, or combine citations, and "
