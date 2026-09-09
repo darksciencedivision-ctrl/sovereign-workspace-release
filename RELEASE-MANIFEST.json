@@ -166,7 +166,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "3ab40eca45fda7c8ff74bb447076eba30f5215b69aef1ba3cfbeb7948e65de40"
+      "sha256": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d"
     }
   ],
   "ui_assets": [
@@ -206,7 +206,7 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "3ab40eca45fda7c8ff74bb447076eba30f5215b69aef1ba3cfbeb7948e65de40"
+      "sha256": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d"
     },
     {
       "path": "SBOM.json.pre-CONVERGE01",
@@ -314,7 +314,7 @@
     },
     {
       "path": "shell/tests/test_render.py",
-      "sha256": "f436cbef439fcc1b76df0160d406bacfef95d4ba1cd62c6264f17fc01db1294f"
+      "sha256": "8b4a44ebe126a13184655e12d01e59e617a6b5906b827702b8037cc24c20f75e"
     },
     {
       "path": "tools/release/README-GATE-POLICY.md",

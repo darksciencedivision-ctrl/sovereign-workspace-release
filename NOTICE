@@ -49,7 +49,7 @@ NPM COMPONENTS
   @emnapi/wasi-threads 1.2.2 — MIT
   @emnapi/wasi-threads 2.0.1 — MIT
   @exodus/bytes 1.15.1 — MIT
-  @jridgewell/sourcemap-codec 1.5.5 — MIT
+  @jridgewell/sourcemap-codec 1.6.0 — MIT
   @napi-rs/wasm-runtime 1.2.0 — MIT
   @oxc-project/types 0.139.0 — MIT
   @rolldown/binding-android-arm64 1.1.5 — MIT
@@ -78,13 +78,13 @@ NPM COMPONENTS
   @types/react 18.3.31 — MIT
   @types/react-dom 18.3.7 — MIT
   @vitejs/plugin-react 6.0.4 — MIT
-  @vitest/expect 4.1.10 — MIT
-  @vitest/mocker 4.1.10 — MIT
-  @vitest/pretty-format 4.1.10 — MIT
-  @vitest/runner 4.1.10 — MIT
-  @vitest/snapshot 4.1.10 — MIT
-  @vitest/spy 4.1.10 — MIT
-  @vitest/utils 4.1.10 — MIT
+  @vitest/expect 4.1.11 — MIT
+  @vitest/mocker 4.1.11 — MIT
+  @vitest/pretty-format 4.1.11 — MIT
+  @vitest/runner 4.1.11 — MIT
+  @vitest/snapshot 4.1.11 — MIT
+  @vitest/spy 4.1.11 — MIT
+  @vitest/utils 4.1.11 — MIT
   @xterm/addon-fit 0.10.0 — MIT
   @xterm/xterm 5.5.0 — MIT
   assertion-error 2.0.1 — MIT
@@ -165,7 +165,7 @@ NPM COMPONENTS
   undici 8.9.0 — MIT
   undici-types 7.18.2 — MIT
   vite 8.1.5 — MIT
-  vitest 4.1.10 — MIT
+  vitest 4.1.11 — MIT
   w3c-xmlserializer 5.0.0 — MIT
   webidl-conversions 8.0.1 — BSD-2-Clause
   whatwg-mimetype 5.0.0 — MIT

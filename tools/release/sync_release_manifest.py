@@ -96,9 +96,18 @@ def repin(args) -> int:
     derived = generated_paths(manifest)
     wanted = {p.replace("\\", "/") for p in args.repin}
 
-    index = {}
-    for item in manifest.get("batch_files", []):
-        index[str(item.get("path") or "").replace("\\", "/")] = item
+    pins = []
+    def walk(node):
+        if isinstance(node, dict):
+            path = str(node.get("path") or "").replace("\\", "/")
+            if path and "sha256" in node:
+                pins.append(node)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+    walk(manifest)
 
     changed = False
     for path in sorted(wanted):
@@ -106,22 +115,27 @@ def repin(args) -> int:
             print("sync_release_manifest: {} is a derived artifact; use --write so its "
                   "generator vouches for it.".format(path))
             return 1
-        item = index.get(path)
-        if item is None:
-            print("sync_release_manifest: {} is not pinned in batch_files".format(path))
+        matching = [item for item in pins
+                    if str(item.get("path") or "").replace("\\", "/") == path]
+        if not matching:
+            print("sync_release_manifest: {} is not pinned".format(path))
             return 1
         full = root / path
         if not full.is_file():
             print("sync_release_manifest: {} does not exist".format(path))
             return 1
         measured = sha256_file(full)
-        if measured == item.get("sha256"):
+        any_change = False
+        for item in matching:
+            if measured == item.get("sha256"):
+                continue
+            print("re-pinning {}\n  was      {}\n  now      {}\n  reason   {}".format(
+                path, item.get("sha256"), measured, args.reason.strip()))
+            item["sha256"] = measured
+            any_change = True
+            changed = True
+        if not any_change:
             print("sync_release_manifest: {} already matches its pin".format(path))
-            continue
-        print("re-pinning {}\n  was      {}\n  now      {}\n  reason   {}".format(
-            path, item.get("sha256"), measured, args.reason.strip()))
-        item["sha256"] = measured
-        changed = True
 
     if changed:
         manifest_path.write_text(json.dumps(manifest, indent=2) + "\n",

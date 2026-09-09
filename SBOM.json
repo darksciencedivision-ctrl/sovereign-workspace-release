@@ -11,7 +11,7 @@
       "properties": [
         {
           "name": "sovereign:source-commit",
-          "value": "6733780235f2ede2489b36d1158172a310b143d9"
+          "value": "cc37ae9027a5efc0d3df6b90991d9f8c12777931"
         },
         {
           "name": "sovereign:generated-from",
@@ -66,7 +66,7 @@
     {
       "module": "sovereign-ui",
       "path": "modules/sovereign/ui/ui_shell/package-lock.json",
-      "sha256": "a1c5e03ec63b98448f5009219679543f020c6995e65a3dc99248e705e2d292d6",
+      "sha256": "356bb5254de1d1554ba385cd383d1e1895739ce8f23faf6fc33af97132c1a19d",
       "scope": "mixed"
     },
     {
@@ -634,8 +634,8 @@
     {
       "type": "library",
       "name": "@jridgewell/sourcemap-codec",
-      "version": "1.5.5",
-      "purl": "pkg:npm/@jridgewell/sourcemap-codec@1.5.5",
+      "version": "1.6.0",
+      "purl": "pkg:npm/@jridgewell/sourcemap-codec@1.6.0",
       "scope": "optional",
       "licenses": [
         {
@@ -657,7 +657,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="
+          "content": "T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw=="
         }
       ]
     },
@@ -1504,8 +1504,8 @@
     {
       "type": "library",
       "name": "@vitest/expect",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/expect@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/expect@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1527,15 +1527,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "YsCn+qAk1GWjQOWFEsEcL2gNQ0zmVmQu3T03qP6UyjhtmdtwtbuI+DASn/7iQB3HGTXkdBwGddzxPlmiql5vlA=="
+          "content": "VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/mocker",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/mocker@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/mocker@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1557,15 +1557,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow=="
+          "content": "2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/pretty-format",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/pretty-format@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/pretty-format@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1587,15 +1587,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "W1HsjSH4MXQ9YfmmhLAoIYf1HRfekQCGngeIgcei6MP5QQGWUe0gkopdZQaVCFO+JDJMrAJGwa5pRpNpvy4P8Q=="
+          "content": "yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/runner",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/runner@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/runner@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1617,15 +1617,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "IKI6kpIH+LmpROplyLwBBaCfMgOZOMsygVa6BARD6ahA04VRuJSa6OaVG7kRvSEMD870Vd91rSSw0eegtWyLGg=="
+          "content": "LztvUgdwMNJMIkj3hQnnxiC2Xy1zNxq928W/xhjCLaNCzqTZOudjwbQf6v9IntZGPw132i2Lq2rgTRZHD3JHNw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/snapshot",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/snapshot@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/snapshot@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1647,15 +1647,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "xRkfOT1qpTAi/Ti4Y1LtfRc3kEuqxGw59eN2jN9pRWMtS/XDevekhcFSqvQqjUNGksfjMJu3Y+oJ+4Ypn2OaJw=="
+          "content": "pN7ikn1ON7h8ee4gIAp4AzyK+zBtJPzVbqOgu5LCEh4VaJVbPQcgYQYJIMGQPXVeJJq1fnfazis7a5pFNPahog=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/spy",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/spy@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/spy@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1677,15 +1677,15 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw=="
+          "content": "apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/utils",
-      "version": "4.1.10",
-      "purl": "pkg:npm/@vitest/utils@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/@vitest/utils@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -1707,7 +1707,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA=="
+          "content": "zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ=="
         }
       ]
     },
@@ -4114,8 +4114,8 @@
     {
       "type": "library",
       "name": "vitest",
-      "version": "4.1.10",
-      "purl": "pkg:npm/vitest@4.1.10",
+      "version": "4.1.11",
+      "purl": "pkg:npm/vitest@4.1.11",
       "scope": "optional",
       "licenses": [
         {
@@ -4137,7 +4137,7 @@
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw=="
+          "content": "fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw=="
         }
       ]
     },
