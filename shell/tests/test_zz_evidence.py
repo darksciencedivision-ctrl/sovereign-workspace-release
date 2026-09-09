@@ -5,14 +5,14 @@ Named test_zz_* so unittest discovery runs it last: the H-12 watch must cover ev
 before it is stopped and reported.
 
 Artifacts produced here:
-  evidence/hardening/deps-proof.txt   H-11, four parts
-  evidence/hardening/fs-watch.txt     H-12
-  evidence/hardening/h1-listen.txt    H-1
-  evidence/hardening/h3-headers.txt   H-3
-  evidence/hardening/h6-jobobject.txt H-6
-  evidence/hardening/h8-sentinel.txt  H-8
-  evidence/hardening/h4-dom.txt       H-4 (REVIEW-BUILD-02 G4-3)
-  shell/BUILD-MANIFEST.txt            §7.3 item 5
+  .runtime/hardening/deps-proof.txt   H-11, four parts
+  .runtime/hardening/fs-watch.txt     H-12
+  .runtime/hardening/h1-listen.txt    H-1
+  .runtime/hardening/h3-headers.txt   H-3
+  .runtime/hardening/h6-jobobject.txt H-6
+  .runtime/hardening/h8-sentinel.txt  H-8
+  .runtime/hardening/h4-dom.txt       H-4 (REVIEW-BUILD-02 G4-3)
+  .runtime/BUILD-MANIFEST.txt         §7.3 item 5 (tracked shell/BUILD-MANIFEST.txt is verified)
 """
 import ast
 import hashlib
@@ -27,7 +27,7 @@ from shell.tests import WORKSPACE, finish_watch, watch_outcome
 from shell.tests._harness import (
     fixture, free_port, pid_alive, python_exe, request, start_shell, stop_shell, wait_until)
 
-HARDENING = os.path.join(WORKSPACE, "evidence", "hardening")
+HARDENING = os.path.join(WORKSPACE, ".runtime", "hardening")
 SRC = os.path.join(WORKSPACE, "shell", "src")
 SENTINEL = "SWS_SENTINEL_7f3a9c"
 

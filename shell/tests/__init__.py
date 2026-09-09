@@ -2,9 +2,10 @@
 SWS test package.
 
 Importing this package starts the H-12 filesystem watch on the three protected roots (R3-9). It
-runs for the whole suite; test_zz_evidence.py stops it, writes evidence/hardening/fs-watch.txt,
+runs for the whole suite; test_zz_evidence.py stops it, writes .runtime/hardening/fs-watch.txt,
 and fails if any event was recorded. An atexit hook is registered as a backstop so the report is
-written even if the suite is interrupted before that module runs.
+written even if the suite is interrupted before that module runs. Tracked evidence/hardening
+files are historical snapshots and must not be rewritten by verification.
 """
 import atexit
 import os
@@ -12,7 +13,7 @@ import os
 from shell.tests._fswatch import FsWatch
 
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FS_WATCH_REPORT = os.path.join(WORKSPACE, "evidence", "hardening", "fs-watch.txt")
+FS_WATCH_REPORT = os.path.join(WORKSPACE, ".runtime", "hardening", "fs-watch.txt")
 
 WATCH = FsWatch()
 WATCH.start()

@@ -9,9 +9,9 @@ One test per defect D1-D4 plus the rendered-DOM proof:
   test_light_theme_contrast         H-16  D4 light-theme badge contrast
   test_rendered_dom                 H-17  rendered DOM via headless Edge (no code change)
 
-Artifacts written on success:
-  evidence/hardening/h13-assets.txt .. h17-dom.txt
-  evidence/gate5/screenshots/shell-grid-rendered.png   (H-17)
+Artifacts written on success (gitignored run lane; tracked copies are historical):
+  .runtime/hardening/h13-assets.txt .. h17-dom.txt
+  .runtime/gate5/screenshots/shell-grid-rendered.png   (H-17)
 
 The H-17 button assertion pins the six-action row named by SWS-UI-001 v1.2 section 7.3 item 2
 (Start / Stop / Restart / Open / Run startup test / View logs).
@@ -32,7 +32,7 @@ from html.parser import HTMLParser
 from shell.tests._harness import request, start_shell, stop_shell
 
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-HARDENING = os.path.join(WORKSPACE, "evidence", "hardening")
+HARDENING = os.path.join(WORKSPACE, ".runtime", "hardening")
 BLANK_RENDER_SHA256 = "f7744eb44a77e0401b85dd4dc07a9cc48860d79f2ad6ff908ba2839bd0669271"
 
 
@@ -422,7 +422,7 @@ class TestRenderProofs(unittest.TestCase):
                          "{} {} {}".format(llama.get("start"), llama.get("test"),
                                            llama.get("restart")))
 
-            shot_dir = os.path.join(WORKSPACE, "evidence", "gate5", "screenshots")
+            shot_dir = os.path.join(WORKSPACE, ".runtime", "gate5", "screenshots")
             os.makedirs(shot_dir, exist_ok=True)
             shot = os.path.join(shot_dir, "shell-grid-rendered.png")
             cmd2 = [edge, "--headless=new", "--disable-gpu", "--no-first-run",
