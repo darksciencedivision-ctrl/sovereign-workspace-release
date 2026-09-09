@@ -244,43 +244,103 @@ foreach ($pending in @(
 # --- step 6: back up, verify, restore into a SEPARATE state location ---------------------------
 if ($Steps -contains '6') {
     $started = Get-Date
-    if (-not (Test-Path -LiteralPath $stateRoot -PathType Container)) {
-        New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
-    }
-    # A marker whose bytes are checked after the round trip - not a file count.
-    $marker = Join-Path $stateRoot 'sovereign\acceptance-marker.txt'
-    New-Item -ItemType Directory -Path (Split-Path -Parent $marker) -Force | Out-Null
-    $payload = "SWS-ACCEPT-01 $candidate " + [Guid]::NewGuid().ToString()
-    [IO.File]::WriteAllText($marker, $payload, $utf8NoBom)
-    $markerHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $marker).Hash.ToLowerInvariant()
-
-    $archive = Join-Path $evidenceDir 'state-backup.zip'
-    if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
-    if (Test-Path -LiteralPath "$archive.sha256") { Remove-Item -LiteralPath "$archive.sha256" -Force }
-    if (Test-Path -LiteralPath "$archive.inventory.json") { Remove-Item -LiteralPath "$archive.inventory.json" -Force }
-
-    $b = Invoke-Child (Join-Path $release 'backup_state.ps1') @('-StateRoot', $stateRoot, '-Out', $archive) 'step6-backup'
-    $restoreRoot = Join-Path ([IO.Path]::GetTempPath()) ("sovereign-accept-restore-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-    $r = @{ ExitCode = 1; Log = '' }
-    if ($b.ExitCode -eq 0) {
-        $r = Invoke-Child (Join-Path $release 'restore_state.ps1') @('-Archive', $archive, '-StateRoot', $restoreRoot) 'step6-restore'
-    }
-
-    $restoredMarker = Join-Path $restoreRoot 'sovereign\acceptance-marker.txt'
+    $dbLive = Join-Path $stateRoot 'sovereign\runtime\sovereign.db'
+    $pyLive = Join-Path $installRoot 'modules\sovereign\.venv\Scripts\python.exe'
     $ok = $false
     $reason = ''
-    if ($b.ExitCode -ne 0) { $reason = "backup exited $($b.ExitCode)" }
-    elseif ($r.ExitCode -ne 0) { $reason = "restore exited $($r.ExitCode)" }
-    elseif (-not (Test-Path -LiteralPath $restoredMarker -PathType Leaf)) { $reason = 'the marker file was not restored' }
-    else {
-        $restoredHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $restoredMarker).Hash.ToLowerInvariant()
-        if ($restoredHash -ne $markerHash) { $reason = "restored marker hash $restoredHash != $markerHash" }
-        else { $ok = $true }
+    $code = $null
+    $restoreRoot = $null
+    if (-not (Test-Path -LiteralPath $dbLive -PathType Leaf)) {
+        $reason = 'no sovereign.db from a completed workflow; a marker file is not sufficient'
     }
-    Write-Record '6' 'back up, verify, restore into a separate state location' `
-        $(if ($ok) { 'PASS' } else { 'FAIL' }) $reason $r.ExitCode `
-        'backup_state.ps1 + restore_state.ps1' $evidenceDir $started
-    if (Test-Path -LiteralPath $restoreRoot) { Remove-Item -LiteralPath $restoreRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    elseif (-not (Test-Path -LiteralPath $pyLive -PathType Leaf)) {
+        $reason = "missing $pyLive"
+    }
+    else {
+        $capturePy = Join-Path $env:TEMP ('sws-accept-cap-' + [Guid]::NewGuid().ToString('N') + '.py')
+        [IO.File]::WriteAllText($capturePy, @'
+import hashlib, sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+chk = c.execute("PRAGMA integrity_check").fetchone()[0]
+if chk != "ok":
+    raise SystemExit("integrity_check=" + chk)
+row = c.execute(
+    "select job_id, content from messages where role='sovereign' and status='accepted' "
+    "and content like '%qwen2.5:3b-instruct%' and content like '%SovereignWorkspace%' "
+    "order by created_at desc"
+).fetchone()
+if not row:
+    raise SystemExit("no accepted useful-workflow answer in live state")
+print(row[0])
+print(hashlib.sha256(row[1].encode("utf-8")).hexdigest())
+'@, $utf8NoBom)
+        $cap = & $pyLive $capturePy $dbLive 2>&1 | Out-String
+        $capCode = $LASTEXITCODE
+        Remove-Item -LiteralPath $capturePy -Force -ErrorAction SilentlyContinue
+        if ($capCode -ne 0) {
+            $reason = "live database probe failed: $cap"
+        }
+        else {
+            $capLines = @($cap.Trim().Split("`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $liveJob = $capLines[0]
+            $liveHash = $capLines[1]
+            $archive = Join-Path $evidenceDir 'state-backup.zip'
+            if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
+            if (Test-Path -LiteralPath "$archive.sha256") { Remove-Item -LiteralPath "$archive.sha256" -Force }
+            if (Test-Path -LiteralPath "$archive.inventory.json") { Remove-Item -LiteralPath "$archive.inventory.json" -Force }
+            $b = Invoke-Child (Join-Path $release 'backup_state.ps1') @('-StateRoot', $stateRoot, '-Out', $archive) 'step6-backup'
+            $restoreRoot = Join-Path ([IO.Path]::GetTempPath()) ("sovereign-accept-restore-" + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+            $r = @{ ExitCode = 1; Log = '' }
+            if ($b.ExitCode -eq 0) {
+                $r = Invoke-Child (Join-Path $release 'restore_state.ps1') @('-Archive', $archive, '-StateRoot', $restoreRoot) 'step6-restore'
+            }
+            $code = $r.ExitCode
+            $restoredDb = Join-Path $restoreRoot 'sovereign\runtime\sovereign.db'
+            if ($b.ExitCode -ne 0) { $reason = "backup exited $($b.ExitCode)" }
+            elseif ($r.ExitCode -ne 0) { $reason = "restore exited $($r.ExitCode)" }
+            elseif (-not (Test-Path -LiteralPath $restoredDb -PathType Leaf)) {
+                $reason = 'restored state has no sovereign.db'
+            }
+            else {
+                $checkPy = Join-Path $env:TEMP ('sws-accept-rst-' + [Guid]::NewGuid().ToString('N') + '.py')
+                [IO.File]::WriteAllText($checkPy, @'
+import hashlib, sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+chk = c.execute("PRAGMA integrity_check").fetchone()[0]
+if chk != "ok":
+    raise SystemExit("integrity_check=" + chk)
+job_id, expect = sys.argv[2], sys.argv[3]
+row = c.execute(
+    "select content, status from messages where role='sovereign' and job_id=?",
+    (job_id,),
+).fetchone()
+if not row:
+    raise SystemExit("restored job missing")
+if row[1] != "accepted":
+    raise SystemExit("restored message status " + row[1])
+got = hashlib.sha256(row[0].encode("utf-8")).hexdigest()
+if got != expect:
+    raise SystemExit("restored answer hash %s != %s" % (got, expect))
+if "qwen2.5:3b-instruct" not in row[0] or "SovereignWorkspace" not in row[0]:
+    raise SystemExit("restored answer missing required facts")
+print("ok")
+'@, $utf8NoBom)
+                $chkOut = & $pyLive $checkPy $restoredDb $liveJob $liveHash 2>&1 | Out-String
+                $chkCode = $LASTEXITCODE
+                Remove-Item -LiteralPath $checkPy -Force -ErrorAction SilentlyContinue
+                if ($chkCode -ne 0) {
+                    $reason = "restored database check failed: $chkOut"
+                }
+                else { $ok = $true }
+            }
+        }
+    }
+    Write-Record '6' 'back up, verify, restore meaningful application state' `
+        $(if ($ok) { 'PASS' } else { 'FAIL' }) $reason $code `
+        'backup_state.ps1 + restore_state.ps1 + sqlite reopen' $evidenceDir $started
+    if ($restoreRoot -and (Test-Path -LiteralPath $restoreRoot)) {
+        Remove-Item -LiteralPath $restoreRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # --- step 7: upgrade, then rollback with an injected candidate failure --------------------------
@@ -313,6 +373,19 @@ if ($Steps -contains '7') {
             Write-Record '7' 'successful upgrade after rollback recovery' `
                 $(if ($upOk) { 'PASS' } else { 'FAIL' }) $upReason `
                 $u.ExitCode 'upgrade.ps1' $u.Log $startedUp
+            if ($upOk) {
+                $startedWf = Get-Date
+                $wf = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
+                    '-InstallRoot', $installRoot, '-StateRoot', $stateRoot,
+                    '-Mode', 'workflow', '-ShellPort', '15182',
+                    '-EvidenceLog', (Join-Path $logDir 'step7-upgrade-workflow.log')
+                ) 'step7-upgrade-workflow'
+                $wfOk = ($wf.ExitCode -eq 0)
+                Write-Record '7' 'useful workflow after successful upgrade' `
+                    $(if ($wfOk) { 'PASS' } else { 'FAIL' }) `
+                    $(if ($wfOk) { '' } else { "post-upgrade workflow exited $($wf.ExitCode)" }) `
+                    $wf.ExitCode 'exercise_live.ps1 after upgrade' $wf.Log $startedWf
+            }
         }
     }
 }

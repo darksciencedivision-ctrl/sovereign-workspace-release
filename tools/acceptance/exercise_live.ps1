@@ -169,26 +169,79 @@ try {
         if ($answer -notmatch 'SovereignWorkspace') { Write-Output "answer missing state location: $answer"; exit 1 }
         if ($answer -notmatch '\[source:[^\]]+\]') { Write-Output "answer missing citations: $answer"; exit 1 }
         if (-not (Test-Path -LiteralPath $db)) { Write-Output "sovereign.db missing at $db"; exit 1 }
+        $pointer = [string]$job.Json.evidence_pointer
+        if (-not $pointer) { Write-Output "completed job $jobId has no evidence_pointer"; exit 1 }
+        $stateDir = Join-Path $stateRoot 'sovereign'
         $probe = @"
-import sqlite3, sys
-c = sqlite3.connect(sys.argv[1])
+import hashlib, json, re, sqlite3, sys
+from pathlib import Path
+db_path, job_id, pointer, state_dir = sys.argv[1:5]
+c = sqlite3.connect(db_path)
 chk = c.execute('PRAGMA integrity_check').fetchone()[0]
 if chk != 'ok':
     raise SystemExit('integrity_check=' + chk)
-job_id = sys.argv[2]
-row = c.execute('select content, status from messages where role=? and job_id=?',
+row = c.execute('select content, status, evidence_pointer from messages where role=? and job_id=?',
                 ('sovereign', job_id)).fetchone()
 if not row:
     raise SystemExit('no persisted sovereign message for ' + job_id)
 if row[1] != 'accepted':
     raise SystemExit('message status ' + row[1])
-if 'qwen2.5:3b-instruct' not in row[0] or 'SovereignWorkspace' not in row[0]:
+content = row[0]
+if 'qwen2.5:3b-instruct' not in content or 'SovereignWorkspace' not in content:
     raise SystemExit('persisted answer missing required facts')
+job_ptr = c.execute('select evidence_pointer from jobs where job_id=?', (job_id,)).fetchone()
+if not job_ptr or not job_ptr[0]:
+    raise SystemExit('job has no evidence_pointer')
+if job_ptr[0] != pointer:
+    raise SystemExit('job pointer mismatch')
+prefix = 'sovereign-state://'
+if not pointer.startswith(prefix):
+    raise SystemExit('unexpected pointer scheme: ' + pointer)
+rel = pointer[len(prefix):].replace('/', '\\')
+base = Path(state_dir).resolve()
+path = (base / rel).resolve()
+if base not in path.parents and path != base:
+    raise SystemExit('evidence path escaped state dir')
+if not path.is_file():
+    raise SystemExit('evidence file missing: ' + str(path))
+raw = path.read_bytes()
+file_sha = hashlib.sha256(raw).hexdigest()
+doc = json.loads(raw.decode('utf-8'))
+recorded = doc.get('packet_sha256')
+if not recorded or not re.fullmatch(r'[0-9a-f]{64}', str(recorded)):
+    raise SystemExit('evidence.json missing packet_sha256')
+text = doc.get('text') or ''
+if 'qwen2.5:3b-instruct' not in text:
+    raise SystemExit('packet text missing primary reasoner')
+if 'SovereignWorkspace' not in text:
+    raise SystemExit('packet text missing state location')
+sources = list(doc.get('sources') or [])
+if not sources:
+    raise SystemExit('packet has no sources')
+for src in sources:
+    snippet = src.get('snippet') or ''
+    want = src.get('snippet_sha256')
+    got = hashlib.sha256(snippet.encode('utf-8')).hexdigest()
+    if want != got:
+        raise SystemExit('snippet hash mismatch for ' + str(src.get('locator')))
+locators = {str(s.get('locator') or '').replace('\\', '/') for s in sources}
+if 'SYSTEM_MANIFEST.json' not in locators:
+    raise SystemExit('packet omitted SYSTEM_MANIFEST.json')
+ids = {str(s.get('source_id') or '') for s in sources}
+cited = set(re.findall(r'\[source:([^\]]+)\]', content))
+if not cited:
+    raise SystemExit('answer has no [source:] citations')
+unknown = cited - ids - locators
+if unknown:
+    raise SystemExit('citations not in packet: ' + ','.join(sorted(unknown)))
 print('ok')
 print('persisted', job_id)
+print('evidence', path.name)
+print('file_sha256', file_sha)
+print('packet', recorded)
 "@
-        $dbOut = Invoke-Db $py $probe @($db, $jobId)
-        Write-Output "workflow job=$jobId db=$dbOut"
+        $dbOut = Invoke-Db $py $probe @($db, $jobId, $pointer, $stateDir)
+        Write-Output "workflow job=$jobId pointer=$pointer db=$dbOut"
         exit 0
     }
 
@@ -299,4 +352,25 @@ catch {
 }
 finally {
     Stop-OwnedProcessTree -Tracker $owned -LauncherPid $launcherPid -LauncherCreated $launcherCreated
+    Start-Sleep -Milliseconds 400
+    try {
+        foreach ($port in @($ShellPort, 5175)) {
+            $left = Get-Listener $port
+            if (-not $left) { continue }
+            $leftPid = [int]$left.OwningProcess
+            $ownedLeft = $false
+            if ($launcherPid -gt 0 -and (Test-ProcessDescendsFrom -ChildProcessId $leftPid -AncestorProcessId $launcherPid)) {
+                $ownedLeft = $true
+            }
+            if (-not $ownedLeft -and $owned) {
+                foreach ($item in $owned) {
+                    if ([int]$item.Pid -eq $leftPid) { $ownedLeft = $true; break }
+                }
+            }
+            if ($ownedLeft) {
+                Write-Output "owned listener remained on $port PID $leftPid after cleanup"
+                exit 1
+            }
+        }
+    } catch { }
 }

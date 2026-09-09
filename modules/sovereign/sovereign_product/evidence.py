@@ -178,6 +178,27 @@ _HUMANIZED_PRODUCT_LOCATOR_ALIASES = {
     "constitution state": "constitution/constitution_state.json",
     "model hierarchy": "synthesis/model_hierarchy.json",
 }
+# SYSTEM_MANIFEST MODELS keys, humanized. Multi-word role names are this
+# product's vocabulary (like "praxis"): a query naming them is asking about
+# configured models even without saying "sovereign" or "the product".
+# Single-word roles ("critic", "synthesizer") require a model-configuration
+# frame so ordinary English does not retrieve product files.
+_PRODUCT_MODEL_ROLE_KEYS = (
+    "PRIMARY_REASONER",
+    "ADVERSARIAL_CHALLENGER",
+    "CRITIC",
+    "SYNTHESIZER",
+    "EMBEDDING_MODEL",
+)
+_STATE_LOCATION_QUERY_RE = re.compile(
+    r"\bwhere\s+(?:(?:is|are|does)\s+)?"
+    r"(?:(?:the\s+)?(?:mutable\s+|operator\s+|product\s+)?"
+    r"(?:runtime\s+)?state|(?:the\s+)?runtime)\s+"
+    r"(?:(?:is\s+)?(?:kept|stored|located|saved)|live[sd]?|"
+    r"kept|stored|located)\b"
+    r"|"
+    r"\b(?:runtime\s+state)\s+(?:is\s+)?(?:kept|stored|located|saved)\b"
+)
 #: EPC-02. The constitution's own vocabulary, taken from its headings and defined terms -
 #: not a general keyword list. A query using one of these words is asking about governance,
 #: and the constitution is the only file that can answer it.
@@ -760,12 +781,22 @@ class EvidenceBuilder:
             )
         ):
             intents.add("models")
-        # Product vocabulary from SYSTEM_MANIFEST MODELS.PRIMARY_REASONER and
-        # README_PRODUCTION.md. The frozen operator query names these phrases
-        # without saying "sovereign" or "the product"; fullmatch patterns miss it.
-        if re.search(r"\bprimary\s+reasoner\b", normalized):
-            intents.add("models")
-        if re.search(r"\bruntime\s+state\b", normalized):
+        for key in _PRODUCT_MODEL_ROLE_KEYS:
+            phrase = key.replace("_", " ").casefold()
+            escaped = re.escape(phrase).replace(r"\ ", r"\s+")
+            if " " in phrase:
+                if re.search(rf"\b{escaped}\b", normalized):
+                    intents.add("models")
+                    break
+            elif re.search(
+                rf"\b(?:which|what)\s+model\s+(?:is|are)\s+"
+                rf"(?:configured|assigned|selected)\s+as\s+(?:the\s+)?{escaped}\b"
+                rf"|\b(?:the\s+)?{escaped}\s+model\b",
+                normalized,
+            ):
+                intents.add("models")
+                break
+        if _STATE_LOCATION_QUERY_RE.search(normalized):
             intents.add("runtime")
 
         if "mode" in words and (
