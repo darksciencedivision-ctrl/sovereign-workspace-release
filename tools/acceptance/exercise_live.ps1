@@ -171,7 +171,7 @@ try {
         if (-not (Test-Path -LiteralPath $db)) { Write-Output "sovereign.db missing at $db"; exit 1 }
         $pointer = [string]$job.Json.evidence_pointer
         if (-not $pointer) { Write-Output "completed job $jobId has no evidence_pointer"; exit 1 }
-        $stateDir = Join-Path $stateRoot 'sovereign'
+        $stateDir = Join-Path $stateRoot 'sovereign\runtime'
         $probe = @"
 import hashlib, json, re, sqlite3, sys
 from pathlib import Path
