@@ -1,3 +1,29 @@
+# SWS-BENCH-02 — results
+
+**Run:** `sws-bench-02-8741a9e`  
+**Raw:** `C:\Users\Sslaw\AppData\Local\Temp\opencode\sws-corrective-01\bench-sws-bench-02-8741a9e\SWS-BENCH-02.jsonl`  
+**Candidate at measurement:** `8741a9e783d714ae6ef25f40254667453113c7b3`  
+**Coverage:** 30 tasks × 4 conditions × 3 repeats = **360/360**. Unique cells, one writer.  
+**Not used:** contaminated `B-1run.jsonl`; interrupted `sws-bench-02-4fa8225` (10 cells, stale lock, preserved).
+
+| Condition | n | success | median s | median calls | peak VRAM MiB |
+|---|---|---|---|---|---|
+| A_single | 90 | 71.1% | 3.6 | 1 | 7181 |
+| B_full | 90 | 10.0% | 192.0 | 8 | 7678 |
+| C1_no_critic | 90 | 20.0% | 172.4 | 7 | 7710 |
+| C2_no_verifier | 90 | 37.8% | 102.0 | 5 | 7620 |
+
+**Primary (B − A):** −61.1 pts; 95% bootstrap CI [−75.56, −45.56].  
+**Decision (frozen rule):** **SIMPLIFY** — make the single-model workflow the default.  
+Applied on `c433176`: long-form AUTO no longer selects DEEP; DEEP remains an explicit override.
+
+C1 vs B: +10.0 pts, CI [−3.33, 24.44] **INCONCLUSIVE**.  
+C2 vs B: +27.8 pts, CI [11.11, 44.44] **stage HURTS**.
+
+Timeouts are recorded as failed tasks, not dropped.
+
+---
+
 # SWS-BENCH-01 — results (HISTORICAL / INVALID FOR INFERENCE)
 
 **Correction 2026-09-08 (OpenCode / grok-4.6).** Current protocol is **SWS-BENCH-02**
