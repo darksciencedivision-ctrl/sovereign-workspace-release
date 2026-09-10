@@ -164,7 +164,9 @@ def inspect_router() -> list[dict[str, Any]]:
             "name": "quick-default",
             "route": Route.QUICK.value,
             "description": (
-                "Default for concise requests that match no higher-priority rule."
+                "Default when no higher-priority rule matches, including long-form "
+                "requests. SWS-BENCH-02: full orchestration lost to single-model "
+                "QUICK; DEEP remains an explicit override."
             ),
             "patterns": [],
         }
@@ -254,19 +256,11 @@ def route_query(
         )
 
     word_count = len(_WORD.findall(text))
-    if word_count >= 30:
-        return RoutingDecision(
-            Route.DEEP,
-            text,
-            "long-form request threshold (30 or more words)",
-            False,
-            ("long_form_threshold",),
-            (f"word_count={word_count}",),
-        )
     return RoutingDecision(
         Route.QUICK,
         text,
-        "no continuity, self-state, research, or deep-analysis signal matched",
+        "no continuity, self-state, research, or deep-analysis signal matched; "
+        "QUICK is the default including long-form requests (SWS-BENCH-02)",
         False,
         ("quick_default",),
         (f"word_count={word_count}",),
