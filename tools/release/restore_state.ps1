@@ -80,6 +80,10 @@ if (-not (Test-Path -LiteralPath $stateParent -PathType Container)) {
 
 $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
 $staging = Join-Path $stateParent ('.sovereign-restore-staging-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
+# R03: whether the finally block may delete the staged, verified restore. It is cleared the moment
+# staging is either consumed (moved into place) or preserved for the operator to recover from, so a
+# placement/recovery failure can never delete the exact copy the operator was told to recover from.
+$cleanupStaging = $true
 
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -246,9 +250,13 @@ try {
 
     try {
         Move-Item -LiteralPath $staging -Destination $stateRootFull
-        $staging = $null  # placed; the cleanup block must not remove it
+        $cleanupStaging = $false  # placed (moved); there is nothing left to clean
     }
     catch {
+        # R03: a placement OR recovery failure must PRESERVE the verified staged restore so the
+        # operator can recover from it by hand. Clear the cleanup flag for every failure exit from
+        # this block, and name only the recovery paths that STILL EXIST.
+        $cleanupStaging = $false
         $placementError = $_.Exception.Message
         Write-Output ''
         Write-Output "restore: FAILED to place the verified state at $stateRootFull - $placementError"
@@ -259,13 +267,15 @@ try {
             }
             catch {
                 Write-Output '  RECOVERY DID NOT COMPLETE. Recover by hand from these exact locations:'
-                Write-Output "    previous state   $displaced"
-                Write-Output "    verified restore $staging"
+                if (Test-Path -LiteralPath $displaced) { Write-Output "    previous state   $displaced" }
+                if (Test-Path -LiteralPath $staging) { Write-Output "    verified restore $staging" }
                 exit 5
             }
         }
-        Write-Output "  The verified restore is staged at $staging and was not discarded."
-        $staging = $null
+        # Rollback succeeded, or there was nothing to roll back: the verified restore is retained.
+        if (Test-Path -LiteralPath $staging) {
+            Write-Output "  The verified restore is staged at $staging and was not discarded."
+        }
         exit 5
     }
 
@@ -283,7 +293,7 @@ try {
     exit 0
 }
 finally {
-    if ($staging -and (Test-Path -LiteralPath $staging)) {
+    if ($cleanupStaging -and $staging -and (Test-Path -LiteralPath $staging)) {
         $resolved = [IO.Path]::GetFullPath($staging)
         if ((Split-Path -Leaf $resolved).StartsWith('.sovereign-restore-staging-')) {
             Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction SilentlyContinue
