@@ -182,19 +182,36 @@ class OllamaClient:
             self._session.trust_env = False
         self._monotonic = monotonic
 
-    def _show_model(self, model: str) -> dict[str, Any]:
-        """Read Ollama's existing generic metadata for one exact model tag."""
+    def _remaining_budget(self, deadline: float | None) -> float | None:
+        """Seconds left until an absolute monotonic `deadline` (R22). Raises the overall timeout if
+        it has already passed; returns None when there is no deadline to enforce."""
+        if deadline is None:
+            return None
+        remaining = deadline - self._monotonic()
+        if remaining <= 0:
+            raise GenerationTimeout("overall")
+        return remaining
 
+    def _show_model(self, model: str, *, deadline: float | None = None) -> dict[str, Any]:
+        """Read Ollama's existing generic metadata for one exact model tag.
+
+        R22: when a generation deadline is supplied, the connect and read socket timeouts are
+        capped by the time remaining, so a metadata stall cannot outlive the overall deadline.
+        """
+
+        connect_to = min(self.connect_timeout, self.overall_timeout)
+        read_to = min(self.read_timeout, self.overall_timeout)
+        remaining = self._remaining_budget(deadline)
+        if remaining is not None:
+            connect_to = min(connect_to, remaining)
+            read_to = min(read_to, remaining)
         response: requests.Response | Any | None = None
         try:
             try:
                 response = self._session.post(
                     f"{self.base_url}/api/show",
                     json={"model": model},
-                    timeout=(
-                        min(self.connect_timeout, self.overall_timeout),
-                        min(self.read_timeout, self.overall_timeout),
-                    ),
+                    timeout=(connect_to, read_to),
                     allow_redirects=False,
                 )
             except requests.ConnectTimeout as exc:
@@ -229,12 +246,12 @@ class OllamaClient:
                 if callable(close):
                     close()
 
-    def native_context_length(self, model: str) -> int:
+    def native_context_length(self, model: str, *, deadline: float | None = None) -> int:
         """Return the unguessed native context from generic Ollama metadata."""
 
         if not isinstance(model, str) or not model.strip():
             raise ValueError("model must be a non-empty string")
-        payload = self._show_model(model.strip())
+        payload = self._show_model(model.strip(), deadline=deadline)
         model_info = payload.get("model_info")
         if not isinstance(model_info, Mapping):
             raise ModelCapabilityError(
@@ -287,6 +304,7 @@ class OllamaClient:
         options: Mapping[str, Any],
         system: str | None,
         response_format: str | Mapping[str, Any] | None,
+        deadline: float | None = None,
     ) -> tuple[dict[str, Any], dict[str, int]]:
         resolved = dict(options)
         if "num_ctx" not in resolved or "num_predict" not in resolved:
@@ -305,7 +323,7 @@ class OllamaClient:
             or requested_generation <= 0
         ):
             raise ValueError("options.num_predict must be a positive integer")
-        native_context = self.native_context_length(model)
+        native_context = self.native_context_length(model, deadline=deadline)
         effective_context = min(requested_context, native_context)
         input_bound = self._conservative_input_bound(
             prompt,
@@ -378,6 +396,15 @@ class OllamaClient:
         if cancellation():
             raise GenerationCancelled("generation cancelled before request")
 
+        # R22. One absolute deadline, fixed BEFORE the metadata lookup, covers everything that
+        # follows: the /api/show probe, the connect, the response headers and every streamed line.
+        # It is enforced two ways -- each blocking socket op is capped by the time remaining, and a
+        # watcher thread closes the active response the moment the deadline passes, so a read that
+        # is blocked mid-line (slow headers, a partial line that never completes) is interrupted at
+        # the deadline rather than after the line finally arrives.
+        started = self._monotonic()
+        deadline = started + timeout_limit
+
         request_options = dict(options or {})
         requested_format: str | dict[str, Any] | None
         if response_format is None:
@@ -425,6 +452,7 @@ class OllamaClient:
             options=request_options,
             system=system,
             response_format=requested_format,
+            deadline=deadline,
         )
         payload: dict[str, Any] = {
             "model": model,
@@ -444,15 +472,18 @@ class OllamaClient:
         if requested_format is not None:
             payload["format"] = requested_format
 
-        started = self._monotonic()
-        connect_budget = min(self.connect_timeout, timeout_limit)
-        read_budget = min(self.read_timeout, timeout_limit)
+        # R22. Each socket op is bounded by the time left to the deadline, so no single connect or
+        # read can outlive it even if the watcher is slow to fire.
+        remaining_now = max(0.0, deadline - self._monotonic())
+        connect_budget = min(self.connect_timeout, remaining_now) or self.connect_timeout
+        read_budget = min(self.read_timeout, remaining_now) or self.read_timeout
         response: requests.Response | Any | None = None
         raw_events: list[dict[str, Any]] = []
         raw_lines: list[str] = []
         text_parts: list[str] = []
         saw_done = False
         abort_observed = threading.Event()
+        deadline_exceeded = threading.Event()
         abort_watcher_stop = threading.Event()
 
         def close_active_response() -> None:
@@ -464,9 +495,15 @@ class OllamaClient:
                 close()
 
         def watch_for_cancellation() -> None:
+            # R22. The same watcher enforces both cancellation and the deadline: whichever comes
+            # first closes the active response, interrupting a blocked read.
             while not abort_watcher_stop.wait(_CANCELLATION_POLL_SECONDS):
                 if cancellation():
                     abort_observed.set()
+                    close_active_response()
+                    return
+                if self._monotonic() >= deadline:
+                    deadline_exceeded.set()
                     close_active_response()
                     return
 
@@ -486,10 +523,19 @@ class OllamaClient:
                     allow_redirects=False,
                 )
             except requests.ConnectTimeout as exc:
+                if deadline_exceeded.is_set() or self._monotonic() >= deadline:
+                    raise GenerationTimeout("overall") from exc
                 raise GenerationTimeout("connect") from exc
             except requests.ReadTimeout as exc:
+                # R22. Slow response headers: the initial POST's read timeout is bounded by the
+                # remaining budget, so this fires at the deadline. Attribute it to the overall
+                # deadline when that is the cause.
+                if deadline_exceeded.is_set() or self._monotonic() >= deadline:
+                    raise GenerationTimeout("overall") from exc
                 raise GenerationTimeout("read") from exc
             except requests.Timeout as exc:
+                if deadline_exceeded.is_set() or self._monotonic() >= deadline:
+                    raise GenerationTimeout("overall") from exc
                 raise GenerationTimeout("transport") from exc
             except requests.RequestException as exc:
                 raise ModelClientError(f"Ollama request failed: {exc}") from exc
@@ -510,7 +556,7 @@ class OllamaClient:
                 line_iterator = response.iter_lines(decode_unicode=True)
                 for raw_line in line_iterator:
                     now = self._monotonic()
-                    if now - started > timeout_limit:
+                    if deadline_exceeded.is_set() or now >= deadline:
                         raise GenerationTimeout("overall")
                     if abort_observed.is_set() or cancellation():
                         raise GenerationCancelled("generation cancelled")
@@ -546,10 +592,17 @@ class OllamaClient:
                         saw_done = True
                         break
             except requests.ReadTimeout as exc:
+                if deadline_exceeded.is_set():
+                    raise GenerationTimeout("overall") from exc
                 if abort_observed.is_set() or cancellation():
                     raise GenerationCancelled("generation cancelled") from exc
                 raise GenerationTimeout("read") from exc
             except requests.ConnectionError as exc:
+                # R22. The deadline watcher closes the response to interrupt a blocked read; that
+                # surfaces here (often wrapped as a ConnectionError). It is the overall deadline,
+                # not a transport fault, and is classified before cancellation.
+                if deadline_exceeded.is_set():
+                    raise GenerationTimeout("overall") from exc
                 if abort_observed.is_set() or cancellation():
                     raise GenerationCancelled("generation cancelled") from exc
                 # urllib3 may wrap a streaming read timeout as ConnectionError.
@@ -557,6 +610,8 @@ class OllamaClient:
                     raise GenerationTimeout("read") from exc
                 raise ModelClientError(f"Ollama stream failed: {exc}") from exc
             except requests.RequestException as exc:
+                if deadline_exceeded.is_set():
+                    raise GenerationTimeout("overall") from exc
                 if abort_observed.is_set() or cancellation():
                     raise GenerationCancelled("generation cancelled") from exc
                 # requests surfaces truncated chunked bodies and content-decoding
@@ -574,11 +629,12 @@ class OllamaClient:
                     "Ollama stream emitted invalid UTF-8"
                 ) from exc
             except Exception as exc:
-                # Closing a Requests response from the cancellation watcher can
-                # surface an implementation-level iterator error (for example,
-                # its raw stream becoming None) instead of RequestException.
-                # Normalize only a cancellation-observed failure; unrelated
+                # Closing a Requests response from the watcher can surface an implementation-level
+                # iterator error (for example, its raw stream becoming None) instead of
+                # RequestException. Normalize a deadline- or cancellation-observed failure; unrelated
                 # iterator defects remain visible to their caller.
+                if deadline_exceeded.is_set():
+                    raise GenerationTimeout("overall") from exc
                 if abort_observed.is_set() or cancellation():
                     raise GenerationCancelled("generation cancelled") from exc
                 raise
