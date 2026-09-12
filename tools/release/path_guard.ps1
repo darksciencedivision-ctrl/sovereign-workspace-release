@@ -127,7 +127,7 @@ function Test-TreeContainsReparsePoint {
 
 function Test-SensitiveSystemPath {
     # True when $Candidate equals a well-known system/user location, or CONTAINS one (is an ancestor
-    # of it) — the shapes that must never be recursively deleted. Being CONTAINED BY one (e.g. the
+    # of it) -- the shapes that must never be recursively deleted. Being CONTAINED BY one (e.g. the
     # state root under %LOCALAPPDATA%) is normal and is NOT flagged. Canonical, junction-resolved.
     param([string] $Candidate)
     $canon = Get-CanonicalPath $Candidate
@@ -138,7 +138,7 @@ function Test-SensitiveSystemPath {
         if (-not $val) { continue }
         try { $sens = Get-CanonicalPath $val } catch { continue }
         if ($canon.Equals($sens, [StringComparison]::OrdinalIgnoreCase)) { return $true }
-        # $canon is an ancestor of a sensitive dir ⇒ deleting it would take that dir with it.
+        # $canon is an ancestor of a sensitive dir => deleting it would take that dir with it.
         if (Test-CanonicalContained -Root $canon -Candidate $sens) { return $true }
     }
     return $false

@@ -75,7 +75,7 @@ function Line($label, $value, $color = 'Gray') {
 function Invoke-Native([scriptblock] $Command) {
     # F-001: run a NATIVE command with a LOCAL ErrorActionPreference of 'Continue'. Under Windows
     # PowerShell 5.1 a native process that writes to stderr while the script's EAP is 'Stop' and
-    # stderr is redirected (2>$null, > $null 2>&1) is promoted to a TERMINATING error and throws —
+    # stderr is redirected (2>$null, > $null 2>&1) is promoted to a TERMINATING error and throws --
     # so a probe for a MISSING Python, an absent GPU, or a git warning on stderr aborted the whole
     # preflight (an advisory check crashing the one supported launcher). Restoring EAP means the
     # probe's stderr is ordinary output again; $LASTEXITCODE still reports the real exit code, which

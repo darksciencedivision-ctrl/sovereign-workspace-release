@@ -8,7 +8,7 @@ param()
 #
 # This extracts the REAL Invoke-Native function from Start-Shell.ps1 (by AST, so the shipped body is
 # under test, not a copy) and proves that a stderr-writing native command run through it does NOT
-# throw under EAP=Stop and that $LASTEXITCODE still reports the real code — while the same call made
+# throw under EAP=Stop and that $LASTEXITCODE still reports the real code -- while the same call made
 # directly DOES throw (the fail-before control).
 
 $ErrorActionPreference = 'Stop'
