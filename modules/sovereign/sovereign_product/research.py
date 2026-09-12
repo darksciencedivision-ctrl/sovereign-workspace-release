@@ -87,6 +87,13 @@ class ResearchPhase(str, Enum):
     DECISION = "reject_revise_or_retain"
     ITERATION_CHECKPOINT = "iteration_checkpoint"
     FINAL_SYNTHESIS = "final_synthesis"
+    # R38. A durable, model-free finalization phase. Final synthesis and finalization used to be
+    # one indivisible step: after the synthesis output was checkpointed, the SAME loop turn marked
+    # the run completed and wrote the final artifacts. A crash in that window left `final_synthesis`
+    # persisted but the run not completed, and resume raised "non-completed state has no next
+    # phase". Finalization is now its own phase: it publishes artifacts and marks completion
+    # idempotently, calls no model, and is where the loop resumes to after synthesis.
+    FINALIZE = "finalize"
 
 
 class ResearchStatus(str, Enum):
@@ -2703,7 +2710,9 @@ class ResearchExecutor:
                     iteration=state["completed_iterations"],
                     source="final_synthesis",
                 )
-            state["next_phase"] = None
+            # R38. Hand off to the durable finalization phase rather than marking completion in the
+            # same turn, so a crash after this checkpoint resumes straight into FINALIZE.
+            state["next_phase"] = ResearchPhase.FINALIZE.value
         else:
             raise ResearchPhaseError(f"cannot complete model phase {phase.value}")
         state["inflight"] = None
@@ -2753,6 +2762,11 @@ class ResearchExecutor:
         state: Mapping[str, Any],
         phase: ResearchPhase,
     ) -> str | None:
+        # R38. Finalization is model-free and must always complete a synthesized run; a budget
+        # that was exhausted during the run must never divert it to a partial finish after the
+        # answer has already been synthesized.
+        if phase is ResearchPhase.FINALIZE:
+            return None
         limits = ResearchLimits.from_dict(state["limits"])
         if float(state["resources"]["active_seconds"]) >= limits.maximum_duration_seconds:
             return "maximum active-duration budget reached"
@@ -2784,6 +2798,11 @@ class ResearchExecutor:
                 if state.get("next_phase") is None:
                     if state["status"] == ResearchStatus.COMPLETED.value:
                         return self._result(state)
+                    # R38. A state whose synthesis was persisted but whose completion was not (a
+                    # crash in the old single-turn window, or any legacy checkpoint written with
+                    # next_phase=None) is finalized on resume rather than declared unrecoverable.
+                    if state.get("final_synthesis") is not None:
+                        return self._finalize(state)
                     raise ResearchCheckpointError(
                         "non-completed state has no next phase"
                     )
@@ -2796,18 +2815,15 @@ class ResearchExecutor:
                     self._complete_iteration(state)
                     continue
 
+                if phase is ResearchPhase.FINALIZE:
+                    # R38. Durable, model-free finalization. Reached both directly after synthesis
+                    # and on resume after a crash in the finalization window.
+                    return self._finalize(state)
+
                 inflight = self._begin_model_phase(state, phase)
                 text = self._obtain_model_output(state, phase, inflight)
                 parsed = self._parse_phase_output(state, phase, text)
                 self._complete_model_phase(state, phase, parsed)
-
-                if phase is ResearchPhase.FINAL_SYNTHESIS:
-                    state["status"] = ResearchStatus.COMPLETED.value
-                    state["completed_at"] = self._now()
-                    state["reason"] = None
-                    self._write_final_artifacts(state, completed=True)
-                    self._checkpoint(state, "research-completed")
-                    return self._result(state)
         except KeyboardInterrupt:
             return self._stop(
                 state,
@@ -2878,6 +2894,25 @@ class ResearchExecutor:
                 f"research failed ({reason}) and failure checkpoint also failed: "
                 f"{checkpoint_exc}"
             ) from checkpoint_exc
+        return self._result(state)
+
+    def _finalize(self, state: dict[str, Any]) -> ResearchResult:
+        """R38. Durably and idempotently finalize a synthesized run.
+
+        Reached after final synthesis and on resume after a crash in the finalization window. It
+        calls no model (final synthesis is already persisted in `state["final_synthesis"]`), marks
+        completion once, republishes the final artifacts (atomic writes, so re-running is a no-op),
+        clears `next_phase`, checkpoints, and returns the result. Running it twice yields the same
+        completed state, so a crash between any two of its steps still resumes to completion without
+        a duplicate synthesis call."""
+        if state.get("status") != ResearchStatus.COMPLETED.value:
+            state["status"] = ResearchStatus.COMPLETED.value
+            if not state.get("completed_at"):
+                state["completed_at"] = self._now()
+            state["reason"] = None
+        self._write_final_artifacts(state, completed=True)
+        state["next_phase"] = None
+        self._checkpoint(state, "research-completed")
         return self._result(state)
 
     def _finish_partial(
