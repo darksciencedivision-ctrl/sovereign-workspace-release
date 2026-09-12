@@ -66,8 +66,10 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
         Route.CONTINUITY,
         "The request explicitly depends on earlier work or asks to resume it.",
         (
-            r"\bcontinue\b",
-            r"\bresume\b",
+            # F-103. `continue`/`resume`/`keep going` count as CONTINUITY only as the leading
+            # imperative of the request ("continue the analysis"), not as topical prose
+            # ("why do prices continue to rise?").
+            r"^\s*(?:please\s+|now\s+|ok(?:ay)?,?\s+)?(?:continue|resume|keep\s+going|carry\s+on)\b",
             r"\bpick\s+up\s+where\b",
             r"\bprevious\s+(?:answer|conversation|session|work|result)\b",
             r"\bearlier\s+(?:answer|conversation|work|result)\b",
@@ -116,6 +118,16 @@ _INLINE_OVERRIDE = re.compile(
     re.IGNORECASE,
 )
 _WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
+
+#: F-103 / R21. Tokens that mark a request as being about THIS assistant/system, gating the
+#: machine-self-state (STATUS) route so a bare topical "status/health/version/AGI" is not answered
+#: with the product's own status.
+_SELF_REFERENCE = re.compile(
+    r"\b(?:you|your|yours|yourself|sovereign|"
+    r"(?:this|the|your)\s+(?:system|product|service|machine|workspace|assistant|model|shell|"
+    r"install(?:ation)?))\b",
+    re.IGNORECASE,
+)
 
 
 def inspect_router() -> list[dict[str, Any]]:
@@ -220,6 +232,15 @@ def route_query(
         )
         if signals:
             matches.append((rule, signals))
+
+    # F-103 / R21. STATUS is the MACHINE-SELF-STATE route. A bare topical "status", "health",
+    # "version" or "AGI" with no reference to THIS system ("what are the health benefits of green
+    # tea?", "latest version of Python", "is AGI possible?") is an ordinary question, not a request
+    # for the product's own status. Keep the STATUS match only when the request actually refers to
+    # this assistant/system; otherwise drop it and let a lower-precedence rule or the QUICK default
+    # answer the real question.
+    if matches and matches[0][0].route is Route.STATUS and not _SELF_REFERENCE.search(match_text):
+        matches = [(rule, sig) for rule, sig in matches if rule.route is not Route.STATUS]
 
     if matches:
         # ROUTING_RULES is ordered by precedence.

@@ -73,6 +73,15 @@ from system_manifest import (
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
+#: F-108 / F-114. Product-appropriate route budgets. OLLAMA_GENERATION_TIMEOUT_SECONDS (24h) was
+#: used as the QUICK overall timeout and, via a None DEEP timeout, left DEEP with no overall bound
+#: and a 24h-per-call ceiling -- one hung Ollama call blocked the single worker for up to a day.
+#: With R22 enforcing an absolute per-call deadline, these are the actual budgets a job may take:
+#: QUICK/CONTINUITY answer in one model pass; DEEP runs a handful of sequential passes under one
+#: overall ceiling. A caller may still pass larger values explicitly for a deliberate long run.
+QUICK_TIMEOUT_SECONDS = 600.0            # 10 minutes for a single QUICK/CONTINUITY generation
+DEEP_PER_CALL_TIMEOUT_SECONDS = 1800.0   # 30 minutes for any one DEEP model call
+DEEP_OVERALL_TIMEOUT_SECONDS = 3600.0    # 60 minutes across the whole DEEP pipeline
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
@@ -503,8 +512,8 @@ class ProductService:
         start_workers: bool = True,
         introspection_http_get: Callable[[str, float], Any] | None = None,
         introspection_timeout: float = 0.6,
-        quick_timeout: float = OLLAMA_GENERATION_TIMEOUT_SECONDS,
-        deep_timeout: float | None = None,
+        quick_timeout: float = QUICK_TIMEOUT_SECONDS,
+        deep_timeout: float | None = DEEP_OVERALL_TIMEOUT_SECONDS,
     ) -> None:
         self.paths = paths or resolve_product_paths(root, create=True)
         self.root = self.paths.root
@@ -690,6 +699,9 @@ class ProductService:
             trusted_roots=(self.paths.state_dir,),
             evidence_builder=self.evidence_builder,
             base_options=self._runtime_model_options(manifest),
+            # F-114. A product-scale per-call ceiling; the overall DEEP budget is enforced
+            # separately via deep_timeout -> context.timeout_seconds.
+            per_call_timeout_seconds=DEEP_PER_CALL_TIMEOUT_SECONDS,
             # R35. Emit typed, round-trip-validated artifact pointers at the producer, resolved
             # through the one shared contract that knows the state root.
             pointer_factory=self.paths.make_pointer,
