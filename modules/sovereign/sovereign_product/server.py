@@ -1469,19 +1469,17 @@ class ProductService:
         and neither leaks a machine path. A path under neither root is reported as such rather
         than guessed at or silently dropped.
         """
+        # R30. Emit through the one shared, URL-ENCODING, round-trip-validated contract. The old
+        # inline branch concatenated raw POSIX text (STATE_POINTER_PREFIX + relative.as_posix()),
+        # so a valid state file named e.g. `name#1.json` produced a pointer that resolve_pointer
+        # then rejected as URL metadata, and percent signs could change the resolved filename.
+        # make_pointer chooses the scheme (install vs state) and quotes the payload exactly as the
+        # install-root artifact_pointer does.
         try:
-            return artifact_pointer(path, root=self.root)
+            return self.paths.make_pointer(path)
         except (PathResolutionError, UnsafeArtifactPointer):
-            pass
-        for base in (self.paths.state_dir, Path(self.paths.state_dir).parent):
-            try:
-                relative = Path(path).resolve(strict=False).relative_to(
-                    Path(base).resolve(strict=False)
-                )
-            except (ValueError, OSError):
-                continue
-            return STATE_POINTER_PREFIX + PurePosixPath(*relative.parts).as_posix()
-        return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
+            # A path under neither trusted root: name it without leaking a host path.
+            return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
 
     def _self_answer(self, query: str) -> tuple[dict[str, Any], dict[str, Any]]:
         try:

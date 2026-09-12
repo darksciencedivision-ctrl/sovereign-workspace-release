@@ -786,13 +786,21 @@ class SemanticDeepExecutor:
         self._pointer_factory = pointer_factory
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
+        # R36. Derive the output budget JOINTLY with the context so the default always satisfies
+        # _validate_options (num_ctx >= 4096 and num_ctx > num_predict). The old defaults pinned
+        # num_predict = 32768 next to num_ctx = recommended_num_ctx()[0], which on a host whose
+        # recommendation caps at 32768 is NOT greater than num_predict -- so the public constructor
+        # raised ValueError on its own defaults. An explicit base_options still wins.
+        provided = dict(base_options or {})
+        effective_ctx = int(provided.get("num_ctx", recommended_num_ctx()[0]))
+        default_predict = min(32_768, max(256, effective_ctx // 2))
         defaults = {
             "temperature": 0.1,
-            "num_predict": 32_768,
-            "num_ctx": recommended_num_ctx()[0],
+            "num_predict": default_predict,
+            "num_ctx": effective_ctx,
             "seed": 1729,
         }
-        defaults.update(dict(base_options or {}))
+        defaults.update(provided)
         self.base_options = _validate_options(defaults)
         configured_stage_options: dict[str, dict[str, Any]] = {
             "critique": {"temperature": 0},

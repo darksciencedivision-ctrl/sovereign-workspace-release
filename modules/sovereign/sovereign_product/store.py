@@ -16,7 +16,11 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 
 SCHEMA_VERSION = 2
-ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+# R33. One id contract across the store and the executors. The store used to admit 1-128 chars
+# while QUICK and semantic/legacy DEEP validate 1-96, so a caller-provided session_id of 97-128
+# chars created a session that then failed generation on every attempt. Capped to match the
+# executors' 1-96 (generated ids -- session_/job_/message_ + 32 hex = <=40 -- are well under it).
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
 ROLES = {"user", "sovereign", "system"}
 JOB_STATES = {
     "queued",
@@ -1333,9 +1337,15 @@ class SovereignStore:
                     if isinstance(progress, Mapping)
                     else None
                 )
+                # R29. Accept BOTH pointer schemes. Under the shipped external-state layout the
+                # service emits sovereign-state:// pointers for runtime evidence; accepting only
+                # sovereign:// dropped the recovery link for every job with an external-state
+                # pointer, recovering it as interrupted with no evidence to resume from. Resolution
+                # of either scheme happens later through paths.resolve_pointer.
                 if not (
                     isinstance(recovery_pointer, str)
-                    and recovery_pointer.startswith("sovereign://")
+                    and (recovery_pointer.startswith("sovereign://")
+                         or recovery_pointer.startswith("sovereign-state://"))
                     and ".." not in recovery_pointer
                 ):
                     recovery_pointer = None
