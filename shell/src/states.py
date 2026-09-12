@@ -486,21 +486,29 @@ class ModuleRunner:
         still in flight, and it must not erase a diagnostic failure merely because the port has
         since been released - the operator needs to read WHY the last start failed.
         """
-        if self.state in (NOT_STARTED, CONFIG_ERROR, STARTING):
+        # F-013 (+ R02). Snapshot the operation generation and the state under the lock, then treat
+        # the whole poll as ONE observation. Every transition it publishes goes through
+        # `_observe_set`, which drops the write if a start/stop/restart took ownership (or replaced
+        # the process) since the snapshot -- so a FAILED("EXIT") can never land on a fresh STARTING,
+        # and poll can never overwrite an in-flight transition it merely raced.
+        with self._op_lock:
+            gen = self._op_seq
+            state0 = self.state
+        if state0 in (NOT_STARTED, CONFIG_ERROR, STARTING):
             # STARTING belongs to an operation that is still running. A poll that touched it
             # would race the start's own publication.
             return self.display
         ph = self.supervisor.get_process(self.id)
 
-        if self.state in (READY, DEGRADED):
+        if state0 in (READY, DEGRADED):
             if ph is None or not ph.is_alive():
-                self._set(FAILED, "EXIT")
+                self._observe_set(gen, ph, FAILED, "EXIT")
                 return self.display
             alive_ok = self._periodic_readiness_ok(ph)
-            if self.state == READY and not alive_ok:
-                self._set(DEGRADED, "readiness lost")
-            elif self.state == DEGRADED and alive_ok:
-                self._set(READY)
+            if state0 == READY and not alive_ok:
+                self._observe_set(gen, ph, DEGRADED, "readiness lost")
+            elif state0 == DEGRADED and alive_ok:
+                self._observe_set(gen, ph, READY)
             else:
                 self.last_check = _now_iso()
             return self.display

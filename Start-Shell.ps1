@@ -300,6 +300,29 @@ if ($CheckOnly) {
 if ($blocking.Count -gt 0) { exit 1 }
 
 # --- run ---------------------------------------------------------------------
+
+# F-002/F-003. A deterministic exit code on every path. In Windows PowerShell 5.1 a
+# Start-Process -PassThru object reports $null for ExitCode unless its Handle was touched while
+# the process was alive (see the Handle cache below); a $null exit code silently becomes 0. This
+# helper never returns $null: a process still running (forced-kill in progress) or a null code
+# both map to a non-zero failure, so a shell that died is never reported as success.
+function Get-SafeExitCode {
+    param($Process)
+    try {
+        if (-not $Process.HasExited) { return 1 }
+        $code = $Process.ExitCode
+        if ($null -eq $code) { return 1 }
+        return [int]$code
+    }
+    catch { return 1 }
+}
+
+# F-005. How long to let the shell shut its modules down cleanly (SIGBREAK/named-event graceful
+# path, DB/WAL writers flushing) before this launcher forces it. The shell shares this console, so
+# Ctrl+C already reached it; the launcher's job is to WAIT for that graceful stop, not to race it
+# with TerminateProcess.
+$gracefulStopTimeoutMs = 30000
+
 $url = "http://127.0.0.1:$Port"
 $env:PYTHONDONTWRITEBYTECODE = '1'
 Write-Host "  Starting on $url. Ctrl+C to stop." -ForegroundColor Cyan
@@ -309,6 +332,10 @@ Write-Host ""
 $proc = Start-Process -FilePath $py `
                       -ArgumentList @('-3.12', '-B', '-m', 'shell.src', '--port', "$Port") `
                       -WorkingDirectory $root -NoNewWindow -PassThru
+# F-002. Cache the process Handle while it is alive so ExitCode is populated when it exits;
+# without this, PS 5.1 reports ExitCode = $null and `exit $proc.ExitCode` becomes exit 0.
+$null = $proc.Handle
+$script:launcherExit = $null
 
 try {
     # READINESS IS SERVICE IDENTITY, NOT A LISTENER. The previous launcher accepted any
@@ -331,9 +358,10 @@ try {
     }
 
     if ($proc.HasExited) {
-        Write-Host "  The shell exited during startup (code $($proc.ExitCode))." -ForegroundColor Red
+        $script:launcherExit = Get-SafeExitCode $proc
+        Write-Host "  The shell exited during startup (code $script:launcherExit)." -ForegroundColor Red
         Write-Host ""
-        exit $proc.ExitCode
+        exit $script:launcherExit
     }
 
     if ($ready) {
@@ -341,6 +369,9 @@ try {
         if (-not $NoBrowser) { Start-Process $url }
     }
     elseif ($identityProblem) {
+        # F-003. An identity mismatch is a launcher failure regardless of the foreign process's own
+        # exit code; pin it so the finally block does not overwrite it with that process's code.
+        $script:launcherExit = 1
         Write-Host "  $identityProblem" -ForegroundColor Red
         Write-Host "  Not opening a browser. Stopping the process this launcher started." -ForegroundColor Red
         exit 1
@@ -351,14 +382,29 @@ try {
     }
 
     Wait-Process -Id $proc.Id
+    # F-003. The shell exited on its own; carry its real code out (this path previously fell off
+    # the end of the script with no `exit`, leaking a stale $LASTEXITCODE from an earlier probe).
+    $script:launcherExit = Get-SafeExitCode $proc
 }
 finally {
     if (-not $proc.HasExited) {
         Write-Host ""
-        Write-Host "  Stopping the shell..." -ForegroundColor Cyan
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        $proc.WaitForExit(5000) | Out-Null
+        Write-Host "  Stopping the shell (waiting up to $([int]($gracefulStopTimeoutMs/1000))s for graceful shutdown)..." -ForegroundColor Cyan
+        # F-005. Ctrl+C reached the shell too (shared console); let it shut its modules down
+        # cleanly before forcing, so DB/WAL writers are not TerminateProcess'd mid-write.
+        if (-not $proc.WaitForExit($gracefulStopTimeoutMs)) {
+            Write-Host "  Graceful shutdown did not complete in time; forcing." -ForegroundColor Yellow
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            $proc.WaitForExit(5000) | Out-Null
+        }
     }
-    Write-Host "  Stopped." -ForegroundColor Cyan
+    # F-002/F-003. Always exit with a determinate code: an explicitly pinned launcher result if a
+    # path set one (startup failure, identity mismatch, clean shell exit), otherwise the shell's
+    # own code after the stop above. Never leave a stale $LASTEXITCODE.
+    if ($null -eq $script:launcherExit) {
+        $script:launcherExit = Get-SafeExitCode $proc
+    }
+    Write-Host "  Stopped (exit $script:launcherExit)." -ForegroundColor Cyan
     Write-Host ""
+    exit $script:launcherExit
 }

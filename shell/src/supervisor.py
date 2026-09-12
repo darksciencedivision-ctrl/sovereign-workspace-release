@@ -431,6 +431,17 @@ class JobSupervisor:
     def spawn(self, module_id: str, argv: list, cwd: str, env: dict, log_ring=None):
         """Create suspended, assign to both jobs, resume. Raises SupervisorError on failure."""
         with self._lock:
+            # F-014. Refuse to spawn over a module that already has a LIVE managed process.
+            # `self._processes[module_id] = ph` used to silently replace an existing handle, so the
+            # previous process (and its job handle) became unreachable by stop()/Open -- it kept
+            # running untracked, still holding the module's port, until shell exit. This is
+            # reachable via a poll/Start race (F-013) or a start whose readiness failed after spawn;
+            # a live entry now blocks the second spawn instead of orphaning the first.
+            existing = self._processes.get(module_id)
+            if existing is not None and existing.is_alive():
+                raise SupervisorError(
+                    f"module {module_id!r} already has a live managed process "
+                    f"(pid {existing.pid}); stop it before spawning again")
             if len(self._processes) >= self._max_processes:
                 raise SupervisorError(
                     f"Max {self._max_processes} managed processes reached (H-7)")
