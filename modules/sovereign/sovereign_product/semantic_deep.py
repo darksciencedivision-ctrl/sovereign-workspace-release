@@ -733,6 +733,13 @@ class SemanticDeepExecutor:
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
         execution_id_factory: Callable[[], str] | None = None,
+        # R35. Optional producer-side pointer contract. When supplied (the service passes
+        # ProductPaths.make_pointer), every artifact reference this executor emits is a typed,
+        # round-trip-validated pointer (sovereign:// or sovereign-state://) rather than a bare
+        # relative path, so the reference resolves through the one shared contract wherever runtime
+        # state lives. Defaults to None, which preserves the historical relative-path behaviour, so
+        # existing callers and tests are unchanged.
+        pointer_factory: Callable[[Path], str] | None = None,
     ) -> None:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
@@ -776,6 +783,7 @@ class SemanticDeepExecutor:
         # seconds with "artifact root no longer resolves inside product root" for exactly this
         # reason, once P4-4 moved runtime state out of the install tree. Kept now.
         self._trusted_roots = tuple(_trusted)
+        self._pointer_factory = pointer_factory
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
         defaults = {
@@ -1234,6 +1242,19 @@ class SemanticDeepExecutor:
     def _artifact_roots(self) -> tuple[Path, ...]:
         """Every root an artifact of this run may legitimately sit inside."""
         return tuple(getattr(self, "_trusted_roots", None) or (self.root,))
+
+    def _artifact_ref(self, path: Path) -> str:
+        """R35. Emit an artifact reference through the shared pointer contract when one was
+        supplied, so it is a typed, round-trip-validated pointer that resolves wherever runtime
+        state lives. Fall back to the historical relative path if no factory was given or it cannot
+        express this path -- an artifact reference must never crash a completed run."""
+        factory = getattr(self, "_pointer_factory", None)
+        if factory is not None:
+            try:
+                return str(factory(Path(path)))
+            except Exception:
+                pass
+        return _safe_relative(path, self._artifact_roots())
 
     def _create_run_directory(
         self,
@@ -2171,9 +2192,7 @@ class SemanticDeepExecutor:
             }
         )
         _atomic_json(record_path, record)
-        context.artifacts[f"turn_{turn_number:02d}"] = _safe_relative(
-            record_path, self._artifact_roots()
-        )
+        context.artifacts[f"turn_{turn_number:02d}"] = self._artifact_ref(record_path)
         context.turns.append(record)
         self._emit(
             context,
@@ -2236,10 +2255,10 @@ class SemanticDeepExecutor:
         result_path = run_dir / "result.json"
         context.artifacts.update(
             {
-                "request": _safe_relative(request_path, self._artifact_roots()),
-                "evidence": _safe_relative(evidence_path, self._artifact_roots()),
-                "transcript": _safe_relative(transcript_path, self._artifact_roots()),
-                "result": _safe_relative(result_path, self._artifact_roots()),
+                "request": self._artifact_ref(request_path),
+                "evidence": self._artifact_ref(evidence_path),
+                "transcript": self._artifact_ref(transcript_path),
+                "result": self._artifact_ref(result_path),
             }
         )
         model_provenance_failure: str | None = None
@@ -2440,9 +2459,7 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(critique_path, critique_record)
-                context.artifacts["critique"] = _safe_relative(
-                    critique_path, self._artifact_roots()
-                )
+                context.artifacts["critique"] = self._artifact_ref(critique_path)
 
                 synthesis_prompt = self.build_synthesis_prompt(
                     topic,
@@ -2522,9 +2539,7 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(verification_path, verification_record)
-                context.artifacts["verification_1"] = _safe_relative(
-                    verification_path, self._artifact_roots()
-                )
+                context.artifacts["verification_1"] = self._artifact_ref(verification_path)
                 final_verdict = verdict
 
                 if not verdict["accept"] or local_issues:
@@ -2612,9 +2627,7 @@ class SemanticDeepExecutor:
                         }
                     )
                     _atomic_json(verification_path, verification_record)
-                    context.artifacts["verification_2"] = _safe_relative(
-                        verification_path, self._artifact_roots()
-                    )
+                    context.artifacts["verification_2"] = self._artifact_ref(verification_path)
                     final_verdict = verdict
                 if not final_verdict["accept"] or local_issues:
                     raise _PipelineStop(
@@ -2664,12 +2677,8 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(accepted_path, accepted_record)
-                context.artifacts["accepted"] = _safe_relative(
-                    accepted_path, self._artifact_roots()
-                )
-                context.artifacts["accepted_text"] = _safe_relative(
-                    accepted_text_path, self._artifact_roots()
-                )
+                context.artifacts["accepted"] = self._artifact_ref(accepted_path)
+                context.artifacts["accepted_text"] = self._artifact_ref(accepted_text_path)
                 final_answer = candidate
                 status = ExecutionStatus.ACCEPTED
                 reason = None

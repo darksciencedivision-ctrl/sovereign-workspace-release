@@ -48,12 +48,11 @@ from .model_client import (
 )
 from .paths import (
     PathResolutionError,
+    POINTER_PREFIX,
     ProductPaths,
     UnsafeArtifactPointer,
     artifact_pointer,
     STATE_POINTER_PREFIX,
-    PathResolutionError,
-    UnsafeArtifactPointer,
     resolve_product_paths,
 )
 from .quality import (
@@ -686,6 +685,9 @@ class ProductService:
             trusted_roots=(self.paths.state_dir,),
             evidence_builder=self.evidence_builder,
             base_options=self._runtime_model_options(manifest),
+            # R35. Emit typed, round-trip-validated artifact pointers at the producer, resolved
+            # through the one shared contract that knows the state root.
+            pointer_factory=self.paths.make_pointer,
         )
 
     def _store_model_overrides(self, updates: Mapping[str, str]) -> None:
@@ -1114,7 +1116,11 @@ class ProductService:
             if not isinstance(value, (str, os.PathLike)) or not str(value):
                 continue
             text = str(value)
-            if text.startswith("sovereign://"):
+            if text.startswith(POINTER_PREFIX) or text.startswith(STATE_POINTER_PREFIX):
+                # R35. A producer that emitted a typed pointer is resolved through the ONE shared
+                # contract, which knows both the install root and the state root (where the
+                # evidence tree lives). A state pointer is no longer mistaken for a filesystem
+                # path and silently dropped.
                 try:
                     self.paths.resolve_pointer(text, must_exist=True)
                 except (PathResolutionError, UnsafeArtifactPointer):
@@ -1244,11 +1250,32 @@ class ProductService:
                     str(fields.get("status") or ""),
                     has_answer=bool(answer_text),
                 )
+            # R35. Refuse to publish a completed answer whose evidence cannot resolve. If the run
+            # declared artifacts but not one of them resolved through the shared pointer contract
+            # (the class of failure seen under the external-state layout), the answer would be
+            # attached to unreachable evidence; reject it instead of presenting it as grounded.
+            evidence_resolution_reason: str | None = None
+            declared_artifacts = fields.get("artifacts")
+            if (
+                terminal == "completed"
+                and isinstance(declared_artifacts, Mapping)
+                and declared_artifacts
+                and not pointers
+            ):
+                terminal = "rejected"
+                answer_text = ""
+                evidence_resolution_reason = (
+                    "completed answer rejected: none of its declared evidence pointers resolve"
+                )
             evidence_pointer = self._select_evidence_pointer(
                 pointers,
                 terminal_status=terminal,
             )
-            reason = fields.get("reason") or fields.get("error")
+            reason = (
+                evidence_resolution_reason
+                or fields.get("reason")
+                or fields.get("error")
+            )
             metadata = {
                 "engine_status": str(fields.get("status") or "unknown"),
                 "model": fields.get("model"),
