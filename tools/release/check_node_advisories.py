@@ -41,12 +41,24 @@ def _audit(root: Path) -> tuple[str, dict | None, str]:
         [npm, "audit", "--json", "--audit-level=low"],
         cwd=str(root), capture_output=True, text=True, check=False, timeout=300,
     )
+    # F-065. `npm audit` exits 0 (clean) or 1 (advisories found); ANY other code means the audit
+    # did not run (network/registry failure), and on such a failure npm prints a JSON ERROR object
+    # to stdout with no metadata.vulnerabilities. Accepting any parseable JSON and reading a
+    # missing metadata as "0 advisories" was fail-open: a registry outage printed "0 advisories"
+    # and PASSED. Require a real audit exit code AND a real vulnerabilities block.
+    if proc.returncode not in (0, 1):
+        detail = (proc.stderr or proc.stdout or "").strip()[:200]
+        return "audit-error", None, f"npm exit {proc.returncode}: {detail}"
     if not proc.stdout.strip():
         return "no-output", None, (proc.stderr or "").strip()[:200]
     try:
-        return "ok", json.loads(proc.stdout), ""
+        report = json.loads(proc.stdout)
     except json.JSONDecodeError:
         return "bad-json", None, proc.stdout[:200]
+    if not isinstance(report, dict) or not isinstance(
+            report.get("metadata", {}).get("vulnerabilities"), dict):
+        return "no-metadata", None, "audit JSON has no metadata.vulnerabilities block"
+    return "ok", report, ""
 
 
 def main() -> int:
