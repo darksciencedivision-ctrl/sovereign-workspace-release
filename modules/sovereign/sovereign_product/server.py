@@ -78,6 +78,12 @@ MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
 SETTINGS_META_KEY = "product.settings.v1"
+#: F-101. Operator model-role overrides live in the STATE root (the store's `meta` table in
+#: `<state>/sovereign.db`), layered over the shipped `SYSTEM_MANIFEST.json` at read time -- never
+#: written back into the tracked manifest. Writing the manifest made a model selection mutate a
+#: committed, hash-verified install artifact (breaking `verify_install`/F-060) and failed outright
+#: on a read-only install. State is writable, per-install, and outside the verified tree.
+MODEL_ASSIGNMENTS_META_KEY = "product.model_assignments.v1"
 CONFIGURABLE_MODEL_ROLES = (
     "PRIMARY_REASONER",
     "ADVERSARIAL_CHALLENGER",
@@ -541,13 +547,52 @@ class ProductService:
 
     def _manifest(self) -> dict[str, Any]:
         try:
-            return load_system_manifest(
+            manifest = load_system_manifest(
                 manifest_path=self.root / "SYSTEM_MANIFEST.json"
             )
         except ManifestConfigError as exc:
             raise ServiceConfigurationError(
                 f"invalid SYSTEM_MANIFEST configuration: {exc}"
             ) from exc
+        # F-101. Layer any operator model-role overrides (stored in the state root) over the
+        # shipped manifest. The result is re-validated so a stored override can never widen what
+        # a manifest is allowed to contain. `store` is not yet set during the constructor's first
+        # validation call, so overlay is skipped until it exists.
+        overrides = self._stored_model_overrides()
+        if not overrides:
+            return manifest
+        overlaid = dict(manifest)
+        models = overlaid.get("MODELS")
+        overlaid_models = dict(models) if isinstance(models, Mapping) else {}
+        overlaid_models.update(overrides)
+        overlaid["MODELS"] = overlaid_models
+        try:
+            return validate_system_manifest(
+                overlaid, self.root / "SYSTEM_MANIFEST.json"
+            )
+        except ManifestConfigError as exc:
+            raise ServiceConfigurationError(
+                f"invalid model-assignment override: {exc}"
+            ) from exc
+
+    def _stored_model_overrides(self) -> dict[str, str]:
+        """Operator model-role overrides from the state root, filtered to the roles the product
+        allows to be reassigned. Anything else stored (a stale role name, a non-string value) is
+        ignored rather than trusted, so the overlay can only ever set a known role to a string."""
+        store = getattr(self, "store", None)
+        if store is None:
+            return {}
+        try:
+            raw = store.get_meta(MODEL_ASSIGNMENTS_META_KEY, {})
+        except Exception:
+            return {}
+        if not isinstance(raw, Mapping):
+            return {}
+        overrides: dict[str, str] = {}
+        for role, model in raw.items():
+            if role in CONFIGURABLE_MODEL_ROLES and isinstance(model, str) and model.strip():
+                overrides[str(role)] = model.strip()
+        return overrides
 
     def _default_model_client(self) -> OllamaClient:
         manifest = self._manifest()
@@ -639,38 +684,29 @@ class ProductService:
             base_options=self._runtime_model_options(manifest),
         )
 
-    def _write_manifest(self, manifest: Mapping[str, Any]) -> None:
-        path = self.root / "SYSTEM_MANIFEST.json"
+    def _store_model_overrides(self, updates: Mapping[str, str]) -> None:
+        """F-101. Persist operator model-role overrides to the STATE root, merged over whatever
+        is already stored, and validate the resulting overlaid manifest before committing so a
+        selection can never leave the manifest in an invalid state. The tracked
+        `SYSTEM_MANIFEST.json` is never written -- a read-only install still accepts a selection,
+        and the install stays byte-identical to its verified manifest."""
+        merged = dict(self._stored_model_overrides())
+        for role, model in updates.items():
+            merged[str(role)] = str(model)
+        # Prove the overlay is valid against the shipped manifest before persisting it.
+        manifest = load_system_manifest(manifest_path=self.root / "SYSTEM_MANIFEST.json")
+        overlaid = dict(manifest)
+        models = overlaid.get("MODELS")
+        overlaid_models = dict(models) if isinstance(models, Mapping) else {}
+        overlaid_models.update(merged)
+        overlaid["MODELS"] = overlaid_models
         try:
-            validated = validate_system_manifest(dict(manifest), path)
+            validate_system_manifest(overlaid, self.root / "SYSTEM_MANIFEST.json")
         except ManifestConfigError as exc:
             raise ServiceConfigurationError(
-                f"invalid SYSTEM_MANIFEST update: {exc}"
+                f"invalid model-assignment override: {exc}"
             ) from exc
-        temporary = path.with_name(
-            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
-        )
-        encoded = json.dumps(
-            validated,
-            ensure_ascii=False,
-            sort_keys=False,
-            indent=2,
-        ) + "\n"
-        try:
-            # M-5 (B2-5): write WITHOUT a BOM. The previous utf-8-sig writer
-            # re-introduced the BOM on every manifest update, which strict
-            # utf-8 JSON parsers reject.
-            with temporary.open("w", encoding="utf-8", newline="\n") as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary, path)
-            load_system_manifest(manifest_path=path)
-        finally:
-            try:
-                temporary.unlink()
-            except FileNotFoundError:
-                pass
+        self.store.set_meta(MODEL_ASSIGNMENTS_META_KEY, merged)
 
     def _approved_evidence_paths(self) -> tuple[str, ...]:
         """The files the retriever may cite as evidence. Existence-checked, never guessed.
@@ -1765,10 +1801,18 @@ class ProductService:
                 for role, model in sorted(models.items())
                 if isinstance(model, str)
             ]
+        # F-101. The effective assignments above already reflect any state-stored overrides
+        # (`_manifest()` overlays them). Name the source honestly so an operator can tell a
+        # customized install from a pristine one.
+        overridden = bool(self._stored_model_overrides())
         return {
-            "name": "manifest-default",
+            "name": "state-override" if overridden else "manifest-default",
             "assignments": assignments,
-            "source": "sovereign://SYSTEM_MANIFEST.json",
+            "source": (
+                "sovereign-state://model-assignments"
+                if overridden
+                else "sovereign://SYSTEM_MANIFEST.json"
+            ),
             "mutable": True,
             "editableRoles": list(CONFIGURABLE_MODEL_ROLES),
             "restartRequired": False,
@@ -1878,7 +1922,8 @@ class ProductService:
                 if self._injected_deep_executor is not None
                 else self._deep_executor_from_manifest(updated_manifest)
             )
-            self._write_manifest(updated_manifest)
+            # F-101: persist to the state root, not the tracked manifest.
+            self._store_model_overrides(updates)
             if replacement_deep is not None:
                 self.deep_executor = replacement_deep
         return self.profile()
