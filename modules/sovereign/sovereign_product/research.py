@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 from urllib.parse import urlsplit
 import uuid
 
-from .paths import ProductPaths, UnsafeArtifactPointer
+from .paths import STATE_POINTER_PREFIX, ProductPaths, UnsafeArtifactPointer
 from .model_client import OLLAMA_GENERATION_TIMEOUT_SECONDS
 
 
@@ -3010,15 +3010,24 @@ class ResearchExecutor:
         }
 
     def _artifact_reference(self, path: Path, approved_root: Path) -> str:
+        """F-119. Emit a resolvable pointer through the one shared path contract.
+
+        The evidence tree lives under the STATE root (P4-4), so the install-root-only
+        `paths.pointer()` raised and this fell back to `approved-evidence://<relative>` -- a scheme
+        nothing can resolve, so a completed RESEARCH run's report pointed at artifacts that could
+        not be opened and was REJECTED downstream. `make_pointer` chooses the correct scheme
+        (`sovereign-state://` for the evidence tree) and round-trip-validates it, so the reference
+        is one the resolver can actually open."""
         resolved = path.resolve(strict=False)
-        relative = resolved.relative_to(approved_root.resolve(strict=False)).as_posix()
+        make_pointer = getattr(self.paths, "make_pointer", None)
+        if callable(make_pointer):
+            return str(make_pointer(resolved))
+        # Legacy paths object without the shared contract: fall back to the install-root pointer.
         pointer_method = getattr(self.paths, "pointer", None)
         if callable(pointer_method):
-            try:
-                return str(pointer_method(resolved))
-            except (UnsafeArtifactPointer, ValueError):
-                pass
-        return f"approved-evidence://{relative}"
+            return str(pointer_method(resolved))
+        relative = resolved.relative_to(approved_root.resolve(strict=False)).as_posix()
+        return f"{STATE_POINTER_PREFIX}{relative}"
 
     def _result(self, state: Mapping[str, Any]) -> ResearchResult:
         return ResearchResult(

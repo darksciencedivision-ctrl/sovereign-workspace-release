@@ -261,6 +261,39 @@ class ProductPaths:
             )
         return resolve_artifact_pointer(pointer, root=self.root, must_exist=must_exist)
 
+    def make_pointer(self, path: str | os.PathLike[str] | Path) -> str:
+        """Produce a typed, round-trip-validated pointer for a path under either trusted root.
+
+        The one producer-side contract shared by every runtime pointer site (R35/F-119). A path
+        inside the install root becomes a ``sovereign://`` pointer; a path inside the state root
+        (where P4-4 put the database and the evidence tree) becomes a ``sovereign-state://``
+        pointer. The install root is preferred when a path is inside both (the legacy layout, where
+        state is ``<root>/runtime``), matching the descriptor behaviour the rest of the product
+        already relies on. The result is validated by resolving it back through
+        :meth:`resolve_pointer`, so an un-resolvable pointer is never emitted -- a producer that
+        cannot express its artifact fails loudly here instead of publishing a dead reference (the
+        ``approved-evidence://`` class of defect). A path under neither root raises
+        :class:`UnsafeArtifactPointer`."""
+        resolved = _resolved(path)
+        root_base = _resolved(self.root)
+        if _is_within(resolved, root_base):
+            return artifact_pointer(resolved, root=root_base)
+        state_base = _resolved(self.state_dir)
+        if _is_within(resolved, state_base):
+            relative = resolved.relative_to(state_base)
+            if not relative.parts:
+                raise UnsafeArtifactPointer("the state root itself is not an artifact")
+            payload = quote(PurePosixPath(*relative.parts).as_posix(), safe="/-._~")
+            pointer = STATE_POINTER_PREFIX + payload
+            # Round-trip: the pointer must resolve back to the path it names (this also catches a
+            # symlink escape, since resolve_pointer re-checks containment after resolution).
+            if self.resolve_pointer(pointer).resolve(strict=False) != resolved:
+                raise UnsafeArtifactPointer(
+                    f"state pointer does not round-trip to its source: {pointer}")
+            return pointer
+        raise UnsafeArtifactPointer(
+            f"path is under neither the install root nor the state root: {resolved}")
+
     def resolve_evidence_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
         """Resolve a pointer for the ``/v1/evidence`` endpoint and refuse anything that lands
         outside the evidence directory (R31/F-102).
