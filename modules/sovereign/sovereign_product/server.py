@@ -2327,7 +2327,9 @@ def create_app(
         if not pointer:
             raise ValueError("pointer is required")
         try:
-            path = owned_service.paths.resolve_pointer(
+            # R31/F-102. Scope to the evidence directory: the DB, the .venv and product source are
+            # never reachable through this endpoint even with a well-formed pointer.
+            path = owned_service.paths.resolve_evidence_pointer(
                 pointer,
                 must_exist=True,
             )
@@ -2337,17 +2339,23 @@ def create_app(
             return _json_error(str(exc), 404)
         if not path.is_file():
             return _json_error("evidence pointer is not a file", 404)
-        mime, _encoding = mimetypes.guess_type(path.name)
+        # R31/F-102. Serve evidence inertly. An evidence file may contain attacker-influenced
+        # HTML/SVG/JS; served inline in the app's origin it would execute (stored XSS). Force a
+        # download with an inert content type, forbid content-type sniffing, and sandbox the
+        # response so even a client that renders it cannot run script or load anything.
         response = send_file(
             path,
-            mimetype=mime or "application/octet-stream",
-            as_attachment=False,
+            mimetype="text/plain",
+            as_attachment=True,
             conditional=True,
             download_name=path.name,
         )
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"
         response.headers["Content-Disposition"] = (
-            f"inline; filename*=UTF-8''{quote(path.name)}"
+            f"attachment; filename*=UTF-8''{quote(path.name)}"
         )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
         return response
 
     @app.get("/")

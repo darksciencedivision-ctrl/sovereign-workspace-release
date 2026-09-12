@@ -261,6 +261,24 @@ class ProductPaths:
             )
         return resolve_artifact_pointer(pointer, root=self.root, must_exist=must_exist)
 
+    def resolve_evidence_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
+        """Resolve a pointer for the ``/v1/evidence`` endpoint and refuse anything that lands
+        outside the evidence directory (R31/F-102).
+
+        The general resolver accepts both the install-root (``sovereign://``) and state-root
+        (``sovereign-state://``) schemes, each contained to its own base. That is correct for
+        internal resolution, but the evidence endpoint serves ONE thing -- evidence artifacts --
+        and must not become a reader for the rest of either tree. A well-formed
+        ``sovereign-state://sovereign.db`` or ``sovereign://.venv/...`` resolves inside its base
+        yet has no business being downloaded, so the resolved path is re-checked for containment
+        in ``evidence_dir`` after resolution (so a symlink cannot walk out either)."""
+        resolved = self.resolve_pointer(pointer, must_exist=must_exist)
+        evidence_base = Path(self.evidence_dir).resolve(strict=False)
+        if not _is_within(resolved, evidence_base):
+            raise UnsafeArtifactPointer(
+                "evidence pointer resolves outside the evidence directory")
+        return resolved
+
 
 def resolve_product_paths(
     root: str | os.PathLike[str] | Path | None = None,
