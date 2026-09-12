@@ -139,6 +139,12 @@ def _load_json(path: str) -> dict:
 
 def _validate_against_schema(adapter: dict, schema: dict) -> None:
     """Basic schema validation. Full JSON Schema validation would need a lib."""
+    # R18/F-028. Type BEFORE operation. A top-level JSON array/string/number reaching `.get`/`in`
+    # raised AttributeError/TypeError -- which load_all_adapters (catching only AdapterError) let
+    # escape and stop the whole shell. A wrongly-typed adapter is one module's CONFIG_ERROR, never
+    # a shell crash, so every shape mismatch is raised as AdapterError here.
+    if not isinstance(adapter, dict):
+        raise AdapterError(f"adapter must be a JSON object, got {type(adapter).__name__}")
     # Check required fields
     for field in schema.get("required", []):
         if field not in adapter:
@@ -182,10 +188,12 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
         readiness = adapter["readiness"]
         if readiness["kind"] not in ("http", "process_window", "receipt_file"):
             raise AdapterError(f"Invalid readiness.kind: {readiness['kind']}")
-        if not (5 <= readiness.get("timeout_s", 0) <= 120):
-            raise AdapterError("readiness.timeout_s must be 5-120")
-        if not (250 <= readiness.get("poll_ms", 0) <= 5000):
-            raise AdapterError("readiness.poll_ms must be 250-5000")
+        # R18/F-028. Numeric fields are range-checked, so a string (or any non-number) must be
+        # rejected as AdapterError rather than raising TypeError inside the comparison.
+        if not _is_number(readiness.get("timeout_s")) or not (5 <= readiness["timeout_s"] <= 120):
+            raise AdapterError("readiness.timeout_s must be a number 5-120")
+        if not _is_number(readiness.get("poll_ms")) or not (250 <= readiness["poll_ms"] <= 5000):
+            raise AdapterError("readiness.poll_ms must be a number 250-5000")
 
         # Validate identity. process_path/path_prefix is gone: H-5 forbids prefix-string
         # comparison, and ADR-004 requires canonical-image equality instead (R3-11).
@@ -211,8 +219,8 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
         stop = adapter["stop"]
         if stop["kind"] != "job_object":
             raise AdapterError(f"Invalid stop.kind: {stop['kind']}")
-        if not (1 <= stop.get("grace_s", 0) <= 30):
-            raise AdapterError("stop.grace_s must be 1-30")
+        if not _is_number(stop.get("grace_s")) or not (1 <= stop["grace_s"] <= 30):
+            raise AdapterError("stop.grace_s must be a number 1-30")
 
         # Optional startup_test override block (ADR-004, R3-11).
         st = adapter.get("startup_test")
@@ -245,8 +253,17 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
                     raise AdapterError("startup_test.readiness.poll_ms must be 250-5000")
 
 
+def _is_number(value) -> bool:
+    """R18/F-028. True for a real int/float, excluding bool (which is an int subclass)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _validate_nested(adapter: dict, key: str, required: set) -> None:
     obj = adapter.get(key, {})
+    # R18/F-028. A nested value that is not an object (e.g. `"readiness": "http"`) must be a
+    # CONFIG_ERROR, not a TypeError from `field in obj` against a non-container.
+    if not isinstance(obj, dict):
+        raise AdapterError(f"{key} must be an object")
     for field in required:
         if field not in obj:
             raise AdapterError(f"{key}.{field} is required")
@@ -445,12 +462,19 @@ def compile_adapter(adapter: dict) -> dict:
         if not launch["argv"][0].lower().endswith(".exe"):
             raise AdapterError(f"argv[0] must end in .exe: {launch['argv'][0]}")
 
-        # Check no .cmd, .bat, .ps1, cmd.exe, powershell.exe
-        argv0_lower = launch["argv"][0].lower()
-        forbidden = [".cmd", ".bat", ".ps1", "cmd.exe", "powershell.exe"]
-        for f in forbidden:
-            if f in argv0_lower:
-                raise AdapterError(f"argv[0] contains forbidden launcher: {f}")
+        # F-028. Compare the BASENAME exactly, not as a substring: "cmd.exe" as a substring
+        # rejected an innocent "mycmd.exe", while the old set also missed other script hosts
+        # (pwsh, wscript, cscript, mshta). Extension checks stay as endswith on the basename.
+        argv0_lower = launch["argv"][0].lower().replace("\\", "/")
+        basename = argv0_lower.rsplit("/", 1)[-1]
+        if basename.endswith((".cmd", ".bat", ".ps1", ".vbs", ".wsf")):
+            raise AdapterError(f"argv[0] is a script launcher, not a .exe: {basename}")
+        forbidden_exe = {
+            "cmd.exe", "powershell.exe", "pwsh.exe",
+            "wscript.exe", "cscript.exe", "mshta.exe",
+        }
+        if basename in forbidden_exe:
+            raise AdapterError(f"argv[0] is a forbidden launcher: {basename}")
 
         launch["env_allowlist"] = adapter["launch"].get("env_allowlist", ["SYSTEMROOT", "PATH", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"])
         launch["env_set"] = {
@@ -579,9 +603,28 @@ def load_all_adapters() -> dict[str, dict]:
         try:
             _validate_against_schema(raw, schema)
             compiled = compile_adapter(raw)
-            adapters[compiled["id"]] = compiled
-        except AdapterError as e:
-            adapter_id = raw.get("id", fname)
-            adapters[adapter_id] = {"error": "CONFIG_ERROR", "reason": str(e), "id": adapter_id}
+            module_id = compiled["id"]
+            # F-028. A duplicate id used to silently overwrite the earlier module. Keep the first
+            # and record the collision as a CONFIG_ERROR rather than making a module vanish.
+            if module_id in adapters and not adapters[module_id].get("error"):
+                fallback = f"{module_id}#dup:{fname}"
+                adapters[fallback] = {
+                    "error": "CONFIG_ERROR",
+                    "reason": f"duplicate adapter id {module_id!r} (already defined); {fname} ignored",
+                    "id": fallback,
+                }
+                continue
+            adapters[module_id] = compiled
+        except Exception as e:  # noqa: BLE001
+            # R18/F-028. ANY malformed adapter (wrong types, bad nesting, a compile fault) is ONE
+            # module's CONFIG_ERROR, never a shell-wide crash: the loader previously caught only
+            # AdapterError, so a TypeError/AttributeError from a wrongly-typed field escaped and
+            # stopped every module's dashboard. `raw` may not be a dict, so the fallback id is
+            # guarded.
+            adapter_id = raw.get("id", fname) if isinstance(raw, dict) else fname
+            if not isinstance(adapter_id, str) or not adapter_id:
+                adapter_id = fname
+            adapters.setdefault(adapter_id, {
+                "error": "CONFIG_ERROR", "reason": str(e), "id": adapter_id})
 
     return adapters

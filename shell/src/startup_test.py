@@ -85,7 +85,9 @@ def run_startup_test(module_id: str, adapter: dict, supervisor, log_ring,
         "identity": {"outcome": "not_attempted", "latency_s": 0},
         "exit_code": None,
         "logs": [],
-        "undeclared_writes": [],
+        # R24/F-018. `null` + a `checked` flag, never a bare [] that reads as "checked, none found".
+        "undeclared_writes": None,
+        "undeclared_writes_checked": False,
         "quota_guard": None,
     }
 
@@ -124,19 +126,23 @@ def run_startup_test(module_id: str, adapter: dict, supervisor, log_ring,
     # future change to the ring cannot leak into persisted evidence.
     result["logs"] = [redact(line) for line in log_ring.read_lines()]
     result["end"] = datetime.now(timezone.utc).isoformat()
-    result["undeclared_writes"] = _undeclared_writes(adapter)
+    writes, checked = _undeclared_writes(adapter)
+    result["undeclared_writes"] = writes
+    result["undeclared_writes_checked"] = checked
     _save_record(result, module_id)
     return result
 
 
-def _undeclared_writes(adapter: dict) -> list:
-    """Placeholder for the Gate 5 instance-tree diff.
+def _undeclared_writes(adapter: dict) -> tuple[list | None, bool]:
+    """The Gate 5 instance-tree diff is NOT performed here.
 
-    §7.2 makes this a finding, not a failure, and specifies it as a diff of the instance tree
-    after the test. Gate 5 is where that diff is produced; recording an empty list here with an
-    explicit marker is honest, whereas omitting the key would read as 'none found'.
+    R24/F-018. §7.2 makes an undeclared write a finding, not a failure, produced by a diff of the
+    instance tree after the test -- and Gate 5 is where that diff runs, not this function. Returning
+    an empty list here read as "checked, none found", asserting a clean result for a check that
+    never ran. Return the honest not-performed state: no result, and `checked` False. A caller must
+    not present this as evidence that no undeclared writes occurred.
     """
-    return []
+    return None, False
 
 
 def _save_record(result: dict, module_id: str):

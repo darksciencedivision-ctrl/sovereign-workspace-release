@@ -175,7 +175,19 @@ def preflight_toolchain() -> dict:
                     assert_cmd_shim_argv_safe(args)
                     args = ["cmd.exe", "/d", "/c", *args]
             r = subprocess.run(args, capture_output=True, text=True, timeout=10)
-            results[name] = {"present": True, "version": r.stdout.strip()}
+            # R17/F-019. "The process ran" is not "the tool is present". `py -3.12 --version` on a
+            # host without 3.12 exits non-zero with empty stdout; marking that present:True rendered
+            # the panel "Python 3.12 available" when it was not. Require a clean exit AND a usable
+            # version string, and keep the exit code / stderr in the failure detail.
+            version = (r.stdout or "").strip()
+            if r.returncode == 0 and version:
+                results[name] = {"present": True, "version": version}
+            else:
+                detail = (r.stderr or "").strip() or version or "no version output"
+                results[name] = {
+                    "present": False,
+                    "error": f"exit {r.returncode}: {detail}",
+                }
         except Exception as e:
             results[name] = {"present": False, "error": str(e)}
     return results
