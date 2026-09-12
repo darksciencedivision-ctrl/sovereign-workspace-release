@@ -574,6 +574,12 @@ class JobSupervisor:
                 except Exception:
                     break
         finally:
+            # R14: the stream ended; emit any partial final line held in the carry (redacted),
+            # so a last line without a trailing newline is neither dropped nor left un-redacted.
+            try:
+                log_ring.flush()
+            except Exception:
+                pass
             kernel32.CloseHandle(read_h)
 
     # -- stop ---------------------------------------------------------------
