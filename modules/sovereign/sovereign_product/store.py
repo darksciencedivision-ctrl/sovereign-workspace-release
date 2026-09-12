@@ -1005,6 +1005,7 @@ class SovereignStore:
             finished_at = row["finished_at"]
             attempts = int(row["attempts"])
             cancel_requested = int(row["cancel_requested"])
+            progress_json = row["progress_json"]
             if target == "running":
                 started_at = now
                 finished_at = None
@@ -1012,9 +1013,16 @@ class SovereignStore:
             elif target in TERMINAL_JOB_STATES:
                 finished_at = now
             elif target == "queued":
+                # R28. Requeue begins a NEW attempt. The old code reset the timestamps and the
+                # cancel flag but LEFT progress_json, so the previous attempt's high-water mark
+                # (e.g. 80%/"generation") persisted; the worker's fresh 1% then failed the
+                # no-regression guard in update_job_progress, was caught as InvalidTransition, and
+                # the job sat in `running` with no executor ever running. Clearing attempt-scoped
+                # progress here makes the retry start clean.
                 started_at = None
                 finished_at = None
                 cancel_requested = 0
+                progress_json = "{}"
             merged_metadata = _decode(row["metadata_json"], {})
             merged_metadata.update(dict(metadata or {}))
             connection.execute(
@@ -1022,7 +1030,8 @@ class SovereignStore:
                 UPDATE jobs SET
                     status=?, started_at=?, finished_at=?, updated_at=?,
                     error=?, evidence_pointer=?, output_message_id=?,
-                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?
+                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?,
+                    progress_json=?
                 WHERE job_id=?
                 """,
                 (
@@ -1037,6 +1046,7 @@ class SovereignStore:
                     attempts,
                     cancel_requested,
                     _json(merged_metadata),
+                    progress_json,
                     identifier,
                 ),
             )

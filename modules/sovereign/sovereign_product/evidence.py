@@ -682,6 +682,19 @@ class EvidenceBuilder:
                     }
                 )
                 continue
+            # F-110. The assistant's OWN prior answers are not authoritative citeable evidence.
+            # Admitting them (only down-weighted to 0.25) let a fabricated answer accepted once
+            # become "evidence" the next turn, and a citation back to it satisfied the attribution
+            # check -- a self-reinforcing loop. Only operator/system turns are offered as sources an
+            # answer may cite for a project fact.
+            if str(metadata.get("role", "")).casefold() in ("sovereign", "assistant"):
+                omissions.append(
+                    {
+                        "source": f"session:{session_id}/{source_id}",
+                        "reason": "assistant-authored turns are not citeable evidence (F-110)",
+                    }
+                )
+                continue
             prepared.append((index, source_id, content, metadata))
 
         if not self.query_relevance or not query.strip():
