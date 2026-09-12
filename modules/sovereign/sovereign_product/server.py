@@ -316,6 +316,11 @@ def _terminal_status(engine_status: str, *, has_answer: bool) -> str:
     normalized = str(engine_status or "").strip().lower()
     if normalized in {"accepted", "completed"}:
         return "completed" if has_answer else "rejected"
+    if normalized == "budget_exhausted":
+        # F-116. A budget-exhausted RESEARCH run that produced a partial report is surfaced as a
+        # completed answer (the report is the operator's useful output); the partial nature is
+        # preserved in engine_status/metadata. With no report at all it is a rejection.
+        return "completed" if has_answer else "rejected"
     if normalized in {"empty", "rejected", "concurrence_not_reached"}:
         return "rejected"
     if normalized == "cancelled":
@@ -1182,9 +1187,14 @@ class ProductService:
         fields: Mapping[str, Any],
         pointers: Mapping[str, str],
     ) -> str:
-        """Read only the exact completed report emitted by ResearchExecutor."""
+        """Read the report emitted by ResearchExecutor.
 
-        if str(fields.get("status") or "").lower() != "completed":
+        F-116. A run that exhausted its budget still wrote a real partial report; surface it rather
+        than discarding the whole run as empty. Both a completed run and a budget-exhausted partial
+        have a final_report artifact; only a run that produced no report at all returns empty.
+        """
+
+        if str(fields.get("status") or "").lower() not in ("completed", "budget_exhausted"):
             return ""
         pointer = pointers.get("final_report")
         if not pointer:

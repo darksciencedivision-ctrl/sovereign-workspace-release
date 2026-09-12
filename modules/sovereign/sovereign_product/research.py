@@ -109,16 +109,22 @@ class ResearchStatus(str, Enum):
 class ResearchLimits:
     """Frozen lower targets and hard upper resource bounds.
 
-    A successful run must meet *both* minimums.  Hard maxima are containment
-    limits, not success criteria.  In an eight-hour proof, callers should use a
-    positive ``minimum_duration_seconds`` and enough iteration/model-call headroom
-    to keep the investigation substantive for that duration.
+    F-116. The defaults are PRODUCT defaults, not the eight-hour proof configuration they used to
+    be. That configuration forced every RESEARCH run through a minimum of eight iterations and a
+    disposition quota -- it could not be considered successful until it had both rejected AND
+    revised a hypothesis -- and gave it up to eight hours. For an operator asking one question that
+    is far too much: it manufactured iterations, and a run that answered in one substantive pass
+    was held incomplete. A caller running a deliberate long investigation still passes an explicit
+    ``ResearchLimits`` with larger bounds; the defaults now suit an ordinary request.
+
+    A successful run must still meet the minimums it is given; the hard maxima remain containment
+    limits, not success criteria.
     """
 
-    minimum_iterations: int = 8
+    minimum_iterations: int = 1
     maximum_iterations: int = 64
     minimum_duration_seconds: float = 0.0
-    maximum_duration_seconds: float = 8 * 60 * 60
+    maximum_duration_seconds: float = 30 * 60
     maximum_model_calls: int = 260
     model_call_timeout_seconds: float = OLLAMA_GENERATION_TIMEOUT_SECONDS
     maximum_prompt_bytes: int = 65_536
@@ -127,8 +133,11 @@ class ResearchLimits:
     maximum_source_bytes: int = 16_384
     maximum_sources: int = 64
     maximum_tokens_per_call: int = 32_768
-    require_rejected_hypothesis: bool = True
-    require_revised_hypothesis: bool = True
+    # F-116. The disposition quota is dropped: a run is no longer required to have rejected or
+    # revised a hypothesis before it can complete. A caller who wants that discipline can still set
+    # these True explicitly.
+    require_rejected_hypothesis: bool = False
+    require_revised_hypothesis: bool = False
 
     def __post_init__(self) -> None:
         integer_bounds = (
