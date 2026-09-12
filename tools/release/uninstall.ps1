@@ -22,6 +22,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'path_guard.ps1')
 if ($PurgeData -and $KeepData) { throw 'Specify at most one of -PurgeData and -KeepData' }
 $destRoot = [IO.Path]::GetFullPath($Dest).TrimEnd('\')
 $destPrefix = $destRoot + '\'
@@ -121,10 +122,15 @@ if (-not (Test-Path -LiteralPath $stateRoot)) {
     Write-Output "uninstall: no operator state found at $stateRoot"
 }
 elseif ($PurgeData) {
-    $doomed = @(Get-ChildItem -LiteralPath $stateRoot -Force -ErrorAction SilentlyContinue)
-    Write-Output "uninstall: PURGING operator state at $stateRoot ($($doomed.Count) entries)"
+    # F-040: $stateRoot comes straight from the environment, so a mis-set SOVEREIGN_WORKSPACE_STATE
+    # (a drive root, %USERPROFILE%, a junction into operator data) would otherwise be recursively
+    # deleted verbatim. Validate canonically first; the guard throws on anything unsafe and returns
+    # the canonical path to remove.
+    $canonState = Assert-PurgeableStateRoot -StateRoot $stateRoot -InstallRoot $destRoot
+    $doomed = @(Get-ChildItem -LiteralPath $canonState -Force -ErrorAction SilentlyContinue)
+    Write-Output "uninstall: PURGING operator state at $canonState ($($doomed.Count) entries)"
     foreach ($entry in $doomed) { Write-Output "  removing $($entry.Name)" }
-    Remove-Item -LiteralPath $stateRoot -Recurse -Force
+    Remove-Item -LiteralPath $canonState -Recurse -Force
     Write-Output 'uninstall: operator state removed'
 }
 else {

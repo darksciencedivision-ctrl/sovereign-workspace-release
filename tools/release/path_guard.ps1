@@ -84,7 +84,27 @@ function Get-CanonicalPath {
     if (Test-Path -LiteralPath $full) {
         return [SovereignNativePath]::GetFinalPath($full)
     }
-    return $full
+    # R04: the target does not exist yet, so returning the LEXICAL full path would let a junction in
+    # the existing prefix smuggle a not-yet-created child past containment (e.g. allowed\link\new,
+    # where `link` is a junction into an outside tree, resolves lexically under `allowed`). Instead
+    # canonicalize the NEAREST EXISTING ANCESTOR through GetFinalPath (which follows reparse points)
+    # and re-append only the missing tail, so the child resolves under the junction's REAL target and
+    # containment is decided honestly. Fail closed when no existing ancestor can be found.
+    $tail = @()
+    $probe = $full
+    while ($true) {
+        $parent = [IO.Path]::GetDirectoryName($probe)
+        if ([string]::IsNullOrEmpty($parent) -or $parent -eq $probe) {
+            throw "cannot canonicalize a path with no existing ancestor: $Path"
+        }
+        $tail = , ([IO.Path]::GetFileName($probe)) + $tail
+        if (Test-Path -LiteralPath $parent) {
+            $resolved = [SovereignNativePath]::GetFinalPath($parent)
+            foreach ($seg in $tail) { $resolved = [IO.Path]::Combine($resolved, $seg) }
+            return $resolved.TrimEnd('\')
+        }
+        $probe = $parent
+    }
 }
 
 function Test-CanonicalContained {
@@ -103,4 +123,55 @@ function Test-TreeContainsReparsePoint {
     $found = @(Get-ChildItem -LiteralPath $Root -Force -Recurse -ErrorAction SilentlyContinue |
         Where-Object { ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 })
     return ($found.Count -gt 0)
+}
+
+function Test-SensitiveSystemPath {
+    # True when $Candidate equals a well-known system/user location, or CONTAINS one (is an ancestor
+    # of it) — the shapes that must never be recursively deleted. Being CONTAINED BY one (e.g. the
+    # state root under %LOCALAPPDATA%) is normal and is NOT flagged. Canonical, junction-resolved.
+    param([string] $Candidate)
+    $canon = Get-CanonicalPath $Candidate
+    if ($canon -eq [IO.Path]::GetPathRoot($canon)) { return $true }
+    foreach ($name in @('USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'ProgramData', 'ProgramFiles',
+            'ProgramW6432', 'SystemRoot', 'windir', 'PUBLIC')) {
+        $val = [Environment]::GetEnvironmentVariable($name)
+        if (-not $val) { continue }
+        try { $sens = Get-CanonicalPath $val } catch { continue }
+        if ($canon.Equals($sens, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        # $canon is an ancestor of a sensitive dir ⇒ deleting it would take that dir with it.
+        if (Test-CanonicalContained -Root $canon -Candidate $sens) { return $true }
+    }
+    return $false
+}
+
+function Assert-PurgeableStateRoot {
+    # Fail-closed gate before any recursive delete of the operator's state root (F-040). The state
+    # root arrives from the environment, so it is validated canonically here: never a filesystem
+    # root, never a sensitive system/user location or an ancestor of one, never overlapping the
+    # install, never a tree containing a reparse point, and it must be the product's own
+    # 'SovereignWorkspace' directory. A custom-named location is refused rather than deleted; the
+    # caller names it so the operator can remove it by hand. Returns the canonical path to delete.
+    param([Parameter(Mandatory = $true)][string] $StateRoot, [string] $InstallRoot)
+    $canon = Get-CanonicalPath $StateRoot   # throws on UNC/device/extended-length
+    if ($canon -eq [IO.Path]::GetPathRoot($canon)) {
+        throw "refusing to purge a filesystem root: $canon"
+    }
+    if ((Split-Path -Leaf $canon) -ne 'SovereignWorkspace') {
+        throw ("refusing to purge $canon - it is not the product's own state directory " +
+            "(expected a 'SovereignWorkspace' folder). Remove a custom state location by hand.")
+    }
+    if (Test-SensitiveSystemPath $canon) {
+        throw "refusing to purge a sensitive system or user location: $canon"
+    }
+    if ($InstallRoot) {
+        $install = Get-CanonicalPath $InstallRoot
+        if ((Test-CanonicalContained -Root $canon -Candidate $install) -or
+            (Test-CanonicalContained -Root $install -Candidate $canon)) {
+            throw "refusing to purge a state root that overlaps the install root: $canon"
+        }
+    }
+    if (Test-TreeContainsReparsePoint $canon) {
+        throw "refusing to purge a state tree that contains a reparse point: $canon"
+    }
+    return $canon
 }
