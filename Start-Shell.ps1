@@ -72,6 +72,19 @@ function Line($label, $value, $color = 'Gray') {
     Write-Host $value -ForegroundColor $color
 }
 
+function Invoke-Native([scriptblock] $Command) {
+    # F-001: run a NATIVE command with a LOCAL ErrorActionPreference of 'Continue'. Under Windows
+    # PowerShell 5.1 a native process that writes to stderr while the script's EAP is 'Stop' and
+    # stderr is redirected (2>$null, > $null 2>&1) is promoted to a TERMINATING error and throws —
+    # so a probe for a MISSING Python, an absent GPU, or a git warning on stderr aborted the whole
+    # preflight (an advisory check crashing the one supported launcher). Restoring EAP means the
+    # probe's stderr is ordinary output again; $LASTEXITCODE still reports the real exit code, which
+    # is what every caller below actually gates on. Cmdlet errors elsewhere keep failing closed.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command } finally { $ErrorActionPreference = $prev }
+}
+
 Write-Host ""
 Write-Host "  SOVEREIGN WORKSPACE" -ForegroundColor Cyan
 Write-Host "  $root" -ForegroundColor DarkGray
@@ -104,9 +117,9 @@ if ($isCheckout -and (Get-Command git -ErrorAction SilentlyContinue)) {
     $priorOptionalLocks = if ($hadOptionalLocks) { $env:GIT_OPTIONAL_LOCKS } else { $null }
     try {
         $env:GIT_OPTIONAL_LOCKS = '0'
-        $head = (& git -C $root rev-parse --short HEAD 2>$null)
+        $head = Invoke-Native { git -C $root rev-parse --short HEAD 2>$null }
         $gitOk = ($LASTEXITCODE -eq 0)
-        $dirty = (& git -C $root status --porcelain 2>$null)
+        $dirty = Invoke-Native { git -C $root status --porcelain 2>$null }
         $statusOk = ($LASTEXITCODE -eq 0)
     }
     finally {
@@ -135,7 +148,7 @@ if ($null -eq $pyCmd) {
 }
 else {
     $py = $pyCmd.Source
-    $ver = & $py -3.12 --version 2>$null
+    $ver = Invoke-Native { & $py -3.12 --version 2>$null }
     if ($LASTEXITCODE -ne 0 -or -not $ver) {
         Line 'python 3.12' 'NOT AVAILABLE - the shell cannot start' Red
         $blocking.Add('py -3.12 is not available; the shell is pinned to Python 3.12') | Out-Null
@@ -144,7 +157,7 @@ else {
 
     # 3.14 runs the Debate module. Its absence does not stop the shell, so it is advisory here
     # and blocking only in the installer, which needs it to build a venv.
-    & $py -3.14 --version > $null 2>&1
+    Invoke-Native { & $py -3.14 --version > $null 2>&1 }
     if ($LASTEXITCODE -ne 0) {
         Line 'python 3.14' 'not available - the Debate module will not install' Yellow
         $advisory.Add('py -3.14 is not available; Debate requires it (see docs/INSTALL.md)') | Out-Null
@@ -195,7 +208,7 @@ else { Line 'processes' 'none from this tree' Green }
 if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
     # One CSV row PER GPU. The previous launcher split a single row on ',' and indexed [0]/[1],
     # so a second GPU changed the shape of the answer.
-    $rows = @(& nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv,noheader,nounits 2>$null)
+    $rows = @(Invoke-Native { nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv,noheader,nounits 2>$null })
     if ($LASTEXITCODE -ne 0 -or $rows.Count -eq 0) {
         Line 'vram' 'UNREADABLE - GPU state unobservable, not assumed free' Yellow
         $advisory.Add('nvidia-smi did not answer; GPU state is unknown rather than clear') | Out-Null
@@ -215,7 +228,7 @@ if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
     # graphics context and reports used_memory as [N/A]. That is normal desktop usage, not a
     # finding, so only workspace-relevant holders are reported.
     $relevant = 'ollama', 'llama-server', 'python', 'pythonw', 'node', 'electron'
-    $apps = @(& nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader 2>$null)
+    $apps = @(Invoke-Native { nvidia-smi --query-compute-apps=pid,process_name --format=csv,noheader 2>$null })
     if ($LASTEXITCODE -ne 0) {
         Line 'gpu holders' 'UNREADABLE - not reported as none' Yellow
         $advisory.Add('the GPU process census could not be read; holders are unknown') | Out-Null
