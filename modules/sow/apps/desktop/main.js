@@ -1667,46 +1667,29 @@ function pushTranscriptTurn(turn) {
     }
   } catch (_e) { /* no window yet - transcript stays in main */ }
 }
-// G26 evidence driver: loopback HTTP bridge (registered ONLY when
-// SOW_OPERATOR_TEXT_DRIVER_PORT is set) that drives the SAME handleOperatorText the
-// renderer uses, plus explicit conductor launch/interrupt - so a headless capture
-// exercises the real delivery path end to end. Loopback bind only; no auth surface.
-function startOperatorTextDriver() {
-  const port = parseInt(process.env.SOW_OPERATOR_TEXT_DRIVER_PORT || "", 10);
-  if (!port) return;
-  const http = require("http");
-  const server = http.createServer((req, res) => {
-    let body = "";
-    req.on("data", (c) => { body += c; });
-    req.on("end", async () => {
-      let payload = {};
-      try { payload = body ? JSON.parse(body) : {}; } catch (_e) {}
-      try {
-        if (req.method === "POST" && req.url === "/send") {
-          json(res, await handleOperatorText(payload));
-        } else if (req.method === "POST" && req.url === "/launch-conductor") {
-          json(res, await launchConductorSession({ reason: "G26 governed round-trip" }));
-        } else if (req.method === "POST" && req.url === "/interrupt") {
-          const wrote = Boolean(paneWriter.interrupt(conductorPaneId));
-          json(res, { interrupted: Boolean(wrote) });
-        } else if (req.method === "GET" && req.url === "/state") {
-          json(res, { launchState: conductorLaunch.state,
-                      alive: (() => { try { return manager.registry.has(conductorPaneId)
-                        && !manager.registry.isTerminal(conductorPaneId); } catch { return false; } })(),
-                      transcript: conductorTranscript.slice(-20),
-                      emittedTail: (function(){ try { const a = paneEmittedAll(conductorPaneId); return a ? a.slice(-700) : null; } catch { return null; } })(),
-                      paneStreamPositionNow: paneStreamPosition(conductorPaneId) });
-        } else { res.statusCode = 404; json(res, { error: "not found" }); }
-      } catch (e) {
-        res.statusCode = 400;
-        json(res, { error: (e && e.message) || String(e) });
-      }
-    });
-  });
-  function json(r, o) { r.setHeader("content-type", "application/json"); r.end(JSON.stringify(o)); }
-  server.listen(port, "127.0.0.1", () => log(`G26 driver listening on 127.0.0.1:${port}`));
-}
-if (process.env.SOW_OPERATOR_TEXT_DRIVER_PORT) startOperatorTextDriver();
+// G26 evidence driver — a DEV/EVIDENCE loopback bridge, NOT a product surface. Its logic lives in
+// control/operator-text-driver.js so it is testable without the Electron main process; the
+// effectful operations are injected here. Per F-128 it is removed from the product launch env
+// (shell/modules/sow.json no longer sets the port) and, when a developer does enable it, it fails
+// closed without a per-launch bearer token and refuses browser-Origin / non-loopback-Host /
+// non-JSON / oversized requests, and survives a bind conflict instead of crashing the shell.
+const { startOperatorTextDriver } = require("./control/operator-text-driver");
+startOperatorTextDriver({
+  log,
+  handlers: {
+    send: (payload) => handleOperatorText(payload),
+    launchConductor: () => launchConductorSession({ reason: "G26 governed round-trip" }),
+    interrupt: () => ({ interrupted: Boolean(paneWriter.interrupt(conductorPaneId)) }),
+    state: () => ({
+      launchState: conductorLaunch.state,
+      alive: (() => { try { return manager.registry.has(conductorPaneId)
+        && !manager.registry.isTerminal(conductorPaneId); } catch { return false; } })(),
+      transcript: conductorTranscript.slice(-20),
+      emittedTail: (function () { try { const a = paneEmittedAll(conductorPaneId); return a ? a.slice(-700) : null; } catch { return null; } })(),
+      paneStreamPositionNow: paneStreamPosition(conductorPaneId),
+    }),
+  },
+});
 ipcMain.handle("conductor:operator-text", (_e, payload) => handleOperatorText(payload));
 
 // Journal attribution reads the same model chrome as the conversational surface; no launch or gate.

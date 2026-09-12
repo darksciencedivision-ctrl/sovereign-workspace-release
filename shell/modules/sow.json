@@ -28,7 +28,6 @@
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
       "SOW_CONDUCTOR_AUTOLAUNCH": "0",
-      "SOW_OPERATOR_TEXT_DRIVER_PORT": "17890",
       "SOVEREIGN_STORE_ROOT": "${state_root}/store"
     }
   },
