@@ -25,6 +25,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
+import threading
 import time
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from urllib.parse import urlsplit
@@ -542,6 +543,14 @@ class ResearchExecutor:
         self._interrupt: StopCallback = lambda: False
         self._active_base = 0.0
         self._active_started = 0.0
+        # R37. This executor is a SHARED instance and carries per-run state on itself -- the cancel
+        # and interrupt callbacks, the active-time base and start, and the progress callback. Two
+        # runs executing on it at once would clobber one another: run B's cancel callback would
+        # replace run A's, B's timing would reset A's, and B would steal A's progress events. Until
+        # that state is carried in a per-run context object, admission is single-run: run() takes
+        # this lock for the whole run and a concurrent second run is refused rather than allowed to
+        # corrupt the first. (A cross-process file lock, ResearchLock, is a separate concern.)
+        self._run_admission = threading.Lock()
 
         if not self.root.is_dir():
             raise ResearchContainmentError(f"product root does not exist: {self.root}")
@@ -685,6 +694,45 @@ class ResearchExecutor:
     ) -> ResearchResult:
         """Start or, when explicitly allowed, resume one research id."""
 
+        # R37. Single-run admission: refuse a concurrent run rather than let it overwrite the
+        # in-flight run's callbacks, timing and progress on this shared instance.
+        if not self._run_admission.acquire(blocking=False):
+            raise ResearchAlreadyRunning(
+                "another research run is in progress on this executor; "
+                "concurrent runs are not permitted"
+            )
+        try:
+            return self._run_admitted(
+                research_id,
+                objective,
+                model=model,
+                limits=limits,
+                local_sources=local_sources,
+                execution_evidence=execution_evidence,
+                model_options=model_options,
+                resume_existing=resume_existing,
+                progress_callback=progress_callback,
+                cancel_requested=cancel_requested,
+                interrupt_requested=interrupt_requested,
+            )
+        finally:
+            self._run_admission.release()
+
+    def _run_admitted(
+        self,
+        research_id: str,
+        objective: str,
+        *,
+        model: str,
+        limits: ResearchLimits | None = None,
+        local_sources: Iterable[str | Path] = (),
+        execution_evidence: Iterable[Mapping[str, Any]] = (),
+        model_options: Mapping[str, Any] | None = None,
+        resume_existing: bool = True,
+        progress_callback: ProgressCallback | None = None,
+        cancel_requested: StopCallback | None = None,
+        interrupt_requested: StopCallback | None = None,
+    ) -> ResearchResult:
         research_id = _safe_id(research_id)
         if self._checkpoint_files(research_id):
             if not resume_existing:
