@@ -37,6 +37,19 @@ def _request_timeout(deadline: float) -> float:
     return max(HTTP_REQUEST_TIMEOUT_FLOOR_S, min(HTTP_REQUEST_TIMEOUT_CAP_S, remaining))
 
 
+# R23/F-016/F-109. Every probe here targets a loopback service (127.0.0.1 - readiness endpoints,
+# the local Ollama). urllib's default opener consults the environment's / Windows registry proxy
+# settings, and a configured proxy does NOT auto-bypass dotted loopback like 127.0.0.1 - so a
+# probe could be routed through a third-party proxy, leaking identities and health payloads off the
+# machine. Build a dedicated opener with an EMPTY ProxyHandler so these requests always go direct.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _open_direct(req, timeout):
+    """urlopen for a loopback probe, guaranteed to bypass any configured proxy (R23/F-016)."""
+    return _NO_PROXY_OPENER.open(req, timeout=timeout)
+
+
 def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tuple[bool, float, str]:
     """Poll an HTTP endpoint until it returns expect_status or timeout."""
     deadline = time.time() + timeout_s
@@ -45,7 +58,7 @@ def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tu
     while time.time() < deadline:
         try:
             req = urllib.request.Request(url, method="GET")
-            resp = urllib.request.urlopen(req, timeout=_request_timeout(deadline))
+            resp = _open_direct(req, timeout=_request_timeout(deadline))
             if resp.status == expect_status:
                 return True, time.time() - start, ""
             last_error = f"HTTP {resp.status}"
@@ -61,7 +74,7 @@ def http_json_identity(url: str, required_keys: list[str]) -> tuple[bool, str]:
     """GET url and verify JSON response has required_keys."""
     try:
         req = urllib.request.Request(url, method="GET")
-        resp = urllib.request.urlopen(req, timeout=5)
+        resp = _open_direct(req, timeout=5)
         data = json.loads(resp.read().decode())
         for key in required_keys:
             if key not in data:
@@ -75,7 +88,7 @@ def http_html_identity(url: str, marker: str) -> tuple[bool, str]:
     """GET url and verify response body contains marker string."""
     try:
         req = urllib.request.Request(url, method="GET")
-        resp = urllib.request.urlopen(req, timeout=5)
+        resp = _open_direct(req, timeout=5)
         body = resp.read().decode("utf-8", errors="replace")
         if marker in body:
             return True, ""
@@ -138,7 +151,7 @@ def preflight_ollama() -> dict:
     """Probe Ollama at 127.0.0.1:11434."""
     try:
         req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
-        resp = urllib.request.urlopen(req, timeout=5)
+        resp = _open_direct(req, timeout=5)
         data = json.loads(resp.read().decode())
         models = [m.get("name", m.get("model", "")) for m in data.get("models", [])]
         return {"reachable": True, "model_count": len(models), "models": models}

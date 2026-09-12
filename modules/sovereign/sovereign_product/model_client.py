@@ -171,7 +171,15 @@ class OllamaClient:
         self.connect_timeout = float(connect_timeout)
         self.read_timeout = float(read_timeout)
         self.overall_timeout = float(overall_timeout)
-        self._session = session or requests.Session()
+        if session is not None:
+            self._session = session
+        else:
+            # R23/F-109: this client only ever talks to a validated loopback Ollama. A registry or
+            # environment proxy (HTTP_PROXY/HTTPS_PROXY) must never sit between us and 127.0.0.1 -
+            # that would route the prompt and completion through a third party. requests honours
+            # those env proxies by default; disable that here since we own this session.
+            self._session = requests.Session()
+            self._session.trust_env = False
         self._monotonic = monotonic
 
     def _show_model(self, model: str) -> dict[str, Any]:

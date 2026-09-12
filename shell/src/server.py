@@ -484,8 +484,11 @@ def _run_selftest(port: int) -> int:
     print(f"SELFTEST: listening on http://127.0.0.1:{server.server_port}")
 
     import urllib.request
+    # R23/F-016: bypass any configured proxy - this is a loopback request to our own server, and a
+    # registry/env proxy does not auto-exclude dotted loopback.
+    _opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
-        with urllib.request.urlopen(
+        with _opener.open(
                 f"http://127.0.0.1:{server.server_port}/", timeout=10) as resp:
             served_status = resp.status
             served_bytes = len(resp.read())
