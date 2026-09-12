@@ -15,7 +15,7 @@ import uuid
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 ROLES = {"user", "sovereign", "system"}
 JOB_STATES = {
@@ -54,6 +54,17 @@ class InvalidTransition(StoreError, ValueError):
 
 class NotFound(StoreError, LookupError):
     """A requested durable entity does not exist."""
+
+
+class ActiveJobExists(StoreError):
+    """A session already has a queued or running job (R05/F-104).
+
+    Carries the existing active job so the caller can report it without a second, racy read.
+    """
+
+    def __init__(self, active_job: Mapping[str, Any]) -> None:
+        super().__init__("session already has an active job")
+        self.active_job = dict(active_job)
 
 
 def utc_now() -> str:
@@ -258,12 +269,73 @@ class SovereignStore:
                         COMMIT;
                         """
                     )
+                    version = 1
+                if version < 2:
+                    self._migrate_to_v2(connection)
             except Exception:
                 if connection.in_transaction:
                     connection.execute("ROLLBACK")
                 raise
             finally:
                 connection.close()
+
+    def _migrate_to_v2(self, connection: sqlite3.Connection) -> None:
+        """R05/F-104. Enforce one active (queued|running) job per session at the DB level with a
+        partial unique index. A pre-existing database written by the buggy admission path may
+        already hold several active jobs for a session, which would make the index creation fail;
+        demote all but the most recent active job per session to `failed` first, recording each in
+        the event lineage so the cleanup is not silent."""
+        connection.execute("BEGIN EXCLUSIVE")
+        try:
+            rows = connection.execute(
+                """
+                SELECT job_id, session_id, created_at, rowid AS rid
+                FROM jobs
+                WHERE status IN ('queued','running')
+                ORDER BY session_id ASC, created_at ASC, rowid ASC
+                """
+            ).fetchall()
+            # Keep the last (newest) active job per session; every earlier one is superseded.
+            keep: dict[str, str] = {}
+            for row in rows:
+                keep[str(row["session_id"])] = str(row["job_id"])
+            now = utc_now()
+            for row in rows:
+                job_id = str(row["job_id"])
+                if keep.get(str(row["session_id"])) == job_id:
+                    continue
+                connection.execute(
+                    """
+                    UPDATE jobs SET status='failed', finished_at=?, updated_at=?,
+                        error=? WHERE job_id=?
+                    """,
+                    (
+                        now,
+                        now,
+                        "superseded during migration: a session may hold only one active "
+                        "job (R05/F-104)",
+                        job_id,
+                    ),
+                )
+                self._append_event(
+                    connection,
+                    "job",
+                    job_id,
+                    "superseded_by_migration",
+                    {"reason": "one_active_job_per_session", "schema_version": 2},
+                )
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_one_active_per_session
+                    ON jobs(session_id) WHERE status IN ('queued','running')
+                """
+            )
+            connection.execute("PRAGMA user_version=2")
+            connection.execute("COMMIT")
+        except Exception:
+            if connection.in_transaction:
+                connection.execute("ROLLBACK")
+            raise
 
     @staticmethod
     def _append_event(
@@ -614,6 +686,143 @@ class SovereignStore:
             )
         return self.get_job(identifier)
 
+    def admit_job(
+        self,
+        session_id: str,
+        *,
+        route: str,
+        input_text: str,
+        user_content: str,
+        user_metadata: Mapping[str, Any] | None = None,
+        job_metadata: Mapping[str, Any] | None = None,
+        job_id: str | None = None,
+        user_message_id: str | None = None,
+    ) -> dict[str, Any]:
+        """R05/F-104. Admit one turn atomically: the active-job check, the user message insert and
+        the job creation are ONE transaction, so two concurrent submissions can never both pass
+        the check and leave two jobs (and two user messages) for one session.
+
+        Raises `ActiveJobExists` (carrying the existing job) if the session already has a queued or
+        running job; the partial unique index `idx_jobs_one_active_per_session` is the last-resort
+        guard, so even a write that somehow raced the SELECT is caught and surfaced the same way
+        rather than corrupting state. Returns `{"message": <user message>, "job": <job>}`.
+        """
+        session = _id(session_id, "session")
+        message_identifier = _id(user_message_id, "message")
+        job_identifier = _id(job_id, "job")
+        normalized_role = "user"
+        if not isinstance(user_content, str) or not user_content.strip():
+            raise ValueError("message content must be non-empty text")
+        if not isinstance(input_text, str) or not input_text.strip():
+            raise ValueError("job input must be non-empty text")
+        route_value = str(route).upper()
+        now = utc_now()
+        try:
+            with self._transaction() as connection:
+                exists = connection.execute(
+                    "SELECT 1 FROM sessions WHERE session_id=? AND deleted_at IS NULL",
+                    (session,),
+                ).fetchone()
+                if not exists:
+                    raise NotFound(f"session not found: {session}")
+                active = connection.execute(
+                    """
+                    SELECT * FROM jobs
+                    WHERE session_id=? AND status IN ('queued','running')
+                    ORDER BY created_at DESC, rowid DESC LIMIT 1
+                    """,
+                    (session,),
+                ).fetchone()
+                if active is not None:
+                    raise ActiveJobExists(self._job_dict(active))
+                # User message.
+                connection.execute(
+                    """
+                    INSERT INTO messages(
+                        message_id, session_id, role, content, status, route, job_id,
+                        evidence_pointer, created_at, metadata_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        message_identifier,
+                        session,
+                        normalized_role,
+                        user_content,
+                        "accepted",
+                        route_value,
+                        None,
+                        None,
+                        now,
+                        _json(dict(user_metadata or {})),
+                    ),
+                )
+                title_row = connection.execute(
+                    "SELECT title FROM sessions WHERE session_id=?", (session,)
+                ).fetchone()
+                title = title_row["title"]
+                if title == "New chat":
+                    title = " ".join(user_content.split())[:80]
+                connection.execute(
+                    "UPDATE sessions SET updated_at=?, title=? WHERE session_id=?",
+                    (now, title, session),
+                )
+                self._append_event(
+                    connection,
+                    "message",
+                    message_identifier,
+                    "appended",
+                    {
+                        "session_id": session,
+                        "role": normalized_role,
+                        "status": "accepted",
+                        "route": route_value,
+                        "content_sha256": hashlib.sha256(
+                            user_content.encode("utf-8")
+                        ).hexdigest(),
+                    },
+                )
+                # Job, referencing the message just inserted.
+                connection.execute(
+                    """
+                    INSERT INTO jobs(
+                        job_id, session_id, route, status, input_text,
+                        input_message_id, created_at, updated_at, metadata_json
+                    ) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        job_identifier,
+                        session,
+                        route_value,
+                        input_text,
+                        message_identifier,
+                        now,
+                        now,
+                        _json(dict(job_metadata or {})),
+                    ),
+                )
+                self._append_event(
+                    connection,
+                    "job",
+                    job_identifier,
+                    "created",
+                    {"session_id": session, "route": route_value},
+                )
+        except sqlite3.IntegrityError as exc:
+            # The partial unique index fired: a concurrent admission won the race. Report the
+            # existing active job rather than a raw DB error, and leave no orphan behind (the
+            # whole transaction rolled back).
+            if "idx_jobs_one_active_per_session" in str(exc):
+                current = self.list_jobs(
+                    status=("queued", "running"), session_id=session, limit=1
+                )
+                if current:
+                    raise ActiveJobExists(current[0]) from exc
+            raise
+        return {
+            "message": self.get_message(message_identifier),
+            "job": self.get_job(job_identifier),
+        }
+
     def get_job(self, job_id: str) -> dict[str, Any]:
         identifier = _id(job_id, "job")
         connection = self._connect()
@@ -839,6 +1048,148 @@ class SovereignStore:
                 {"progress": merged},
             )
         return self.get_job(identifier)
+
+    def complete_job_with_answer(
+        self,
+        job_id: str,
+        *,
+        content: str,
+        evidence_pointer: str | None = None,
+        message_metadata: Mapping[str, Any] | None = None,
+        job_metadata: Mapping[str, Any] | None = None,
+        message_id: str | None = None,
+    ) -> dict[str, Any]:
+        """R07. Finish a running job atomically: the cancel check, the accepted answer message, the
+        progress bump and the running->completed transition are ONE transaction. It is therefore
+        impossible to end with an `accepted` output message attached to a job that is not
+        `completed` -- a crash before commit leaves the job running (to be recovered) with no
+        answer; a cancel that arrived while the answer was being computed is honoured here and the
+        answer is discarded.
+
+        Returns `{"job": <job>, "outcome": "completed"|"cancelled", "message": <message?>}`.
+        """
+        identifier = _id(job_id, "job")
+        message_identifier = _id(message_id, "message")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("answer content must be non-empty text")
+        now = utc_now()
+        with self._transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM jobs WHERE job_id=?", (identifier,)
+            ).fetchone()
+            if row is None:
+                raise NotFound(f"job not found: {identifier}")
+            current = str(row["status"])
+            if current != "running":
+                raise InvalidTransition(
+                    f"job {identifier} is {current}, expected running"
+                )
+            session = str(row["session_id"])
+            # Cancel check, inside the transaction: a cancel requested while the answer was being
+            # produced wins, and no accepted message is written.
+            if int(row["cancel_requested"]):
+                connection.execute(
+                    """
+                    UPDATE jobs SET status='cancelled', finished_at=?, updated_at=?
+                    WHERE job_id=?
+                    """,
+                    (now, now, identifier),
+                )
+                self._append_event(
+                    connection,
+                    "job",
+                    identifier,
+                    "transitioned",
+                    {"from": "running", "to": "cancelled", "reason": "cancel_requested"},
+                )
+                return {"job": self._job_dict_by_id(connection, identifier),
+                        "outcome": "cancelled", "message": None}
+            # Accepted answer message.
+            connection.execute(
+                """
+                INSERT INTO messages(
+                    message_id, session_id, role, content, status, route, job_id,
+                    evidence_pointer, created_at, metadata_json
+                ) VALUES (?, ?, 'sovereign', ?, 'accepted', ?, ?, ?, ?, ?)
+                """,
+                (
+                    message_identifier,
+                    session,
+                    content,
+                    str(row["route"]).upper() if row["route"] else None,
+                    identifier,
+                    evidence_pointer,
+                    now,
+                    _json(dict(message_metadata or {})),
+                ),
+            )
+            connection.execute(
+                "UPDATE sessions SET updated_at=? WHERE session_id=?", (now, session)
+            )
+            self._append_event(
+                connection,
+                "message",
+                message_identifier,
+                "appended",
+                {
+                    "session_id": session,
+                    "role": "sovereign",
+                    "status": "accepted",
+                    "route": str(row["route"]).upper() if row["route"] else None,
+                    "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                },
+            )
+            # Progress to 100 and the completion transition, same transaction.
+            prior_progress = _decode(row["progress_json"], {})
+            progress = dict(prior_progress) if isinstance(prior_progress, Mapping) else {}
+            progress.update({"percent": 100, "stage": "completed"})
+            merged_metadata = _decode(row["metadata_json"], {})
+            merged_metadata.update(dict(job_metadata or {}))
+            connection.execute(
+                """
+                UPDATE jobs SET status='completed', finished_at=?, updated_at=?,
+                    progress_json=?, evidence_pointer=?, output_message_id=?, metadata_json=?
+                WHERE job_id=?
+                """,
+                (
+                    now,
+                    now,
+                    _json(progress),
+                    evidence_pointer or row["evidence_pointer"],
+                    message_identifier,
+                    _json(merged_metadata),
+                    identifier,
+                ),
+            )
+            self._append_event(
+                connection,
+                "job",
+                identifier,
+                "transitioned",
+                {
+                    "from": "running",
+                    "to": "completed",
+                    "evidence_pointer": evidence_pointer,
+                    "output_message_id": message_identifier,
+                },
+            )
+            return {"job": self._job_dict_by_id(connection, identifier),
+                    "outcome": "completed",
+                    "message": self._message_dict(
+                        connection.execute(
+                            "SELECT * FROM messages WHERE message_id=?",
+                            (message_identifier,),
+                        ).fetchone()
+                    )}
+
+    @staticmethod
+    def _job_dict_by_id(connection: sqlite3.Connection, job_id: str) -> dict[str, Any]:
+        row = connection.execute(
+            "SELECT * FROM jobs WHERE job_id=?", (job_id,)
+        ).fetchone()
+        if row is None:
+            raise NotFound(f"job not found: {job_id}")
+        return SovereignStore._job_dict(row)
 
     def request_cancel(self, job_id: str) -> dict[str, Any]:
         identifier = _id(job_id, "job")

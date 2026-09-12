@@ -63,7 +63,7 @@ from .quality import (
 )
 from .router import Route, RoutingDecision, route_query
 from .semantic_deep import SemanticDeepExecutor
-from .store import InvalidTransition, NotFound, SovereignStore
+from .store import ActiveJobExists, InvalidTransition, NotFound, SovereignStore
 from system_manifest import (
     ManifestConfigError,
     load_system_manifest,
@@ -1259,30 +1259,18 @@ class ProductService:
                 "escalation_reason": fields.get("escalation_reason"),
             }
             if terminal == "completed":
-                message = self.store.append_message(
-                    str(job["session_id"]),
-                    "sovereign",
-                    answer_text,
-                    status="accepted",
-                    route=str(job["route"]),
-                    job_id=job_id,
+                # R07. One transaction: re-check cancel, write the accepted answer, bump progress
+                # to 100 and transition running->completed together, so an accepted message can
+                # never be attached to a job that is not completed, and a late cancel wins.
+                self.store.complete_job_with_answer(
+                    job_id,
+                    content=answer_text,
                     evidence_pointer=evidence_pointer,
-                    metadata={
+                    message_metadata={
                         "engine_status": fields.get("status"),
                         "model": fields.get("model"),
                     },
-                )
-                self.store.update_job_progress(
-                    job_id,
-                    {"percent": 100, "stage": "completed"},
-                )
-                self.store.transition_job(
-                    job_id,
-                    "completed",
-                    expected_status="running",
-                    evidence_pointer=evidence_pointer,
-                    output_message_id=message["message_id"],
-                    metadata=metadata,
+                    job_metadata=metadata,
                 )
             else:
                 self.store.transition_job(
@@ -1358,30 +1346,26 @@ class ProductService:
             )
         self.store.get_session(session_id, include_messages=False)
         decision = self.route(text, route_override)
-        active = self.active_job(session_id)
-        if active is not None:
+        # R05/F-104. One transaction admits the turn: the active-job check, the user message and
+        # the job are created together, so two concurrent submissions cannot both be admitted.
+        try:
+            admitted = self.store.admit_job(
+                session_id,
+                route=decision.route.value,
+                input_text=decision.normalized_query or text.strip(),
+                user_content=text.strip(),
+                user_metadata={"routing": decision.as_dict()},
+                job_metadata={"routing": decision.as_dict()},
+            )
+        except ActiveJobExists as exc:
+            active = exc.active_job
             return {
                 "ok": False,
                 "error": "this session already has an active job",
                 "job": self.public_job(active),
                 **self.public_job(active),
             }, 409
-
-        user_message = self.store.append_message(
-            session_id,
-            "user",
-            text.strip(),
-            status="accepted",
-            route=decision.route.value,
-            metadata={"routing": decision.as_dict()},
-        )
-        job = self.store.create_job(
-            session_id,
-            decision.route.value,
-            decision.normalized_query or text.strip(),
-            input_message_id=user_message["message_id"],
-            metadata={"routing": decision.as_dict()},
-        )
+        job = admitted["job"]
         self.store.update_job_progress(
             job["job_id"],
             {"percent": 0, "stage": "queued"},
