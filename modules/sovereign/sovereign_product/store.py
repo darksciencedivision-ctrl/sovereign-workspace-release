@@ -627,8 +627,96 @@ class SovereignStore:
             connection.close()
         return [self._message_dict(row) for row in rows]
 
-    # EvidenceBuilder compatibility alias.
+    # EvidenceBuilder compatibility alias. This is the RECENT-CONTEXT selector; the full session
+    # history is served through page_recent_messages (R27), which paginates and surfaces truncation
+    # instead of silently returning only the first `limit` rows.
     get_session_messages = list_messages
+
+    def count_messages(self, session_id: str) -> int:
+        session = _id(session_id, "session")
+        connection = self._connect()
+        try:
+            row = connection.execute(
+                "SELECT COUNT(*) AS c FROM messages WHERE session_id=?", (session,)
+            ).fetchone()
+        finally:
+            connection.close()
+        return int(row["c"])
+
+    def get_jobs_by_ids(self, job_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+        """R27. Fetch exactly the jobs named by `job_ids` (deduplicated), so message attribution
+        can be joined to the page being rendered rather than to a globally capped job list -- a
+        completed answer whose job is older than any fixed cap is no longer silently dropped."""
+        ordered: list[str] = []
+        seen: set[str] = set()
+        for raw in job_ids:
+            if not raw:
+                continue
+            identifier = _id(raw, "job")
+            if identifier not in seen:
+                seen.add(identifier)
+                ordered.append(identifier)
+        result: dict[str, dict[str, Any]] = {}
+        if not ordered:
+            return result
+        connection = self._connect()
+        try:
+            # Batch to stay well under SQLite's bound-parameter limit.
+            for start in range(0, len(ordered), 900):
+                batch = ordered[start:start + 900]
+                placeholders = ",".join("?" for _ in batch)
+                rows = connection.execute(
+                    f"SELECT * FROM jobs WHERE job_id IN ({placeholders})", batch
+                ).fetchall()
+                for row in rows:
+                    result[str(row["job_id"])] = self._job_dict(row)
+        finally:
+            connection.close()
+        return result
+
+    def page_recent_messages(
+        self,
+        session_id: str,
+        *,
+        limit: int = 2_000,
+        before: str | int | None = None,
+    ) -> dict[str, Any]:
+        """R27. Return the most recent `limit` messages for a session in ascending (display) order,
+        plus a cursor for older messages and the true total, so a session with more messages than
+        the page size surfaces truncation instead of silently dropping answers. `before` is an
+        opaque cursor (a rowid) from a previous page's `older_cursor`; pass it to fetch the page of
+        messages immediately older than that one."""
+        session = _id(session_id, "session")
+        limit = max(1, min(int(limit), 20_000))
+        clause = ""
+        parameters: list[Any] = [session]
+        if before is not None:
+            clause = " AND rowid < ?"
+            parameters.append(int(before))
+        parameters.append(limit + 1)  # one extra row tells us whether more remain
+        connection = self._connect()
+        try:
+            total = int(connection.execute(
+                "SELECT COUNT(*) AS c FROM messages WHERE session_id=?", (session,)
+            ).fetchone()["c"])
+            rows = connection.execute(
+                f"SELECT *, rowid AS _rid FROM messages WHERE session_id=?{clause} "
+                f"ORDER BY rowid DESC LIMIT ?",
+                parameters,
+            ).fetchall()
+        finally:
+            connection.close()
+        has_more_older = len(rows) > limit
+        page = rows[:limit]
+        older_cursor = str(page[-1]["_rid"]) if (has_more_older and page) else None
+        # Ascending for display; the query fetched newest-first to take the most recent page.
+        messages = [self._message_dict(row) for row in reversed(page)]
+        return {
+            "messages": messages,
+            "has_more_older": has_more_older,
+            "older_cursor": older_cursor,
+            "total": total,
+        }
 
     def create_job(
         self,

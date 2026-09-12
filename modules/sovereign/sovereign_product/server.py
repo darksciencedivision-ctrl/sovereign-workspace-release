@@ -113,6 +113,10 @@ FIXED_PRODUCT_POLICIES: dict[str, Any] = {
 
 _MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _ACTIVE_STATES = {"queued", "running"}
+#: R27. How many of the most recent messages the full-session view renders in one page. Older
+#: messages are reachable through the returned cursor; the true total and a truncation flag are
+#: always surfaced so nothing is silently dropped.
+SESSION_MESSAGE_PAGE = 2_000
 LOGGER = logging.getLogger(__name__)
 
 
@@ -1651,10 +1655,20 @@ class ProductService:
 
     def public_session(self, session: Mapping[str, Any]) -> dict[str, Any]:
         session_id = str(session["session_id"])
-        jobs = self.store.list_jobs(session_id=session_id, limit=500)
-        jobs_by_id = {str(job["job_id"]): job for job in jobs}
+        # R27. Page the most recent messages and JOIN job attribution to exactly that page, so a
+        # completed answer whose job is older than any fixed job cap is never silently dropped, and
+        # a session with more messages than the page surfaces truncation and a cursor rather than
+        # quietly truncating.
+        page = self.store.page_recent_messages(session_id, limit=SESSION_MESSAGE_PAGE)
+        page_messages = page["messages"]
+        job_ids = [
+            str(message.get("job_id"))
+            for message in page_messages
+            if str(message.get("role")) == "sovereign" and message.get("job_id")
+        ]
+        jobs_by_id = self.store.get_jobs_by_ids(job_ids)
         messages: list[dict[str, Any]] = []
-        for message in self.store.list_messages(session_id):
+        for message in page_messages:
             role = str(message.get("role"))
             if role == "user":
                 messages.append(self.public_message(message))
@@ -1675,11 +1689,10 @@ class ProductService:
                     job=linked,
                 )
             )
-        active = next(
-            (job for job in jobs if job["status"] in _ACTIVE_STATES),
-            None,
-        )
-        last = jobs[0] if jobs else None
+        # active/last are recent by definition; the one-active-job invariant (R05) bounds `active`.
+        active = self.active_job(session_id)
+        recent_jobs = self.store.list_jobs(session_id=session_id, limit=1)
+        last = recent_jobs[0] if recent_jobs else None
         result: dict[str, Any] = {
             "session_id": session_id,
             "title": str(session["title"]),
@@ -1688,6 +1701,9 @@ class ProductService:
             "active_model_profile": str(session["active_model_profile"]),
             "orchestration_mode": str(session["orchestration_mode"]),
             "messages": messages,
+            "total_messages": page["total"],
+            "messages_truncated": page["has_more_older"],
+            "older_messages_cursor": page["older_cursor"],
         }
         if active is not None:
             result["active_job_id"] = str(active["job_id"])
