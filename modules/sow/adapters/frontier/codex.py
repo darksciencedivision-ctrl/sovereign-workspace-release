@@ -45,6 +45,7 @@ from typing import Any, Protocol, runtime_checkable
 from adapters.base.backend import Backend, BackendAuthPause
 from adapters.base.contract import AdapterContext
 from adapters.cmd_shim import assert_cmd_shim_argv_safe
+from adapters.frontier.process_tree import run_managed_process
 from adapters.model_adapter import ModelWorkerAdapter
 
 # Provider id — MUST equal the frozen node.schema.json `adapter` enum member and
@@ -381,6 +382,11 @@ CODEX_CODING_CAPABILITY_DESCRIPTORS: list[dict[str, Any]] = [
 # confirm/adjust at the live smoke; the load-bearing safety (no credential/bypass flag, explicit
 # sandbox) does not depend on their spelling.
 CODEX_EXEC_SUBCOMMAND = "exec"
+# The prompt is delivered on STDIN, never as an argv element (F-132). `codex exec -` reads the
+# instructions from stdin ("If not provided as an argument (or if `-` is used), instructions are
+# read from stdin"), so no model-/document-controlled text is ever re-parsed by the Windows `.cmd`
+# shim / cmd.exe — the BatBadBut command-injection class is closed at the source.
+CODEX_STDIN_ARG = "-"
 CODEX_MODEL_FLAG = "-m"
 CODEX_SANDBOX_FLAG = "--sandbox"
 CODEX_CD_FLAG = "--cd"
@@ -613,11 +619,19 @@ class CodexCliBackend:
         self.calls = 0
 
     def build_command(self, prompt: str) -> list[str]:
-        """`codex exec [-m <slug>] --sandbox <mode> [--cd <worktree>] <prompt>` — the CLI's
-        documented non-interactive mode (R8/.detect). No `--with-api-key`/`--with-access-token`,
-        no `--dangerously-bypass-*`, never `danger-full-access`: nothing that carries auth or weakens
-        the sandbox. An explicit `--sandbox` + `-m` take precedence over any node-controlled
-        `~/.codex/config.toml` (T2 containment)."""
+        """`codex exec [-m <slug>] --sandbox <mode> [--cd <worktree>] -` — the CLI's documented
+        non-interactive mode, with the PROMPT DELIVERED ON STDIN (F-132).
+
+        `codex exec -` reads the instructions from stdin, so no prompt text is ever an argv element
+        the Windows `.cmd` shim (`codex.CMD`) could re-parse — the BatBadBut command-injection class
+        is closed at the source rather than merely guarded. `prompt` is accepted for signature
+        stability and is delivered by `generate` via stdin; it is deliberately NOT appended to argv.
+
+        The flag guarantees are unchanged: no `--with-api-key`/`--with-access-token`, no
+        `--dangerously-bypass-*`, never `danger-full-access`; an explicit `--sandbox` + `-m` take
+        precedence over any node-controlled `~/.codex/config.toml` (T2 containment). Because the
+        prompt is no longer appended, the cmd-shim / forbidden-flag guard now runs over the WHOLE,
+        fully-controlled argv."""
         argv: list[str] = [self.executable, CODEX_EXEC_SUBCOMMAND]
         if self.model:
             argv += [CODEX_MODEL_FLAG, self.model]
@@ -630,11 +644,10 @@ class CodexCliBackend:
             raise ValueError(
                 "refuse workspace-write without an isolated worktree (--cd) — coding writes are "
                 "confined to the node's own worktree (T2 / Phase 10, fail closed)")
-        # Guard the FLAGS only (prompt not yet appended) so a benign prompt that happens to equal a
-        # flag token is never misread as smuggling one; the argv is a list, so subprocess never
-        # word-splits a value into a separate flag anyway (spec-audit 15C .adapter NIT-1).
+        # The stdin sentinel is the only trailing token, so argv now carries no untrusted text at
+        # all; the guard runs over the complete argv (F-132 closes the "flags only" gap).
+        argv.append(CODEX_STDIN_ARG)
         _assert_no_forbidden(argv)
-        argv.append(prompt)
         return argv
 
     @staticmethod
@@ -695,16 +708,19 @@ class CodexCliBackend:
         # under-reporting spend is the dishonest direction (Buildout §4)
         self.calls += 1
         try:
-            # stdin CLOSED — see `_run` above and `ClaudeCliBackend.generate`: the prompt is in
-            # argv, and an inherited non-TTY stdin turns a live call into a timeout
-            proc = subprocess.run(cmd, capture_output=True, text=True,
-                                  timeout=self._timeout_s,
-                                  # W-03/A-2: see `process_tree`. Without this the
-                                  # host ANSI codepage decodes the transcript and an
-                                  # undefined byte yields stdout=None at exit 0.
-                                  encoding="utf-8", errors="replace",
-                                  env=env, cwd=cwd, check=False, stdin=subprocess.DEVNULL)
-        except FileNotFoundError as exc:  # CLI vanished between detection and spawn — fail closed
+            # F-132: the prompt is delivered on STDIN (`codex exec -`), never in argv, so no
+            # untrusted text reaches the Windows `.cmd` shim / cmd.exe. run_managed_process is the
+            # SAME managed boundary the other frontier backends use (a Windows job object; a POSIX
+            # process group), so a codex helper tree is reaped on timeout or exit rather than
+            # orphaned — the descendant-containment the bare subprocess.run path lacked. It pins
+            # utf-8/replace decoding (W-03/A-2) internally. `stdin` is closed at the boundary; the
+            # prompt is the piped `input_text`.
+            proc = run_managed_process(
+                cmd, timeout=self._timeout_s, env=env,
+                stdin=subprocess.DEVNULL, input_text=prompt, cwd=cwd)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"codex CLI timed out after {self._timeout_s}s") from exc
+        except (FileNotFoundError, OSError) as exc:  # CLI vanished between detection and spawn
             raise CodexAuthError(f"`{self.executable}` not found on PATH — fail closed") from exc
         if proc.returncode != 0:
             detail = (proc.stderr or proc.stdout or "").strip()

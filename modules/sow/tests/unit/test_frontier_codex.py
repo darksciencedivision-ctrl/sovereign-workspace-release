@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 
 import subprocess
+import types
 
 import pytest
 
@@ -271,13 +272,10 @@ def test_live_smoke_outcome_surfaces_model_resolution_even_on_skip(tmp_path) -> 
     assert gov.active_count("codex-sub") == 0                            # no leaked terminal
 
 
-def test_generate_never_inherits_the_parent_stdin(monkeypatch) -> None:
-    """Parity with `ClaudeCliBackend` (validator R6 — the claude fix shipped tested, this one did
-    not, and an untested parity change is the kind that silently reverts).
-
-    A CLI that reads piped stdin blocks forever on a supervisor's never-EOF stdin; the prompt
-    travels in argv, so handing the child a closed stdin loses nothing.
-    """
+def test_generate_delivers_the_prompt_on_stdin_never_in_argv(monkeypatch) -> None:
+    """F-132 + stdin parity. The prompt is delivered on STDIN (`codex exec -`), never as an argv
+    element the Windows `.cmd` shim could re-parse — closing the BatBadBut injection at the source.
+    The probe transport still closes stdin (a CLI reading a never-EOF stdin blocks forever)."""
     import subprocess
 
     from adapters.frontier import codex as mod
@@ -290,35 +288,41 @@ def test_generate_never_inherits_the_parent_stdin(monkeypatch) -> None:
 
     monkeypatch.setattr(mod.subprocess, "run", _fake_run)
 
-    # (a) the PROBE transport (`CodexCli._run`) - version/auth checks
+    # (a) the PROBE transport (`CodexCli._run`) - version/auth checks - still closes stdin
     probe = mod.CodexCli()
     probe.executable = "codex"            # it refuses before spawning when unset
     probe._run(["--version"])             # noqa: SLF001 - the shared transport for every probe
     assert seen.get("stdin") is subprocess.DEVNULL, (
         "the codex probe inherited the parent stdin and can block forever waiting on it")
 
-    # (b) the LIVE call path (`CodexCliBackend.generate`)
-    seen.clear()
+    # (b) the LIVE call path (`CodexCliBackend.generate`): the prompt goes on stdin, not in argv.
+    captured: dict[str, object] = {}
+
+    def _fake_managed(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured.update(kwargs)
+        return types.SimpleNamespace(returncode=0, stdout="an answer", stderr="", spawned_pids=())
+
+    monkeypatch.setattr(mod, "run_managed_process", _fake_managed)
     backend = CodexCliBackend()
     backend.executable = "codex"
-    try:
-        backend.generate("hello")
-    except Exception:                     # the fake stdout is not the CLI's real envelope
-        pass
-    assert seen.get("stdin") is subprocess.DEVNULL, (
-        "the codex live call inherited the parent stdin and can block forever waiting on it")
+    injection = 'INJECT" & echo pwned & rem "'
+    assert backend.generate(injection) == "an answer"
+    assert captured.get("input_text") == injection, "the prompt must be piped as stdin input"
+    assert injection not in captured["cmd"], "the prompt must never be an argv element (F-132)"
+    assert captured["cmd"][-1] == "-", "codex must read the prompt from stdin (`exec -`)"
+    assert captured.get("stdin") is subprocess.DEVNULL, "the child's own stdin handle stays closed"
 
 
 def test_a_zero_exit_that_produced_no_output_is_not_an_answer(monkeypatch) -> None:
     """W-03 / A-2. `generate()` synthesized `{"codex_exec": "empty"}` and returned it as a RESULT,
     so an invocation that produced nothing published a candidate no model ever wrote. A run with
     nothing to show is a failure to report, not an answer to publish."""
-    import subprocess as sp
-
     from adapters.frontier import codex as mod
 
-    monkeypatch.setattr(mod.subprocess, "run",
-                        lambda cmd, **kw: sp.CompletedProcess(cmd, 0, stdout="", stderr=""))
+    monkeypatch.setattr(mod, "run_managed_process",
+                        lambda *a, **kw: types.SimpleNamespace(
+                            returncode=0, stdout="", stderr="", spawned_pids=()))
     backend = mod.CodexCliBackend()
     backend.executable = "codex"
     with pytest.raises(RuntimeError) as exc:
@@ -329,13 +333,11 @@ def test_a_zero_exit_that_produced_no_output_is_not_an_answer(monkeypatch) -> No
 
 def test_ordinary_codex_output_is_still_returned_unchanged(monkeypatch) -> None:
     """The positive control for the above: a real answer is still an answer."""
-    import subprocess as sp
-
     from adapters.frontier import codex as mod
 
-    monkeypatch.setattr(mod.subprocess, "run",
-                        lambda cmd, **kw: sp.CompletedProcess(cmd, 0, stdout="  a real answer  ",
-                                                              stderr=""))
+    monkeypatch.setattr(mod, "run_managed_process",
+                        lambda *a, **kw: types.SimpleNamespace(
+                            returncode=0, stdout="  a real answer  ", stderr="", spawned_pids=()))
     backend = mod.CodexCliBackend()
     backend.executable = "codex"
     assert backend.generate("hello") == "a real answer"
@@ -366,10 +368,12 @@ ERROR_REPORTS = [
 
 
 def _codex_stdout(monkeypatch, text, rc=0):
+    from adapters.frontier import codex as mod
     backend = CodexCliBackend(executable="codex")
     backend._LIVE_SPAWN_PATH_WIRED = True
-    monkeypatch.setattr(subprocess, "run",
-                        lambda _c, **_k: subprocess.CompletedProcess(_c, rc, stdout=text + chr(10), stderr=""))
+    monkeypatch.setattr(mod, "run_managed_process",
+                        lambda *_a, **_k: types.SimpleNamespace(
+                            returncode=rc, stdout=text + chr(10), stderr="", spawned_pids=()))
     return backend
 
 
@@ -415,21 +419,24 @@ def test_W50_a_codex_auth_failure_on_STDOUT_pauses_even_with_stderr_noise(monkey
 
     Included in W-50 rather than left for a later unit because acceptance 1 ("a stdout-only auth
     failure pauses") is a property of the SYSTEM, and this build has two live generate paths."""
+    from adapters.frontier import codex as mod
     backend = _codex_stdout(monkeypatch, "", rc=1)
     monkeypatch.setattr(
-        subprocess, "run",
-        lambda _c, **_k: subprocess.CompletedProcess(
-            _c, 1, stdout="Error: not authenticated. Please run codex login.",
-            stderr="warning: config file not found"))
+        mod, "run_managed_process",
+        lambda *_a, **_k: types.SimpleNamespace(
+            returncode=1, stdout="Error: not authenticated. Please run codex login.",
+            stderr="warning: config file not found", spawned_pids=()))
     with pytest.raises(CodexAuthError):
         backend.generate("q")
 
 
 def test_W50_an_ordinary_codex_failure_is_still_not_a_pause(monkeypatch) -> None:
+    from adapters.frontier import codex as mod
     backend = _codex_stdout(monkeypatch, "", rc=1)
     monkeypatch.setattr(
-        subprocess, "run",
-        lambda _c, **_k: subprocess.CompletedProcess(_c, 1, stdout="boom", stderr="segfault"))
+        mod, "run_managed_process",
+        lambda *_a, **_k: types.SimpleNamespace(
+            returncode=1, stdout="boom", stderr="segfault", spawned_pids=()))
     with pytest.raises(RuntimeError) as exc:
         backend.generate("q")
     assert not isinstance(exc.value, CodexAuthError)
