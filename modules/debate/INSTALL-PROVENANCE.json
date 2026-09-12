@@ -1,19 +1,19 @@
 {
   "module": "debate",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-08-30T05:55:16Z",
+  "generated_utc": "2026-09-12T17:49:17Z",
   "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
-    "worktree": "D:/producttion software 2/release-worktree",
+    "worktree": "release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "c9821f563d5c1caebf42a1c462f563c3f1ac7e92"
+    "worktree_commit_at_generation": "10cb30e0edd915fd8105296ad1c0bdbfa49848ca"
   },
   "source_kind": "candidate_tree_module",
-  "source_sha256": "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a",
-  "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 55 git-tracked files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
-  "content_file_count": 55,
+  "source_sha256": "021aef784aa56ba567bf4cada98089f2cba79017b3f1438f7992a9b423ffde6c",
+  "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 58 git-tracked files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
+  "content_file_count": 58,
   "version": "v1.2.1-hardening",
   "lockfiles": [
     {
@@ -36,8 +36,7 @@
     "modules/debate/INSTALL-PROVENANCE.previous.json"
   ],
   "operator_authorized": null,
-  "integrity_verified": true,
-  "verification_basis": "content digest, lockfile and artifact hashes computed mechanically from candidate bytes at generation time; lineage_history carried from the preserved legacy record and marked [U] where unverified",
+  "verification_basis": "content digest, lockfile and artifact hashes computed mechanically from candidate bytes at generation time; re-verify with generate_module_provenance.py --check; lineage_history carried from the preserved legacy record and marked [U] where unverified",
   "open_items": [
     "OD-9: Debate Phase-7/Phase-8 deferrals and extended soak stay out of this release (named limitations)"
   ]

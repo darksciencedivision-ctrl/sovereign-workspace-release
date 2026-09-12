@@ -1,0 +1,1157 @@
+{
+  "description": "Committed Python licence map for the SBOM (F-072). Keyed by '<normalised-name>==<version>'. Regenerate with generate_sbom.py --resolve; read by the build and --check, which never touch a module .venv.",
+  "licences": {
+    "aiohappyeyeballs==2.7.1": {
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "PSF-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "aiohttp==3.14.3": {
+      "name": "aiohttp",
+      "version": "3.14.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0 AND MIT"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "aiosignal==1.4.0": {
+      "name": "aiosignal",
+      "version": "1.4.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "annotated-doc==0.0.4": {
+      "name": "annotated-doc",
+      "version": "0.0.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "annotated-doc==0.0.5": {
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "annotated-types==0.7.0": {
+      "name": "annotated-types",
+      "version": "0.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "annotated-types==0.8.0": {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "anyio==4.14.1": {
+      "name": "anyio",
+      "version": "4.14.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "anyio==4.14.2": {
+      "name": "anyio",
+      "version": "4.14.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "attrs==26.1.0": {
+      "name": "attrs",
+      "version": "26.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "bcrypt==5.0.0": {
+      "name": "bcrypt",
+      "version": "5.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "blinker==1.9.0": {
+      "name": "blinker",
+      "version": "1.9.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "build==1.5.0": {
+      "name": "build",
+      "version": "1.5.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "certifi==2026.6.17": {
+      "name": "certifi",
+      "version": "2026.6.17",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "certifi==2026.7.22": {
+      "name": "certifi",
+      "version": "2026.7.22",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "charset-normalizer==3.5.1": {
+      "name": "charset-normalizer",
+      "version": "3.5.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "chromadb==1.5.9": {
+      "name": "chromadb",
+      "version": "1.5.9",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "click==8.4.2": {
+      "name": "click",
+      "version": "8.4.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "colorama==0.4.6": {
+      "name": "colorama",
+      "version": "0.4.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "durationpy==0.10": {
+      "name": "durationpy",
+      "version": "0.10",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "fastapi==0.139.0": {
+      "name": "fastapi",
+      "version": "0.139.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "filelock==3.32.3": {
+      "name": "filelock",
+      "version": "3.32.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "flask==3.1.3": {
+      "name": "Flask",
+      "version": "3.1.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "flatbuffers==25.12.19": {
+      "name": "flatbuffers",
+      "version": "25.12.19",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "frozenlist==1.8.0": {
+      "name": "frozenlist",
+      "version": "1.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "fsspec==2026.7.0": {
+      "name": "fsspec",
+      "version": "2026.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "googleapis-common-protos==1.75.1": {
+      "name": "googleapis-common-protos",
+      "version": "1.75.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "grpcio==1.83.0": {
+      "name": "grpcio",
+      "version": "1.83.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "h11==0.16.0": {
+      "name": "h11",
+      "version": "0.16.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "hf-xet==1.6.0": {
+      "name": "hf-xet",
+      "version": "1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "httpcore==1.0.9": {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "httptools==0.8.0": {
+      "name": "httptools",
+      "version": "0.8.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "httpx==0.28.1": {
+      "name": "httpx",
+      "version": "0.28.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "huggingface-hub==1.28.0": {
+      "name": "huggingface_hub",
+      "version": "1.28.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "idna==3.18": {
+      "name": "idna",
+      "version": "3.18",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "idna==3.19": {
+      "name": "idna",
+      "version": "3.19",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "importlib-resources==7.1.0": {
+      "name": "importlib_resources",
+      "version": "7.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "itsdangerous==2.2.0": {
+      "name": "itsdangerous",
+      "version": "2.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "jinja2==3.1.6": {
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "jsonschema-specifications==2025.9.1": {
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "jsonschema==4.26.0": {
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "kubernetes==36.0.3": {
+      "name": "kubernetes",
+      "version": "36.0.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "markdown-it-py==4.2.0": {
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "markupsafe==3.0.3": {
+      "name": "MarkupSafe",
+      "version": "3.0.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "mdurl==0.1.2": {
+      "name": "mdurl",
+      "version": "0.1.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "mmh3==5.2.1": {
+      "name": "mmh3",
+      "version": "5.2.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "multidict==6.7.1": {
+      "name": "multidict",
+      "version": "6.7.1",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "numpy==2.5.1": {
+      "name": "numpy",
+      "version": "2.5.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "oauthlib==3.3.1": {
+      "name": "oauthlib",
+      "version": "3.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "onnxruntime==1.29.0": {
+      "name": "onnxruntime",
+      "version": "1.29.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "opentelemetry-api==1.44.0": {
+      "name": "opentelemetry-api",
+      "version": "1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "opentelemetry-exporter-otlp-proto-common==1.44.0": {
+      "name": "opentelemetry-exporter-otlp-proto-common",
+      "version": "1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "opentelemetry-exporter-otlp-proto-grpc==1.44.0": {
+      "name": "opentelemetry-exporter-otlp-proto-grpc",
+      "version": "1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "opentelemetry-proto==1.44.0": {
+      "name": "opentelemetry-proto",
+      "version": "1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "opentelemetry-sdk==1.44.0": {
+      "name": "opentelemetry-sdk",
+      "version": "1.44.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "opentelemetry-semantic-conventions==0.65b0": {
+      "name": "opentelemetry-semantic-conventions",
+      "version": "0.65b0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "orjson==3.12.0": {
+      "name": "orjson",
+      "version": "3.12.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0 AND (Apache-2.0 OR MIT)"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "overrides==7.7.0": {
+      "name": "overrides",
+      "version": "7.7.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "packaging==26.3": {
+      "name": "packaging",
+      "version": "26.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0 OR BSD-2-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "propcache==0.5.2": {
+      "name": "propcache",
+      "version": "0.5.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "protobuf==7.36.0": {
+      "name": "protobuf",
+      "version": "7.36.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "pybase64==1.5.0": {
+      "name": "pybase64",
+      "version": "1.5.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "pydantic-core==2.46.4": {
+      "name": "pydantic_core",
+      "version": "2.46.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "pydantic-settings==2.15.0": {
+      "name": "pydantic-settings",
+      "version": "2.15.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "pydantic==2.13.4": {
+      "name": "pydantic",
+      "version": "2.13.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "pygments==2.21.0": {
+      "name": "Pygments",
+      "version": "2.21.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "pypika==0.51.1": {
+      "name": "PyPika",
+      "version": "0.51.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "pyproject-hooks==1.2.0": {
+      "name": "pyproject_hooks",
+      "version": "1.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "python-dateutil==2.9.0.post0": {
+      "name": "python-dateutil",
+      "version": "2.9.0.post0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause OR Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifiers"
+    },
+    "python-dotenv==1.2.2": {
+      "name": "python-dotenv",
+      "version": "1.2.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "python-dotenv==1.2.3": {
+      "name": "python-dotenv",
+      "version": "1.2.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "pyyaml==6.0.3": {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "referencing==0.37.0": {
+      "name": "referencing",
+      "version": "0.37.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "requests-oauthlib==2.0.0": {
+      "name": "requests-oauthlib",
+      "version": "2.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "requests==2.34.2": {
+      "name": "requests",
+      "version": "2.34.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "rich==15.0.0": {
+      "name": "rich",
+      "version": "15.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "rpds-py==2026.6.3": {
+      "name": "rpds-py",
+      "version": "2026.6.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "shellingham==1.5.4": {
+      "name": "shellingham",
+      "version": "1.5.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "six==1.17.0": {
+      "name": "six",
+      "version": "1.17.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "starlette==1.3.1": {
+      "name": "starlette",
+      "version": "1.3.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "tenacity==9.1.4": {
+      "name": "tenacity",
+      "version": "9.1.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "tokenizers==0.23.1": {
+      "name": "tokenizers",
+      "version": "0.23.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "tqdm==4.70.0": {
+      "name": "tqdm",
+      "version": "4.70.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0 AND MIT"
+          }
+        }
+      ],
+      "source": "License field"
+    },
+    "typer==0.27.1": {
+      "name": "typer",
+      "version": "0.27.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "typing-extensions==4.16.0": {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "PSF-2.0"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "typing-inspection==0.4.2": {
+      "name": "typing-inspection",
+      "version": "0.4.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "typing-inspection==0.4.4": {
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "urllib3==2.7.0": {
+      "name": "urllib3",
+      "version": "2.7.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "uvicorn==0.51.0": {
+      "name": "uvicorn",
+      "version": "0.51.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "uvicorn==0.52.4": {
+      "name": "uvicorn",
+      "version": "0.52.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "watchfiles==1.2.0": {
+      "name": "watchfiles",
+      "version": "1.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "websocket-client==1.9.0": {
+      "name": "websocket-client",
+      "version": "1.9.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
+    "websockets==16.1": {
+      "name": "websockets",
+      "version": "16.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "websockets==17.0.1": {
+      "name": "websockets",
+      "version": "17.0.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "werkzeug==3.1.8": {
+      "name": "Werkzeug",
+      "version": "3.1.8",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
+    "yarl==1.24.5": {
+      "name": "yarl",
+      "version": "1.24.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "source": "License field"
+    }
+  }
+}

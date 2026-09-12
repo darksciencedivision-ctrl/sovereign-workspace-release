@@ -128,6 +128,7 @@ $gates = @(
     'tools\release\generate_sbom.py --check',
     'tools\release\generate_notice.py --check',
     'tools\release\provenance_cross_hash_check.py --registry tools/release/module_source_registry.json',
+    'tools\release\generate_module_provenance.py --check',
     'tools\release\innerhtml_sink_audit.py --file modules/sow/apps/desktop/renderer/renderer.js --ledger tools/release/innerhtml_audit.json'
 )
 foreach ($gate in $gates) {
@@ -244,7 +245,8 @@ $releaseRequired = @(
     'gate: release_manifest_check.py', 'gate: generate_model_projection.py',
     'gate: check_model_consistency.py', 'gate: check_governance_bom.py',
     'gate: generate_sbom.py', 'gate: generate_notice.py',
-    'gate: provenance_cross_hash_check.py', 'gate: innerhtml_sink_audit.py',
+    'gate: provenance_cross_hash_check.py', 'gate: generate_module_provenance.py',
+    'gate: innerhtml_sink_audit.py',
     'gate: check_node_advisories', 'boundary gate (distribution)',
     'pytest (whole product, from repo root)',
     'build the release artifact', 'clean-room install', 'clean-room verify'

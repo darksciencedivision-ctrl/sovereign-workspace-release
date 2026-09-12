@@ -11,7 +11,7 @@
       "properties": [
         {
           "name": "sovereign:source-commit",
-          "value": "cc37ae9027a5efc0d3df6b90991d9f8c12777931"
+          "value": "10cb30e0edd915fd8105296ad1c0bdbfa49848ca"
         },
         {
           "name": "sovereign:generated-from",
@@ -40,28 +40,28 @@
       "path": "modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt",
       "sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f",
       "scope": "required",
-      "licences_resolved_from": "modules/sovereign/.venv/Lib/site-packages"
+      "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "debate",
       "path": "modules/debate/requirements.lock.txt",
       "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2",
       "scope": "required",
-      "licences_resolved_from": "modules/debate/.venv/Lib/site-packages"
+      "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "sow",
       "path": "modules/sow/requirements.txt",
       "sha256": "aa4d74cc865552ff750143dcdd2dbe5b14650c22596f14fab9bb47faa4d76930",
       "scope": "required",
-      "licences_resolved_from": "generating host"
+      "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "sow",
       "path": "modules/sow/requirements-dev.txt",
       "sha256": "720c17009281112917502ab093050321bd9b354d3e5ed1cb958e79acf83172e1",
       "scope": "optional",
-      "licences_resolved_from": "generating host"
+      "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "sovereign-ui",

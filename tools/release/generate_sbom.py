@@ -53,6 +53,27 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+#: F-072. The committed Python licence map, keyed by "<normalised-name>==<version>". Licences that
+#: a lock file does not itself carry are resolved ONCE (from installed distribution metadata) and
+#: written here by `--resolve`; the normal build and `--check` read only this tracked file, never a
+#: module .venv or the generating host. That is what makes `--check` a pure function of tracked
+#: inputs and lets it pass identically on the build host and in CI (which provisions no module
+#: venvs). A component whose key is absent from this map is emitted UNRESOLVED and fails the build,
+#: so a newly added dependency must be resolved into the map deliberately, not silently by whatever
+#: happens to be installed on the machine cutting the release.
+LICENCE_MAP_PATH = REPO_ROOT / "tools" / "release" / "python_licences.json"
+
+
+def _pkg_key(name: str, version: str) -> str:
+    return f"{name.lower().replace('_', '-')}=={version}"
+
+
+def load_licence_map() -> dict:
+    if not LICENCE_MAP_PATH.is_file():
+        return {}
+    doc = json.loads(LICENCE_MAP_PATH.read_text(encoding="utf-8"))
+    return doc.get("licences", {})
+
 #: Python locks, in the order the installer consumes them. `scope` is CycloneDX's: `required`
 #: is installed for the running product, `optional` is development-only.
 PYTHON_LOCKS = [
@@ -185,19 +206,21 @@ def licence_from_installed(name: str, search_path: list[str] | None = None) -> t
     return None, "metadata states no licence"
 
 
-def python_components(unresolved: list) -> tuple[list, list]:
+def python_components(unresolved: list, licence_map: dict) -> tuple[list, list]:
     components, sources = [], []
     seen = {}
     for module, path, scope in PYTHON_LOCKS:
         if not path.is_file():
             continue
-        search_path = _site_packages_for(path)
+        # F-072. The source record names only tracked facts (path + sha256 + scope). It no longer
+        # records where licences were "resolved from": that was a build-host venv path, which made
+        # the SBOM -- and its --check -- differ between the build host and CI.
         sources.append({
             "module": module,
             "path": path.relative_to(REPO_ROOT).as_posix(),
             "sha256": sha256(path),
             "scope": scope,
-            "licences_resolved_from": _describe_search_path(search_path),
+            "licences_resolved_from": "tools/release/python_licences.json (committed map)",
         })
         for raw in _read_text(path).splitlines():
             line = raw.strip()
@@ -212,18 +235,27 @@ def python_components(unresolved: list) -> tuple[list, list]:
                 seen[key]["properties"].append(
                     {"name": "sovereign:required-by", "value": module})
                 continue
-            licence, origin = licence_from_installed(name, search_path)
-            if not licence:
-                unresolved.append(f"{name}=={version} ({origin})")
-                licence, origin = "UNRESOLVED", origin
+            # F-072. Licence comes from the committed map, never a .venv. The map stores the exact
+            # CycloneDX `licenses` list so the SBOM is reproduced byte-for-byte without recomputing
+            # the id-vs-name choice (which depends on the raw value the map was built from). A miss
+            # is UNRESOLVED and fails the build below rather than being silently filled from host.
+            entry = licence_map.get(_pkg_key(name, version))
+            if entry and entry.get("licenses"):
+                licenses = entry["licenses"]
+                origin = entry.get("source", "committed map")
+            else:
+                unresolved.append(
+                    f"{name}=={version} (absent from tools/release/python_licences.json; "
+                    f"run generate_sbom.py --resolve)")
+                licenses = [{"license": {"name": "UNRESOLVED"}}]
+                origin = "unresolved"
             component = {
                 "type": "library",
                 "name": name,
                 "version": version,
                 "purl": f"pkg:pypi/{name.lower().replace('_', '-')}@{version}",
                 "scope": scope,
-                "licenses": [{"license": {"id" if "-" in licence or licence.isupper()
-                                          else "name": normalise(licence)}}],
+                "licenses": licenses,
                 "properties": [
                     {"name": "sovereign:required-by", "value": module},
                     {"name": "sovereign:licence-source", "value": origin},
@@ -294,7 +326,7 @@ def head_commit() -> str:
 
 def build() -> tuple[dict, list]:
     unresolved: list = []
-    py_components, py_sources = python_components(unresolved)
+    py_components, py_sources = python_components(unresolved, load_licence_map())
     node_comps, node_sources = node_components()
     components = sorted(py_components + node_comps,
                         key=lambda c: (c["purl"].split(":")[1].split("/")[0], c["name"].lower()))
@@ -330,11 +362,79 @@ def build() -> tuple[dict, list]:
     return document, unresolved
 
 
+def resolve_licences() -> int:
+    """F-072. Refresh the committed Python licence map from installed distribution metadata.
+
+    This is the ONE place that reads a module .venv or the generating host, and it is run
+    deliberately by a maintainer -- never by --check. It MERGES: a licence it can resolve now
+    updates the map; a package it cannot resolve keeps whatever the committed map already holds
+    (so a maintainer without every module venv does not regress known licences to UNRESOLVED);
+    keys no longer named by any lock are pruned. Prints anything still unresolved and exits
+    non-zero so gaps are visible."""
+    existing = load_licence_map()
+    resolved: dict = {}
+    still_unresolved: list = []
+    for _module, path, _scope in PYTHON_LOCKS:
+        if not path.is_file():
+            continue
+        search_path = _site_packages_for(path)
+        for raw in _read_text(path).splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or line.startswith("-"):
+                continue
+            match = re.match(r"^([A-Za-z0-9._-]+)\s*==\s*([^\s;#]+)", line)
+            if not match:
+                continue
+            name, version = match.group(1), match.group(2)
+            key = _pkg_key(name, version)
+            if key in resolved:
+                continue
+            licence, origin = licence_from_installed(name, search_path)
+            if licence:
+                licenses = [{"license": {"id" if "-" in licence or licence.isupper()
+                                         else "name": normalise(licence)}}]
+                resolved[key] = {"name": name, "version": version,
+                                 "licenses": licenses, "source": origin}
+            elif key in existing and existing[key].get("licenses"):
+                resolved[key] = existing[key]  # keep the committed value; do not regress
+            else:
+                resolved[key] = {"name": name, "version": version,
+                                 "licenses": [{"license": {"name": "UNRESOLVED"}}],
+                                 "source": origin}
+                still_unresolved.append(f"{name}=={version} ({origin})")
+    doc = {
+        "description": ("Committed Python licence map for the SBOM (F-072). Keyed by "
+                        "'<normalised-name>==<version>'. Regenerate with "
+                        "generate_sbom.py --resolve; read by the build and --check, which never "
+                        "touch a module .venv."),
+        "licences": dict(sorted(resolved.items())),
+    }
+    LICENCE_MAP_PATH.write_text(
+        json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+    print(f"generate_sbom: wrote {LICENCE_MAP_PATH.relative_to(REPO_ROOT).as_posix()} "
+          f"({len(resolved)} entries)")
+    if still_unresolved:
+        print("generate_sbom: licences still UNRESOLVED after --resolve "
+              "(install the module venv and re-run):", file=sys.stderr)
+        for item in still_unresolved:
+            print(f"  {item}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(REPO_ROOT / "SBOM.json"))
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--resolve", action="store_true",
+                        help="refresh tools/release/python_licences.json from installed metadata "
+                             "(the only mode that reads a .venv/host); then regenerate the SBOM")
     args = parser.parse_args()
+
+    if args.resolve:
+        rc = resolve_licences()
+        if rc != 0:
+            return rc
 
     document, unresolved = build()
     rendered = json.dumps(document, indent=2, ensure_ascii=False) + "\n"

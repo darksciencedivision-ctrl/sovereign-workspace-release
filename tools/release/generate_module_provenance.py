@@ -162,7 +162,10 @@ def generate(root: str) -> dict:
             "candidate": {
                 "baseline_archive": BASELINE_ZIP,
                 "baseline_sha256": BASELINE_SHA256,
-                "worktree": "D:/producttion software 2/release-worktree",
+                # F-073. The worktree is named by its directory basename, never a build-host
+                # absolute path (the previous hard-coded "D:/producttion software 2/..." was both
+                # stale and a host-identity leak). content_digest below is what --check verifies.
+                "worktree": os.path.basename(os.path.abspath(root)),
                 "worktree_initial_commit": INITIAL_COMMIT,
                 "worktree_commit_at_generation": head,
             },
@@ -186,10 +189,13 @@ def generate(root: str) -> dict:
             "lineage_history": cfg["lineage_history"],
             "superseded_records": [cfg["lineage_history"]["carried_from"].split(" (")[0]],
             "operator_authorized": None,
-            "integrity_verified": True,
+            # F-073. No hard-coded "integrity_verified": true. Integrity is not a stored assertion;
+            # it is what `--check` proves by recomputing source_sha256 / content_file_count / the
+            # lockfile and artifact hashes from the tracked tree and comparing them to this record.
             "verification_basis": (
                 "content digest, lockfile and artifact hashes computed mechanically "
-                "from candidate bytes at generation time; lineage_history carried "
+                "from candidate bytes at generation time; re-verify with "
+                "generate_module_provenance.py --check; lineage_history carried "
                 "from the preserved legacy record and marked [U] where unverified"),
             "open_items": cfg["open_items"],
         }
@@ -197,13 +203,59 @@ def generate(root: str) -> dict:
     return records
 
 
+def check(root: str) -> int:
+    """F-073. Recompute each record's content-bearing fields from the TRACKED tree and compare to
+    the committed INSTALL-PROVENANCE.json. This is a pure function of git-tracked bytes -- no venv,
+    no host state -- so it gives the same verdict on the build host and in CI. Exit 1 on any stale
+    record, 0 when every record still describes the current candidate bytes."""
+    ok = True
+    for name, cfg in MODULES.items():
+        rec_path = os.path.join(root, "modules", name, RECORD_NAME)
+        if not os.path.isfile(rec_path):
+            print(f"provenance[{name}]: record missing at {rec_path}", file=sys.stderr)
+            ok = False
+            continue
+        with open(rec_path, "r", encoding="utf-8-sig") as f:
+            record = json.load(f)
+        digest, count = content_digest(root, name)
+        problems = []
+        if record.get("source_sha256") != digest:
+            problems.append(
+                f"source_sha256 {str(record.get('source_sha256'))[:12]}.. != {digest[:12]}..")
+        if record.get("content_file_count") != count:
+            problems.append(
+                f"content_file_count {record.get('content_file_count')} != {count}")
+        expected_version = read_version(root, cfg["version_source"])
+        if record.get("version") != expected_version:
+            problems.append(f"version {record.get('version')!r} != {expected_version!r}")
+        for kind in ("lockfiles", "artifacts"):
+            recorded = {e.get("path"): e.get("sha256") for e in record.get(kind, [])}
+            for path in cfg[kind]:
+                actual = sha256_file(os.path.join(root, path.replace("/", os.sep)))
+                if recorded.get(path) != actual:
+                    problems.append(f"{kind[:-1]} {path} hash mismatch")
+        if problems:
+            ok = False
+            print(f"provenance[{name}]: STALE - " + "; ".join(problems), file=sys.stderr)
+        else:
+            print(f"provenance[{name}]: OK ({count} files, {digest[:12]}..)")
+    if not ok:
+        print("generate_module_provenance: one or more records no longer describe the "
+              "candidate bytes - regenerate with --write", file=sys.stderr)
+    return 0 if ok else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--root", default=".")
     ap.add_argument("--write", action="store_true",
                     help="write modules/<m>/INSTALL-PROVENANCE.json (default: dry-run)")
+    ap.add_argument("--check", action="store_true",
+                    help="verify committed records against the tracked tree (exit 1 if stale)")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.root)
+    if args.check:
+        return check(root)
     records = generate(root)
     for name, record in records.items():
         if args.write:
