@@ -99,44 +99,15 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
             r"\bartificial\s+general\s+intelligence\b",
         ),
     ),
-    RoutingRule(
-        "evidence_research",
-        Route.RESEARCH,
-        "The request explicitly asks for external research, current sources, or citations.",
-        (
-            r"\bresearch\b",
-            r"\bliterature\b",
-            r"\bsource[sd]?\b",
-            r"\bcitations?\b",
-            r"\blook\s+(?:it\s+)?up\b",
-            r"\bsearch\b",
-            r"\bweb\b",
-            r"\blatest\b",
-            r"\bup[\s-]?to[\s-]?date\b",
-            r"\bcurrent\s+(?:law|price|news|release|research)\b",
-            r"\bevidence\s+(?:for|against|about|on)\b",
-        ),
-    ),
-    RoutingRule(
-        "deliberative_analysis",
-        Route.DEEP,
-        "The request calls for multi-step analysis, evaluation, comparison, or design.",
-        (
-            r"\banaly[sz]e\b",
-            r"\bevaluate\b",
-            r"\bcompare\b",
-            r"\bcritique\b",
-            r"\btrade[\s-]?offs?\b",
-            r"\barchitecture\b",
-            r"\broot\s+cause\b",
-            r"\breason\s+through\b",
-            r"\bstep[\s-]?by[\s-]?step\b",
-            r"\bwhy\b",
-            r"\bexplain\b",
-            r"\bdesign\b",
-            r"\bstrategy\b",
-        ),
-    ),
+    # R20 and F-116. DEEP and RESEARCH are EXPLICIT-ONLY routes. The keyword-driven rules that
+    # used to select them under AUTO ("evidence_research" -> RESEARCH on words like sources /
+    # citations / search; "deliberative_analysis" -> DEEP on analyze / compare / why / explain)
+    # were removed. SWS-BENCH-02 measured full orchestration LOSING to single-model QUICK, and an
+    # ordinary "cite sources for X" or "explain recursion" would otherwise be dragged into a
+    # multi-minute RESEARCH/DEEP run the operator never asked for. Both routes remain reachable at
+    # any time through an explicit caller override or an inline `route: DEEP` / `/route RESEARCH`
+    # prefix; only the implicit keyword triggering is gone. Do not re-add these as AUTO rules
+    # without re-approving the product decision.
 )
 
 _INLINE_OVERRIDE = re.compile(
@@ -194,12 +165,20 @@ def route_query(
 ) -> RoutingDecision:
     """Route ``query`` and expose every deterministic reason for the choice."""
 
-    text = " ".join(str(query or "").split())
+    # R19. Two distinct texts, deliberately kept apart:
+    #   * `raw` is the EXECUTION PAYLOAD -- what the executor and the durable job must receive
+    #     byte-for-byte. A multiline program's newlines, indentation and internal spacing are
+    #     meaning, and collapsing them (as this function used to) silently corrupted the request
+    #     before it ever ran.
+    #   * `match_text` is a whitespace-collapsed copy used ONLY to test the routing rules, so a
+    #     signal split across a newline still matches. It never becomes the payload.
+    raw = str(query if query is not None else "")
+    match_text = " ".join(raw.split())
     if override is not None:
         selected = Route.parse(override)
         return RoutingDecision(
             selected,
-            text,
+            raw,
             "explicit caller override",
             True,
             ("explicit_override",),
@@ -207,13 +186,15 @@ def route_query(
         )
 
     if allow_inline_override:
-        inline = _INLINE_OVERRIDE.match(text)
+        # Match the inline prefix against the RAW text so only the parsed route prefix (and its
+        # trailing separator) is removed; the remainder keeps its exact bytes.
+        inline = _INLINE_OVERRIDE.match(raw)
         if inline:
             selected = Route.parse(inline.group(1))
-            stripped = text[inline.end() :].strip()
+            payload = raw[inline.end():]
             return RoutingDecision(
                 selected,
-                stripped,
+                payload,
                 "explicit inline route override",
                 True,
                 ("inline_override",),
@@ -223,7 +204,7 @@ def route_query(
     if _context_requests_continuity(context):
         return RoutingDecision(
             Route.CONTINUITY,
-            text,
+            raw,
             "caller context identifies a prior turn or resumable job",
             False,
             ("continuity_context",),
@@ -235,7 +216,7 @@ def route_query(
         signals = tuple(
             match.group(0)
             for pattern in rule.patterns
-            if (match := re.search(pattern, text, flags=re.IGNORECASE))
+            if (match := re.search(pattern, match_text, flags=re.IGNORECASE))
         )
         if signals:
             matches.append((rule, signals))
@@ -248,17 +229,17 @@ def route_query(
         )
         return RoutingDecision(
             selected_rule.route,
-            text,
+            raw,
             selected_rule.description,
             False,
             same_route_rules,
             selected_signals,
         )
 
-    word_count = len(_WORD.findall(text))
+    word_count = len(_WORD.findall(match_text))
     return RoutingDecision(
         Route.QUICK,
-        text,
+        raw,
         "no continuity, self-state, research, or deep-analysis signal matched; "
         "QUICK is the default including long-form requests (SWS-BENCH-02)",
         False,
