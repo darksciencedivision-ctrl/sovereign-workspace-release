@@ -328,32 +328,47 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         #
         # last_start is monotonic. Wall-clock elapsed can go backwards across a clock
         # adjustment, which would either disable the rate limit or wedge it.
-        with runner._op_lock:
-            elapsed = time.monotonic() - runner.last_start
-            if elapsed < START_RATE_LIMIT_S:
-                self._send_error(
-                    f"Rate limited: {START_RATE_LIMIT_S - elapsed:.1f}s remaining", 429)
-                return
-            allowed, status, message = runner.can_start()
-            if not allowed:
-                self._send_error(message, status)
-                return
-            runner.last_start = time.monotonic()
+        # SWS-CORRECTIVE-01 1.3 / R01: admission, the rate-limit window AND the runner's STARTING
+        # transition all happen together under `_op_lock`. `begin_start` claims the operation and
+        # enters STARTING before the async worker is queued, so a Stop that lands in the gap between
+        # this handler returning and the worker running sees STARTING and supersedes it — the worker
+        # then finds it no longer owns the module and spawns nothing. Without this the module was
+        # still STOPPED in that gap, Stop took its no-op branch, and a process launched after the
+        # operator had been told it was stopped.
+        try:
+            with runner._op_lock:
+                elapsed = time.monotonic() - runner.last_start
+                if elapsed < START_RATE_LIMIT_S:
+                    self._send_error(
+                        f"Rate limited: {START_RATE_LIMIT_S - elapsed:.1f}s remaining", 429)
+                    return
+                allowed, status, message = runner.can_start()
+                if not allowed:
+                    self._send_error(message, status)
+                    return
+                runner.last_start = time.monotonic()
+                op = runner.begin_start()
+        except ValueError:
+            # Lost the admission race to another operation between can_start and begin_start.
+            self._send_error(f"Cannot start from state {runner.display}", 400)
+            return
 
-        threading.Thread(target=self._start_worker, args=(runner,), daemon=True).start()
+        threading.Thread(target=self._start_worker, args=(runner, op), daemon=True).start()
         self._send_json({"status": "accepted", "id": module_id})
 
     @staticmethod
-    def _start_worker(runner):
+    def _start_worker(runner, op):
         try:
-            runner.start()
+            runner.start(op=op)
         except ValueError:
             # The module was claimed by another operation between admission and start(). That
             # is the correct outcome of a race, not a failure of this module: publishing FAILED
             # here would overwrite the state the winning operation is establishing.
             pass
         except Exception as e:  # noqa: BLE001 - a runner failure must not kill the thread quietly
-            runner._set(FAILED, f"PROCESS_START_FAILED: {e}")
+            # Publish through the operation so a failure cannot overwrite a Stop/Cancel that
+            # superseded this start (a superseded op publishes nothing).
+            runner._publish(op, FAILED, f"PROCESS_START_FAILED: {e}")
 
     def _handle_open(self, body: dict):
         """N-23 part 2: raise the native window of a module the shell already launched.

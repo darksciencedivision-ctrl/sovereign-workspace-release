@@ -205,6 +205,45 @@ class ModuleRunner:
             self.last_check = _now_iso()
             return True
 
+    def _observe_set(self, gen: int, ph0, state: str, reason: str = "") -> bool:
+        """Publish a POLL observation only if nothing changed since it began (R02).
+
+        A poll is an observer, never an operation, so `_probe_external` must not overwrite a start
+        that took ownership while its (multi-second) HTTP/identity probe was in flight. `gen` is the
+        operation counter captured before the probe and `ph0` the managed process observed then;
+        either advancing means an operation ran in the meantime, and the observation is dropped.
+        The process handle is read outside `_op_lock` to preserve the module→supervisor lock order.
+        """
+        current_ph = self.supervisor.get_process(self.id)
+        with self._op_lock:
+            if self._op_seq != gen or current_ph is not ph0:
+                return False
+            self.state = state
+            self.reason = reason
+            self.last_check = _now_iso()
+            return True
+
+    def begin_start(self) -> int:
+        """Claim an operation and enter STARTING atomically — the SYNCHRONOUS half of a start.
+
+        R01: the server used to admit a start (rate limit + `can_start`) and then queue an async
+        worker that only reached `runner.start()` later. Between the two the module was still
+        STOPPED/FAILED, so a Stop in that gap saw a stoppable-from state, took its no-op branch, and
+        did NOT supersede — and the queued worker then spawned a process after the operator had been
+        told the module was stopped. Claiming the operation and the STARTING transition here, under
+        the same `_op_lock` the caller holds across `can_start`, closes that window: a Stop now sees
+        STARTING and supersedes, and the worker's `start(op=...)` finds it is no longer current and
+        spawns nothing.
+        """
+        with self._op_lock:
+            if self.state not in (STOPPED, FAILED):
+                raise ValueError(f"Cannot start from state {self.display}")
+            op = self._begin_operation()
+            self.state = STARTING
+            self.reason = ""
+            self.last_check = _now_iso()
+            return op
+
     def _stop_owned(self, ph, grace_s: int):
         """Stop the process THIS operation spawned - never whatever now answers to the id.
 
@@ -267,7 +306,8 @@ class ModuleRunner:
         return False, f"Unknown identity kind: {kind}"
 
     # -- transitions --------------------------------------------------------
-    def start(self, env_overrides: dict | None = None, readiness_override: dict | None = None):
+    def start(self, env_overrides: dict | None = None, readiness_override: dict | None = None,
+              op: int | None = None):
         """STOPPED -> STARTING -> READY | FAILED(EXIT|TIMEOUT|IDENTITY|JOB_ASSIGN|QUOTA_GUARD).
 
         Admission and the STARTING transition happen together under `_op_lock`, so two
@@ -275,15 +315,25 @@ class ModuleRunner:
         - the spawn, the readiness probe, the identity probe - runs outside the lock, and every
         result is published through `_publish`, which drops it if the operation has since been
         cancelled or superseded.
+
+        `op` is the operation id when admission already happened synchronously in the caller
+        (`begin_start`, the R01 server path); the module is then already STARTING and this only
+        proceeds while that operation still owns it. `op=None` keeps the self-contained path used
+        by the startup test and the deterministic suite: admit here, atomically.
         """
-        with self._op_lock:
-            if self.state not in (STOPPED, FAILED):
-                raise ValueError(f"Cannot start from state {self.display}")
-            op = self._begin_operation()
-            self.last_start = time.monotonic()
-            self.state = STARTING
-            self.reason = ""
-            self.last_check = _now_iso()
+        if op is None:
+            with self._op_lock:
+                if self.state not in (STOPPED, FAILED):
+                    raise ValueError(f"Cannot start from state {self.display}")
+                op = self._begin_operation()
+                self.last_start = time.monotonic()
+                self.state = STARTING
+                self.reason = ""
+                self.last_check = _now_iso()
+        elif not self._is_current(op):
+            # Admitted by the caller, then superseded (a Stop/Cancel in the admission→worker gap):
+            # own nothing, spawn nothing.
+            return self.display, "start superseded before spawn"
 
         # EPC-01 P4-4. Create this module's declared write targets before spawning it.
         #
@@ -473,12 +523,23 @@ class ModuleRunner:
         return False
 
     def _probe_external(self):
-        """(any, no managed process) -> EXTERNAL | FAILED(PORT_OCCUPIED_UNRECOGNIZED) | STOPPED."""
+        """(any, no managed process) -> EXTERNAL | FAILED(PORT_OCCUPIED_UNRECOGNIZED) | STOPPED.
+
+        R02: the HTTP and identity probes below take seconds, and a Start can take ownership (or a
+        Stop from EXTERNAL can supersede) while they are in flight. This is a poll, not an
+        operation, so every transition here is published through `_observe_set` guarded by the
+        operation counter and managed process captured BEFORE the probes — an observation that
+        raced an operation is dropped rather than overwriting the state that operation established.
+        """
+        with self._op_lock:
+            gen = self._op_seq
+        ph0 = self.supervisor.get_process(self.id)   # None on this path; re-checked before publish
+
         cfg = self.adapter.get("readiness", {})
         if cfg.get("kind") != "http":
             # Only endpoint-bearing modules can be occupied by an external instance.
             if self.state == EXTERNAL:
-                self._set(STOPPED)
+                self._observe_set(gen, ph0, STOPPED)
             return self.display
 
         occupied, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 500)
@@ -491,16 +552,16 @@ class ModuleRunner:
             # They survive until an explicit new operation replaces them.
             if self.state == EXTERNAL or (
                     self.state == FAILED and self.reason == PORT_OCCUPIED_UNRECOGNIZED):
-                self._set(STOPPED)
+                self._observe_set(gen, ph0, STOPPED)
             else:
                 self.last_check = _now_iso()
             return self.display
 
         ok, _ = self._identity(self.adapter["identity"], None)
         if ok:
-            self._set(EXTERNAL)
+            self._observe_set(gen, ph0, EXTERNAL)
         else:
-            self._set(FAILED, PORT_OCCUPIED_UNRECOGNIZED)
+            self._observe_set(gen, ph0, FAILED, PORT_OCCUPIED_UNRECOGNIZED)
         return self.display
 
     def can_start(self) -> tuple:

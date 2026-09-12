@@ -21,20 +21,26 @@ from shell.src import states
 
 
 class _RecordingRaisingRunner:
-    """Duck-typed runner: start() raises; _set records the transition."""
+    """Duck-typed runner: start() raises; _publish records the transition (R01: the worker now
+    publishes a failure through the operation so it cannot overwrite a superseding Stop)."""
 
     def __init__(self):
         self.state = states.STOPPED
         self.reason = ""
         self.transitions = []
 
-    def start(self):
+    @property
+    def display(self):
+        return self.state
+
+    def start(self, op=None):
         raise RuntimeError("boom")
 
-    def _set(self, state, reason=""):
+    def _publish(self, op, state, reason=""):
         self.state = state
         self.reason = reason
         self.transitions.append((state, reason))
+        return True
 
 
 class _NoSpawnSupervisor:
@@ -60,7 +66,7 @@ class StartWorkerFailureContract(unittest.TestCase):
     def test_raising_start_records_failed_not_nameerror(self):
         runner = _RecordingRaisingRunner()
         # Pre-fix this call raised NameError: name 'FAILED' is not defined.
-        server.ShellAPIHandler._start_worker(runner)
+        server.ShellAPIHandler._start_worker(runner, op=1)
         self.assertEqual(runner.state, states.FAILED)
         self.assertEqual(len(runner.transitions), 1)
         self.assertTrue(runner.reason.startswith("PROCESS_START_FAILED:"),
@@ -78,7 +84,8 @@ class StartWorkerFailureContract(unittest.TestCase):
             "readiness": {"kind": "none"},
         }
         runner = states.ModuleRunner("broken", adapter, sup)
-        server.ShellAPIHandler._start_worker(runner)
+        op = runner.begin_start()
+        server.ShellAPIHandler._start_worker(runner, op)
         self.assertEqual(runner.state, states.FAILED)
         self.assertTrue(runner.reason.startswith("PROCESS_START_FAILED:"),
                         runner.reason)
