@@ -20,6 +20,7 @@ Design notes that matter for H-6:
 import ctypes
 import threading
 import time
+import uuid
 from ctypes import wintypes
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -166,6 +167,14 @@ kernel32.ReadFile.argtypes = [
 kernel32.ReadFile.restype = wintypes.BOOL
 kernel32.GenerateConsoleCtrlEvent.argtypes = [wintypes.DWORD, wintypes.DWORD]
 kernel32.GenerateConsoleCtrlEvent.restype = wintypes.BOOL
+# F-011: a per-module named Event is the graceful-shutdown channel. CREATE_NO_WINDOW gives each
+# child its own console, so CTRL_BREAK never reaches it; the module instead waits on this event
+# (shell/src/graceful.py) and shuts itself down cleanly when the supervisor signals it.
+kernel32.CreateEventW.argtypes = [
+    wintypes.LPVOID, wintypes.BOOL, wintypes.BOOL, wintypes.LPCWSTR]
+kernel32.CreateEventW.restype = wintypes.HANDLE
+kernel32.SetEvent.argtypes = [wintypes.HANDLE]
+kernel32.SetEvent.restype = wintypes.BOOL
 kernel32.CreateFileW.argtypes = [
     wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(SECURITY_ATTRIBUTES),
     wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
@@ -316,12 +325,16 @@ def build_cmdline(argv: list) -> str:
 class ProcessHandle:
     """Wraps a Windows process handle, its PID, and its per-module Job."""
 
-    def __init__(self, h_process, h_thread, pid: int, job_handle, module_id: str):
+    def __init__(self, h_process, h_thread, pid: int, job_handle, module_id: str,
+                 shutdown_event=None, shutdown_event_name: str | None = None):
         self.h_process = h_process
         self.h_thread = h_thread
         self.pid = pid
         self.job_handle = job_handle
         self.module_id = module_id
+        # F-011: the module's graceful-shutdown Event (parent handle) and its name, or None.
+        self.shutdown_event = shutdown_event
+        self.shutdown_event_name = shutdown_event_name
         self._exit_code = None
         self.started = time.time()
 
@@ -469,7 +482,22 @@ class JobSupervisor:
             flags = (CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP
                      | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW)
 
-            block = "".join(f"{k}={v}\0" for k, v in env.items()) + "\0"
+            # F-011: create the per-module graceful-shutdown Event (manual-reset, unsignalled) and
+            # pass its name to the child in SWS_SHUTDOWN_EVENT. A module that installs the watcher
+            # (shell/src/graceful.py) shuts itself down cleanly when Stop signals this, before the
+            # CTRL_BREAK -> TerminateJobObject fallback. Adding the variable is harmless for a module
+            # that does not adopt the watcher. `Local\` scopes the name to this logon session, which
+            # the child (same user, same session) can open by name.
+            safe_id = "".join(c for c in str(module_id) if c.isalnum() or c in "._-") or "module"
+            evt_name = f"Local\\SWS_SHUTDOWN_{safe_id}_{uuid.uuid4().hex}"
+            h_event = kernel32.CreateEventW(None, True, False, evt_name)
+            child_env = dict(env)
+            if h_event:
+                child_env["SWS_SHUTDOWN_EVENT"] = evt_name
+            else:
+                evt_name = None
+
+            block = "".join(f"{k}={v}\0" for k, v in child_env.items()) + "\0"
             env_buf = ctypes.create_unicode_buffer(block)
 
             ok = kernel32.CreateProcessW(
@@ -485,6 +513,8 @@ class JobSupervisor:
                 if log_ring is not None:
                     kernel32.CloseHandle(read_h)
                 kernel32.CloseHandle(module_job)
+                if h_event:
+                    kernel32.CloseHandle(h_event)
                 raise SupervisorError(f"CreateProcess failed: {err}")
 
             # Assignment ORDER is load-bearing. Each assignment nests the new job INSIDE the
@@ -501,6 +531,8 @@ class JobSupervisor:
                 if log_ring is not None:
                     kernel32.CloseHandle(read_h)
                 kernel32.CloseHandle(module_job)
+                if h_event:
+                    kernel32.CloseHandle(h_event)
                 raise SupervisorError(f"AssignProcessToJobObject (shell) failed: {err} (JOB_ASSIGN)")
             if not kernel32.AssignProcessToJobObject(module_job, pi.hProcess):
                 err = ctypes.get_last_error()
@@ -510,11 +542,14 @@ class JobSupervisor:
                 if log_ring is not None:
                     kernel32.CloseHandle(read_h)
                 kernel32.CloseHandle(module_job)
+                if h_event:
+                    kernel32.CloseHandle(h_event)
                 raise SupervisorError(f"AssignProcessToJobObject failed: {err} (JOB_ASSIGN)")
 
             kernel32.ResumeThread(pi.hThread)
 
-            ph = ProcessHandle(pi.hProcess, pi.hThread, pi.dwProcessId, module_job, module_id)
+            ph = ProcessHandle(pi.hProcess, pi.hThread, pi.dwProcessId, module_job, module_id,
+                               shutdown_event=(h_event or None), shutdown_event_name=evt_name)
             self._processes[module_id] = ph
 
             if log_ring is not None:
@@ -543,31 +578,52 @@ class JobSupervisor:
 
     # -- stop ---------------------------------------------------------------
     def stop(self, module_id: str, grace_s: int = 10):
-        """Graceful CTRL_BREAK, then grace_s, then TerminateJobObject on the module's own job.
+        """Graceful shutdown signal, then grace_s, then TerminateJobObject on the module's own job.
 
-        TerminateJobObject (not TerminateProcess) is what kills grandchildren, which is the
-        whole point of H-6.
+        F-011: the graceful nudge is now TWO signals, because a CREATE_NO_WINDOW child never
+        receives CTRL_BREAK (its console is not the shell's). First SetEvent on the module's
+        shutdown Event, which a module that installed the watcher (shell/src/graceful.py) uses to
+        close cleanly — flushing its database before exit; CTRL_BREAK is kept as a harmless second
+        nudge for any console child. Only if the process is still alive after grace_s does
+        TerminateJobObject fire (it, not TerminateProcess, is what kills grandchildren — H-6).
+
+        Returns an observable record so a caller can see whether the module exited on its own
+        (`graceful`) or had to be force-terminated (`forced`), and how long it waited — the "grace
+        expired is an observable event" half of the fix. Existing callers ignore the return.
         """
+        started = time.time()
         with self._lock:
             ph = self._processes.get(module_id)
             if not ph:
-                return
+                return {"module_id": module_id, "found": False, "graceful": False,
+                        "forced": False, "waited_ms": 0, "exit_code": None}
             if not ph.is_alive():
+                record = {"module_id": module_id, "found": True, "graceful": True,
+                          "forced": False, "waited_ms": 0, "exit_code": ph.exit_code}
                 self._cleanup(module_id, ph)
-                return
+                return record
+            if ph.shutdown_event:
+                kernel32.SetEvent(ph.shutdown_event)
             kernel32.GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, ph.pid)
 
         deadline = time.time() + max(0, grace_s)
+        graceful = False
         while time.time() < deadline:
             if not ph.is_alive():
+                graceful = True
                 break
             time.sleep(0.05)
 
+        forced = False
         with self._lock:
-            kernel32.TerminateJobObject(ph.job_handle, 1)
-            deadline = time.time() + 2
-            while time.time() < deadline and ph.is_alive():
-                time.sleep(0.02)
+            if not graceful:
+                # Grace expired: the module did not stop itself. Force the whole tree down.
+                kernel32.TerminateJobObject(ph.job_handle, 1)
+                forced = True
+                deadline = time.time() + 2
+                while time.time() < deadline and ph.is_alive():
+                    time.sleep(0.02)
+            exit_code = ph.exit_code
             reader = self._readers.get(module_id)
             self._cleanup(module_id, ph)
 
@@ -577,6 +633,9 @@ class JobSupervisor:
         if reader is not None:
             reader[0].join(timeout=5)
 
+        return {"module_id": module_id, "found": True, "graceful": graceful, "forced": forced,
+                "waited_ms": int((time.time() - started) * 1000), "exit_code": exit_code}
+
     def stop_all(self):
         with self._lock:
             for module_id, ph in list(self._processes.items()):
@@ -585,7 +644,9 @@ class JobSupervisor:
             self._processes.clear()
 
     def _cleanup(self, module_id: str, ph):
-        for h in (ph.h_process, ph.h_thread, ph.job_handle):
+        for h in (ph.h_process, ph.h_thread, ph.job_handle, ph.shutdown_event):
+            if not h:
+                continue
             try:
                 kernel32.CloseHandle(h)
             except Exception:

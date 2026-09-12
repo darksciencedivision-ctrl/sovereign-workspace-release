@@ -910,6 +910,47 @@ def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRe
     return Handler
 
 
+def _install_shutdown_watcher(on_shutdown) -> None:
+    """F-011: shut down cleanly when the shell signals the graceful-shutdown Event.
+
+    The shell spawns this module with CREATE_NO_WINDOW, so its CTRL_BREAK never reaches us and Stop
+    used to hard-kill the process — risking a torn SQLite write. It now signals a per-module named
+    Event whose name it passes in SWS_SHUTDOWN_EVENT; watching it lets us stop serve_forever and
+    close the database on our own terms, before the supervisor's terminate fallback. This mirrors
+    the canonical shell/src/graceful.install_shutdown_watcher (a module cannot import the shell
+    package), and is pinned to it by shell/tests/test_graceful_shutdown_adoption.py. No-op off
+    Windows or when not launched by the shell."""
+    import sys
+    if sys.platform != "win32":
+        return
+    name = (os.environ.get("SWS_SHUTDOWN_EVENT") or "").strip()
+    if not name:
+        return
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenEventW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+    k.OpenEventW.restype = wintypes.HANDLE
+    k.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    k.WaitForSingleObject.restype = wintypes.DWORD
+    k.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = k.OpenEventW(0x00100000, False, name)   # SYNCHRONIZE
+    if not handle:
+        return
+
+    def _wait() -> None:
+        try:
+            if k.WaitForSingleObject(handle, 0xFFFFFFFF) == 0:   # WAIT_OBJECT_0
+                try:
+                    on_shutdown()
+                except Exception:
+                    pass
+        finally:
+            k.CloseHandle(handle)
+
+    threading.Thread(target=_wait, name="sws-shutdown-watcher", daemon=True).start()
+
+
 def refresh_loop(state: State, stop: threading.Event) -> None:
     while not stop.wait(REFRESH_SECONDS):
         try:
@@ -936,6 +977,9 @@ def main() -> int:
     worker.start()
     csrf_token = secrets.token_urlsafe(32)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, csrf_token))
+    # F-011: stop serve_forever cleanly on the shell's shutdown signal (server.shutdown() is safe
+    # from another thread); the finally below then closes the socket. Without this, Stop hard-kills.
+    _install_shutdown_watcher(server.shutdown)
     print(f"Sovereign Token Center: http://{args.host}:{args.port}")
     try:
         server.serve_forever()

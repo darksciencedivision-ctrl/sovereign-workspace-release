@@ -2357,6 +2357,50 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _install_shutdown_watcher(on_shutdown) -> None:
+    """F-011: shut down cleanly when the shell signals the graceful-shutdown Event.
+
+    The shell spawns this module with CREATE_NO_WINDOW, so its CTRL_BREAK never reaches us and Stop
+    used to hard-kill the process — risking a torn write to the hash-chained SQLite event log. It
+    now signals a per-module named Event (name in SWS_SHUTDOWN_EVENT); watching it lets us close the
+    store cleanly before the supervisor's terminate fallback. Werkzeug's `app.run` dev server cannot
+    be stopped cleanly from another thread, so `on_shutdown` closes the service (flushing/closing the
+    database) and then exits — the database integrity is the point, not a drained HTTP socket.
+
+    Mirrors the canonical shell/src/graceful.install_shutdown_watcher (a module cannot import the
+    shell package); pinned to it by shell/tests/test_graceful_shutdown_adoption.py. No-op off Windows
+    or when not launched by the shell."""
+    import sys
+    if sys.platform != "win32":
+        return
+    name = (os.environ.get("SWS_SHUTDOWN_EVENT") or "").strip()
+    if not name:
+        return
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenEventW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+    k.OpenEventW.restype = wintypes.HANDLE
+    k.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    k.WaitForSingleObject.restype = wintypes.DWORD
+    k.CloseHandle.argtypes = [wintypes.HANDLE]
+    handle = k.OpenEventW(0x00100000, False, name)   # SYNCHRONIZE
+    if not handle:
+        return
+
+    def _wait() -> None:
+        try:
+            if k.WaitForSingleObject(handle, 0xFFFFFFFF) == 0:   # WAIT_OBJECT_0
+                try:
+                    on_shutdown()
+                except Exception:
+                    pass
+        finally:
+            k.CloseHandle(handle)
+
+    threading.Thread(target=_wait, name="sws-shutdown-watcher", daemon=True).start()
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     host = _validate_bind_host(args.host)
@@ -2367,6 +2411,18 @@ def main(argv: list[str] | None = None) -> int:
         worker_count=args.workers,
     )
     app = create_app(service=service)
+
+    def _graceful_shutdown() -> None:
+        # Close the store (flush the WAL, release the connection) THEN exit. app.run cannot be
+        # stopped cleanly cross-thread, so a prompt exit after a clean close is the safe outcome;
+        # the supervisor's terminate fallback still covers a hang. service.close is idempotent with
+        # the finally below (only one of them runs — os._exit skips the finally).
+        try:
+            service.close()
+        finally:
+            os._exit(0)
+
+    _install_shutdown_watcher(_graceful_shutdown)
     try:
         app.run(
             host=host,
