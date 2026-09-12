@@ -64,11 +64,21 @@ PROJECT_FACT_QUERY = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+#: Abstention language (R32/F-100). Active and PASSIVE forms both count -- "cannot verify" and
+#: "cannot be verified from the available evidence" are the same abstention -- and a bare "unknown"
+#: only counts as the standalone descriptive word, never as a fragment of an identifier such as
+#: `unknown-model:3b` (the negative look-around excludes an adjacent word char, colon or hyphen).
 UNKNOWN_LANGUAGE = re.compile(
-    r"\b("
-    r"cannot\s+(?:determine|verify|confirm)|not\s+(?:known|provided|available)|"
-    r"insufficient\s+evidence|evidence\s+is\s+(?:missing|insufficient)|unknown"
-    r")\b",
+    r"(?:"
+    r"\bcannot\s+(?:be\s+)?(?:determine[d]?|verif(?:y|ied)|confirm(?:ed)?|"
+    r"establish(?:ed)?|found)\b"
+    r"|\bcould\s+not\s+be\s+(?:determined|verified|confirmed|established|found)\b"
+    r"|\bnot\s+(?:be\s+)?(?:known|provided|available|verifiable|determined|verified)\b"
+    r"|\binsufficient\s+evidence\b"
+    r"|\bno\s+(?:evidence|record|information)\b"
+    r"|\bevidence\s+is\s+(?:missing|insufficient)\b"
+    r"|(?<![\w:.-])unknown(?![\w:.-])"
+    r")",
     re.IGNORECASE,
 )
 UNSUPPORTED_CAPABILITY = re.compile(
@@ -100,6 +110,12 @@ _CLAUSE_SPLIT = re.compile(
     r")",
     re.IGNORECASE,
 )
+
+#: Within one clause, coordinated sub-assertions (R32/F-100). Used ONLY to re-examine a clause
+#: that carries no citation, so a concrete assertion joined by "and"/"or"/comma to an abstention is
+#: still judged on its own. A comma inside a number ("1,000") is not a split point because it is
+#: not followed by whitespace.
+_COORDINATION_SPLIT = re.compile(r"\s+(?:and|or)\s+|,\s+", re.IGNORECASE)
 
 #: A clause only counts as ASSERTING a fact if it contains a factual predicate: a
 #: copula or possession verb, or a version/identifier-shaped token. Prose that
@@ -232,21 +248,33 @@ def assess_quick_response(
             unknown_citations=unknown,
         )
 
-    if not PROJECT_FACT_QUERY.search(str(query or "")):
-        # An ordinary question that is not about this project or this session.
-        # Attribution is not required, and claiming to have checked it would be
-        # the same overreach in the other direction.
+    # R32/F-100. Attribution is required whenever an evidence packet EXISTS, regardless of the
+    # query's wording -- a fabricated project fact must not ride along just because the operator's
+    # question happened to omit a trigger keyword. When there is no evidence at all, the project-
+    # fact query gate still applies so an ordinary question ("what is a palindrome?") is not asked
+    # to cite anything it cannot.
+    if not available and not PROJECT_FACT_QUERY.search(str(query or "")):
         return QuickAssessment(True, None, format_ok=True)
 
     unattributed = []
     for clause in _clauses(text):
-        if _is_abstention(clause):
-            continue
-        if not _asserts_a_fact(clause):
-            continue
         if CITATION.search(clause):
+            # A citation anywhere in the clause attributes it; folding (see _clauses) has already
+            # kept a trailing citation with the claim it supports.
             continue
-        unattributed.append(clause)
+        # R32/F-100. Examine each COORDINATED sub-assertion of an uncited clause on its own, so an
+        # abstention joined to a concrete assertion ("X is foo:1 and its date is unknown") cannot
+        # let the assertion ride along unattributed: the abstention exempts only its own predicate.
+        for part in _COORDINATION_SPLIT.split(clause):
+            part = part.strip(" \t.,;:-")
+            if not part:
+                continue
+            if _is_abstention(part):
+                continue
+            if not _asserts_a_fact(part):
+                continue
+            unattributed.append(part)
+            break
 
     if unattributed:
         if not available:
