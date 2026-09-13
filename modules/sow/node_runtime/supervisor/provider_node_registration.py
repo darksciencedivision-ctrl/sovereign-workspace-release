@@ -254,6 +254,16 @@ def default_node_event_log_path(repo_root: str | Path) -> Path:
     override = os.environ.get("SOW_NODE_EVENT_LOG", "").strip()
     if override:
         return Path(override)
+    # F-131. This log is "never deletable" operator state; the shell passes
+    # SOVEREIGN_STORE_ROOT=${state_root}/store, so honour it and keep the log out of the install
+    # tree (which an upgrade replaces and a per-machine install makes read-only). Only when no
+    # store root is declared (developer standalone) does it fall back under repo_root.
+    store = (os.environ.get("SOVEREIGN_STORE_ROOT") or "").strip()
+    if store:
+        return Path(store) / "nodes" / "node_events.jsonl"
+    state = (os.environ.get("SOVEREIGN_WORKSPACE_STATE") or "").strip()
+    if state:
+        return Path(state) / "store" / "nodes" / "node_events.jsonl"
     return Path(repo_root) / NODE_EVENT_LOG_RELPATH
 
 

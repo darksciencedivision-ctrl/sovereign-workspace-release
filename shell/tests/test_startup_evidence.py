@@ -39,23 +39,20 @@ class TestStartupEvidenceLane(unittest.TestCase):
         self._owned_root = tempfile.mkdtemp(prefix="sws-startup-evidence-")
         self.addCleanup(shutil.rmtree, self._owned_root, ignore_errors=True)
 
-    def test_default_record_location_is_the_ignored_runtime_lane(self):
-        # Default-path selection is verified WITHOUT writing into the real `.runtime`:
-        # evidence_root() is a pure path computation (no mkdir, no file), unlike
-        # _record_path()/_save_record(), which would create the directory (R15).
+    def test_default_record_location_is_the_state_root_not_the_install(self):
+        # R16/F-017. The default evidence location is the shell's per-USER state root, NOT the
+        # install tree -- writing under <install>/.runtime dirtied the installed path set and
+        # failed on a read-only install. evidence_root() is a pure path computation (no mkdir),
+        # verified here without writing anything.
+        from shell.src.adapter import workspace_state_root
         with mock.patch.dict(os.environ, {"SWS_EVIDENCE_ROOT": ""}):
             default_root = os.path.abspath(startup_test.evidence_root())
 
-        expected_root = os.path.abspath(os.path.join(WORKTREE, ".runtime", "evidence"))
+        expected_root = os.path.abspath(
+            os.path.join(workspace_state_root().replace("/", os.sep), "shell", "evidence"))
         self.assertEqual(default_root, expected_root)
-
-        # A record under the default root is git-ignored. `git check-ignore` operates on
-        # the path string, so the file need not exist and nothing is created here.
-        probe_path = os.path.join(default_root, "startup-tests", "n16-probe.json")
-        ignored = subprocess.run(
-            ["git", "check-ignore", "--quiet", probe_path],
-            cwd=WORKTREE, check=False)
-        self.assertEqual(ignored.returncode, 0, probe_path)
+        # The default location is OUTSIDE the install tree (the F-017 property).
+        self.assertNotIn(os.path.abspath(WORKTREE).casefold(), default_root.casefold())
 
     def test_record_is_written_under_the_configured_root(self):
         # An actual _save_record write is directed at the per-test owned root only.

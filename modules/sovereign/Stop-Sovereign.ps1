@@ -8,7 +8,17 @@ param(
 $ErrorActionPreference = "Stop"
 $rootPath = [System.IO.Path]::GetFullPath($Root)
 $markerPath = Join-Path $rootPath ".sovereign-root"
-$statePath = Join-Path $rootPath "runtime\service_state.json"
+# F-120. Read service_state.json from the same per-user state root Start-Sovereign now writes to
+# (shell layout), not the install tree.
+$stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
+if ([string]::IsNullOrWhiteSpace($stateRoot)) {
+    $localAppData = $env:LOCALAPPDATA
+    if ([string]::IsNullOrWhiteSpace($localAppData)) {
+        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
+    }
+    $stateRoot = Join-Path $localAppData "SovereignWorkspace\sovereign"
+}
+$statePath = Join-Path $stateRoot "runtime\service_state.json"
 
 if (
     -not (Test-Path -LiteralPath $markerPath -PathType Leaf) -or

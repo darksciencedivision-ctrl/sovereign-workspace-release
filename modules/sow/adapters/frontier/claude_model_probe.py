@@ -324,6 +324,14 @@ def default_ledger_path() -> Path:
     override = os.environ.get("SOW_MODEL_PROBE_LEDGER")
     if override and override.strip():
         return Path(override.strip())
+    # F-131. Honour the shell-declared store root so this host observation is not written into, or
+    # lost with, the install tree; fall back under the repo only for a developer standalone run.
+    store = (os.environ.get("SOVEREIGN_STORE_ROOT") or "").strip()
+    if store:
+        return Path(store) / "model_probe" / "claude_code.json"
+    state = (os.environ.get("SOVEREIGN_WORKSPACE_STATE") or "").strip()
+    if state:
+        return Path(state) / "store" / "model_probe" / "claude_code.json"
     root = Path(__file__).resolve().parents[2]
     return root / ".sovereign_store" / "model_probe" / "claude_code.json"
 

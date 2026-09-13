@@ -375,7 +375,7 @@ def _safe_progress(value: Any, *, fallback_stage: str) -> dict[str, Any]:
     if "stage" not in progress:
         progress["stage"] = fallback_stage
     raw_percent = progress.get("percent")
-    if not isinstance(raw_percent, (int, float)):
+    if not isinstance(raw_percent, (int, float)) or isinstance(raw_percent, bool):
         current = progress.get("current")
         total = progress.get("total")
         if (
@@ -389,8 +389,14 @@ def _safe_progress(value: Any, *, fallback_stage: str) -> dict[str, Any]:
         ):
             raw_percent = current / total * 100
         else:
-            raw_percent = 0
-    if isinstance(raw_percent, bool) or not math.isfinite(float(raw_percent)):
+            # F-117. No percent and none derivable (RESEARCH events carry stage/detail but no
+            # percent). Defaulting to 0 made the store reject the event as a regression below the
+            # job's initial 1% (InvalidTransition, swallowed), so RESEARCH sat at "running 1%" for
+            # its whole duration. Omit percent instead: update_job_progress keeps the prior percent
+            # and the stage/detail still advance.
+            progress.pop("percent", None)
+            return progress
+    if not math.isfinite(float(raw_percent)):
         raise ValueError("progress percent must be finite")
     progress["percent"] = max(
         0,
@@ -933,12 +939,29 @@ class ProductService:
                     if isinstance(recovery_artifact, str) and recovery_artifact:
                         if not execution_id:
                             return
-                        raw = Path(recovery_artifact)
-                        candidate = (
-                            raw if raw.is_absolute() else self.root / raw
-                        ).resolve(strict=True)
+                        # F-117. The producer emits a TYPED pointer (sovereign-state:// under the
+                        # external-state layout, or sovereign://), resolved through the one shared
+                        # contract that knows the state root. Joining it to the INSTALL root raised
+                        # FileNotFoundError, and because that raised inside this callback the WHOLE
+                        # progress event -- percent included -- was silently dropped, so DEEP sat at
+                        # "running 1%". A bare relative/absolute path is still accepted for
+                        # compatibility.
+                        try:
+                            if recovery_artifact.startswith(
+                                (POINTER_PREFIX, STATE_POINTER_PREFIX)
+                            ):
+                                candidate = self.paths.resolve_pointer(
+                                    recovery_artifact, must_exist=True)
+                            else:
+                                raw = Path(recovery_artifact)
+                                candidate = (
+                                    raw if raw.is_absolute() else self.root / raw
+                                ).resolve(strict=True)
+                        except (PathResolutionError, UnsafeArtifactPointer, OSError):
+                            return
                         if not candidate.is_file():
                             return
+                        candidate = candidate.resolve()
                         expected_request = (
                             self.paths.evidence_dir
                             / "semantic_deep"

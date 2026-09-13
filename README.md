@@ -69,8 +69,13 @@ record. Reinstall-then-restore is the supported recovery route; see `docs\OPERAT
 ## Run
 
 ```powershell
-py -3.12 -m shell.src
+py -3.12 -B -m shell.src
 ```
+
+`-B` keeps Python from writing `shell\src\__pycache__` into the installation: the installed path
+set is verified byte-for-byte by `verify_install.ps1`, and uninstall refuses when it has changed,
+so an ordinary run must not add bytecode files to the tree (F-041). The Start-Shell.ps1 launcher
+already sets this for you.
 
 Open <http://127.0.0.1:5180>. Override the port with `--port <n>` if 5180 is taken.
 

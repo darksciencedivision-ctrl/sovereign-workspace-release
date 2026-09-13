@@ -49,12 +49,28 @@ try {
         throw "SYSTEM_MANIFEST validation failed."
     }
 
-    & $pythonPath -m compileall -q $compileTargets
+    # F-120. Compile-check to a TEMP bytecode cache, not into the install tree (the plain
+    # compileall wrote __pycache__ under the installation, which verify_install/uninstall's
+    # exact-path-set check then flagged).
+    $previousPycachePrefix = $env:PYTHONPYCACHEPREFIX
+    $env:PYTHONPYCACHEPREFIX = Join-Path ([System.IO.Path]::GetTempPath()) "sovereign-compileall"
+    try {
+        & $pythonPath -m compileall -q $compileTargets
+    } finally {
+        $env:PYTHONPYCACHEPREFIX = $previousPycachePrefix
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "Python compile check failed."
     }
 
-    & $pythonPath -m pytest -q tests tests_product
+    # F-120. `tests_product` does not exist in this module (0 tracked files), so the old
+    # `pytest tests tests_product` ALWAYS failed regardless of product state. Run the dirs that
+    # actually exist.
+    $testTargets = @("tests")
+    if (Test-Path -LiteralPath (Join-Path $rootPath "tests_product") -PathType Container) {
+        $testTargets += "tests_product"
+    }
+    & $pythonPath -m pytest -q @testTargets
     if ($LASTEXITCODE -ne 0) {
         throw "Python test suite failed."
     }

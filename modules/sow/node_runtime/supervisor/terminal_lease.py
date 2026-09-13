@@ -69,9 +69,22 @@ LEDGER_SCHEMA = "terminal_lease_ledger@1.1"
 #: (fail-closed on an unreadable file is right; fail-closed on our own older format is not).
 READABLE_LEDGER_SCHEMAS = ("terminal_lease_ledger@1.1", "terminal_lease_ledger@1.0")
 
-#: Runtime state, inside the repo root (§2.5) and gitignored (`.sovereign_store/`) — a lease is
-#: host state, never a committed artifact.
-DEFAULT_LEDGER_PATH = Path(__file__).resolve().parents[2] / ".sovereign_store" / "leases" / "terminal_leases.json"
+def _sow_store_root() -> Path:
+    """F-131. The durable node store. The shell passes SOVEREIGN_STORE_ROOT=${state_root}/store;
+    honour it so the lease ledger (which every governed frontier launch must write) lives in the
+    writable state root and survives an upgrade that replaces the install tree. Falls back to the
+    in-repo `.sovereign_store` only when the env is unset (a developer running standalone)."""
+    declared = (os.environ.get("SOVEREIGN_STORE_ROOT") or "").strip()
+    if declared:
+        return Path(declared)
+    state = (os.environ.get("SOVEREIGN_WORKSPACE_STATE") or "").strip()
+    if state:
+        return Path(state) / "store"
+    return Path(__file__).resolve().parents[2] / ".sovereign_store"
+
+
+#: A lease is host state, never a committed artifact. Now under the shell-declared store root.
+DEFAULT_LEDGER_PATH = _sow_store_root() / "leases" / "terminal_leases.json"
 
 #: Env override so a self-check or a test can run against a SCRATCH ledger instead of the operator's
 #: real one. Without it an in-runtime check would acquire (and then release) a lease on the same

@@ -45,7 +45,7 @@ function callStore(request, { spawnProcess = spawn, cwd = ROOT } = {}) {
     } catch { finish(new Error("journal helper unavailable")); }
   });
 }
-function createStore({ storeRoot = path.join(ROOT, ".sovereign_store"), projectId = "proj",
+function createStore({ storeRoot = (process.env.SOVEREIGN_STORE_ROOT || path.join(ROOT, ".sovereign_store")), projectId = "proj",
   call = callStore } = {}) {
   const invoke = (op, args = {}) => call({ op, store_root: storeRoot, project_id: projectId, ...args });
   return {

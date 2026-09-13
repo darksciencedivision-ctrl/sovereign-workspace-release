@@ -14,7 +14,23 @@ $markerPath = Join-Path $rootPath ".sovereign-root"
 $manifestPath = Join-Path $rootPath "SYSTEM_MANIFEST.json"
 $uiIndexPath = Join-Path $rootPath "ui\ui_shell\dist\index.html"
 $pythonPath = Join-Path $rootPath ".venv\Scripts\python.exe"
-$stateDirectory = Join-Path $rootPath "runtime"
+# F-120. State lives in the shell's per-user state root, NEVER the install tree. Writing under
+# <install>\modules\sovereign\runtime put sovereign.db, evidence, logs and service_state.json
+# outside the backup scope, made them an "extra" path uninstall refuses over, and failed on a
+# read-only per-machine install. Match the shell's layout and EXPORT the same env the shell sets,
+# so a standalone launch and a shell launch share one state root and the product writes there too.
+$stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
+if ([string]::IsNullOrWhiteSpace($stateRoot)) {
+    $localAppData = $env:LOCALAPPDATA
+    if ([string]::IsNullOrWhiteSpace($localAppData)) {
+        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
+    }
+    $stateRoot = Join-Path $localAppData "SovereignWorkspace\sovereign"
+}
+$stateDirectory = Join-Path $stateRoot "runtime"
+$env:SOVEREIGN_WORKSPACE_STATE = $stateRoot
+$env:SOVEREIGN_STATE_DIR = $stateDirectory
+$env:SOVEREIGN_EVIDENCE_DIR = (Join-Path $stateDirectory "evidence")
 $statePath = Join-Path $stateDirectory "service_state.json"
 $logDirectory = Join-Path $stateDirectory "logs"
 $stdoutPath = Join-Path $logDirectory "product.stdout.log"

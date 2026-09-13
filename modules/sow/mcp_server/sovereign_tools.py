@@ -24,6 +24,21 @@ from typing import Any, Callable
 # ProxyHandler, forcing a direct connection.
 _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
+
+def _resolve_store_root() -> Path:
+    """F-131. The governed node store root. Honour the shell-declared SOVEREIGN_STORE_ROOT; else
+    the state root's store; else a per-user location -- never a CWD-relative `.sovereign_store`,
+    which put durable records wherever the process happened to be launched from."""
+    declared = (os.environ.get("SOVEREIGN_STORE_ROOT") or "").strip()
+    if declared:
+        return Path(declared).resolve()
+    state = (os.environ.get("SOVEREIGN_WORKSPACE_STATE") or "").strip()
+    if state:
+        return (Path(state) / "store").resolve()
+    local = (os.environ.get("LOCALAPPDATA") or "").strip() or str(
+        Path.home() / "AppData" / "Local")
+    return (Path(local) / "SovereignWorkspace" / "sow" / "store").resolve()
+
 from control_plane.policy import Identity, SovereignPolicy, Verdict
 from mcp_server.collaboration_service import CollaborationService
 from mcp_server.memory_service import MemoryService
@@ -928,7 +943,7 @@ def main() -> int:
     # answered, and never fatally. No `return 2` path remains: a failed resolution degrades.
     holder = _DeferredRuntime(os.environ.get("SOVEREIGN_CONTROL_PORT", "0"),
                               os.environ.get("SOVEREIGN_CONTROL_TOKEN", ""),
-                              Path(os.environ.get("SOVEREIGN_STORE_ROOT") or ".sovereign_store").resolve())
+                              _resolve_store_root())
     warmed = False
     try:
         # W-34: BOUNDED. `for raw_line in sys.stdin.buffer` buffers a line with no ceiling, so a

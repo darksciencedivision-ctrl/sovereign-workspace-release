@@ -10,6 +10,7 @@ import os
 import time
 from datetime import datetime, timezone
 
+from shell.src.adapter import workspace_state_root
 from shell.src.redact import redact
 from shell.src.states import ModuleRunner, build_env, check_quota_guard, QuotaGuardError
 
@@ -24,21 +25,23 @@ def _make_filename(module_id: str) -> str:
 def evidence_root() -> str:
     """Where startup-test records are written.
 
-    Defaults to the workspace's gitignored `.runtime/evidence/` lane so normal product use never
-    dirties tracked release inputs. `SWS_EVIDENCE_ROOT` redirects it, which the test suite uses
-    so fixture records land in a tempfile directory. It is a test seam, not a feature: nothing
-    in the product sets it and no UI or endpoint exposes it.
+    R16/F-017. Defaults to the shell's per-USER state root (`<state>/shell/evidence`), NOT the
+    install tree. Writing under `<install>/.runtime/evidence` dirtied the installed path set after
+    a startup test (breaking verify_install / uninstall's exact-path check) and simply failed on a
+    non-writable per-machine install. `SWS_EVIDENCE_ROOT` still redirects it, which the test suite
+    uses so fixture records land in a tempfile directory.
     """
     override = os.environ.get("SWS_EVIDENCE_ROOT", "").strip()
     if override:
         return override
-    return os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "..", ".runtime", "evidence"))
+    return os.path.join(workspace_state_root().replace("/", os.sep), "shell", "evidence")
 
 
 def _record_path(module_id: str) -> str:
+    # R16/F-017. Compute the path only; directory creation happens inside _save_record's error
+    # handler, so a non-writable location is a clean record-persistence failure rather than an
+    # OSError escaping to the HTTP request that ran the startup test.
     evidence_dir = os.path.join(evidence_root(), "startup-tests")
-    os.makedirs(evidence_dir, exist_ok=True)
     return os.path.join(evidence_dir, _make_filename(module_id))
 
 
@@ -151,9 +154,12 @@ def _save_record(result: dict, module_id: str):
     # H-8, fourth surface: nothing secret-bearing reaches a persisted evidence file.
     payload = redact(payload)
     try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(payload)
             f.write("\n")
         result["_record_path"] = path
     except OSError:
-        pass
+        # A non-writable evidence location is recorded as an unpersisted result, never raised.
+        result["_record_path"] = None
+        result["record_persisted"] = False

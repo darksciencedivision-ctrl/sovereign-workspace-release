@@ -41,6 +41,15 @@ function sowStateRoot() {
     || path.join(os.homedir(), "AppData", "Local");
   return path.join(local, "SovereignWorkspace", "sow");
 }
+// F-131. The governed node store (leases, node events, model probes, journal) is durable operator
+// state. The shell passes SOVEREIGN_STORE_ROOT=${state_root}/store; honour it. The old
+// REPO_ROOT/.sovereign_store both OVERRODE that with an in-install path and destroyed those
+// "never deletable" records on an upgrade that replaces the install tree.
+function sowStoreRoot() {
+  const declared = (process.env.SOVEREIGN_STORE_ROOT || "").trim();
+  if (declared) return declared;
+  return path.join(sowStateRoot(), "store");
+}
 const { createMainProcessLogger, redactArgvForLog } = require("./main-process-logger");
 const { SovereignControlServer } = require("./control/sovereign-control-server");
 const { structuredProviderFailure } = require("./control/provider-readiness");
@@ -387,7 +396,11 @@ const rendererReady = new Promise((res) => { rendererReadyResolve = res; });
 // Under SHELL_SELFCHECK the store is isolated to a sibling subdir so the diagnostic run never
 // pollutes the operator's real recovery state (its throwaway pane would otherwise resurface as an
 // "interrupted session needing relaunch" on the next real launch).
-const RECOVERY_DIR = path.join(__dirname, ".recovery", process.env.SHELL_SELFCHECK ? "selfcheck" : ".");
+// F-131. Recovery state (session log + layout snapshot) is operator state, not product bytes; it
+// belongs in the shell-declared state root (sow.json declares ${state_root}/.recovery), never in
+// the install tree. Under a per-machine install (Program Files) __dirname is not writable, so the
+// previous __dirname/.recovery silently lost recovery across restarts.
+const RECOVERY_DIR = path.join(sowStateRoot(), ".recovery", process.env.SHELL_SELFCHECK ? "selfcheck" : ".");
 const recoveryStore = new RecoveryStore({ file: path.join(RECOVERY_DIR, "session-log.json"), log: (m) => log(m) });
 
 // ---- conductor-first layout recovery (Phase 15E `.recovery`) ------------------
@@ -1112,7 +1125,7 @@ async function launchConductorSession({ reason = "operator control" } = {}) {
       provider_id: (ticket.conductor_descriptor || {}).provider_id || null,
       model_id: (ticket.conductor_descriptor || {}).model_id || null,
       pane_id: conductorPaneId, session_id: sessionId,
-      store_root: path.join(REPO_ROOT, ".sovereign_store"),
+      store_root: sowStoreRoot(),  // F-131
     }, env);
     env = controlMint.env;
     // ---- W-32 stage 4: assert on the environment ACTUALLY handed to the child -------------------
@@ -1308,8 +1321,10 @@ function onConductorSessionEnded(event) {
 const sessionApprovals = new SessionApprovalLog({
   log,
   logPath: process.env.SHELL_SELFCHECK
-    ? path.join(__dirname, ".approvals", "selfcheck", "session-events.jsonl")
-    : undefined,
+    ? path.join(sowStateRoot(), ".approvals", "selfcheck", "session-events.jsonl")  // F-131
+    // F-131. The normal path defaulted to apps/desktop/.approvals (the install tree); pin it to
+    // the state root so operator transcripts are not written into, or lost with, the install.
+    : path.join(sowStateRoot(), ".approvals", "session-events.jsonl"),
 });
 let sessionApprovalsStarted = false;   // the log is truncated once per PROCESS, not per renderer load
 
@@ -1400,7 +1415,7 @@ let captureStore = null;
 let stopCaptureJanitor = null;
 function ensureCaptureStore() {
   if (!captureStore) {
-    captureStore = new CaptureStore({ appDir: __dirname });
+    captureStore = new CaptureStore({ appDir: sowStateRoot() });  // F-131
     // A kill mid-transcription outruns any `finally`, so recorded speech can survive a crash. Purging
     // at startup, periodically, and at teardown bounds a fresh cross-instance orphan to the
     // ten-minute safety age plus one janitor minute while the replacement shell remains open.
@@ -2211,7 +2226,7 @@ function registerIpc() {
     const nodes = [operationalConductorStatus(), ...liveWorkerRecords().map(operationalNodeStatus)]
       .filter(Boolean);
     const operational = await fetchOperationalState({ cwd: REPO_ROOT, projectId: "proj",
-      storeRoot: path.join(REPO_ROOT, ".sovereign_store"), nodes });
+      storeRoot: sowStoreRoot(), nodes });  // F-131
     let legacy = null;
     let legacyError = null;
     try {
@@ -2400,7 +2415,7 @@ function workerLauncher() {
         node_id: ctx.identity.node_id, role: "worker", project_id: "proj",
         provider_id: chrome.provider || null, model_id: chrome.model_slug || null,
         pane_id: ctx.paneId, session_id: ctx.sessionId,
-        store_root: path.join(REPO_ROOT, ".sovereign_store"),
+        store_root: sowStoreRoot(),  // F-131
       }, env).env;
     },
     revokeNodeControl: (nodeId) => { if (sovereignControl) sovereignControl.revokeNode(nodeId); },

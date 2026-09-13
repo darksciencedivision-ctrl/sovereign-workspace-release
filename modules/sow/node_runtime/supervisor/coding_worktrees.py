@@ -52,9 +52,28 @@ def resolve_base_repo(workspace: str | Path | None) -> Path | None:
     if not workspace:
         return None
     here = Path(workspace).resolve()
+    product_root = _product_checkout_root()
     for candidate in (here, *here.parents):
         if (candidate / ".git").exists():
+            # F-131f. NEVER cut worktrees from the product's OWN install checkout. The enclosing
+            # repo of WORKER_WORKSPACE (modules/sow) IS that checkout, so inferring it stamped
+            # node/<id> branches, worktree admin records and working trees into the shipped tree
+            # (the origin of the orphan worktrees/worker-pane-2). If the only enclosing repo is this
+            # install, refuse -- the caller then denies the pane -- and let the operator point a
+            # pane at a real project with SOW_CODING_BASE_REPO.
+            if product_root is not None and candidate.resolve() == product_root:
+                return None
             return candidate
+    return None
+
+
+def _product_checkout_root() -> Path | None:
+    """The git checkout this module itself ships inside, or None. Used only to REFUSE cutting a
+    coding pane's worktrees from the product's own install tree (F-131f)."""
+    here = Path(__file__).resolve()
+    for candidate in here.parents:
+        if (candidate / ".git").exists():
+            return candidate.resolve()
     return None
 
 
