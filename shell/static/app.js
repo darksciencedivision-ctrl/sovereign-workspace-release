@@ -779,10 +779,19 @@
         return;
       }
       if (rec._url) {
-        // G18: retain and reuse the per-module handle; never spawn a second tab.
+        // G18 / R25: retain and reuse the per-module handle; never spawn a second tab, and let
+        // stop close it. `window.open(url, "_blank", "noopener")` ALWAYS returns null per the HTML
+        // spec, so nothing was ever stored -- every Open made a new tab and closeBrowserHandle was
+        // a no-op. rec._url is the product's OWN module UI on loopback (first-party, not untrusted
+        // third-party content), so a stable per-module window NAME is used instead: the browser
+        // reuses that one tab across Opens and returns a usable handle we can close. Reverse-
+        // tabnabbing (the reason for noopener) does not apply to our own loopback page.
         let h = browserHandles.get(id);
-        h = h && !h.closed ? h : window.open(rec._url, "_blank", "noopener");
-        if (h) browserHandles.set(id, h);
+        h = h && !h.closed ? h : window.open(rec._url, "sws-module-" + id);
+        if (h) {
+          browserHandles.set(id, h);
+          try { h.focus(); } catch (e) { /* focus may be blocked; reuse still holds */ }
+        }
       } else {
         announce(name + ": no URL available");
       }
@@ -948,7 +957,11 @@
             .join("\n");
         }
         if (parsed && typeof parsed === "object") {
+          // R26. /api/logs returns {logs: <text>, module_id}. `logs` was not in this list, so the
+          // viewer fell through to rendering the raw JSON envelope (escaped newlines + metadata)
+          // instead of the multiline log stream. It is the canonical field, checked first.
           const direct = firstString(
+            parsed.logs,
             parsed.log,
             parsed.content,
             parsed.text,
@@ -976,9 +989,13 @@
       stopLogTimer();
       return;
     }
+    // R26. Bind this response to the module it was requested for: the operator can switch modules
+    // (or close the panel) while the fetch is in flight, and a late reply must not paint one
+    // module's logs into another's viewer.
+    const requested = logModuleId;
     try {
       const res = await fetch(
-        API_BASE + "/api/logs/" + encodeURIComponent(logModuleId),
+        API_BASE + "/api/logs/" + encodeURIComponent(requested),
         {
           method: "GET",
           headers: { Accept: "application/json, text/plain" },
@@ -987,6 +1004,7 @@
       );
       if (!res.ok) throw new Error("HTTP " + res.status);
       const raw = await res.text();
+      if (requested !== logModuleId) return;  // the operator moved on; drop this stale response
 
       const nearBottom =
         el.logOutput.scrollTop + el.logOutput.clientHeight >=

@@ -555,6 +555,11 @@ def main(argv=None):
     if args.selftest:
         return _run_selftest(args.port)
 
+    # R12. Publish the shell's ACTUAL origin so an embedded module (Token Center) can build its
+    # frame-ancestors policy from the real port rather than a hard-coded 5180. Modules that
+    # allowlist SWS_SHELL_ORIGIN receive it through build_env; nothing else changes.
+    os.environ["SWS_SHELL_ORIGIN"] = f"http://127.0.0.1:{args.port}"
+
     adapters = load_all_adapters()
     supervisor = JobSupervisor()
     log_rings = {}

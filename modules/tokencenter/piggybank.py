@@ -38,12 +38,24 @@ DB_PATH = DATA_ROOT / "piggybank.sqlite"
 REFRESH_SECONDS = 300
 LOOKBACK_DAYS = 45
 
+def _shell_frame_ancestor() -> str:
+    """R12. The origin permitted to embed Token Center in a frame -- the ACTUAL shell origin the
+    shell publishes in SWS_SHELL_ORIGIN, not a hard-coded 5180. A shell launched on another
+    supported port would otherwise be refused by frame-ancestors. Validated as a loopback http
+    origin; anything else falls back to the default so a malformed value cannot widen the policy."""
+    import re as _re
+    origin = (os.environ.get("SWS_SHELL_ORIGIN") or "").strip()
+    if _re.fullmatch(r"http://127\.0\.0\.1:\d{1,5}", origin):
+        return origin
+    return "http://127.0.0.1:5180"
+
+
 # M-1 full (B2-3): strict content policy for every Token Center response.
 # static/index.html carries external /app.js and /styles.css only (no inline
 # script/style/handlers), so a strict 'self' policy is safe.
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
        "connect-src 'self'; img-src 'self' data:; "
-       "frame-ancestors http://127.0.0.1:5180; object-src 'none'; base-uri 'none'")
+       "frame-ancestors " + _shell_frame_ancestor() + "; object-src 'none'; base-uri 'none'")
 
 
 @dataclass(frozen=True)

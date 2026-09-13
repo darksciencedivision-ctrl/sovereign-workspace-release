@@ -22,7 +22,8 @@
       "TMP",
       "USERPROFILE",
       "LOCALAPPDATA",
-      "APPDATA"
+      "APPDATA",
+      "SWS_SHELL_ORIGIN"
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",

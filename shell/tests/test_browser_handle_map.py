@@ -36,6 +36,16 @@ class TestBrowserHandleMap(unittest.TestCase):
         self.assertIsNotNone(m, "Open must reuse the mapped handle")
         self.assertRegex(self.src, r"h && !h\.closed \? h :")
 
+    def test_open_uses_a_named_target_not_the_null_returning_noopener_form(self):
+        # R25. window.open(url, "_blank", "noopener") ALWAYS returns null (HTML spec), so nothing
+        # was ever stored and every Open spawned a new tab that stop could not close. The fix opens
+        # a stable per-module NAMED target (first-party loopback page), which returns a usable
+        # handle the map can store and close.
+        # The actual Open call uses a stable named target that returns a usable handle.
+        self.assertRegex(self.src, r'window\.open\(rec\._url,\s*"sws-module-"\s*\+\s*id\)')
+        # And the handle it returns is stored (so a second Open reuses it and stop can close it).
+        self.assertRegex(self.src, r'window\.open\(rec\._url[^\n]*\);\s*\n\s*if \(h\) \{')
+
     def test_handle_closed_when_module_leaves_ready_external(self):
         self.assertRegex(self.src, r"function closeBrowserHandle\(")
         # close-on-transition must be invoked inside applyModuleState BEFORE the
