@@ -14,6 +14,9 @@ from typing import Protocol, runtime_checkable
 
 from adapters.detect import OLLAMA_HOST
 
+# F-016. Loopback backend only; force a direct connection past any configured proxy.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 class BackendAuthPause(Exception):
     """A subscription/auth condition (expired login, revoked credit, rate cap) that must
@@ -111,7 +114,7 @@ class OllamaBackend:
         }).encode("utf-8")
         req = urllib.request.Request(f"{self._host}/api/generate", data=body,
                                      headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=180) as r:
+        with _NO_PROXY_OPENER.open(req, timeout=180) as r:
             data = json.loads(r.read().decode("utf-8"))
         reported = data.get("model")
         self.last_reported_model = reported if isinstance(reported, str) and reported.strip() else None
@@ -132,7 +135,7 @@ class OllamaBackend:
 
     def health(self) -> dict:
         try:
-            urllib.request.urlopen(f"{self._host}/api/tags", timeout=3)
+            _NO_PROXY_OPENER.open(f"{self._host}/api/tags", timeout=3)
             return {"supported": True, "ok": True}
         except Exception as e:
             return {"supported": True, "ok": False, "reason": str(e)}

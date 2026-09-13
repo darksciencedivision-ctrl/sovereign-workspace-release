@@ -34,6 +34,10 @@
   "readiness": {
     "kind": "receipt_file",
     "path": "${state_root}/receipts/SHELL-LIVE-READY.json",
+    "require": {
+      "ok": true,
+      "supervised": true
+    },
     "timeout_s": 90,
     "poll_ms": 1000
   },

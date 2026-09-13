@@ -126,6 +126,10 @@
           "type": "integer",
           "minimum": 250,
           "maximum": 5000
+        },
+        "require": {
+          "type": "object",
+          "description": "F-130: required key/value pairs the receipt JSON must satisfy (receipt_file readiness); defaults to {\"ok\": true} when absent."
         }
       }
     },

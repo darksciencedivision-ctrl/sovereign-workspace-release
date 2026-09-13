@@ -18,6 +18,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+# F-016. This client only ever talks to a loopback app-control server (and carries a bearer
+# token). A configured environment/registry proxy does NOT bypass dotted loopback, so a default
+# urlopen would route the request -- and the token -- through the proxy. This opener has an empty
+# ProxyHandler, forcing a direct connection.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 from control_plane.policy import Identity, SovereignPolicy, Verdict
 from mcp_server.collaboration_service import CollaborationService
 from mcp_server.memory_service import MemoryService
@@ -81,7 +87,7 @@ class AppControlClient:
             headers={"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=self._timeout if timeout is None else timeout) as response:
+            with _NO_PROXY_OPENER.open(req, timeout=self._timeout if timeout is None else timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
             raise ToolError(f"Sovereign app-control channel failed: {exc}") from exc

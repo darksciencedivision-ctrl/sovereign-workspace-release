@@ -37,6 +37,9 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+# F-016. Loopback Ollama only; bypass any configured proxy (dotted loopback is not auto-excluded).
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 OLLAMA_HOST = "http://127.0.0.1:11434"
 
 #: Sized from measurement, not from a relationship to any other budget: a thinking model
@@ -243,7 +246,7 @@ def request_worker_panes(
             request = urllib.request.Request(
                 f"{host}/api/chat", data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(request, timeout=300) as response:
+            with _NO_PROXY_OPENER.open(request, timeout=300) as response:
                 data = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, ValueError) as exc:
         return ToolTurn(error=f"{type(exc).__name__}: {exc}")

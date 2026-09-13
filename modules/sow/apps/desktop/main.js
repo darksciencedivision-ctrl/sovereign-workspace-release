@@ -1788,7 +1788,10 @@ async function handleOperatorText(payload) {
   let last = "";
   await new Promise((r) => setTimeout(r, 800));
   while (Date.now() < deadline) {
-    const chunk = fromPos === null ? null : paneEmittedSince(fromPos);
+    // F-129. paneEmittedSince(paneId, from) -- the paneId was omitted, so `from` was undefined,
+    // registry.get(<number>) threw, and every "in" transcript turn captured "" (responseChars 0)
+    // while the loop always burned the full quiet window. Pass the conductor pane explicitly.
+    const chunk = fromPos === null ? null : paneEmittedSince(conductorPaneId, fromPos);
     if (typeof chunk === "string" && chunk.length > last.length) {
       last = chunk;
       deadline = Math.min(deadline + 700, Date.now() + 6000);
@@ -3274,10 +3277,17 @@ app.whenReady().then(async () => {
   // governed-born from the first paint. Bounded + fail-closed — a fault leaves an honest placeholder.
   await sourceConductorSpawn();
   makeWindow();
+  // F-130. Remember whether the governed core actually came up. The live-ready receipt below must
+  // reflect this, not be written {ok:true} unconditionally: a caught bootstrap failure (or a
+  // bootstrap that resolves while supervisor.start() returns not-ready) used to still publish
+  // {ok:true}, so the shell showed "Multi-Model Terminal: READY" for an instance whose every pane
+  // spawn is refused.
+  let bootstrapError = null;
   try {
     await bootstrap();
   } catch (e) {
-    log(`bootstrap failed (fail-closed, no sessions will spawn): ${e.message}`);
+    bootstrapError = (e && e.message) || String(e);
+    log(`bootstrap failed (fail-closed, no sessions will spawn): ${bootstrapError}`);
   }
   // Phase 16C `.dispatch`: source the govern-born conductor's governed DISPATCH AFTER the window is up
   // (it spins a bounded loopback MCP flow, mock-first — heavier than a plain read, so it must not delay
@@ -3312,8 +3322,20 @@ app.whenReady().then(async () => {
       // app directly also writes outside the install tree.
       const receiptDir = path.join(sowStateRoot(), "receipts");
       fs.mkdirSync(receiptDir, { recursive: true });
+      // F-130. `ok` is the TRUTH about the governed core: bootstrap resolved AND the supervisor is
+      // ready. A failed core writes {ok:false, reason} so the shell's receipt probe fails fast and
+      // reports the module unhealthy, instead of a green {ok:true} over an instance that refuses
+      // every spawn. The adapter now requires {ok:true, supervised:true} (shell/modules/sow.json).
+      const supervised = Boolean(supervisor && supervisor.ready);
+      const ready = bootstrapError === null && supervised;
       fs.writeFileSync(path.join(receiptDir, "SHELL-LIVE-READY.json"),
-        JSON.stringify({ ok: true, pid: process.pid, bootedAt: new Date().toISOString() }, null, 2));
+        JSON.stringify({
+          ok: ready,
+          supervised: supervised,
+          reason: ready ? null : (bootstrapError || "supervisor not ready"),
+          pid: process.pid,
+          bootedAt: new Date().toISOString(),
+        }, null, 2));
     } catch (e) {
       log("shell-live receipt write failed (probe will report TIMEOUT honestly): " + (e && e.message));
     }

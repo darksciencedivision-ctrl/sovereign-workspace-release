@@ -257,15 +257,19 @@ class IpcGateway:
         model. Lookup and record are one critical section: split them and two concurrent copies of
         the same envelope each find the cache clear before either writes.
 
-        Bounded by the FRESHNESS WINDOW, not by an entry count — an entry older than the window can
-        be dropped because a replay of it now fails the timestamp check anyway. The hard ceiling
-        below is a memory backstop only, and it REFUSES rather than evicting: silent eviction under
-        load opens a replay window exactly when one is being attacked for.
+        Bounded by the FRESHNESS WINDOW, not by an entry count. R06: a record must be retained
+        through the message's LATEST permissible acceptance time, not merely one window after first
+        receipt. Freshness accepts a `ts` up to FRESHNESS_WINDOW_S in the FUTURE, so a message from
+        a clock that far ahead stays fresh until ts + FRESHNESS_WINDOW_S -- up to TWO windows after
+        it was first seen. Expiring the record at one window let the identical signed envelope be
+        accepted again at t = window+epsilon while it was still fresh. Retention is therefore two
+        windows. The hard ceiling below is a memory backstop only, and it REFUSES rather than
+        evicting: silent eviction under load opens a replay window exactly when one is wanted.
         """
         now = time.monotonic()
         key = (from_node, msg_id)
         with self._replay_lock:
-            cutoff = now - env.FRESHNESS_WINDOW_S
+            cutoff = now - 2 * env.FRESHNESS_WINDOW_S
             expired = [k for k, seen_at in self._replay_seen.items() if seen_at <= cutoff]
             for k in expired:
                 del self._replay_seen[k]

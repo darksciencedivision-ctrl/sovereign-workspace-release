@@ -11,11 +11,13 @@ import urllib.error
 import urllib.request
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
+# F-016. Loopback Ollama only; force a direct connection past any configured proxy.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
 def ollama_available(timeout: float = 3.0) -> bool:
     try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=timeout):
+        with _NO_PROXY_OPENER.open(f"{OLLAMA_HOST}/api/tags", timeout=timeout):
             return True
     except (urllib.error.URLError, OSError):
         return False
@@ -43,7 +45,7 @@ def ollama_model_records(timeout: float = 3.0) -> list[dict]:
     module's decision.
     """
     try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=timeout) as r:
+        with _NO_PROXY_OPENER.open(f"{OLLAMA_HOST}/api/tags", timeout=timeout) as r:
             data = json.loads(r.read().decode("utf-8"))
         entries = data.get("models", []) if isinstance(data, dict) else []
         rows = []

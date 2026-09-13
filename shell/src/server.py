@@ -147,8 +147,28 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return None
 
+    def _validate_host(self):
+        """F-015. Host must be present and equal to the shell origin, on EVERY request.
+
+        POST already enforced this (plus Origin/CSRF), but GET did not, so a DNS-rebinding page
+        (Host: attacker.example) could read module logs, /api/state, the toolchain/model inventory
+        and the CSRF nonce from `/`. Validating Host on reads too closes that; GET carries no
+        CSRF/Origin requirement because a read is not a state change."""
+        host_expected, _ = self._expected_origin()
+        host = self.headers.get("Host")
+        if host is None:
+            return 403, "Host header required"
+        if host != host_expected:
+            return 403, "Host does not match shell origin"
+        return None
+
     # -- verbs --------------------------------------------------------------
     def do_GET(self):
+        bad = self._validate_host()
+        if bad:
+            status, message = bad
+            self._send_error(message, status)
+            return
         path = urllib.parse.urlparse(self.path).path
         if path in ("/", "/index.html"):
             self._serve_index()

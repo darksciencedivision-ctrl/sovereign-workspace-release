@@ -44,7 +44,8 @@ class _Reply:
 
 
 def _with_reply(monkeypatch: pytest.MonkeyPatch, payload: Any) -> None:
-    monkeypatch.setattr(detect.urllib.request, "urlopen", lambda *_a, **_k: _Reply(payload))
+    # F-016: detect.py now issues loopback requests through a no-proxy opener; patch its .open.
+    monkeypatch.setattr(detect._NO_PROXY_OPENER, "open", lambda *_a, **_k: _Reply(payload))
 
 
 def test_a_model_entry_that_is_not_an_object_does_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:

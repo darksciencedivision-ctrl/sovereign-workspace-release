@@ -5,6 +5,9 @@ import json
 import urllib.error
 import urllib.request
 
+# F-016. Loopback backend only; force a direct connection past any configured proxy.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 class LlamaCppBackend:
     def __init__(self, host: str = "http://127.0.0.1:5183") -> None:
@@ -23,13 +26,13 @@ class LlamaCppBackend:
         req = urllib.request.Request(
             f"{self.host}/v1/chat/completions", data=body,
             headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=180) as r:
+        with _NO_PROXY_OPENER.open(req, timeout=180) as r:
             data = json.loads(r.read().decode("utf-8"))
         return data["choices"][0]["message"]["content"]
 
     def list_models(self) -> dict:
         try:
-            with urllib.request.urlopen(f"{self.host}/models", timeout=5) as r:
+            with _NO_PROXY_OPENER.open(f"{self.host}/models", timeout=5) as r:
                 return {"supported": True, "payload": json.loads(r.read().decode("utf-8"))}
         except Exception as e:
             return {"supported": True, "ok": False, "reason": str(e)}
@@ -45,7 +48,7 @@ class LlamaCppBackend:
 
     def health(self) -> dict:
         try:
-            urllib.request.urlopen(f"{self.host}/models", timeout=3)
+            _NO_PROXY_OPENER.open(f"{self.host}/models", timeout=3)
             return {"supported": True, "ok": True}
         except Exception as e:
             return {"supported": True, "ok": False, "reason": str(e)}

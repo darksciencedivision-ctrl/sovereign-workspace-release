@@ -29,6 +29,9 @@ import os
 import sys
 import urllib.error
 import urllib.request
+
+# F-016. Loopback backend only; force a direct connection past any configured proxy.
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,7 +70,7 @@ def _mb(size_bytes: object) -> int | None:
 
 def _daemon_json(path: str, timeout: float = 3.0) -> dict | None:
     try:
-        with urllib.request.urlopen(f"{OLLAMA_HOST}{path}", timeout=timeout) as r:
+        with _NO_PROXY_OPENER.open(f"{OLLAMA_HOST}{path}", timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, json.JSONDecodeError):
         return None
