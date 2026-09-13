@@ -101,13 +101,20 @@ def summarise(runs, condition):
     if not sel:
         return None
     graded = [r for r in sel if r.get("grade")]
-    errored = [r for r in sel if not r.get("grade")]
+    # R09/F-091. Execution failure is a STRUCTURED outcome, not "has no grade": the runner grades
+    # even failed/timed-out executions, so "no grade" measured nothing (always 0). Count execution
+    # errors, timeouts and grading failures separately, from the record's own fields.
+    execution_errors = [r for r in sel if r.get("error")]
+    timeouts = [r for r in sel if r.get("timed_out")]
+    grading_failures = [r for r in sel if not r.get("grade") and not r.get("error")]
     times = [r["elapsed_s"] for r in sel if r.get("elapsed_s") is not None]
     vram = [r["peak_vram_mib"] for r in sel if r.get("peak_vram_mib") is not None]
     calls = [r["model_calls"] for r in sel if r.get("model_calls") is not None]
     return {
         "executions": len(sel),
-        "errored": len(errored),
+        "execution_errors": len(execution_errors),
+        "timeouts": len(timeouts),
+        "grading_failures": len(grading_failures),
         "success_rate_pct": round(
             100.0 * sum(1 for r in graded if r["grade"]["correct"]) / len(sel), 1),
         "abstention_rate_pct": round(
@@ -145,7 +152,36 @@ def main(argv=None) -> int:
         return 1
 
     conditions = sorted({r["condition"] for r in runs})
-    partial = any(r.get("partial") for r in runs) or (env or {}).get("partial")
+    # R11. Completeness is DERIVED from the planned Cartesian design (task_count x conditions x
+    # runs_per_cell recorded in the environment), not trusted from per-row `partial` flags -- a run
+    # interrupted midway carries false `partial` flags on the rows it did finish, which let the
+    # analyzer publish a non-preliminary decision on a truncated set. Any shortfall forces
+    # PRELIMINARY regardless of flags.
+    incomplete_reasons: list[str] = []
+    if env:
+        planned_conditions = list(env.get("conditions") or conditions)
+        runs_per_cell = int(env.get("runs_per_cell") or 0)
+        task_count = int(env.get("task_count") or 0)
+        if runs_per_cell and task_count:
+            expected_per_condition = task_count * runs_per_cell
+            for condition in planned_conditions:
+                observed = len({(r.get("task_id"), r.get("run_index"))
+                                for r in runs if r.get("condition") == condition})
+                if observed < expected_per_condition:
+                    incomplete_reasons.append(
+                        f"{condition}: {observed}/{expected_per_condition} cells")
+            missing_conditions = [c for c in planned_conditions if c not in conditions]
+            if missing_conditions:
+                incomplete_reasons.append("missing conditions: " + ", ".join(missing_conditions))
+        else:
+            incomplete_reasons.append("environment does not state runs_per_cell/task_count")
+    else:
+        incomplete_reasons.append("no environment record; completeness cannot be verified")
+    partial = (
+        bool(incomplete_reasons)
+        or any(r.get("partial") for r in runs)
+        or bool((env or {}).get("partial"))
+    )
 
     print("=" * 78)
     print("SWS-BENCH-02 analysis")
@@ -165,6 +201,8 @@ def main(argv=None) -> int:
         print("  *** PRELIMINARY *** This run set does not satisfy SWS-BENCH-02 in full.")
         print("      Its coverage is stated above and in the report; the decision below is")
         print("      correspondingly provisional and MUST NOT be reported as the protocol's.")
+        for reason in incomplete_reasons:
+            print(f"      incomplete: {reason}")
 
     print()
     print("-" * 78)

@@ -242,18 +242,22 @@ def independent_unsupported(task: dict, answer: str, packet) -> int:
             if token_is_negated(text, required):
                 count += 1
                 continue
+            # F-090. The packet body and the product prompt cite sources as [source:<sid>], so the
+            # support check must look for that exact token. Matching a bare [<sid>] never hit
+            # (`[gf-01]` is not a substring of `[source:gf-01]`), leaving citation-support errors
+            # structurally uncounted -- the metric the protocol requires.
             cited_ok = False
             for sid, snippet in source_text.items():
-                if required.lower() in snippet and f"[{sid}]".lower() in low:
+                if required.lower() in snippet and f"[source:{sid}]".lower() in low:
                     cited_ok = True
                     break
             if sources and required.lower() in packet_text.lower() and not cited_ok:
                 # Present in the packet but the answer did not cite a source that
                 # actually contains it — still a support miss if a citation is present
                 # pointing at a different source.
-                if re.search(r"\[source:[^\]]+\]|\[[A-Za-z][^\]]+\]", text):
+                if re.search(r"\[source:[^\]]+\]", text):
                     for sid, snippet in source_text.items():
-                        if f"[{sid}]".lower() in low and required.lower() not in snippet:
+                        if f"[source:{sid}]".lower() in low and required.lower() not in snippet:
                             count += 1
                             break
     return count
@@ -369,14 +373,16 @@ def _harvest(result, calls):
         prompt_tokens = internal.get("prompt_eval_count")
     if completion_tokens is None and internal.get("eval_count") is not None:
         completion_tokens = internal.get("eval_count")
-    error = None
-    if status_value in {"timeout", "TIMEOUT"} or (
-        isinstance(reason, str) and "timeout" in reason.lower()
-    ):
-        error = reason or "timeout"
+    # R10. A transport/runtime timeout is a STRUCTURED terminal status, not a substring of the
+    # reason prose. The old `"timeout" in reason.lower()` mis-classified a normal rejection whose
+    # task/critique merely discussed timeout configuration as an execution timeout.
+    timed_out = status_value in {"timeout", "TIMEOUT"}
+    error = (reason or "timeout") if timed_out else None
     meta = {
         "status": status_value,
         "reason": reason,
+        # R09. A structured flag the analyzer can count independently of grade availability.
+        "timed_out": timed_out,
         "model_calls": model_calls,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
