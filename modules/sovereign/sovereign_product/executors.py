@@ -766,8 +766,34 @@ class DeepExecutor:
                 reader_threads.append(reader)
 
             open_streams = 2
+            # R34. A descendant can keep the inherited stdout/stderr open after the parent exits, so
+            # `open_streams` never reaches 0 and the drain waits for EOF forever -- past the
+            # configured timeout, because the tree terminator was guarded by `process.poll() is
+            # None` and so never fired once the parent had exited. Bound the post-exit drain: once
+            # the parent is gone, wait at most POST_EXIT_DRAIN_GRACE for its streams to close, then
+            # terminate the whole tree (releasing any descendant holding the handles) and stop.
+            POST_EXIT_DRAIN_GRACE = 5.0
+            exited_at: float | None = None
+            forced_after_exit = False
             while process.poll() is None or open_streams:
                 now_monotonic = self._monotonic()
+                if process.poll() is not None and exited_at is None:
+                    exited_at = now_monotonic
+                if (
+                    exited_at is not None
+                    and open_streams
+                    and not forced_after_exit
+                    and now_monotonic - exited_at > POST_EXIT_DRAIN_GRACE
+                ):
+                    # The process is gone but a descendant still holds the pipes: reclaim the tree
+                    # and abandon the drain rather than hang.
+                    forced_after_exit = True
+                    self._process_tree_terminator(process)
+                    if terminal_override is None:
+                        terminal_reason = (
+                            "DEEP output streams stayed open after the process exited; "
+                            "a descendant retained them and the drain was bounded")
+                    break
                 if now_monotonic >= next_artifact_probe:
                     next_artifact_probe = now_monotonic + 0.5
                     artifact_progress = _deep_artifact_progress(

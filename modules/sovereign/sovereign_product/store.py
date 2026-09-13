@@ -16,6 +16,9 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 
 SCHEMA_VERSION = 2
+#: F-106. Durable marker of the last-verified point in the tamper-evident event chain, so startup
+#: verification is incremental (only rows appended since) rather than a full re-hash every boot.
+EVENT_CHAIN_CHECKPOINT_KEY = "event_chain.verify_checkpoint.v1"
 # R33. One id contract across the store and the executors. The store used to admit 1-128 chars
 # while QUICK and semantic/legacy DEEP validate 1-96, so a caller-provided session_id of 97-128
 # chars created a session that then failed generation on every attempt. Capped to match the
@@ -1735,16 +1738,37 @@ class SovereignStore:
             raise StoreIntegrityError("SQLite quick_check: " + "; ".join(results))
         return True
 
-    def verify_event_chain(self) -> dict[str, Any]:
+    def verify_event_chain(self, *, full: bool = False) -> dict[str, Any]:
+        """Verify the tamper-evident event chain.
+
+        F-106. Re-hashing EVERY row on every startup made startup time (and memory) grow linearly
+        with the install's lifetime, until the service missed the shell's 45s readiness window and
+        presented as HEALTH_CHECK_FAILED. Verification is now INCREMENTAL from a durable checkpoint
+        (`event_chain_checkpoint` in meta = the last-verified sequence and its hash): startup checks
+        only rows appended since the checkpoint, then advances it. `full=True` ignores the
+        checkpoint and re-verifies from genesis -- the explicit, on-demand integrity audit. A
+        mismatch on a checked row still raises StoreIntegrityError; recover by restoring from a
+        backup, or, when the divergence is understood and accepted, by re-checkpointing from a
+        known-good sequence (see recheckpoint_event_chain)."""
+        checkpoint = {} if full else (self.get_meta(EVENT_CHAIN_CHECKPOINT_KEY, {}) or {})
+        start_previous = "0" * 64
+        start_sequence = 1
+        if isinstance(checkpoint, Mapping) and checkpoint.get("event_hash"):
+            try:
+                start_sequence = int(checkpoint["sequence"]) + 1
+                start_previous = str(checkpoint["event_hash"])
+            except (KeyError, ValueError, TypeError):
+                start_previous, start_sequence = "0" * 64, 1
         connection = self._connect()
         try:
             rows = connection.execute(
-                "SELECT * FROM event_log ORDER BY sequence ASC"
+                "SELECT * FROM event_log WHERE sequence >= ? ORDER BY sequence ASC",
+                (start_sequence,),
             ).fetchall()
         finally:
             connection.close()
-        previous = "0" * 64
-        expected_sequence = 1
+        previous = start_previous
+        expected_sequence = start_sequence
         for row in rows:
             sequence = int(row["sequence"])
             if sequence != expected_sequence:
@@ -1767,11 +1791,24 @@ class SovereignStore:
                 raise StoreIntegrityError(f"event {sequence} hash mismatch")
             previous = expected
             expected_sequence += 1
+        # Advance the checkpoint to the verified head so the next startup re-checks only what is new.
+        if rows:
+            self.set_meta(EVENT_CHAIN_CHECKPOINT_KEY,
+                          {"sequence": expected_sequence - 1, "event_hash": previous})
         return {
             "ok": True,
             "events": len(rows),
+            "verified_from_sequence": start_sequence,
+            "incremental": not full,
             "head": previous,
         }
+
+    def recheckpoint_event_chain(self) -> dict[str, Any]:
+        """F-106 recovery. Re-verify the WHOLE chain from genesis and reset the checkpoint to its
+        head. Use after an understood, accepted divergence (e.g. a restored backup) so a stale
+        checkpoint does not keep raising; it re-verifies every row, so it also confirms the chain is
+        internally consistent before trusting it again."""
+        return self.verify_event_chain(full=True)
 
     def apply_retention(
         self,
