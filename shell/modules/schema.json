@@ -40,7 +40,18 @@
     "runtime_writes": {
       "type": "array",
       "items": {
-        "type": "string"
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "kind": { "type": "string", "enum": ["dir", "file"] }
+            },
+            "required": ["path", "kind"],
+            "additionalProperties": false
+          }
+        ]
       },
       "default": []
     },

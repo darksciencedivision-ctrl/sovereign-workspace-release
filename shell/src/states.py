@@ -383,7 +383,20 @@ class ModuleRunner:
         # that cannot have its state directory must not be started and then blamed for it.
         try:
             for target in self.adapter.get("runtime_writes", []):
-                directory = target if not os.path.splitext(target)[1] else os.path.dirname(target)
+                # F-023: compiled entries are {path, kind}. When kind is declared use it; otherwise
+                # fall back to the extension heuristic (kept for legacy string declarations).
+                if isinstance(target, dict):
+                    path = target.get("path", "")
+                    kind = target.get("kind")
+                else:
+                    path = target
+                    kind = None
+                if kind == "dir":
+                    directory = path
+                elif kind == "file":
+                    directory = os.path.dirname(path)
+                else:
+                    directory = path if not os.path.splitext(path)[1] else os.path.dirname(path)
                 if directory:
                     os.makedirs(directory, exist_ok=True)
         except OSError as exc:

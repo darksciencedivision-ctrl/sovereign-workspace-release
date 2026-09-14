@@ -432,10 +432,23 @@ def compile_adapter(adapter: dict) -> dict:
     compiled["state_root"] = module_state_root(compiled["id"])
 
     if adapter.get("runtime_writes"):
-        compiled["runtime_writes"] = [
-            _resolve_path(w, compiled["root"], compiled["state_root"])
-            for w in adapter["runtime_writes"]
-        ]
+        # F-023: a runtime_writes entry may be a plain string (legacy; dir-vs-file is GUESSED from
+        # the extension at creation time) OR an object {"path": ..., "kind": "dir"|"file"} that
+        # declares its kind explicitly - so an extensionless file (LOCK) is not made a directory and
+        # a dotted directory (v1.2) is not treated as a file. Compiled to {path, kind} either way.
+        resolved_writes = []
+        for w in adapter["runtime_writes"]:
+            if isinstance(w, dict):
+                raw_path = w.get("path", "")
+                kind = w.get("kind")
+            else:
+                raw_path = w
+                kind = None
+            resolved_writes.append({
+                "path": _resolve_path(raw_path, compiled["root"], compiled["state_root"]),
+                "kind": kind,
+            })
+        compiled["runtime_writes"] = resolved_writes
         # H-5 EXTENDED, deliberately and narrowly. Every declared write target must be inside
         # the compiled root OR inside THIS module's own state root, by canonical resolution. A
         # junction or ".." that escapes both is a CONFIG_ERROR, not a warning.
@@ -447,13 +460,13 @@ def compile_adapter(adapter: dict) -> dict:
         # accidental coupling that forced runtime state to live inside the install tree — the
         # coupling that makes uninstall (P0-5) and upgrade (P1-1) impossible.
         for w in compiled["runtime_writes"]:
-            if is_contained(compiled["root"], w):
+            if is_contained(compiled["root"], w["path"]):
                 continue
-            if is_contained(compiled["state_root"], w):
+            if is_contained(compiled["state_root"], w["path"]):
                 continue
             raise AdapterError(
                 f"runtime_writes path escapes both the install root and this module's state "
-                f"root (H-5): {w}")
+                f"root (H-5): {w['path']}")
     else:
         compiled["runtime_writes"] = []
 
