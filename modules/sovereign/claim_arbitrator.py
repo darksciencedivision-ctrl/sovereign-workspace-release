@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+# F-126 - QUARANTINE / SUPPORT DISPOSITION. This legacy quality/arbitration gate
+# (claim_arbitrator.py, quality_gate.py) is NOT on the shipped product route - the product's
+# acceptance gate lives in sovereign_product/. The clauses this finding lists (treat "arbitration
+# not executed" as a gate reason in every branch, key artifacts by (session, run) or allow the
+# owning run to overwrite, memoise embeddings per text) are recorded as an UNSUPPORTED legacy
+# pipeline: it is quarantined from the product route, not maintained. Do not add a product caller.
+
 import argparse
 import json
 import math

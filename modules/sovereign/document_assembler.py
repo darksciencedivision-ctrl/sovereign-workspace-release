@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+# F-125 - QUARANTINE / SUPPORT DISPOSITION: legacy Phase-9 engine, NOT on the shipped product
+# route (product DEEP traffic uses sovereign_product/semantic_deep). Retained unsupported; do not
+# add a product caller. See cycle_runner_v3.py for the full disposition.
+
 r"""
 document_assembler.py - SOVEREIGN Phase 9
 

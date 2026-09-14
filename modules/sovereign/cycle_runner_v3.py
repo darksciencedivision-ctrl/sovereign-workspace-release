@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+# F-125 - QUARANTINE / SUPPORT DISPOSITION. This legacy Phase-8/9 engine (cycle_runner_v3.py,
+# document_assembler.py) is NOT on the shipped product route. Product DEEP traffic runs through
+# sovereign_product/ (server.py -> semantic_deep.SemanticDeepExecutor); the subprocess
+# executors.DeepExecutor that drives this runner is explicitly documented as legacy, is never wired
+# as the default executor, and is retained only for the bounded-drain tests (R34). The clauses this
+# finding lists for the legacy engine (per-session IPC paths, O(1) append logging, broker-tree kill
+# on timeout, STOP producing a run record + non-zero exit) are therefore recorded as an UNSUPPORTED
+# legacy pipeline rather than hardened in shipped code: it is quarantined from the product route,
+# not maintained. Do not add a product caller to this module.
+
 import argparse
 import json
 import os

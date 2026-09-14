@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# F-126 - QUARANTINE / SUPPORT DISPOSITION: legacy quality/arbitration gate, NOT on the shipped
+# product route (the product's acceptance gate lives in sovereign_product/). Retained unsupported;
+# do not add a product caller. See claim_arbitrator.py for the full disposition.
 
 """
 quality_gate.py
