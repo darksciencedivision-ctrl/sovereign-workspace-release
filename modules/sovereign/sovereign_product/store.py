@@ -1,4 +1,4 @@
-"""Crash-safe durable product state with tamper-evident event lineage."""
+"""Crash-safe durable product state with corruption-evident event lineage."""
 
 from __future__ import annotations
 
@@ -11,12 +11,13 @@ from pathlib import Path
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 
 SCHEMA_VERSION = 2
-#: F-106. Durable marker of the last-verified point in the tamper-evident event chain, so startup
+#: F-106. Durable marker of the last-verified point in the corruption-evident event chain, so startup
 #: verification is incremental (only rows appended since) rather than a full re-hash every boot.
 EVENT_CHAIN_CHECKPOINT_KEY = "event_chain.verify_checkpoint.v1"
 # R33. One id contract across the store and the executors. The store used to admit 1-128 chars
@@ -1725,7 +1726,18 @@ class SovereignStore:
     # Introspection compatibility alias.
     summary = status_summary
 
-    def quick_check(self) -> bool:
+    #: F-124. PRAGMA quick_check scans the WHOLE database. /v1/health used to call it on every
+    #: request while the shell polls readiness every 5s and the UI every 10s, so a full-DB scan ran
+    #: several times a minute and grew with history. A short TTL caches the "ok" result: a passing
+    #: check is trusted for this long before it is run again. Corruption does not appear
+    #: spontaneously between two reads seconds apart, and a failure is never cached.
+    _QUICK_CHECK_TTL_S = 60.0
+
+    def quick_check(self, *, force: bool = False) -> bool:
+        now = time.monotonic()
+        cached_until = getattr(self, "_quick_check_ok_until", 0.0)
+        if not force and now < cached_until:
+            return True
         connection = self._connect()
         try:
             rows = connection.execute("PRAGMA quick_check").fetchall()
@@ -1736,10 +1748,11 @@ class SovereignStore:
         results = [str(row[0]) for row in rows]
         if results != ["ok"]:
             raise StoreIntegrityError("SQLite quick_check: " + "; ".join(results))
+        self._quick_check_ok_until = now + self._QUICK_CHECK_TTL_S
         return True
 
     def verify_event_chain(self, *, full: bool = False) -> dict[str, Any]:
-        """Verify the tamper-evident event chain.
+        """Verify the corruption-evident event chain.
 
         F-106. Re-hashing EVERY row on every startup made startup time (and memory) grow linearly
         with the install's lifetime, until the service missed the shell's 45s readiness window and
@@ -1820,6 +1833,13 @@ class SovereignStore:
 
         Event lineage is retained, and every purge is itself appended. Jobs
         belonging to live sessions are never removed by time alone.
+
+        F-111: this is NOT scheduled anywhere. Deleting a chat is therefore a LOGICAL (soft) delete:
+        the session is hidden, but its full message content remains in sovereign.db until this method
+        is invoked explicitly. That is a deliberate, documented choice - purging content is
+        irreversible, so it is an operator action, not a silent background sweep. A deployment that
+        wants time-based purge must call this from an operator-triggered task; nothing purges content
+        on its own. (See docs: deletion is logical unless retention is explicitly applied.)
         """
 
         if deleted_session_days < 0 or terminal_job_days < 0:
