@@ -13,41 +13,44 @@
     },
     "distillery": {
       "provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
-      "source_sha256": "fa1eed9bbd96095dc5cadc06835cc1a9f84062f4f6117d113b60bb4302f38e90",
+      "source_sha256": "0d2cd5fdfe413656c07d43aa12d6203a58ea90fd28011c3b883433a2ef70251d",
       "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 206 git-tracked files under modules/distillery/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
       "historical_source_hashes": [
         "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96",
         "1efcf7c0d1caf96eed79caf4dcd50e0ebfa4d01451e3636ff88b3b5742f6fc4b",
-        "8df3e586347291fcba7fe71288ed41c45fed2b0af8a7598b1f5d85921a4cca4d"
+        "8df3e586347291fcba7fe71288ed41c45fed2b0af8a7598b1f5d85921a4cca4d",
+        "fa1eed9bbd96095dc5cadc06835cc1a9f84062f4f6117d113b60bb4302f38e90"
       ],
       "source": "candidate tree (lineage: D:\\Product Software\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e\\SOURCE_TREE, commit 6cd9886 [U])",
       "status": "verified",
-      "note": "refreshed 2026-09-14T14:34:12Z for CLOSE-04 freeze; prior hash retained in historical_source_hashes",
+      "note": "refreshed 2026-09-14T17:54:56Z for the 2026-09-14 release closeout re-pin (F-071/F-125/F-126/F-137/U186 remediation and CRLF checkout drift rematerialized to committed LF bytes); prior hash retained in historical_source_hashes",
       "content_file_count": 206
     },
     "debate": {
       "provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
-      "source_sha256": "021aef784aa56ba567bf4cada98089f2cba79017b3f1438f7992a9b423ffde6c",
+      "source_sha256": "360221f8074c19702aaa84ce040ca88017abb227e31adef0700d3c30ca4a370b",
       "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 58 git-tracked files under modules/debate/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
       "historical_source_hashes": [
-        "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a"
+        "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a",
+        "021aef784aa56ba567bf4cada98089f2cba79017b3f1438f7992a9b423ffde6c"
       ],
       "source": "candidate tree (lineage: v1.2 Phase1 archive 29b364b0… superseded by director-accepted v1.2.1-hardening swap 43695bd)",
       "status": "verified",
-      "note": "refreshed for F-073 (P1 remediation) to the digest this module's regenerated record carries after the P1 code changes settled; the prior registered hash (b89c773051ea...) predated the final P1 bytes and is retained in historical_source_hashes",
+      "note": "refreshed 2026-09-14T17:54:56Z for the 2026-09-14 release closeout re-pin (F-071/F-125/F-126/F-137/U186 remediation and CRLF checkout drift rematerialized to committed LF bytes); prior hash retained in historical_source_hashes",
       "content_file_count": 58
     },
     "sow": {
       "provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
-      "source_sha256": "7b08c5427bae06a52b8d177ce7ce54209794c25166d2e0f353116cc504cca6c2",
+      "source_sha256": "f835857553a68d8036278c824fc874de9465aec3dff2b69a14237a044d655f9a",
       "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 1033 git-tracked files under modules/sow/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
       "historical_source_hashes": [
         "7a8e81aaab91706825b8a1a105e2d53847465993aba3b0bafa61b0137b6681aa",
-        "2c109d31d9d871919bf1fb791599a8536087c5e9a0e2b49ae21d0696321d321e"
+        "2c109d31d9d871919bf1fb791599a8536087c5e9a0e2b49ae21d0696321d321e",
+        "7b08c5427bae06a52b8d177ce7ce54209794c25166d2e0f353116cc504cca6c2"
       ],
       "source": "candidate tree (lineage: git_worktree_copy 6d23a810…, upstream e6fcb89 [U]; canonical lineage unresolved pending OD-20)",
       "status": "verified",
-      "note": "refreshed 2026-09-14T14:34:12Z for CLOSE-04 freeze; prior hash retained in historical_source_hashes",
+      "note": "refreshed 2026-09-14T17:54:56Z for the 2026-09-14 release closeout re-pin (F-071/F-125/F-126/F-137/U186 remediation and CRLF checkout drift rematerialized to committed LF bytes); prior hash retained in historical_source_hashes",
       "content_file_count": 1040
     },
     "tokencenter": {

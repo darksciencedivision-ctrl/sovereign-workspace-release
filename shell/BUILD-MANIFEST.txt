@@ -1,5 +1,5 @@
 # SWS-BUILD-MANIFEST v1
-# utc: 2026-09-14T14:32:58Z
+# utc: 2026-09-14T17:52:58Z
 # producer: claude-code REM-01
 # root: shell/
 # excluded: __pycache__/**, BUILD-MANIFEST.txt (self), untracked files
@@ -22,9 +22,9 @@ ad4d810047f46ff7c75531292b83433dd00f7a74612cf315a9f2c97c67140456  src/graceful.p
 fabdb06c59a5f16c764e755c23826672c9c9195ab5b807dd1b9c7d26c5a2b7bc  src/logs.py
 baedc6f68ccfe8fe4e697e2106cea481f9c436ac643f1a2f35011ac106dc304c  src/probe.py
 752ce2b30d642628d7dda48a4a0ca19ee2b67831171b8f3da42ccf5da39f4ffe  src/redact.py
-6e18f67fc8e70e8bda2a2d7513e057623b1d42b4d44f5713594f99d9053f16ed  src/server.py
+02d392a8792161972d7b747d01427f8c5891e46b4c9e25b03ae2915b2048da4e  src/server.py
 2f8726148276aed6304552d653f1818b0217df824206c7841340df8f773e5bcc  src/startup_test.py
-c3e10ced34f9ddd6ba9bab36f47b6b340b29ecd0f69e8eba40339aa0a392cb62  src/states.py
+e87d975b0f12fa9cdc7ad6c2d6b1e8fc3f71e9f79364198199395876610c62c8  src/states.py
 19d13b00f2f5505e5acd34d912bd7fec6f26d2679442121d8812dd3e5341bd7c  src/supervisor.py
 b2407edea75851f7fc7893ef150c7cf94902f5af9e62594ca2b4794e548eb9b3  static/app.css
 abf3e7ec91257318353e6c15f1e0bb42bff4dc18cac2d4c39f4044df61deba1f  static/app.js
@@ -68,7 +68,7 @@ b917bab7541adef9b0edfa9d7506163f4443ae9159b1d13962c101b9a2fd19f0  tests/test_dev
 2c9401daaf140fc4d2d43dcc37a9a43e416933568b16df17cab2c5ff474cc40f  tests/test_ingestion_rejects.py
 b51617b564b15547872a1989d5e00d020e89c1c2d2ae2d68226ae1704e16926a  tests/test_install_sow_f031.py
 fdacf051e2360866336058ae27cab07c38e39a3c15ef54809dc2695d6f2fa67d  tests/test_installer_honours_adr005.py
-81df71217bcdf70d18f4099906ed4e5ec92494b4f912a31a04b77f1a37df3cdf  tests/test_launcher_contract.py
+06604dc92920c1b1bdf5bf5f5ae032acee5de6e443f131255c5f4e4e0925e213  tests/test_launcher_contract.py
 bd9d8ed4df1398a3c952ccc3e34dce0b13459d496dc966a38bd203a640da936f  tests/test_legacy_alias_resolution.py
 dcd90f287c726961c0aa418da8ca2adaf8ed463a13f58d5f04e036ba1a346810  tests/test_legacy_state_migration.py
 f4ad1439b96bb813ad39dc894d8de7ad4ed511307705519b3fbb6a0c1af310af  tests/test_licence_is_complete.py

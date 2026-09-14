@@ -1,17 +1,17 @@
 {
   "module": "sow",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-09-14T14:33:02Z",
+  "generated_utc": "2026-09-14T17:52:58Z",
   "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "worktree": "release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "404df1c3ce5112b26a69c1ebd4a431f328d19c11"
+    "worktree_commit_at_generation": "a2198ffc70b913c5931f176c5106f87a6983ab38"
   },
   "source_kind": "candidate_tree_module",
-  "source_sha256": "7b08c5427bae06a52b8d177ce7ce54209794c25166d2e0f353116cc504cca6c2",
+  "source_sha256": "f835857553a68d8036278c824fc874de9465aec3dff2b69a14237a044d655f9a",
   "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 1040 git-tracked files under modules/sow/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
   "content_file_count": 1040,
   "version": "0.1.0",
