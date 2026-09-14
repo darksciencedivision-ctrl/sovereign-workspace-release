@@ -16,20 +16,24 @@ Performs, in order:
   8. verify node-pty loads from its win32-x64 prebuild
 Every step is logged to evidence/phase2-sow-install.txt. Any mismatch exits non-zero.
 """
+import argparse
 import datetime
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 import zipfile
 
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DESKTOP = os.path.join(WORKSPACE, "modules", "sow", "apps", "desktop")
-LOG_PATH = os.path.join(WORKSPACE, "evidence", "phase2-sow-install.txt")
 ZIP_HASH_RECORD = os.path.join(WORKSPACE, "docs", "ADR-005-ELECTRON-ZIP-SHA256.txt")
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+LOG_PATH = None
 
 PLATFORM_TAG = "win32-x64"
 RELEASE_URL = "https://github.com/electron/electron/releases/download/v{ver}/electron-v{ver}-{tag}.zip"
@@ -47,14 +51,25 @@ def log(msg):
     print(line, flush=True)
 
 
+def default_log_path():
+    state = os.environ.get("SOVEREIGN_WORKSPACE_STATE")
+    if state:
+        return os.path.join(state, "sow-install.log")
+    return os.path.join(tempfile.gettempdir(), "sow-install-{}.log".format(os.getpid()))
+
+
 def flush_log():
-    os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
-    with open(LOG_PATH, "w", encoding="utf-8", newline="\n") as f:
+    path = LOG_PATH or default_log_path()
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("# utc: {}\n".format(utc_now()))
-        f.write("# producer: claude-code REM-01\n")
         f.write("# tool: shell/tools/install_sow.py (ADR-005)\n")
+        f.write("# log_path: {}\n".format(path))
         f.write("\n".join(_log_lines))
         f.write("\n")
+    return path
 
 
 def die(msg, code=1):
@@ -135,53 +150,64 @@ def read_electron_version():
         return json.load(f)["version"]
 
 
-def expected_zip_hash(ver, zip_name):
-    """Expected SHA-256, preferring the vendor-shipped checksums.json (ADR-005 decision 2)."""
-    checks = os.path.join(DESKTOP, "node_modules", "electron", "checksums.json")
+def expected_zip_hash(ver, zip_name, desktop=None, hash_record=None):
+    """Expected SHA-256, preferring the vendor-shipped checksums.json (ADR-005 decision 2).
+
+    Malformed vendor or pin files fail closed. A missing pin returns (None, "none").
+    This function never writes the pin file.
+    """
+    desktop = DESKTOP if desktop is None else desktop
+    hash_record = ZIP_HASH_RECORD if hash_record is None else hash_record
+    checks = os.path.join(desktop, "node_modules", "electron", "checksums.json")
     if os.path.isfile(checks):
         try:
             with open(checks, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if zip_name in data:
-                h = data[zip_name].strip().lower()
-                if len(h) == 64:
-                    log("  expected hash source = node_modules/electron/checksums.json")
-                    return h, "checksums.json"
-        except (OSError, ValueError, KeyError) as e:
-            log("  checksums.json unreadable ({}), falling back".format(e))
-    if os.path.isfile(ZIP_HASH_RECORD):
-        for line in open(ZIP_HASH_RECORD, "r", encoding="utf-8"):
-            line = line.strip()
-            if line.startswith("#") or not line:
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            die("ELECTRON_ZIP_UNVERIFIABLE: checksums.json is malformed ({})".format(e))
+        if not isinstance(data, dict):
+            die("ELECTRON_ZIP_UNVERIFIABLE: checksums.json is not an object")
+        if zip_name in data:
+            h = str(data[zip_name]).strip().lower()
+            if not _SHA256_RE.match(h):
+                die("ELECTRON_ZIP_UNVERIFIABLE: checksums.json entry for {} is not a SHA-256".format(
+                    zip_name))
+            log("  expected hash source = node_modules/electron/checksums.json")
+            return h, "checksums.json"
+    if os.path.isfile(hash_record):
+        try:
+            with open(hash_record, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        except OSError as e:
+            die("ELECTRON_ZIP_UNVERIFIABLE: hash record unreadable ({})".format(e))
+        found = None
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped.startswith("#") or not stripped:
                 continue
-            parts = line.split()
-            if len(parts) == 2 and parts[1] == zip_name and len(parts[0]) == 64:
-                log("  expected hash source = docs/ADR-005-ELECTRON-ZIP-SHA256.txt")
-                return parts[0].lower(), "recorded"
+            parts = stripped.split()
+            if len(parts) != 2 or not _SHA256_RE.match(parts[0]):
+                die("ELECTRON_ZIP_UNVERIFIABLE: malformed hash record line {}".format(i))
+            if parts[1] == zip_name:
+                found = parts[0].lower()
+        if found:
+            log("  expected hash source = {}".format(hash_record))
+            return found, "recorded"
     return None, "none"
 
 
 def record_zip_hash(zip_name, digest):
-    header = ("# utc: {}\n# producer: claude-code REM-01\n"
-              "# ADR-005 first-run record of Electron zip SHA-256. Subsequent runs must match.\n"
-              ).format(utc_now())
-    existing = ""
-    if os.path.isfile(ZIP_HASH_RECORD):
-        existing = open(ZIP_HASH_RECORD, "r", encoding="utf-8").read()
-        if not existing.endswith("\n"):
-            existing += "\n"
-    else:
-        existing = header
-    with open(ZIP_HASH_RECORD, "w", encoding="utf-8", newline="\n") as f:
-        f.write(existing)
-        f.write("{}  {}\n".format(digest, zip_name))
-    log("  recorded {} {} in docs/ADR-005-ELECTRON-ZIP-SHA256.txt".format(digest, zip_name))
+    log("  observed Electron zip {} sha256={}".format(zip_name, digest))
+    log("  (NOT written to docs/ADR-005-ELECTRON-ZIP-SHA256.txt; pin it there deliberately at "
+        "build time if this is a new supported version)")
 
 
-def find_cached_zip(zip_name):
-    base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "electron", "Cache")
+def find_cached_zip(zip_name, cache_root=None):
+    base = cache_root
+    if base is None:
+        base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "electron", "Cache")
     hits = []
-    if os.path.isdir(base):
+    if base and os.path.isdir(base):
         for entry in sorted(os.listdir(base)):
             cand = os.path.join(base, entry, zip_name)
             if os.path.isfile(cand):
@@ -189,20 +215,47 @@ def find_cached_zip(zip_name):
     return base, hits
 
 
-def step_4_5_zip(ver):
+def _download_zip(url, target, urlopen=None):
+    opener = urllib.request.urlopen if urlopen is None else urlopen
+    parent = os.path.dirname(target)
+    os.makedirs(parent, exist_ok=True)
+    tmp = target + ".partial"
+    try:
+        with opener(url, timeout=600) as resp, open(tmp, "wb") as out:
+            shutil.copyfileobj(resp, out, length=1 << 20)
+        os.replace(tmp, target)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def step_4_5_zip(ver, allow_unverified=False, desktop=None, hash_record=None,
+                 cache_root=None, urlopen=None):
     log("STEP 4/5: locate and verify the Electron zip")
+    desktop = DESKTOP if desktop is None else desktop
+    hash_record = ZIP_HASH_RECORD if hash_record is None else hash_record
     zip_name = "electron-v{}-{}.zip".format(ver, PLATFORM_TAG)
     log("  electron version = {} (from node_modules/electron/package.json)".format(ver))
     log("  zip name         = {}".format(zip_name))
 
-    expected, source = expected_zip_hash(ver, zip_name)
+    expected, source = expected_zip_hash(ver, zip_name, desktop=desktop, hash_record=hash_record)
+    verified = False
     if expected:
         log("  expected sha256  = {} ({})".format(expected, source))
+    elif not allow_unverified:
+        die("ELECTRON_ZIP_UNVERIFIABLE: no expected SHA-256 for {} (checksums.json missing and "
+            "no recorded pin). Refusing trust-on-first-use. Provision node_modules/electron so "
+            "its checksums.json is present, or pass --allow-unverified-electron to bootstrap "
+            "an unverified official download deliberately. That mode cannot pin a hash and "
+            "cannot be reported as verified.".format(zip_name))
     else:
-        log("  expected sha256  = UNKNOWN — first run may record it (ADR-005 decision 2)")
+        log("  expected sha256  = UNKNOWN; --allow-unverified-electron -> proceeding UNVERIFIED")
 
-    base, hits = find_cached_zip(zip_name)
-    log("  cache root       = {}".format(base or "(LOCALAPPDATA unset)"))
+    base, hits = find_cached_zip(zip_name, cache_root=cache_root)
+    log("  cache root       = {}".format(base or "(unset)"))
     log("  cached copies    = {}".format(len(hits)))
 
     chosen = None
@@ -210,8 +263,8 @@ def step_4_5_zip(ver):
         digest = sha256_file(cand)
         log("    {} sha256={}".format(cand, digest))
         if expected is None:
-            chosen = (cand, digest)
-            break
+            log("    -> no expected hash; not trusting cached copy, will download from official URL")
+            continue
         if digest == expected:
             chosen = (cand, digest)
             log("    -> matches expected hash, using this copy")
@@ -220,31 +273,39 @@ def step_4_5_zip(ver):
 
     if chosen is None:
         url = RELEASE_URL.format(ver=ver, tag=PLATFORM_TAG)
-        target_dir = os.path.join(base, "rem01-{}".format(ver)) if base else os.path.join(DESKTOP, ".electron-zip")
-        os.makedirs(target_dir, exist_ok=True)
+        target_dir = os.path.join(base, "rem01-{}".format(ver)) if base else os.path.join(
+            desktop, ".electron-zip")
         target = os.path.join(target_dir, zip_name)
         log("  no verified cached copy; downloading {}".format(url))
         try:
-            with urllib.request.urlopen(url, timeout=600) as resp, open(target, "wb") as out:
-                shutil.copyfileobj(resp, out, length=1 << 20)
+            _download_zip(url, target, urlopen=urlopen)
         except Exception as e:
             die("download failed: {}".format(e))
         digest = sha256_file(target)
         log("  downloaded {} sha256={}".format(target, digest))
+        if expected is not None and digest != expected:
+            try:
+                os.remove(target)
+            except OSError:
+                pass
+            die("ELECTRON_ZIP_UNVERIFIABLE: downloaded {} has sha256 {} but expected {}".format(
+                zip_name, digest, expected))
         chosen = (target, digest)
 
     zip_path, digest = chosen
     if expected is None:
         record_zip_hash(zip_name, digest)
+        log("  SHA-256 UNVERIFIED (bootstrap; no trusted pin was written)")
     elif digest != expected:
         die("ELECTRON_ZIP_UNVERIFIABLE: {} has sha256 {} but expected {}".format(
             zip_path, digest, expected))
     else:
+        verified = True
         log("  SHA-256 VERIFIED against {}".format(source))
     log("  zip path         = {}".format(zip_path))
     log("  zip sha256       = {}".format(digest))
     log("  zip size         = {} bytes".format(os.path.getsize(zip_path)))
-    return zip_path, digest
+    return zip_path, digest, verified
 
 
 def step_6_7_extract(ver, zip_path):
@@ -294,17 +355,38 @@ def step_8_node_pty(node_exe):
     log("  require('node-pty') OK")
 
 
-def main():
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--allow-unverified-electron", action="store_true",
+        help="download the official Electron zip with no trusted pin. Cannot be reported as "
+             "verified and does not write a pin. Default is fail-closed.")
+    parser.add_argument("--log", default=None,
+                        help="install log path (default: state-root or temp, never tracked evidence/)")
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    global LOG_PATH
+    args = parse_args(argv)
+    LOG_PATH = args.log or default_log_path()
     log("install_sow.py starting (ADR-005, REM-01 R2-2)")
     log("workspace = {}".format(WORKSPACE))
+    log("log path = {}".format(LOG_PATH))
+    if args.allow_unverified_electron:
+        log("UNVERIFIED bootstrap requested via --allow-unverified-electron")
     step_1_verify_cwd()
     node_exe, npm_cli = step_2_resolve_node()
     step_3_npm_ci(node_exe, npm_cli)
     ver = read_electron_version()
-    zip_path, digest = step_4_5_zip(ver)
+    zip_path, digest, verified = step_4_5_zip(
+        ver, allow_unverified=args.allow_unverified_electron)
     step_6_7_extract(ver, zip_path)
     step_8_node_pty(node_exe)
-    log("RESULT: SOW provisioning complete, all steps verified")
+    if verified:
+        log("RESULT: SOW provisioning complete, Electron zip SHA-256 VERIFIED")
+    else:
+        log("RESULT: SOW provisioning complete, Electron zip UNVERIFIED (bootstrap; no pin written)")
     flush_log()
     return 0
 
