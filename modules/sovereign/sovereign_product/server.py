@@ -12,6 +12,15 @@ The service is intentionally boring at its trust boundaries:
 The module has no import-time server or database side effects.  ``main`` is the
 canonical executable entry point and ``create_app`` is the test/embedding
 surface.
+
+F-105 - SECURITY SCOPE (documented limitation). The loopback bind and the Host/Origin checks stop
+REMOTE and cross-ORIGIN access; they are NOT a same-USER boundary. Any local process, and on a
+multi-user Windows host any other logged-in user who can reach 127.0.0.1, can call these endpoints
+- read every session and message (GET /v1/sessions), download the store, and rewrite model
+assignments. This is acceptable ONLY within the product's stated single-operator scope: one
+trusted user on the machine. A deployment that must isolate co-located users needs a per-install
+secret held in a user-ACL'd file and required on every request; that is deliberately out of scope
+for this build and recorded here so the boundary is not mistaken for multi-user authentication.
 """
 
 from __future__ import annotations

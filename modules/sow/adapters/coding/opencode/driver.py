@@ -99,18 +99,45 @@ class Runner(Protocol):
                  timeout: float) -> RunOutcome: ...
 
 
+def _run_tree_killable(argv: list[str], *, cwd: str, env: dict[str, str],
+                        timeout: float) -> tuple[int, str, str, bool]:
+    """Run a command and, on timeout, kill the WHOLE process TREE - not just the direct child.
+
+    F-135: `opencode` resolves to the npm shim opencode.CMD (a cmd.exe wrapper), and the post-drive
+    tests likewise spawn node/pytest grandchildren. subprocess.run(timeout=...) kills only the
+    direct child, so on timeout cmd.exe died while node/opencode kept running inside the worktree.
+    The child is started in its own process group and, on timeout, `taskkill /T /F` terminates the
+    whole tree (Windows-only product). Returns (returncode, stdout, stderr, timed_out).
+    """
+    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, creationflags=creationflags)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+        return proc.returncode, out or "", err or "", False
+    except subprocess.TimeoutExpired:
+        try:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                           capture_output=True, timeout=15, check=False)
+        except (OSError, subprocess.SubprocessError):
+            try:
+                proc.kill()
+            except OSError:
+                pass
+        try:
+            out, err = proc.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            out, err = "", ""
+        return 124, out or "", err or "", True
+
+
 def subprocess_runner(argv: list[str], *, cwd: str, env: dict[str, str],
                       timeout: float) -> RunOutcome:
     """The REAL runner: spawn `opencode run …` as a subprocess. Never used by the deterministic
-    suite (only the opt-in live integration test passes it)."""
-    try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
-                              cwd=cwd, env=env, check=False)
-    except subprocess.TimeoutExpired as exc:
-        return RunOutcome(returncode=124, stdout=(exc.stdout or "") if isinstance(exc.stdout, str) else "",
-                          stderr=(exc.stderr or "") if isinstance(exc.stderr, str) else "",
-                          timed_out=True)
-    return RunOutcome(returncode=proc.returncode, stdout=proc.stdout or "", stderr=proc.stderr or "")
+    suite (only the opt-in live integration test passes it). F-135: the whole process tree is
+    killed on timeout so opencode/node grandchildren cannot keep running in the worktree."""
+    rc, out, err, timed_out = _run_tree_killable(argv, cwd=cwd, env=env, timeout=timeout)
+    return RunOutcome(returncode=rc, stdout=out, stderr=err, timed_out=timed_out)
 
 
 @dataclass(frozen=True)
@@ -358,15 +385,19 @@ class OpenCodeDriver:
         a real failing-tests signal (fail closed), not a crash of the driver."""
         if not test_argv:
             raise DriveRefused("no test command supplied — 'tests run' cannot be satisfied vacuously")
-        try:
-            proc = subprocess.run(test_argv, capture_output=True, text=True, timeout=timeout,
-                                  cwd=str(self._wt.path), check=False)
-        except subprocess.TimeoutExpired:
+        # F-135: these are tests the --auto drive just AUTHORED (conftest.py, test files written by
+        # a local model). Run them with the harness's credential-SCRUBBED environment, not the
+        # operator's full os.environ - otherwise any API key/token in the environment is handed to
+        # code the model wrote. And kill the whole tree on timeout, like the drive itself.
+        scrubbed_env = self._harness.build_env()
+        rc, out, err, timed_out = _run_tree_killable(
+            test_argv, cwd=str(self._wt.path), env=scrubbed_env, timeout=timeout)
+        if timed_out:
             self._emit("worktree_tests_timeout", node_id=self._wt.node_id)
             return TestOutcome(ran=True, returncode=124, passed=False,
                                stderr_tail="tests timed out")
-        outcome = TestOutcome(ran=True, returncode=proc.returncode, passed=proc.returncode == 0,
-                              stdout_tail=(proc.stdout or "")[-800:], stderr_tail=(proc.stderr or "")[-800:])
+        outcome = TestOutcome(ran=True, returncode=rc, passed=rc == 0,
+                              stdout_tail=(out or "")[-800:], stderr_tail=(err or "")[-800:])
         self._emit("worktree_tests_done", node_id=self._wt.node_id, **outcome.as_dict())
         return outcome
 
