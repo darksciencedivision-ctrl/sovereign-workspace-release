@@ -292,7 +292,17 @@ const PINS = {
   // conductor-readiness.js, worker-readiness.js and modal-affordance.js are unchanged.
   // Re-counted resume-input CALL x1 (bare signature x2); zero CR bytes. Both harnesses
   // must be run on these bytes with byte-identical restores.
-  [MAIN]: "C43A91A2DD2E35B68FD351B4ED3942EE16883456D7FC77EF751FF0ADFE31010B",
+  // Re-pinned at the 2026-09-14 release closeout. main.js changed in three committed remediation
+  // packages after 8AB5E8BB (405eba1): F-128 (3b59c43) moved the G26 operator-text driver into
+  // control/operator-text-driver.js; F-129/F-130 (50b3d28) passed the conductor pane id to
+  // paneEmittedSince in handleOperatorText and made SHELL-LIVE-READY truthful; F-131 (cd3f559) moved
+  // the recovery, approvals, capture and store paths out of the install tree into the state root.
+  // None edits the pane:input handler, handleOperatorResumeInput, the before-input-event disarm,
+  // makeWindow, clearConductorInputResidue or the pane:focus/maximize/resize/close handlers X1-X4
+  // target; the diff was re-read against every anchor and main.js carries zero CR bytes (U274). The
+  // pin was accepted only after this harness and pane_input_bypass_mutations.js were re-run on these
+  // exact bytes with every mutation CAUGHT and every restore BYTE-IDENTICAL. Previous pin: C43A91A2...E31010B. M7's anchor is untouched.
+  [MAIN]: "AF410B21D6E341A96A3F9AD7E18AA5BFE685CC0092024C41850E8C2BCCB65EDA",
   // Added at 19.9 with M3. Its suite drives a modal refusal and proves zero prompt writes,
   // replacing the old circular source-order assertion over main.js.
   [CONDUCTOR_READINESS]: "B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49",

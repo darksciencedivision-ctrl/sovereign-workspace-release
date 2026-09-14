@@ -305,7 +305,17 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // IPC channel, or authority-release sink is added. Re-counted the actual anchor
 // constant: resume-input CALL x1 (bare signature x2 including its declaration);
 // verified zero CR bytes. Both harnesses must be run on these bytes with byte-identical restores.
-const PINNED_BASELINE = "8AB5E8BBEE288A30BE07EC3CED287FD329977212428F84BC8C5021CC55C33F90";
+// Re-pinned at the 2026-09-14 release closeout. main.js changed in three committed remediation
+// packages after 8AB5E8BB (405eba1): F-128 (3b59c43) moved the G26 operator-text driver into
+// control/operator-text-driver.js; F-129/F-130 (50b3d28) passed the conductor pane id to
+// paneEmittedSince in handleOperatorText and made SHELL-LIVE-READY truthful; F-131 (cd3f559) moved
+// the recovery, approvals, capture and store paths out of the install tree into the state root.
+// None edits the pane:input handler, handleOperatorResumeInput, the before-input-event disarm,
+// makeWindow, clearConductorInputResidue or the pane:focus/maximize/resize/close handlers X1-X4
+// target; the diff was re-read against every anchor and main.js carries zero CR bytes (U274). The
+// pin was accepted only after this harness and system_pane_write_mutations.js were re-run on these
+// exact bytes with every mutation CAUGHT and every restore BYTE-IDENTICAL. Previous pin: 8AB5E8BB...C55C33F90.
+const PINNED_BASELINE = "AF410B21D6E341A96A3F9AD7E18AA5BFE685CC0092024C41850E8C2BCCB65EDA";
 
 let lockFd;
 try {
