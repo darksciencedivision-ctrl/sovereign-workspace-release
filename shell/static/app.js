@@ -66,9 +66,11 @@
     },
   ];
 
+  // F-033: the console IS a runnable shell module (serve.py on :5184); this card describes the
+  // CORPUS/pipeline, which is idle until something is loaded - it must not claim no runtime exists.
   const DISTILLERY_NOTE =
-    "Runtime Status idle. Student Model none. Pipeline State idle. Queue empty. Logs/Evidence local.";
-  const DISTILLERY_TOOLTIP = "No runtime exists for Sovereign Distillery";
+    "Corpus idle. Student Model none. Pipeline State idle. Queue empty. Logs/Evidence local. Start the module to bring up the console.";
+  const DISTILLERY_TOOLTIP = "Distillery corpus is idle; start the module to run the console";
 
   const STATE_META = {
     NOT_STARTED: { cls: "badge-muted", label: "Not Started" },
@@ -82,12 +84,15 @@
   };
 
   // States in which each action button is enabled.
+  // F-030: CONFIG_ERROR is NOT startable/testable/restartable - the module's config is broken, and
+  // the server refuses (400). Enabling those buttons only produced a refusal; they are gated out
+  // here so the UI offers exactly what the server will accept.
   const ACTION_STATES = {
-    start: ["NOT_STARTED", "STOPPED", "FAILED", "CONFIG_ERROR"],
+    start: ["NOT_STARTED", "STOPPED", "FAILED"],
     stop: ["READY", "STARTING", "DEGRADED"],
-    restart: ["READY", "STARTING", "DEGRADED", "FAILED", "CONFIG_ERROR"],
+    restart: ["READY", "STARTING", "DEGRADED", "FAILED"],
     open: ["READY", "EXTERNAL"],
-    test: ["NOT_STARTED", "STOPPED", "FAILED", "CONFIG_ERROR"],
+    test: ["NOT_STARTED", "STOPPED", "FAILED"],
   };
 
   const ACTION_LABELS = [
@@ -230,7 +235,17 @@
       },
       body: JSON.stringify(body == null ? {} : body),
     });
-    if (!res.ok) throw new Error("HTTP " + res.status + " for POST " + path);
+    if (!res.ok) {
+      // F-030: surface the SERVER's error message, not a bare "HTTP 409". The server answers a
+      // refused action with {"error": "..."} (e.g. "Refused: an external instance owns this
+      // endpoint"); showing that is the difference between an actionable message and a status code.
+      let detail = "";
+      try {
+        const errText = await res.text();
+        try { detail = JSON.parse(errText).error || errText; } catch (e) { detail = errText; }
+      } catch (e) { detail = ""; }
+      throw new Error(detail ? detail : "HTTP " + res.status + " for POST " + path);
+    }
     const text = await res.text();
     try {
       return JSON.parse(text);

@@ -170,10 +170,13 @@ def get_distillery_status() -> dict:
     the tree is named by the operator, NOT_CONFIGURED is an ordinary state for a recipient
     who has no Distillery corpus, and it must not be reported as a misconfiguration.
 
-    It must also not mask the fact underneath it. The Distillery has no runtime, entry point
-    or UI in this release whatever the operator has configured, so NOT_STARTED is the true
-    state and the sub-objects carry their own status. A tree that IS named and cannot be read
-    is still a CONFIG_ERROR - that is a real problem with a real fix.
+    F-033: this endpoint reports the CORPUS and PIPELINE status, not the presence of a runtime.
+    The Distillery console IS a shell-managed runnable module (shell/modules/distillery.json runs
+    serve.py with an HTTP readiness probe on :5184), so an earlier verbatim claim that "no runtime,
+    entry point or UI exists" contradicted the adapter and the shipped serve.py. NOT_STARTED here
+    means the CORPUS/pipeline is idle (nothing loaded), which is orthogonal to whether the console
+    process is running - that is the module's own lifecycle state in /api/state. A named tree that
+    cannot be read is still a CONFIG_ERROR - a real problem with a real fix.
     """
     handoff = _parse_handoff()
     questions = _parse_open_questions()
@@ -190,6 +193,6 @@ def get_distillery_status() -> dict:
         "handoff": handoff,
         "questions": questions,
         "snapshot": snapshot,
-        "verbatim": "No runtime, entry point, or UI exists for Sovereign Distillery. Startup test not applicable.",
+        "verbatim": "Distillery corpus/pipeline is idle (nothing loaded). The console runtime is a shell-managed module; start it from the module list to bring up serve.py.",
         "links": _links(),
     }
