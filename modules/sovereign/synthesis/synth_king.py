@@ -207,10 +207,12 @@ def write_text_atomic(path: Path, text: str) -> None:
 
 
 def append_log_line(path: Path, obj: dict[str, Any]) -> None:
+    # F-125(g): append ONE line. This used to read the whole never-rotated system log and atomically
+    # rewrite it for every stage event - O(n) per event, quadratic over an install's lifetime - and
+    # a concurrent writer's line was lost between the read and the rename.
     path.parent.mkdir(parents=True, exist_ok=True)
-    existing = path.read_text(encoding="utf-8") if path.exists() else ""
-    line = json.dumps(obj, ensure_ascii=False) + "\n"
-    write_text_atomic(path, existing + line)
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 
 def normalize_text(text: str) -> str:
@@ -232,7 +234,10 @@ def split_bullets(text: str) -> list[str]:
     if not cleaned:
         return []
 
-    bullet_pattern = re.compile(r"^\s*(?:[-*â€¢]|\d+[.)])\s+")
+    # F-125(i): the class was the UTF-8 bullet double-decoded into three characters, so a real
+    # U+2022 bullet from a model was never a bullet while lines starting with those stray
+    # characters were stripped as if they were.
+    bullet_pattern = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+")
     lines = cleaned.splitlines()
 
     if any(bullet_pattern.match(line) for line in lines):

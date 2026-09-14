@@ -2,10 +2,11 @@ from __future__ import annotations
 
 # F-126 - QUARANTINE / SUPPORT DISPOSITION. This legacy quality/arbitration gate
 # (claim_arbitrator.py, quality_gate.py) is NOT on the shipped product route - the product's
-# acceptance gate lives in sovereign_product/. The clauses this finding lists (treat "arbitration
-# not executed" as a gate reason in every branch, key artifacts by (session, run) or allow the
-# owning run to overwrite, memoise embeddings per text) are recorded as an UNSUPPORTED legacy
-# pipeline: it is quarantined from the product route, not maintained. Do not add a product caller.
+# acceptance gate lives in sovereign_product/. Do not add a product caller. Its four clauses are
+# corrected and pinned by tests/test_legacy_engine_bounded_repairs.py: (a) "arbitration was not
+# executed" is a gate reason in every branch; (b) an existing artifact is never reused for a new
+# evaluation; (c) the owning run may overwrite its session artifact; (d) one lazily built embedding
+# client serves a whole arbitration, so its per-text cache is actually used.
 
 import argparse
 import json
@@ -25,6 +26,23 @@ from semantic_claim_matching import EMBEDDING_VERSION, MATCHING_BACKEND
 from semantic_claim_matching import classify_claim_similarity as _classify_claim_similarity
 from semantic_claim_matching import compute_semantic_similarity
 from semantic_claim_matching import load_semantic_matching_config
+from embedding_client import build_manifest_embedding_client
+
+
+class _SharedEmbeddingClient:
+    """F-126(d): ONE manifest EmbeddingClient for a whole arbitration, built on first use, so the
+    client's per-text cache serves every comparison instead of none."""
+
+    def __init__(self, root: Path, manifest: dict[str, Any] | None) -> None:
+        self._root = root
+        self._manifest = manifest
+        self._client: Any = None
+
+    def embed(self, text: str) -> Any:
+        if self._client is None:
+            self._client = build_manifest_embedding_client(str(self._root), self._manifest)
+        return self._client.embed(text)
+
 
 ROOT = Path(__file__).resolve().parent
 ARBITRATION_HELPERS = ROOT / "arbitration"
@@ -1454,6 +1472,12 @@ def analyze_dialog(
     warnings: list[str] = []
     root_path = Path(root).resolve()
     config = load_semantic_matching_config(root=root_path, manifest=manifest)
+    if embedding_client is None:
+        # F-126(d): with no client passed, every one of the O(n^2) cluster and O(challenges x
+        # clusters x evidence) comparisons built a FRESH EmbeddingClient, so its per-text cache never
+        # hit and each comparison issued new embedding requests. One client now serves the whole
+        # arbitration; it is built on first use, so an arbitration with no comparison builds none.
+        embedding_client = _SharedEmbeddingClient(root_path, manifest)
     turns = split_blocks(dialog_text)
     claim_records, parse_warnings = parse_turn_claims(turns)
     warnings.extend(parse_warnings)

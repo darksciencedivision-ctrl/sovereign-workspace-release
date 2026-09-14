@@ -1,4 +1,4 @@
-﻿# broker_once.ps1 - SOVEREIGN helper
+# broker_once.ps1 - SOVEREIGN helper
 # Runs one broker session and exits after canonical synthesis is written.
 
 param(
@@ -33,7 +33,22 @@ foreach ($path in @($Inbox, $Logs, (Split-Path -Parent $SynthFile))) {
     }
 }
 
-Remove-Item -Force $StopFile -ErrorAction SilentlyContinue
+# F-125(l). A STOP file is the operator's emergency stop and the cycle runner's --fail-closed latch.
+# This helper used to delete it unconditionally before starting, overriding both. It refuses instead.
+if (Test-Path -LiteralPath $StopFile) {
+    throw "broker_once refused: STOP file present at $StopFile (operator stop or fail-closed latch). Remove it deliberately to continue."
+}
+
+# F-125(l). Any non-empty synthesis.txt used to satisfy the wait, so a PREVIOUS run's synthesis
+# ended it immediately and "OK" was printed for work that never happened. Move it aside so only
+# output written by this run can end the wait.
+if (Test-Path -LiteralPath $SynthFile) {
+    Move-Item -LiteralPath $SynthFile -Destination ($SynthFile + ".prev") -Force
+}
+
+# F-125(l). The topic is written BEFORE the broker starts. It used to be written after, so the broker
+# could pick up the previous topic.
+$Topic | Out-File -Encoding utf8 -FilePath $TopicFile -Force
 
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = Get-PowerShellExe
@@ -46,14 +61,12 @@ $proc = New-Object System.Diagnostics.Process
 $proc.StartInfo = $psi
 [void]$proc.Start()
 
-$Topic | Out-File -Encoding utf8 -FilePath $TopicFile -Force
-
 $deadline = (Get-Date).AddSeconds($TimeoutSec)
 $sawSynth = $false
 
 while ((Get-Date) -lt $deadline) {
-    if (Test-Path $SynthFile) {
-        $len = (Get-Item $SynthFile).Length
+    if (Test-Path -LiteralPath $SynthFile) {
+        $len = (Get-Item -LiteralPath $SynthFile).Length
         if ($len -gt 0) {
             $sawSynth = $true
             break
@@ -62,10 +75,20 @@ while ((Get-Date) -lt $deadline) {
     Start-Sleep -Milliseconds $PollMs
 }
 
+# The broker loop exits on STOP. This run creates that STOP for ITS broker only and removes it once
+# the broker has gone: the helper used to leave it behind, which turned every later cycle into an
+# abort (F-125(l)/(c)).
 New-Item -ItemType File -Force -Path $StopFile | Out-Null
-Start-Sleep -Milliseconds 600
-if (-not $proc.HasExited) {
-    try { $proc.Kill() } catch {}
+try {
+    if (-not $proc.WaitForExit(5000)) {
+        # Kill the broker's whole tree - its Python orchestrator would otherwise keep running and
+        # keep writing the shared IPC files (the same defect F-125(d) records for the runner).
+        & taskkill.exe /PID $proc.Id /T /F 2>&1 | Out-Null
+        [void]$proc.WaitForExit(5000)
+    }
+}
+finally {
+    Remove-Item -LiteralPath $StopFile -Force -ErrorAction SilentlyContinue
 }
 
 if (-not $sawSynth) {

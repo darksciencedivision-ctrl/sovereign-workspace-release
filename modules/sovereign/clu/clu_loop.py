@@ -77,10 +77,13 @@ def latest_run_record(root: Path, session_id: str = "") -> dict[str, Any]:
     runs_dir = root / "runs"
     if not runs_dir.exists():
         return {}
-    files = sorted(runs_dir.glob("cycle-*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    # F-125(m): cycle_runner_v3 writes runs/<session_id>.json (plus stop-abort-*/concurrent-refused-*
+    # records), never runs/cycle-*.json, so the old glob matched nothing and the CLU never saw a run.
+    # A run record is a JSON object that names its session.
+    files = sorted(runs_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
     for file_path in files:
         data = read_json(file_path, {})
-        if not isinstance(data, dict):
+        if not isinstance(data, dict) or not str(data.get("session_id", "")).strip():
             continue
         if session_id and str(data.get("session_id", "")).strip() != session_id:
             continue

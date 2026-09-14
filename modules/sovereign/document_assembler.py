@@ -369,11 +369,14 @@ def _ollama_generate(prompt: str, session_id: str, ollama_base: str, assembly_mo
     }
 
     try:
-        resp = req.post(
-            f"{ollama_base.rstrip('/')}/api/generate",
-            json=payload,
-            timeout=OLLAMA_TIMEOUT,
-        )
+        # F-125(f) / F-016: loopback Ollama must never be routed through an ambient HTTP(S)_PROXY.
+        with req.Session() as session:
+            session.trust_env = False
+            resp = session.post(
+                f"{ollama_base.rstrip('/')}/api/generate",
+                json=payload,
+                timeout=OLLAMA_TIMEOUT,
+            )
         resp.raise_for_status()
         data = resp.json()
     except req.exceptions.Timeout:

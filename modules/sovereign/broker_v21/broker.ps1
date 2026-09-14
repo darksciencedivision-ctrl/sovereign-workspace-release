@@ -338,8 +338,19 @@ function Invoke-SynthKing {
             $env:SOVEREIGN_SAFE_THEOREM_MODE = "1"
             $env:SOVEREIGN_SAFE_THEOREM_MANIFEST = $ResolvedSafeTheoremManifestPath
         }
-        $output = & $PythonExe @argList 2>&1
-        $exitCode = $LASTEXITCODE
+        # F-125(k): under Windows PowerShell 5.1 with EAP=Stop, the first stderr line from the
+        # orchestrator (a warning, a logged exception, its own error JSON) became a terminating
+        # NativeCommandError, so the broker died with exit 1 and the real exit code and output were
+        # lost. Run the native call under Continue and keep stderr as plain text.
+        $previousEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $output = @(& $PythonExe @argList 2>&1 | ForEach-Object { "$_" })
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousEap
+        }
     }
     finally {
         $env:SOVEREIGN_BROKER_ONLY = $previousBrokerOnly

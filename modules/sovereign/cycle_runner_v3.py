@@ -2,14 +2,24 @@
 from __future__ import annotations
 
 # F-125 - QUARANTINE / SUPPORT DISPOSITION. This legacy Phase-8/9 engine (cycle_runner_v3.py,
-# document_assembler.py) is NOT on the shipped product route. Product DEEP traffic runs through
-# sovereign_product/ (server.py -> semantic_deep.SemanticDeepExecutor); the subprocess
-# executors.DeepExecutor that drives this runner is explicitly documented as legacy, is never wired
-# as the default executor, and is retained only for the bounded-drain tests (R34). The clauses this
-# finding lists for the legacy engine (per-session IPC paths, O(1) append logging, broker-tree kill
-# on timeout, STOP producing a run record + non-zero exit) are therefore recorded as an UNSUPPORTED
-# legacy pipeline rather than hardened in shipped code: it is quarantined from the product route,
-# not maintained. Do not add a product caller to this module.
+# document_assembler.py, broker_v21/, synthesis/synth_king.py, clu/) is NOT on the shipped product
+# route. Product DEEP traffic runs through sovereign_product/ (server.py ->
+# semantic_deep.SemanticDeepExecutor); executors.DeepExecutor, the only code that drives this runner,
+# refuses unless SOVEREIGN_ALLOW_LEGACY_DEEP=1 and is never the default executor. Do not add a
+# product caller. It still ships and can be run directly, so bounded defects are corrected, each
+# pinned by tests/test_legacy_engine_bounded_repairs.py:
+#   (a) O(1) log append  (b)/(h) one cycle per root (OS lock; a concurrent cycle is refused with a
+#   record, exit 9)  (c) STOP writes a record and exits 8  (d) broker tree-kill on timeout
+#   (e) CLU via sys.executable; --stream/--no-stream meaningful  (f) stale PRAXIS result cleared;
+#   Ollama call ignores ambient proxies  (g) synth_king O(1) append; one system-log read per run
+#   (i) real U+2022 bullets  (k) broker debate under this interpreter and not killed by stderr
+#   (l) broker_once honours STOP, writes the topic first, ignores stale synthesis, leaves no latch
+#   (m) CLU reads runs/<session_id>.json.
+# NOT repaired (unsupported legacy, recorded in the remediation register): per-session IPC paths
+# (concurrency is refused instead); IntegrityGuard cost growing with past sessions (h); the LIVE
+# shadow debate and "suspiciously stable" rejection (j) - a behavioural decision, not a defect fix;
+# praxis/praxis_query.py and research/scripts/theorem_safe_runtime.py are not part of this module,
+# so the Phase-9 publication path and safe theorem mode fail with that stated cause (m).
 
 import argparse
 import json
@@ -34,7 +44,6 @@ from artifact_integrity import (
     persist_artifact_integrity_report,
 )
 from claim_arbitrator import build_praxis_entries, persist_arbitration_stub
-from research.scripts.theorem_safe_runtime import validate_safe_theorem_manifest
 from sovereign_version import PRODUCT_VERSION
 
 try:
@@ -313,6 +322,15 @@ def load_safe_theorem_manifest(path_text: str, expected_runtime_root: Path) -> D
         raise ValueError("safe theorem mode requires --safe-theorem-manifest")
     manifest_path = Path(manifest_path_text).expanduser().resolve()
     manifest = load_required_json_object(manifest_path, "safe theorem manifest")
+    # Imported here, not at module level: research/ is not a tracked part of this module, so the
+    # top-level import made the whole runner unimportable in every checkout and install - not only
+    # safe theorem mode, the one path that needs it. That path now fails with its actual cause.
+    try:
+        from research.scripts.theorem_safe_runtime import validate_safe_theorem_manifest
+    except ImportError as exc:
+        raise ValueError(
+            "safe theorem mode requires research/scripts/theorem_safe_runtime.py, which this "
+            f"installation does not include ({exc})") from exc
     errors = validate_safe_theorem_manifest(manifest, expected_runtime_root)
     if errors:
         raise ValueError("; ".join(errors))
@@ -358,7 +376,9 @@ def split_bullets(text: str) -> List[str]:
     if not cleaned:
         return []
 
-    bullet_pattern = re.compile(r"^\s*(?:[-*?]|\d+[.)])\s+")
+    # F-125(i): "?" was the U+2022 bullet lost in an encoding round-trip, so real bullets were never
+    # recognised and a line beginning "? " was stripped as one.
+    bullet_pattern = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+")
     lines = cleaned.splitlines()
 
     if any(bullet_pattern.match(line) for line in lines):
@@ -495,11 +515,27 @@ def load_constitution_state(path: Path) -> Dict[str, Any]:
     return state
 
 
+_SYNTH_LOG_CACHE: Dict[Tuple[str, int, int], List[str]] = {}
+
+
+def _synth_log_lines(system_log_path: Path) -> List[str]:
+    """F-125(g): a run summarised the whole never-rotated system log three times. Reuse one read
+    while the file's size and mtime are unchanged; any append invalidates it."""
+    stat = system_log_path.stat()
+    key = (str(system_log_path), int(stat.st_size), int(stat.st_mtime_ns))
+    lines = _SYNTH_LOG_CACHE.get(key)
+    if lines is None:
+        _SYNTH_LOG_CACHE.clear()
+        lines = system_log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        _SYNTH_LOG_CACHE[key] = lines
+    return lines
+
+
 def load_synth_log_events(system_log_path: Path, session_id: str) -> List[Dict[str, Any]]:
     if not system_log_path.exists():
         return []
     events: List[Dict[str, Any]] = []
-    for raw_line in system_log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw_line in _synth_log_lines(system_log_path):
         line = raw_line.strip()
         if not line or not line.startswith("{"):
             continue
@@ -624,6 +660,9 @@ def run_broker(
         "-ExecutionPolicy", "Bypass",
         "-File", str(broker_script),
         "-Root", str(root),
+        # F-125(k): broker.ps1 defaulted -PythonExe to bare "python" from PATH, so the debate ran
+        # under whatever interpreter PATH yielded rather than the one running this cycle.
+        "-PythonExe", sys.executable,
     ]
     if safe_theorem_mode:
         manifest = dict(safe_theorem_manifest or {})
@@ -1911,13 +1950,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--timeout-sec", type=int, default=2250)
     parser.add_argument("--fail-closed", action="store_true")
-    parser.add_argument("--stream", action="store_true", default=True)
-    parser.add_argument("--no-stream", action="store_true")
+    # F-125(e): `--stream` was store_true with default=True, so it could never change anything.
+    parser.add_argument("--stream", action=argparse.BooleanOptionalAction, default=True,
+                        help="stream broker output (default); --no-stream captures it instead")
     parser.add_argument("--broker-script", default="")
     parser.add_argument("--clu-script", default="")
     parser.add_argument("--safe-theorem-mode", action="store_true")
     parser.add_argument("--safe-theorem-manifest", default="")
     return parser.parse_args()
+
+
+_CYCLE_LOCK_HANDLE: Any = None
+CONCURRENT_CYCLE_EXIT = 9
+
+
+def acquire_cycle_lock(root: Path) -> Any:
+    """F-125(b)/(h): at most ONE legacy cycle per root.
+
+    Every cycle shares global IPC files (broker inbox topic.txt, praxis synthesis/commit files,
+    praxis_answer.json), and IntegrityGuard treats another cycle's writes under evaluation/ as drift,
+    so two concurrent cycles overwrote each other's topic or aborted each other. Per-session IPC
+    would mean re-plumbing the broker, praxis and orchestrator of an unsupported pipeline; the
+    bounded correction is to refuse the concurrency those files cannot survive. The OS lock is held
+    by an open handle, so it is released when the process exits however it exits - no stale lock.
+    Returns the handle, or None when another cycle holds the lock."""
+    lock_path = root / "logs" / "cycle_runner_v3.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(lock_path, "a+b")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return None
+    return handle
 
 
 def create_stop(root: Path) -> None:
@@ -1950,6 +2021,17 @@ def main() -> int:
         return preflight_rc
 
     _configure_runtime_integrity(root)
+    global _CYCLE_LOCK_HANDLE
+    _CYCLE_LOCK_HANDLE = acquire_cycle_lock(root)
+    if _CYCLE_LOCK_HANDLE is None:
+        log("Another cycle_runner_v3 holds this root's cycle lock. Refusing to run concurrently.",
+            log_file, "ERROR")
+        ensure_dir(paths["runs_dir"])
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        record = {"status": "refused", "reason": "another cycle is running on this root",
+                  "session_id": getattr(args, "session_id", "") or ""}
+        write_text_atomic(paths["runs_dir"] / f"concurrent-refused-{stamp}.json", json.dumps(record, indent=2))
+        return CONCURRENT_CYCLE_EXIT
     safe_theorem_manifest: Dict[str, Any] = {}
 
     session_id = ""
@@ -1979,7 +2061,7 @@ def main() -> int:
     broker_exit_code: int | None = None
     stdout_text = ""
     stderr_text = ""
-    stream_mode = not args.no_stream
+    stream_mode = bool(args.stream)
 
     try:
         if args.safe_theorem_mode:
