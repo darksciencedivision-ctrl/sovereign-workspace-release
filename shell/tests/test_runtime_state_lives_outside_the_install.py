@@ -76,10 +76,13 @@ class RuntimeStateLivesOutsideTheInstall(unittest.TestCase):
         offenders = []
         for name, entry in _compiled().items():
             for target in entry.get("runtime_writes", []):
-                if Path(target).name in SEEDED_DOCUMENTS:
+                # F-023: compiled runtime_writes entries are {path, kind}; older forms were bare
+                # strings. Accept both.
+                path = target["path"] if isinstance(target, dict) else target
+                if Path(path).name in SEEDED_DOCUMENTS:
                     continue
-                if target.replace("\\", "/").lower().startswith(install_root + "/"):
-                    offenders.append(f"{name}: {target}")
+                if path.replace("\\", "/").lower().startswith(install_root + "/"):
+                    offenders.append(f"{name}: {path}")
         self.assertEqual(
             offenders, [],
             "these modules still write inside the install tree, which is what blocks "

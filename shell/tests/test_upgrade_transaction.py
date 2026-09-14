@@ -101,6 +101,11 @@ class UpgradeTransaction(unittest.TestCase):
         # backup_state.ps1 is the real one: the snapshot phase must exercise real tooling.
         shutil.copy2(REPO_ROOT / "tools" / "release" / "backup_state.ps1",
                      tools / "backup_state.ps1")
+        # upgrade.ps1 (F-048) and backup_state.ps1 (F-043/R08) dot-source these helper siblings;
+        # in the real tree and the staged controller they sit next to upgrade.ps1, so the fixture
+        # must carry them too or the scripts abort before preflight with a CommandNotFound.
+        for _helper in ("path_guard.ps1", "state_lock.ps1"):
+            shutil.copy2(REPO_ROOT / "tools" / "release" / _helper, tools / _helper)
         doc: dict = {"version": version}
         if state_schema:
             doc["state_schema"] = state_schema
@@ -191,6 +196,9 @@ class UpgradeTransaction(unittest.TestCase):
         _write(external / "verify_install.ps1", STUB_VERIFY)
         shutil.copy2(REPO_ROOT / "tools" / "release" / "backup_state.ps1",
                      external / "backup_state.ps1")
+        # upgrade.ps1 (F-048) and backup_state.ps1 (F-043) dot-source these helper siblings.
+        for _helper in ("path_guard.ps1", "state_lock.ps1"):
+            shutil.copy2(REPO_ROOT / "tools" / "release" / _helper, external / _helper)
 
         r = self._run(external / "upgrade.ps1",
                       "-Dest", str(self.install), "-Artifact", str(self.artifact))

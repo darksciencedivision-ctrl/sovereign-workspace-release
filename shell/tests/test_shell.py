@@ -321,7 +321,11 @@ class TestDistilleryParser(unittest.TestCase):
 
     def test_verbatim_line(self):
         self._configure()
-        self.assertIn("No runtime", get_distillery_status()["verbatim"])
+        # F-033: the verbatim no longer falsely claims "no runtime exists" (the console IS a
+        # runnable shell module, serve.py on :5184). It now describes the corpus/pipeline as idle.
+        verbatim = get_distillery_status()["verbatim"]
+        self.assertIn("idle", verbatim.lower())
+        self.assertNotIn("No runtime, entry point, or UI exists", verbatim)
 
 
 class TestServerEndpoints(unittest.TestCase):

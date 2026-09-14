@@ -27,6 +27,13 @@ param(
     # outgoing one. Rolling the binaries back does NOT undo a migration, so this is explicit.
     [switch] $AcceptStateSchemaChange,
 
+    # F-052(c): run a post-cutover LAUNCH SMOKE - start the new shell (`--selftest`, serves one
+    # request to / and asserts 200) so a successful upgrade is proven to actually launch the new
+    # version. OFF by default: it needs a bindable port and a real shell, which a headless CI lane
+    # or a fixture stub cannot provide, and the acceptance harness already exercises a real
+    # post-upgrade workflow (run_acceptance step 7). Operators/acceptance opt in with -LaunchSmoke.
+    [switch] $LaunchSmoke,
+
     # Set by the staged re-invocation. Never pass this by hand.
     [string] $ResumeTransaction,
 
@@ -499,12 +506,29 @@ foreach ($writable in @(@{ p = $destParent; n = 'the destination parent' },
 # Move-Item throw raw. Detect BOTH: the process image under $Dest, AND (via CIM) a command line or
 # working directory that references $Dest.
 $destPrefix = $destRoot + '\'
+# F-050: exclude THIS upgrade transaction's own process tree (self + ancestors). The controller's
+# command line legitimately names $Dest (`-Dest <install>`, `-File <install>\...\upgrade.ps1`), and
+# so does the launcher/test-runner that spawned it - they are the UPGRADE TOOLING, not the running
+# product, and must not be reported as occupants of the tree they are upgrading.
+$ownPids = @{}
+try {
+    $walk = $PID
+    for ($hop = 0; $hop -lt 24 -and $walk; $hop++) {
+        if ($ownPids.ContainsKey([int]$walk)) { break }
+        $ownPids[[int]$walk] = $true
+        $parent = (Get-CimInstance Win32_Process -Filter "ProcessId=$walk" -ErrorAction SilentlyContinue).ParentProcessId
+        if (-not $parent) { break }
+        $walk = [int]$parent
+    }
+}
+catch { }
 $occupantMap = @{}
 try {
     Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
         $p = $null
         try { $p = $_.Path } catch { $p = $null }
-        if ($p -and $p.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        if ($p -and $p.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+            -not $ownPids.ContainsKey([int]$_.Id)) {
             $occupantMap[[int]$_.Id] = "$($_.ProcessName) (pid $($_.Id), image under install)"
         }
     }
@@ -514,6 +538,7 @@ try {
     # A command line or executable path that names the install tree. CIM CommandLine catches
     # `py -3.12 <dest>\...\run_gateway.py` and `node <dest>\...` that Get-Process.Path cannot.
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($ownPids.ContainsKey([int]$_.ProcessId)) { return }  # our own upgrade tooling
         $cl = [string]$_.CommandLine
         $ep = [string]$_.ExecutablePath
         if (($cl -and $cl.IndexOf($destRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) -or
@@ -596,6 +621,7 @@ if (-not $selfIsStaged) {
                  '-TransactionRoot', $txRoot, '-ResumeTransaction', $txRoot)
     if ($NoStateBackup) { $handoff += '-NoStateBackup' }
     if ($AcceptStateSchemaChange) { $handoff += '-AcceptStateSchemaChange' }
+    if ($LaunchSmoke) { $handoff += '-LaunchSmoke' }
     if ($InjectFailureAt) { $handoff += @('-InjectFailureAt', $InjectFailureAt) }
     Invoke-Child (Join-Path $stagedController 'upgrade.ps1') $handoff `
                  (Join-Path $logDir 'staged-controller.log')
@@ -700,6 +726,13 @@ if (-not $rollbackNeeded) {
             $rollbackNeeded = $true
             $failureReason = "Post-cutover verification failed with exit $code. See $verifyLog."
             Write-Phase 'postcheck' 'FAILED' @{ exit_code = $code; log = $verifyLog }
+        }
+        elseif (-not $LaunchSmoke) {
+            # F-052(c): without -LaunchSmoke the postcheck is verify_install (hashes + imports). The
+            # authoritative "does it launch" proof is the acceptance harness's real post-upgrade
+            # workflow (run_acceptance step 7); a launch smoke here needs a bindable port and a real
+            # shell that a headless lane cannot provide.
+            Write-Phase 'postcheck' 'OK' @{ launch_smoke = 'skipped (pass -LaunchSmoke to run it)' }
         }
         else {
             # F-052(c): verify_install proves hashes + imports; the directive's acceptance is that a
