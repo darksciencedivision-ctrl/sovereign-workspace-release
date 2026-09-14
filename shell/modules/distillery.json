@@ -36,7 +36,8 @@
     "url": "http://127.0.0.1:5184/health",
     "required_keys": [
       "ok",
-      "status"
+      "status",
+      "compute"
     ]
   },
   "open": {

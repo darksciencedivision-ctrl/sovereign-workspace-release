@@ -47,6 +47,13 @@ class ConductorAdapter(BaseAdapter):
         self._started = False
 
     def capability(self) -> AdapterCapability:
+        # F-136(2): a local Ollama conductor must not advertise frontier/subscription fable-5.
+        if type(self._backend).__name__ == "OllamaConductorBackend":
+            return AdapterCapability(
+                adapter="conductor_ollama_local", node_class="conductor", locality="local",
+                offline_profile_eligible=True, requires_network=False, local_runtime=True,
+                capabilities=("reasoning", "synthesis"), subscription_backed=False,
+            )
         return AdapterCapability(
             adapter="conductor_fable5", node_class="conductor", locality="frontier",
             offline_profile_eligible=False, requires_network=True, local_runtime=False,

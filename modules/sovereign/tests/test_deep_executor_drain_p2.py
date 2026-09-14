@@ -18,7 +18,11 @@ MODULE_ROOT = Path(__file__).resolve().parents[1]
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from sovereign_product.executors import DeepExecutor  # noqa: E402
+from sovereign_product.executors import (  # noqa: E402
+    LEGACY_DEEP_FLAG,
+    DeepExecutor,
+    UnsupportedLegacy,
+)
 
 
 class _BlockingStream:
@@ -48,6 +52,16 @@ class _ExitedProcess:
 
 
 class DrainIsBounded(unittest.TestCase):
+    def test_execute_refuses_without_the_legacy_flag(self) -> None:
+        tmp = Path(tempfile.mkdtemp(prefix="r34-flag-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
+        (tmp / "cycle_runner_v3.py").write_text("# fixture\n", encoding="utf-8")
+        executor = DeepExecutor(tmp, popen_factory=lambda *a, **k: None)
+        import os
+        os.environ.pop(LEGACY_DEEP_FLAG, None)
+        with self.assertRaises(UnsupportedLegacy):
+            executor.execute("s1", "a topic")
+
     def test_a_descendant_holding_the_pipes_does_not_hang_the_drain(self) -> None:
         tmp = Path(tempfile.mkdtemp(prefix="r34-"))
         self.addCleanup(lambda: __import__("shutil").rmtree(tmp, ignore_errors=True))
@@ -57,6 +71,9 @@ class DrainIsBounded(unittest.TestCase):
         terminated = []
 
         # A fast monotonic so the 5s post-exit grace is crossed in a few loop iterations.
+        import os
+        os.environ[LEGACY_DEEP_FLAG] = "1"
+        self.addCleanup(lambda: os.environ.pop(LEGACY_DEEP_FLAG, None))
         ticks = iter(range(0, 100_000, 3))
         executor = DeepExecutor(
             tmp,

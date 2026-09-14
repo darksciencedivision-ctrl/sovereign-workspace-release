@@ -33,6 +33,7 @@ import copy
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -163,8 +164,8 @@ _CREDENTIAL_ENV_KEYS = (
 # Name-prefix / substring families that always denote a credential, routing override, or
 # secret — a fail-closed superset so a NEW provider var (added by a future CLI release) is
 # scrubbed by default rather than transmitted.
-_CREDENTIAL_KEY_PREFIXES = ("ANTHROPIC_", "AWS_", "GOOGLE_", "CLAUDE_CODE_")
-_CREDENTIAL_KEY_SUBSTRINGS = ("TOKEN", "SECRET", "API_KEY", "APIKEY", "PASSWORD")
+_CREDENTIAL_KEY_PREFIXES = ("ANTHROPIC_", "AWS_", "GOOGLE_", "CLAUDE_CODE_", "GEMINI_")
+_CREDENTIAL_KEY_SUBSTRINGS = ("TOKEN", "SECRET", "API_KEY", "APIKEY", "PASSWORD", "AUTH", "CREDENTIAL")
 
 # Flags this adapter must NEVER emit: credential-passing flags and the permission/sandbox
 # bypasses in the `claude` CLI's own surface. A build that would contain one fails closed
@@ -393,11 +394,23 @@ class ClaudeCliBackend:
         self.last_spawned_pids: tuple[int, ...] = ()
         self.spawned_pids: tuple[int, ...] = ()
 
+    def _resolve_executable(self) -> str:
+        # F-136(11): bare "claude" does not find the npm `claude.CMD` shim on Windows
+        # (CreateProcess appends .exe only). Discover the real path before spawn.
+        if os.path.isfile(self.executable):
+            return self.executable
+        return (
+            shutil.which(self.executable)
+            or shutil.which("claude.cmd")
+            or shutil.which("claude.exe")
+            or self.executable
+        )
+
     def build_command(self, prompt: str) -> list[str]:
         # print mode + machine-readable JSON (R8 §2: the CLI's documented headless mode). No
         # `--api-key`, no permission-bypass flags: nothing that carries or weakens auth. An
         # explicit `--model <slug>` selects the per-node model; omitted ⇒ CLI default (fallback).
-        cmd = [self.executable, "-p"]
+        cmd = [self._resolve_executable(), "-p"]
         if self.model:
             cmd += [CLAUDE_CODE_MODEL_FLAG, self.model]
         cmd += ["--output-format", "json"]

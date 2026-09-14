@@ -70,19 +70,33 @@ def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tu
     return False, time.time() - start, last_error
 
 
-def http_json_identity(url: str, required_keys: list[str]) -> tuple[bool, str]:
-    """GET url and verify JSON response has required_keys."""
+def http_json_identity(url: str, required_keys: list[str],
+                       require: dict | None = None) -> tuple[bool, str]:
+    """GET url and verify JSON response has required_keys and optional require values.
+
+    F-034: key presence alone accepts any service that happens to share those keys.
+    `require` pins values already emitted by the real product (not a self-named
+    service label). Malformed / non-object bodies fail closed.
+    """
     try:
         req = urllib.request.Request(url, method="GET")
         resp = _open_direct(req, timeout=5)
-        data = json.loads(resp.read().decode())
-        # F-032: require a JSON OBJECT. A bare JSON string body (e.g. "status ok") would otherwise
-        # satisfy `key in data` by substring match and pass identity against the wrong server.
+        try:
+            data = json.loads(resp.read().decode())
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
         if not isinstance(data, dict):
             return False, "identity response is not a JSON object"
         for key in required_keys:
             if key not in data:
                 return False, f"Missing key: {key}"
+        if require:
+            for key, expected in require.items():
+                if data.get(key) != expected:
+                    return False, f"identity key {key} mismatch"
         return True, ""
     except Exception as e:
         return False, str(e)

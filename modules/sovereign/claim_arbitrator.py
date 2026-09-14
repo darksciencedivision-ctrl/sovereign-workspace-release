@@ -577,7 +577,7 @@ def persist_arbitration_stub(
         batch_id="",
         run_type="quality_gate",
         output_dir=root_path / "arbitration",
-        allow_overwrite=False,
+        allow_overwrite=True,
         source_paths=[normalized_source_path] if normalized_source_path else [],
     )
     artifact["artifact_path"] = str(persisted_path)
@@ -1558,7 +1558,7 @@ def analyze_dialog(
         batch_id="",
         run_type="quality_gate",
         output_dir=root_path / "arbitration",
-        allow_overwrite=False,
+        allow_overwrite=True,
         source_paths=[source_path] if str(source_path).strip() else [],
     )
     artifact["artifact_path"] = str(persisted_path)

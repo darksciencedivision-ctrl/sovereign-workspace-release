@@ -58,6 +58,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+from adapters.coding.opencode.git_porcelain import parse_porcelain_z
 from adapters.coding.opencode.harness import (
     ModelNotLocal,
     OpenCodeCliHarness,
@@ -230,18 +231,14 @@ def _git_out(repo: Path, *args: str) -> str:
 
 
 def _porcelain_paths(repo: Path) -> set[str]:
-    """Modified/added/untracked paths per `git status --porcelain` (worktree-relative, forward
-    slashes). Used both to read the drive's changes and to prove the base trunk stayed clean."""
-    out = _git_out(repo, "status", "--porcelain", "--untracked-files=all")
-    paths: set[str] = set()
-    for line in out.splitlines():
-        if len(line) < 4:
-            continue
-        p = line[3:].strip().strip('"')
-        if " -> " in p:  # rename: take the destination
-            p = p.split(" -> ", 1)[1]
-        paths.add(p.replace("\\", "/"))
-    return paths
+    """Modified/added/untracked paths per `git status -z --porcelain` (worktree-relative)."""
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "status", "-z", "--porcelain", "--untracked-files=all"],
+        capture_output=True)
+    if proc.returncode != 0:
+        err = (proc.stderr or b"").decode("utf-8", "replace").strip()
+        raise DriveRefused(f"git status -z --porcelain failed in {repo}: {err}")
+    return {path for _xy, path in parse_porcelain_z(proc.stdout)}
 
 
 def _count_tool_events(stdout: str, stderr: str) -> int:

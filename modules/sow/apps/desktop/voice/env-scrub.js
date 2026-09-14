@@ -28,8 +28,8 @@ const CREDENTIAL_ENV_KEYS = [
   "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
   "GOOGLE_APPLICATION_CREDENTIALS",
 ];
-const CREDENTIAL_KEY_PREFIXES = ["ANTHROPIC_", "AWS_", "GOOGLE_", "CLAUDE_CODE_"];
-const CREDENTIAL_KEY_SUBSTRINGS = ["TOKEN", "SECRET", "API_KEY", "APIKEY", "PASSWORD"];
+const CREDENTIAL_KEY_PREFIXES = ["ANTHROPIC_", "AWS_", "GOOGLE_", "CLAUDE_CODE_", "GEMINI_"];
+const CREDENTIAL_KEY_SUBSTRINGS = ["TOKEN", "SECRET", "API_KEY", "APIKEY", "PASSWORD", "AUTH", "CREDENTIAL"];
 
 //: Where the Python authority lives, so the pinning test does not hard-code a path twice.
 const PYTHON_SOURCE = path.resolve(__dirname, "..", "..", "..", "adapters", "frontier", "claude_code.py");

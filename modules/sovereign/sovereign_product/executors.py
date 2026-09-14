@@ -526,11 +526,19 @@ def _pipe_reader(
         output_queue.put((stream_name, None))
 
 
+LEGACY_DEEP_FLAG = "SOVEREIGN_ALLOW_LEGACY_DEEP"
+
+
+class UnsupportedLegacy(RuntimeError):
+    """DeepExecutor is quarantined from the product route (F-113)."""
+
+
 class DeepExecutor:
     """Legacy subprocess adapter for cycle_runner_v3. Not on the product route.
 
     Product DEEP traffic uses SemanticDeepExecutor. This class remains for
     bounded drain tests (R34) and must not be wired as the default executor.
+    execute() refuses unless SOVEREIGN_ALLOW_LEGACY_DEEP=1.
     """
 
     def __init__(
@@ -670,6 +678,11 @@ class DeepExecutor:
         cancel_requested: CancelCallback | None = None,
         timeout_seconds: float | None = None,
     ) -> ExecutionResult:
+        if os.environ.get(LEGACY_DEEP_FLAG) != "1":
+            raise UnsupportedLegacy(
+                "DeepExecutor is unsupported legacy; set SOVEREIGN_ALLOW_LEGACY_DEEP=1 "
+                "only for R34/legacy harnesses. Product DEEP uses SemanticDeepExecutor."
+            )
         session_id = _validate_session_id(session_id)
         if not isinstance(topic, str) or not topic.strip():
             raise ValueError("topic must be a non-empty string")

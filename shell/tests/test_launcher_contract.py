@@ -145,6 +145,25 @@ class LauncherContract(unittest.TestCase):
         self.assertIn("SWS-UI-001", text,
                       "the launcher does not check the expected service identity")
 
+    def test_readiness_window_message_matches_the_loop(self) -> None:
+        text = INNER.read_text(encoding="utf-8")
+        self.assertIn("for ($i = 0; $i -lt 40; $i++)", text)
+        self.assertIn("TimeoutSec 2", text)
+        self.assertIn("Start-Sleep -Milliseconds 250", text)
+        self.assertIn("~90s", text)
+        self.assertNotRegex(text, r"within 10s")
+
+    def test_pythondontwritebytecode_is_restored(self) -> None:
+        text = INNER.read_text(encoding="utf-8")
+        self.assertIn("prevDontWriteBytecode", text)
+        self.assertIn("Remove-Item Env:PYTHONDONTWRITEBYTECODE", text)
+
+    def test_stray_scan_sees_commandline_not_only_image_path(self) -> None:
+        text = INNER.read_text(encoding="utf-8")
+        self.assertIn("Win32_Process", text)
+        self.assertIn("CommandLine", text)
+        self.assertIn("-m\\s+shell\\.src", text)
+
     # -- CheckOnly, executed for real ----------------------------------------
     def test_check_only_starts_nothing_and_reports_accurately(self) -> None:
         before = self._shell_processes()

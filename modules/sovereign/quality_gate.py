@@ -441,77 +441,64 @@ def evaluate(
     arbitration_status = "not_run"
     arbitration_failure_reason: str | None = None
     arbitration_model_turns: list[dict[str, Any]] = []
-    existing_arbitration_path = root_path / "arbitration" / f"{session_id}.json"
-    existing_arbitration_artifact = load_optional_json(existing_arbitration_path)
-
     if not synthesis or not synthesis.strip():
         reasons.append("synthesis text is empty - cannot evaluate conflicts")
     if dialog_text is None or not str(dialog_text).strip():
-        if isinstance(existing_arbitration_artifact, dict):
-            artifact = dict(existing_arbitration_artifact)
-            arbitration_executed = bool(artifact.get("executed"))
-            arbitration_status = str(artifact.get("analysis_status", "")).strip() or "completed"
-        else:
-            arbitration_skipped_reason = "dialog_text missing"
-            arbitration_status = "skipped"
-            arbitration_failure_reason = "dialog_text missing"
-            warnings.append("arbitration skipped: dialog_text missing")
-            reasons.append("arbitration was not executed because dialog_text is missing")
+        arbitration_skipped_reason = "dialog_text missing"
+        arbitration_status = "skipped"
+        arbitration_failure_reason = "dialog_text missing"
+        warnings.append("arbitration skipped: dialog_text missing")
+        reasons.append("arbitration was not executed because dialog_text is missing")
+        artifact = persist_arbitration_stub(
+            root=root_path,
+            session_id=session_id,
+            topic=topic,
+            source_path=dialog_source_path,
+            warnings=["arbitration skipped: dialog_text missing"],
+            failure_reason=arbitration_failure_reason,
+            analysis_status="skipped",
+            execution_mode=execution_mode,
+            dialog_origin=dialog_origin_value,
+            model_calls_observed=bool(model_calls_observed),
+            model_turns=[],
+        )
+        arbitration_artifact_path = str(artifact.get("artifact_path", ""))
+        arbitration_model_turns = list(artifact.get("model_turns") or [])
+    else:
+        try:
+            artifact = analyze_dialog(
+                dialog_text=str(dialog_text),
+                session_id=session_id,
+                root=root_path,
+                topic=topic,
+                source_path=dialog_source_path,
+                execution_mode=execution_mode,
+                dialog_origin=dialog_origin_value,
+                model_calls_observed=bool(model_calls_observed),
+            )
+        except IntegrityViolation:
+            raise
+        except Exception as exc:
+            arbitration_status = "failed"
+            arbitration_failure_reason = str(exc)
+            warnings.append(f"arbitration failed: {exc}")
+            reasons.append(f"arbitration failed: {exc}")
             artifact = persist_arbitration_stub(
                 root=root_path,
                 session_id=session_id,
                 topic=topic,
                 source_path=dialog_source_path,
-                warnings=["arbitration skipped: dialog_text missing"],
+                warnings=[f"arbitration failed: {exc}"],
                 failure_reason=arbitration_failure_reason,
-                analysis_status="skipped",
+                analysis_status="failed",
                 execution_mode=execution_mode,
                 dialog_origin=dialog_origin_value,
                 model_calls_observed=bool(model_calls_observed),
                 model_turns=[],
             )
-        arbitration_artifact_path = str(artifact.get("artifact_path", ""))
-        arbitration_model_turns = list(artifact.get("model_turns") or [])
-    else:
-        if isinstance(existing_arbitration_artifact, dict):
-            artifact = dict(existing_arbitration_artifact)
-            arbitration_executed = bool(artifact.get("executed"))
-            arbitration_status = str(artifact.get("analysis_status", "")).strip() or "completed"
         else:
-            try:
-                artifact = analyze_dialog(
-                    dialog_text=str(dialog_text),
-                    session_id=session_id,
-                    root=root_path,
-                    topic=topic,
-                    source_path=dialog_source_path,
-                    execution_mode=execution_mode,
-                    dialog_origin=dialog_origin_value,
-                    model_calls_observed=bool(model_calls_observed),
-                )
-            except IntegrityViolation:
-                raise
-            except Exception as exc:
-                arbitration_status = "failed"
-                arbitration_failure_reason = str(exc)
-                warnings.append(f"arbitration failed: {exc}")
-                reasons.append(f"arbitration failed: {exc}")
-                artifact = persist_arbitration_stub(
-                    root=root_path,
-                    session_id=session_id,
-                    topic=topic,
-                    source_path=dialog_source_path,
-                    warnings=[f"arbitration failed: {exc}"],
-                    failure_reason=arbitration_failure_reason,
-                    analysis_status="failed",
-                    execution_mode=execution_mode,
-                    dialog_origin=dialog_origin_value,
-                    model_calls_observed=bool(model_calls_observed),
-                    model_turns=[],
-                )
-            else:
-                arbitration_executed = True
-                arbitration_status = "completed"
+            arbitration_executed = True
+            arbitration_status = "completed"
 
         arbitration_artifact_path = str(artifact.get("artifact_path", ""))
         arbitration_warnings = [str(item) for item in artifact.get("warnings", []) if str(item).strip()]
@@ -527,6 +514,11 @@ def evaluate(
                 reasons.append(
                     f"unresolved_conflict_count {int(arbitration_metrics['unresolved_conflict_count'])} > threshold {int(max_unresolved_conflicts)}"
                 )
+
+    if not arbitration_executed:
+        marker = "arbitration was not executed"
+        if not any(marker in r for r in reasons):
+            reasons.append(marker)
 
     passed = len(reasons) == 0
     result = build_result(

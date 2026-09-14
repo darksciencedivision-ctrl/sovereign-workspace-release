@@ -261,8 +261,8 @@ def write_text_atomic(path: Path, content: str) -> None:
 
 def append_text_atomic(path: Path, content: str) -> None:
     target = _validate_runtime_write_path(path)
-    existing = target.read_text(encoding="utf-8") if target.exists() else ""
-    write_text_atomic(target, existing + content)
+    with open(target, "a", encoding="utf-8") as handle:
+        handle.write(content)
 
 
 def log(message: str, log_file: Path, level: str = "INFO") -> None:
@@ -579,6 +579,28 @@ def enrich_run_record_with_synth_summary(run_record: Dict[str, Any], system_log_
     return run_record
 
 
+def _terminate_owned_tree(pid: int) -> None:
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    else:
+        try:
+            os.killpg(pid, 15)
+        except (ProcessLookupError, OSError):
+            try:
+                os.kill(pid, 15)
+            except (ProcessLookupError, OSError):
+                pass
+
+
 def run_broker(
     root: Path,
     broker_script: Path,
@@ -622,11 +644,21 @@ def run_broker(
         )
     if once:
         command.append("-Once")
-    if stream_output:
-        proc = subprocess.run(command, env=env, timeout=timeout_sec)
-        return proc.returncode, "", ""
-    proc = subprocess.run(command, env=env, timeout=timeout_sec, capture_output=True, text=True)
-    return proc.returncode, proc.stdout, proc.stderr
+    kwargs: dict[str, Any] = {"env": env}
+    if not stream_output:
+        kwargs.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(command, **kwargs)
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        _terminate_owned_tree(int(proc.pid))
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+        raise
+    return proc.returncode, stdout or "", stderr or ""
 
 
 def invoke_clu(root: Path, clu_script: Path, session_id: str, topic: str, log_file: Path) -> Dict[str, Any]:
@@ -640,7 +672,7 @@ def invoke_clu(root: Path, clu_script: Path, session_id: str, topic: str, log_fi
         return {"ok": False, "error": f"missing {clu_script}"}
     try:
         proc = subprocess.run(
-            ["python", str(clu_script), "--root", str(root), "--session-id", session_id, "--trigger", "post_cycle"],
+            [sys.executable, str(clu_script), "--root", str(root), "--session-id", session_id, "--trigger", "post_cycle"],
             capture_output=True,
             text=True,
             timeout=150,
@@ -1956,7 +1988,15 @@ def main() -> int:
 
         if (root / "STOP").exists() or (root / "praxis" / "STOP").exists():
             log("STOP file present. Aborting.", log_file, "WARN")
-            return 0
+            ensure_dir(paths["runs_dir"])
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            record = {
+                "status": "aborted",
+                "reason": "STOP file present",
+                "session_id": getattr(args, "session_id", "") or "",
+            }
+            write_text_atomic(paths["runs_dir"] / f"stop-abort-{stamp}.json", json.dumps(record, indent=2))
+            return 8
 
         ensure_dir(paths["runs_dir"])
 

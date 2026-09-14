@@ -187,9 +187,11 @@ class IpcGateway:
 
     # -- per-connection governance --------------------------------------------
     def _serve_conn(self, sock: socket.socket) -> None:
+        # F-136(10): idle gateway threads must not linger forever; match MCP handler's 60s bound.
+        sock.settimeout(60)
         try:
             conn = wsframe.perform_server_handshake(sock)
-        except (wsframe.WsError, wsframe.WsClosed):
+        except (wsframe.WsError, wsframe.WsClosed, TimeoutError, OSError):
             try:
                 sock.close()
             except OSError:
@@ -209,7 +211,7 @@ class IpcGateway:
                 request, cred = verdict
                 response = self._dispatch(request, cred)
                 conn.send_text(_json_dumps(response))
-        except wsframe.WsClosed:
+        except (wsframe.WsClosed, TimeoutError, OSError):
             return
         finally:
             conn.close()

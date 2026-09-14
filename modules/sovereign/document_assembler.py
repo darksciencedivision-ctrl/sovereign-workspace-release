@@ -306,6 +306,11 @@ def _praxis_query(
     if not script.exists():
         return None, f"praxis_query.py not found at {script}"
 
+    try:
+        result_file.unlink(missing_ok=True)
+    except OSError:
+        pass
+
     payload = json.dumps({"query": query, "n_results": n_results, "include_claims": True, "include_unresolved": True, "include_contested": True}, ensure_ascii=False)
     try:
         query_file.write_text(payload, encoding="utf-8")

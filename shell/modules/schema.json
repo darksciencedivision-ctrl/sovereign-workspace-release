@@ -147,7 +147,7 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "description": "F-034 (documented limitation): identity confirms the service on the port is the RIGHT KIND of service, not a cryptographically authenticated instance. http_json checks that required_keys are present, http_html_marker that a marker string appears, and process_image that the pid the shell spawned runs the expected image. Within the single-operator loopback scope (see the sovereign_product server header) that is sufficient - it catches the wrong module or a stale foreign listener on the port. It is NOT proof against a co-located adversary standing up a look-alike service with the same keys; closing that would need a per-launch shared secret echoed by each service (as the shell does with SWS_SHELL_NONCE, F-006). That hardening is out of scope for this single-operator build and recorded here so the check is not mistaken for authentication.",
+      "description": "F-034: identity confirms the service on the port is the intended KIND of product module, not a cryptographically authenticated instance. http_json requires required_keys and optional require value pins (product-emitted fields, never a self-named service label); http_html_marker requires a UI marker; process_image compares the OS-reported image of the spawned pid to compiled argv[0]. This rejects the wrong module, a stale foreign listener, and malformed bodies. It is not proof against a co-located adversary standing up a look-alike; that would need a per-launch shared secret (SWS_SHELL_NONCE / F-006).",
       "required": [
         "kind"
       ],
@@ -171,6 +171,10 @@
         },
         "html_marker": {
           "type": "string"
+        },
+        "require": {
+          "type": "object",
+          "description": "F-034: required key/value pairs the identity JSON must satisfy in addition to required_keys. Values must be product-emitted fields, not a tautological service name."
         }
       }
     },

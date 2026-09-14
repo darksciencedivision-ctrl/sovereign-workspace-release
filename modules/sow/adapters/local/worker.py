@@ -77,8 +77,9 @@ class LocalWorkerAdapter(BaseAdapter):
             self._log("local_gate_fail", task_id=self._task_id, reasons=verdict.reasons())
             return {"published": False, "local_gate": "FAIL", "reasons": verdict.reasons()}
         prov = {"author_node": self._context.node_id, "task_id": self._task_id, "ts": _now(),
-                "directive_version": "v2.4", "confidence": "medium", "model": self._model,
-                "evidence": [self._context_entry]}
+                "directive_version": "v2.4", "confidence": "medium",
+                "model": "mock-local-worker", "model_selection": self._model,
+                "model_verified": False, "evidence": [self._context_entry]}
         pub = self._mcp.call("publish", kind="finding", tier="shared_project",
                              content_b64=base64.b64encode(content).decode("ascii"),
                              provenance=prov, status="CANDIDATE")

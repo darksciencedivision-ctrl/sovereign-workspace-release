@@ -192,11 +192,22 @@ else { $advisory.Add("module port(s) already held: $($held -join ', ')") | Out-N
 
 # --- processes from THIS tree: ADVISORY --------------------------------------
 # Only processes running out of this tree are this launcher's business.
+# F-007: Get-Process.Path is the interpreter image. `py -3.12` and venvs whose
+# python.exe lives outside the tree would otherwise be invisible even when their
+# CommandLine targets this checkout (`-m shell.src` / the tree path).
 $treePrefix = $root.TrimEnd('\') + '\'
+$treeNeedle = $root.TrimEnd('\')
 $stray = @(Get-Process python, pythonw, node, electron -ErrorAction SilentlyContinue | Where-Object {
     $p = $null
     try { $p = $_.Path } catch { $p = $null }
-    $p -and $p.StartsWith($treePrefix, 'OrdinalIgnoreCase')
+    if ($p -and $p.StartsWith($treePrefix, 'OrdinalIgnoreCase')) { return $true }
+    $cmd = $null
+    try {
+        $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+    } catch { $cmd = $null }
+    if (-not $cmd) { return $false }
+    if ($cmd.IndexOf($treeNeedle, [StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
+    return [bool]($cmd -match '-m\s+shell\.src')
 })
 if ($stray.Count -gt 0) {
     $stray | ForEach-Object { Line 'process from this tree' ("{0} (pid {1})" -f $_.ProcessName, $_.Id) Yellow }

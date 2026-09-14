@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import socketserver
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -115,7 +116,7 @@ class MCPServer:
                     outer.store.close_thread_conn()  # don't leak this thread's WAL connection (F5)
 
         class Server(socketserver.ThreadingTCPServer):
-            allow_reuse_address = True
+            allow_reuse_address = sys.platform != "win32"
             daemon_threads = True
 
         self._server = Server((host, port), Handler)

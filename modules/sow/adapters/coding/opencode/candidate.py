@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from adapters.coding.opencode.git_porcelain import parse_porcelain_z
 from node_runtime.gate.local_gate import GateVerdict, LocalGate
 from node_runtime.workspace.worktree import (
     MergeCoordinator,
@@ -72,23 +73,23 @@ def _git_out(repo: Path, *args: str) -> str:
     return proc.stdout
 
 
+def _git_out_bytes(repo: Path, *args: str) -> bytes:
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
+    if proc.returncode != 0:
+        err = (proc.stderr or b"").decode("utf-8", "replace").strip()
+        raise CandidateRefused(f"git {' '.join(args)} failed in {repo}: {err}")
+    return proc.stdout
+
+
 def _worktree_changes(wt_path: Path) -> dict[str, bytes | None]:
     """Map each changed worktree-relative path to its NEW content bytes (None ⇒ deleted). Reads
-    `git status --porcelain` inside the worktree, so it sees exactly what the drive (or a seeded
-    edit) produced — added, modified, and untracked files alike. Fail-closed: if git status cannot
-    run, the caller's `_git_out` raises `CandidateRefused` and nothing is packaged."""
-    out = _git_out(wt_path, "status", "--porcelain", "--untracked-files=all")
+    `git status -z --porcelain` inside the worktree, so C-quoted / non-ASCII paths stay literal.
+    Fail-closed: if git status cannot run, `_git_out_bytes` raises `CandidateRefused`."""
+    raw = _git_out_bytes(wt_path, "status", "-z", "--porcelain", "--untracked-files=all")
     changes: dict[str, bytes | None] = {}
-    for line in out.splitlines():
-        if len(line) < 4:
-            continue
-        code = line[:2]
-        rel = line[3:].strip().strip('"')
-        if " -> " in rel:  # rename: package the destination
-            rel = rel.split(" -> ", 1)[1]
-        rel = rel.replace("\\", "/")
+    for code, rel in parse_porcelain_z(raw):
         if "D" in code and not (wt_path / rel).exists():
-            changes[rel] = None  # deleted in the worktree
+            changes[rel] = None
             continue
         try:
             changes[rel] = (wt_path / rel).read_bytes()

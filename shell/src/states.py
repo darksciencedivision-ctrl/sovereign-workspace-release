@@ -322,7 +322,8 @@ class ModuleRunner:
         """Return (ok: bool, error: str)."""
         kind = cfg.get("kind")
         if kind == "http_json":
-            return probe_mod.http_json_identity(cfg.get("url", ""), cfg.get("required_keys", []))
+            return probe_mod.http_json_identity(
+                cfg.get("url", ""), cfg.get("required_keys", []), require=cfg.get("require"))
         if kind == "http_html_marker":
             return probe_mod.http_html_identity(cfg.get("url", ""), cfg.get("html_marker", ""))
         if kind == "process_image":

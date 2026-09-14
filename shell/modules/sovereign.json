@@ -52,8 +52,12 @@
     "url": "http://127.0.0.1:5175/v1/health",
     "required_keys": [
       "status",
-      "product_version"
-    ]
+      "product_version",
+      "loopback_only"
+    ],
+    "require": {
+      "loopback_only": true
+    }
   },
   "open": {
     "kind": "browser",
