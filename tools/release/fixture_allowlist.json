@@ -41,12 +41,47 @@
     {
       "path": "modules/distillery/tools/export_enterprise.py",
       "sha256": "aa10112825cc4604d1b90d4da1a174d149caeb6338e3f0371b74583a98ac4f24",
-      "reason": "declared fixture: DECLARED_FIXTURE_SECRETS = {sk-synthetic000000000000000000} — the exporter's own allow-list of synthetic test values"
+      "reason": "declared fixture: DECLARED_FIXTURE_SECRETS = {sk-synthetic000000000000000000} \u2014 the exporter's own allow-list of synthetic test values"
     },
     {
       "path": "tools/release/test_package_boundary_gate.py",
       "sha256": "402a0613fcf48266d9548d323e7c00d246f90999e3337ff989db59cc8cbc9e6e",
       "reason": "declared test fixture: the gate's own regression tests embed an AKIA example key and a PRIVATE KEY block by design; any edit to this file requires a re-declared hash"
+    },
+    {
+      "path": "modules/sow/adapters/frontier/provider_cli_common.py",
+      "sha256": "a1f053bb15855d3df5459e055a9dd4ebedd9cae73e0adf1b43e3a3d5f393d9e9",
+      "reason": "declared source fixture: the provider credential REDACTOR; its patterns and example shapes (sk-, sk-proj-, sk-ant-) are the redaction targets it exists to catch"
+    },
+    {
+      "path": "modules/sow/apps/desktop/test/conductor-delegation.test.js",
+      "sha256": "d9d08a8a2c68b3227ca78283609d3ab3dde8f08f21b5f7f908c20956b9771e9f",
+      "reason": "declared test fixture: synthetic sk-ant-api03-BBBB... key asserting the conductor delegation path redacts it"
+    },
+    {
+      "path": "modules/sow/apps/desktop/test/pane-observation.test.js",
+      "sha256": "dbbd267dfb6c1ee2972f0aa5c22aa642e021cadcc719ca2d0e894f1c08f1655e",
+      "reason": "declared test fixture: synthetic sk-ant-api03-AAAA... key asserting pane observation redacts it"
+    },
+    {
+      "path": "modules/sow/terminal/test/pane-redaction.test.js",
+      "sha256": "3930a542995f2428ed3a1eba399f8f0da1175af810b74350da7bd5c9fe8a10c1",
+      "reason": "declared test fixture: synthetic anthropic/openai-proj/huggingface placeholder keys (all-A/B/G/Z) that the pane redaction test verifies are stripped"
+    },
+    {
+      "path": "modules/sow/tests/unit/test_frontier_provider_recon.py",
+      "sha256": "dc5b7fbe1a2449fe8f5ad51d52f29cd432c4843117104b9419ed0730fe120cc0",
+      "reason": "declared test fixture: synthetic sk-abcdefghijklmnopqrst key used by the frontier provider recon test"
+    },
+    {
+      "path": "modules/sow/tests/unit/test_provider_document_shape.py",
+      "sha256": "2610a896276fe5ed69e2207003265c129e1cd57fcd8ec72004bd76120ae7c666",
+      "reason": "declared test fixture: synthetic sk-proj-DEADBEEF... key used by the provider document-shape test"
+    },
+    {
+      "path": "shell/tests/test_redaction_quoted_and_chunked.py",
+      "sha256": "eca480673d7e83190a6ad39e52c09228ac9827a7a68acac8b0988df2ad99e566",
+      "reason": "declared test fixture: synthetic sk-ant-api03-DEADBEEF... key exercising quoted/chunked redaction"
     }
   ]
 }
