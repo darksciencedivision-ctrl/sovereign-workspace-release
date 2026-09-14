@@ -300,14 +300,22 @@ STATE_ROOT_DIRNAME = "SovereignWorkspace"
 def workspace_state_root() -> str:
     """The root under which every module's runtime state lives, POSIX-separated."""
     override = os.environ.get(STATE_ROOT_ENV, "").strip()
+    local = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local:
+        # No %LOCALAPPDATA% (a service account, or a non-Windows test host): fall back to the user
+        # profile rather than inventing a drive path.
+        local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
     if override:
-        base = override
+        if os.path.isabs(override):
+            base = override
+        else:
+            # F-027: a RELATIVE override must not be resolved against the current working directory
+            # (os.path.abspath would do that), or the same value would silently select different
+            # state roots depending on where each process was launched - dev checkout, installed
+            # copy and the old/new trees of an upgrade would drift apart. Anchor it to the stable
+            # per-user base instead, so a given relative value always maps to one absolute path.
+            base = os.path.join(local, override)
     else:
-        local = os.environ.get("LOCALAPPDATA", "").strip()
-        if not local:
-            # No %LOCALAPPDATA% (a service account, or a non-Windows test host): fall back to
-            # the user profile rather than inventing a drive path.
-            local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
         base = os.path.join(local, STATE_ROOT_DIRNAME)
     return os.path.abspath(base).replace("\\", "/")
 

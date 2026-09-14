@@ -224,16 +224,18 @@ _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
     "system_manifest.json": frozenset(
         {"version", "runtime", "models", "configuration", "capabilities"}
     ),
-    "readme_production.md": frozenset(
-        {"version", "runtime", "models", "configuration", "capabilities"}
-    ),
+    # F-112: SYSTEM_MANIFEST.json is the SOLE authority for the model roster / configuration /
+    # capabilities. The model picker rewrites SYSTEM_MANIFEST.json but NOT README_PRODUCTION.md or
+    # the legacy synthesis/model_hierarchy.json, so offering those as evidence for "which model"
+    # questions produced a packet with contradictory rosters where a correctly-cited answer could
+    # still be wrong. README keeps only what it documents durably (version, runtime); the legacy
+    # hierarchy file serves no model-authority intent.
+    "readme_production.md": frozenset({"version", "runtime"}),
     "sovereign_version.py": frozenset({"version"}),
     "constitution/constitution_state.json": frozenset(
         {"mode", "status", "configuration"}
     ),
-    "synthesis/model_hierarchy.json": frozenset(
-        {"models", "configuration", "capabilities"}
-    ),
+    "synthesis/model_hierarchy.json": frozenset(),
     "runtime_profile.json": frozenset(
         {
             "version",
