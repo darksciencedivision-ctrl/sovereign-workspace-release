@@ -161,11 +161,18 @@ def _check_path_references(root: str, manifest: dict, problems: list) -> None:
 
     def resolved_or_declared(value: str, where: str) -> None:
         normalized = value.replace("\\", "/")
+        # F-067: an exemption is "used" when a manifest path matches its prefix - INDEPENDENT of
+        # whether that path happens to exist in this (dev) working tree. Marking it only in the
+        # not-on-disk branch was a false positive: a real out-of-archive artifact like
+        # modules/distillery/dist/*.whl that exists locally left its exemption looking stale.
+        for prefix, _reason in declared.items():
+            if normalized == prefix or normalized.startswith(prefix + "/"):
+                used_prefixes.add(prefix)
+                break
         if os.path.exists(os.path.join(root, normalized)):
             return
         for prefix, _reason in declared.items():
             if normalized == prefix or normalized.startswith(prefix + "/"):
-                used_prefixes.add(prefix)  # F-067: this exemption was actually needed
                 return
         problems.append(
             f"path_references: {where} names {value!r}, which does not resolve in the archive "
