@@ -11,6 +11,11 @@ export function ValidationLab() {
   const [topic, setTopic] = useState("");
   const { status, results, running, lastError, run, exportEvidence } =
     useValidationState(open);
+  // F-123: the validation endpoints (/v1/validation/*) are not part of this build, so the module
+  // reports not-connected and every action would fail. Gate the controls on an ACTUAL connection
+  // rather than only on `running`/topic, so they are visibly disabled until a validation module is
+  // present, instead of looking actionable and then erroring.
+  const connected = status?.connected === true;
 
   return (
     <div className="group">
@@ -46,11 +51,18 @@ export function ValidationLab() {
             />
           </div>
 
+          {!connected && status !== null && (
+            <div className="placeholder-note">
+              No validation module is connected in this build; these controls are disabled until
+              one is present.
+            </div>
+          )}
+
           <div className="row">
             <span>Run benchmark</span>
             <button
               className="toggle"
-              disabled={running || !topic.trim()}
+              disabled={!connected || running || !topic.trim()}
               onClick={() => run(topic.trim(), "benchmark")}
             >
               {running ? "Running…" : "Run"}
@@ -61,7 +73,7 @@ export function ValidationLab() {
             <span>Compare direct model vs Sovereign</span>
             <button
               className="toggle"
-              disabled={running || !topic.trim()}
+              disabled={!connected || running || !topic.trim()}
               onClick={() => run(topic.trim(), "comparison")}
             >
               {running ? "Running…" : "Compare"}
@@ -70,7 +82,7 @@ export function ValidationLab() {
 
           <div className="row">
             <span>Export evidence packet</span>
-            <button className="toggle" disabled={running} onClick={exportEvidence}>
+            <button className="toggle" disabled={!connected || running} onClick={exportEvidence}>
               Export
             </button>
           </div>

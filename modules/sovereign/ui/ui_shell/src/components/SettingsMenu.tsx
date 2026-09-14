@@ -90,7 +90,7 @@ export function SettingsMenu({
           <div className="row">
             <span>Audit trail</span>
             <span className="muted">
-              Enabled · tamper-evident event chain
+              Enabled · corruption-evident event chain
             </span>
           </div>
         </div>

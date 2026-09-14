@@ -19,11 +19,14 @@ interface Props {
 // citation or is itself an abstention. It does NOT read the cited source to see whether it
 // supports the claim, and it does not judge factual accuracy. The label says which of those
 // it means, and the title attribute carries the rest.
+// F-123: the server reports an accepted answer as status "completed" (it never emits "accepted"),
+// so the careful acceptance-check copy and its tooltip attach to "completed" - otherwise they were
+// unreachable. "accepted" is retained for any caller that still uses it.
 const STATUS_COPY: Record<JobSnapshot["status"], string> = {
   accepted: "Accepted — format and citations checked",
   queued: "Queued",
   running: "Running",
-  completed: "Completed",
+  completed: "Completed — format and citations checked",
   rejected: "Rejected — no answer accepted",
   failed: "Failed — no answer accepted",
   cancelled: "Cancelled — no answer accepted",
@@ -53,7 +56,7 @@ export function RunStatus({
           <span
             className={`status-chip ${failure ? "failure" : ""}`}
             title={
-              job.status === "accepted"
+              job.status === "accepted" || job.status === "completed"
                 ? "Checked: response format, that every printed citation exists in the " +
                   "evidence packet, and that every project-fact claim is cited or is an " +
                   "abstention. NOT checked: whether a cited source actually supports the " +
