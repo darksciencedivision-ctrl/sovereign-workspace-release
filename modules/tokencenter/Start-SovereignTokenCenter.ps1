@@ -3,6 +3,24 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $scriptPath = Join-Path $root 'piggybank.py'
 $dashboardUrl = 'http://127.0.0.1:8765/'
+
+# F-133(c): the shell sets TOKENCENTER_DATA_DIR from the module state root, but this standalone
+# launcher did not, so piggybank.py fell back to APP_ROOT/data and wrote piggybank.sqlite INTO the
+# install tree (the P4-4 install-tree-mutation defect). Point it at the per-user state root so the
+# standalone path stores data exactly where the shell path does. Start-Process inherits this env.
+if (-not $env:TOKENCENTER_DATA_DIR) {
+    $stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
+    if (-not $stateRoot) {
+        $localAppData = $env:LOCALAPPDATA
+        if (-not $localAppData) { $localAppData = Join-Path $env:USERPROFILE 'AppData\Local' }
+        $stateRoot = Join-Path $localAppData 'SovereignWorkspace'
+    }
+    $env:TOKENCENTER_DATA_DIR = Join-Path $stateRoot 'tokencenter'
+}
+if (-not (Test-Path -LiteralPath $env:TOKENCENTER_DATA_DIR)) {
+    New-Item -ItemType Directory -Path $env:TOKENCENTER_DATA_DIR -Force | Out-Null
+}
+
 $listener = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($listener) {

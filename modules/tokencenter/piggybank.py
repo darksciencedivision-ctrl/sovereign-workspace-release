@@ -105,9 +105,15 @@ def _parse_timestamp(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    # F-133(b): an ISO string WITHOUT an offset parses NAIVE, and `parsed < cutoff` against the
+    # aware UTC cutoff then raises TypeError - one such line took the whole dashboard down until it
+    # aged out. Coerce naive to UTC here so every caller gets an aware datetime.
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _local_day(value: str) -> str:
@@ -837,6 +843,12 @@ def make_handler(state: State, csrf_token: str | None = None) -> type[BaseHTTPRe
 
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
+            # F-133(a): enforce the loopback Host on EVERY GET, not just /api/csrf-token and POST.
+            # /api/summary and /healthz were unprotected, so a DNS-rebinding page could read the
+            # operator's full per-day/per-provider/per-model usage (private telemetry).
+            if not self._loopback_host():
+                self.send_error(HTTPStatus.FORBIDDEN, "Host not loopback")
+                return
             if parsed.path == "/api/summary":
                 query = parse_qs(parsed.query)
                 try:
@@ -980,7 +992,14 @@ def main() -> int:
     args = parser.parse_args()
     home = Path(os.environ.get("USERPROFILE") or Path.home())
     state = State(home, max(1, min(args.lookback_days, 365)))
-    summary = state.refresh()
+    # F-133(b): the initial refresh must NOT be fatal. A single malformed line in ~/.claude,
+    # ~/.codex or ~/.grok logs used to raise here and stop the dashboard from ever starting
+    # ("stopped during startup"). On failure the error is recorded (state.error), surfaced via
+    # /healthz and the summary, and refresh_loop keeps retrying.
+    try:
+        summary = state.refresh()
+    except Exception:  # noqa: BLE001 - a collector failure degrades, it does not prevent serving
+        summary = state.summary(max(1, min(args.lookback_days, 365)))
     if args.once:
         print(json.dumps(summary, indent=2))
         return 0
