@@ -59,6 +59,19 @@ else {
     New-Item -ItemType Directory -Path $destRoot | Out-Null
 }
 
+# F-054: any terminating error after this point (py/npm missing, pip/npm/network failure,
+# install_sow.py) used to leave a half-populated $destRoot, so re-running then failed with
+# "Destination must be empty". If THIS run created the destination, remove the partial tree on
+# failure so the install is cleanly retryable; a pre-existing (operator-provided) directory is
+# left as we found it. `break` propagates the original error with a non-zero exit.
+trap {
+    if (-not $destExisted -and $destRoot -and (Test-Path -LiteralPath $destRoot)) {
+        Write-Output "install: FAILED - removing the partially-installed tree at $destRoot so a retry can start clean"
+        Remove-Item -LiteralPath $destRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    break
+}
+
 $targetRoot = $null
 $targetBefore = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 if ($TargetDir) {
@@ -106,8 +119,12 @@ $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
 $configPath = Join-Path $destRoot 'shell\config\install.json'
 $sourceConfig = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
 $sourceModulesRoot = [string]$sourceConfig.modules_root
-$python312 = (& $pyLauncher -3.12 -c 'import sys;print(sys.executable)').Trim()
-if ($LASTEXITCODE -ne 0) { throw 'Python 3.12 is unavailable' }
+# F-054: capture BEFORE calling .Trim(). When 3.12 is absent the launcher writes nothing to stdout
+# and `(& ...).Trim()` threw "You cannot call a method on a null-valued expression" before the
+# $LASTEXITCODE guard could report the real cause.
+$python312Raw = & $pyLauncher -3.12 -c 'import sys;print(sys.executable)'
+if ($LASTEXITCODE -ne 0 -or -not $python312Raw) { throw 'Python 3.12 is unavailable' }
+$python312 = ([string]$python312Raw).Trim()
 $installConfig = [ordered]@{
     modules_root = $destRoot
     source_modules_root = $sourceModulesRoot
@@ -164,7 +181,9 @@ foreach ($nodeRoot in @(
     Write-Output "install: npm ci $nodeRoot"
     Push-Location $nodeRoot
     try {
-        & $npm ci --registry=https://registry.npmjs.org
+        # F-054: --ignore-scripts on the command as well as the tracked .npmrc, so no dependency
+        # lifecycle script runs during the SOVEREIGN UI install (ADR-005), belt and suspenders.
+        & $npm ci --ignore-scripts --registry=https://registry.npmjs.org
         if ($LASTEXITCODE -ne 0) { throw "npm ci failed: $nodeRoot" }
     }
     finally { Pop-Location }

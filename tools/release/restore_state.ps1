@@ -193,6 +193,16 @@ try {
         [IO.Compression.ZipFileExtensions]::ExtractToFile($e, $target, $true)
     }
 }
+catch {
+    # F-045: an exception during extraction (e.g. an entry name containing ':' -> NotSupportedException)
+    # would otherwise escape BEFORE the outer try/finally that cleans staging, leaving a
+    # .sovereign-restore-staging-* tree behind. Clean it here, then rethrow.
+    if ($staging -and (Test-Path -LiteralPath $staging) -and
+        (Split-Path -Leaf ([IO.Path]::GetFullPath($staging))).StartsWith('.sovereign-restore-staging-')) {
+        Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    throw
+}
 finally { $zip.Dispose() }
 
 try {
@@ -286,13 +296,29 @@ try {
             Move-Item -LiteralPath $stateRootFull -Destination $displaced
         }
         else {
-            Remove-Item -LiteralPath $stateRootFull -Force
+            # F-045: -Recurse. The state root can hold only (empty) directories - normal after the
+            # shell pre-creates runtime_writes dirs - and `Remove-Item -Force` without -Recurse then
+            # prompts "has children" interactively or throws non-interactively.
+            Remove-Item -LiteralPath $stateRootFull -Recurse -Force
         }
     }
 
     try {
         Move-Item -LiteralPath $staging -Destination $stateRootFull
         $cleanupStaging = $false  # placed (moved); there is nothing left to clean
+        # F-044: re-apply the recorded file/directory attributes (Hidden, ReadOnly, System, ...).
+        # Without this a hidden file came back un-hidden and read-only/system flags were lost.
+        # mtime already round-trips via the zip entry's LastWriteTime (set at backup). Best-effort:
+        # a failed attribute set after a successful placement must not fail the restore.
+        if (-not $legacy) {
+            foreach ($e in $inventory.entries) {
+                $placed = Join-Path $stateRootFull ($e.path -replace '/', '\')
+                if (-not (Test-Path -LiteralPath $placed)) { continue }
+                if ($e.attributes) {
+                    try { [IO.File]::SetAttributes($placed, [IO.FileAttributes]([string]$e.attributes)) } catch { }
+                }
+            }
+        }
     }
     catch {
         # R03: a placement OR recovery failure must PRESERVE the verified staged restore so the

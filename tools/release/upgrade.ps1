@@ -166,7 +166,15 @@ function Invoke-Child {
     # space arrives as two positional arguments. Every argument is quoted here explicitly.
     $quoted = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $Script + '"'))
     foreach ($a in $ScriptArgs) {
-        if ($a -match '[\s"]') { $quoted += '"' + ($a -replace '"', '\"') + '"' }
+        if ($a -match '[\s"]') {
+            # F-053: apply the Windows CommandLineToArgvW quoting rule. A naive `"$a"` breaks when $a
+            # ends in a backslash (e.g. a state path "D:\state\"): the trailing \" escapes the closing
+            # quote and swallows the next argument. Double every backslash-run that precedes a quote
+            # or the closing quote, then escape embedded quotes.
+            $s = [regex]::Replace($a, '(\\*)"', { param($m) ('\' * ($m.Groups[1].Value.Length * 2)) + '\"' })
+            $s = [regex]::Replace($s, '(\\+)$', { param($m) '\' * ($m.Groups[1].Value.Length * 2) })
+            $quoted += '"' + $s + '"'
+        }
         else { $quoted += $a }
     }
     $all = $quoted
@@ -438,8 +446,18 @@ foreach ($spec in @(
         @{ exe = 'py'; probe = @('-3.14', '--version'); label = 'Python 3.14 (py -3.14)' })) {
     $cmd = Get-Command $spec.exe -ErrorAction SilentlyContinue
     if (-not $cmd) { $problems += "$($spec.label): the '$($spec.exe)' launcher is not on PATH"; continue }
-    & $cmd.Source @($spec.probe) > $null 2>&1
-    if ($LASTEXITCODE -ne 0) { $problems += "$($spec.label) is not available" }
+    # F-051: under $ErrorActionPreference='Stop', `& ... 2>&1` wraps a native command's stderr as a
+    # terminating error (NativeCommandError) on PS 5.1, so probing a MISSING interpreter (py -3.14
+    # prints to stderr and exits non-zero) threw an unhandled exception - exit 1 with no journalled
+    # FAILED record - instead of the designed "REFUSED before any change ... exit 2". Probe inside a
+    # try, and let stderr fall to the console's null via -RedirectStandardError so nothing wraps.
+    $probeOk = $false
+    try {
+        $null = & $cmd.Source @($spec.probe) 2>$null
+        $probeOk = ($LASTEXITCODE -eq 0)
+    }
+    catch { $probeOk = $false }
+    if (-not $probeOk) { $problems += "$($spec.label) is not available" }
 }
 foreach ($tool in @('npm.cmd', 'node.exe', 'git.exe')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
@@ -473,35 +491,69 @@ foreach ($writable in @(@{ p = $destParent; n = 'the destination parent' },
 
 # Quiescence. Only processes running FROM the outgoing installation are the transaction's
 # business; nothing else on the host is touched or reported as a conflict.
+#
+# F-050: an image-path-only check missed the product entirely. The shell and the tokencenter /
+# distillery modules run under the SYSTEM py -3.12 (image in the Windows/py directory, NOT under
+# $Dest) with their CWD or command line inside $Dest, so "quiescence ... clear" printed for a
+# running product; backup_state then refused (shell.log held), or -NoStateBackup let the cutover
+# Move-Item throw raw. Detect BOTH: the process image under $Dest, AND (via CIM) a command line or
+# working directory that references $Dest.
 $destPrefix = $destRoot + '\'
-$occupants = @()
+$occupantMap = @{}
 try {
-    $occupants = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+    Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
         $p = $null
         try { $p = $_.Path } catch { $p = $null }
-        $p -and $p.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase)
-    })
+        if ($p -and $p.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            $occupantMap[[int]$_.Id] = "$($_.ProcessName) (pid $($_.Id), image under install)"
+        }
+    }
 }
 catch { }
-if ($occupants.Count -gt 0) {
-    $listed = ($occupants | ForEach-Object { "$($_.ProcessName) (pid $($_.Id))" }) -join ', '
+try {
+    # A command line or executable path that names the install tree. CIM CommandLine catches
+    # `py -3.12 <dest>\...\run_gateway.py` and `node <dest>\...` that Get-Process.Path cannot.
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | ForEach-Object {
+        $cl = [string]$_.CommandLine
+        $ep = [string]$_.ExecutablePath
+        if (($cl -and $cl.IndexOf($destRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) -or
+            ($ep -and $ep.StartsWith($destPrefix, [StringComparison]::OrdinalIgnoreCase))) {
+            $occupantMap[[int]$_.ProcessId] = "$($_.Name) (pid $($_.ProcessId), command line references install)"
+        }
+    }
+}
+catch { }
+if ($occupantMap.Count -gt 0) {
+    $listed = ($occupantMap.Values) -join ', '
     $problems += ("The outgoing installation is not quiescent: $listed. " +
                   "Stop them and re-run; this transaction never terminates a process it did not start.")
 }
 
 # Rollback feasibility: the outgoing installation has to be movable to the rollback location on
-# the same volume, or the cutover has no cheap undo.
-if ((Split-Path -Qualifier $destRoot) -ne (Split-Path -Qualifier $backupRoot)) {
+# the same volume, or the cutover has no cheap undo. F-052(b): the rollback ALSO moves the failed
+# incoming tree into $txRoot, so $txRoot must share the destination volume too - otherwise that
+# Move-Item throws "must have identical roots" during rollback (exit 5) even when the previous
+# install was recoverable.
+$destVol = Split-Path -Qualifier $destRoot
+if ($destVol -ne (Split-Path -Qualifier $backupRoot)) {
     $problems += ("Rollback would cross volumes: $destRoot and $backupRoot are on different " +
                   "drives, so the cutover could not be undone by a move.")
 }
+if ($destVol -ne (Split-Path -Qualifier $txRoot)) {
+    $problems += ("Rollback would cross volumes: the transaction root $txRoot is on a different " +
+                  "drive than $destRoot, so preserving the failed incoming tree during rollback " +
+                  "would throw. Put -TransactionRoot on the destination volume.")
+}
 
 # State-schema compatibility. Moving old binaries back does NOT undo a state migration, so a
-# schema change is surfaced here and requires an explicit acknowledgement.
-if ($incomingSchema -ne $outgoingSchema -and
-    $outgoingSchema -ne 'unknown' -and $incomingSchema -ne 'unknown') {
+# schema change is surfaced here and requires an explicit acknowledgement. F-052(a): an 'unknown'
+# schema on EITHER side is treated as INCOMPATIBLE, not skipped - upgrading from a build that
+# declared no state_schema to one that does still migrates state, and that must be acknowledged.
+if ($incomingSchema -ne $outgoingSchema) {
     if (-not $AcceptStateSchemaChange) {
-        $problems += ("State schema changes from '$outgoingSchema' to '$incomingSchema'. " +
+        $from = if ($outgoingSchema -eq 'unknown') { "unknown (the outgoing build declared none)" } else { "'$outgoingSchema'" }
+        $to = if ($incomingSchema -eq 'unknown') { "unknown (the incoming build declares none)" } else { "'$incomingSchema'" }
+        $problems += ("State schema changes from $from to $to. " +
                       "Rolling the installation back does NOT reverse a state migration; the " +
                       "pre-upgrade state snapshot is the only route back. Re-run with " +
                       "-AcceptStateSchemaChange once you have read docs/OPERATIONS.md.")
@@ -515,6 +567,14 @@ if ($problems.Count -gt 0) {
     Write-Phase 'preflight' 'FAILED' @{ problems = $problems }
     Write-Output ''
     Write-Output "  Nothing was moved. The installation at $destRoot is untouched."
+    # F-053: the transaction root + journal were created before preflight. A refusal used to leave
+    # them behind, so re-running with the same explicit -TransactionRoot then hit "Refusing to reuse
+    # an existing transaction root". Nothing has been staged yet at a preflight refusal, so remove
+    # the directory this run created (never one we were asked to resume into).
+    if (-not $selfIsStaged -and -not $ResumeTransaction -and (Test-Path -LiteralPath $txRoot)) {
+        $script:Journal = $null  # stop journalling into a directory we are about to delete
+        Remove-Item -LiteralPath $txRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
     exit 2
 }
 Write-Phase 'preflight' 'OK' @{ artifact_bytes = $artifactBytes; outgoing_bytes = $outgoingBytes }
@@ -524,7 +584,11 @@ Write-Output 'upgrade: preflight clear - dependencies, space, permissions, quies
 # rest of the transaction cannot be executing out of the directory it is about to move.
 if (-not $selfIsStaged) {
     New-Item -ItemType Directory -Path $stagedController -Force | Out-Null
-    Copy-Item -Path (Join-Path $here '*') -Destination $stagedController -Recurse -Force
+    # F-053: copy by enumerating with -LiteralPath. `Copy-Item -Path <here>\*` treats [ and ] in the
+    # install path (e.g. "C:\Apps [x]") as wildcard character classes and copies nothing.
+    Get-ChildItem -LiteralPath $here -Force | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $stagedController -Recurse -Force
+    }
     Write-Phase 'stage' 'OK' @{ controller = $stagedController }
     Write-Output "upgrade: controller staged at $stagedController"
 
@@ -638,7 +702,39 @@ if (-not $rollbackNeeded) {
             Write-Phase 'postcheck' 'FAILED' @{ exit_code = $code; log = $verifyLog }
         }
         else {
-            Write-Phase 'postcheck' 'OK' @{}
+            # F-052(c): verify_install proves hashes + imports; the directive's acceptance is that a
+            # successful upgrade LAUNCHES the new version. The shell's --selftest starts the real
+            # HTTP server from the freshly installed tree, serves one request to /, asserts 200 and
+            # stops. A launch failure is a postcheck failure -> rollback.
+            Write-Output 'upgrade: launch smoke - starting the new shell (--selftest)'
+            $smokePort = 5180 + (Get-Random -Minimum 1 -Maximum 600)
+            $smokeLog = Join-Path $logDir 'launch-selftest.log'
+            $smokeErr = "$smokeLog.err"
+            $launchOk = $false
+            try {
+                $sp = Start-Process -FilePath 'py' `
+                    -ArgumentList @('-3.12', '-B', '-m', 'shell.src', '--selftest', '--port', "$smokePort") `
+                    -WorkingDirectory $destRoot -NoNewWindow -PassThru `
+                    -RedirectStandardOutput $smokeLog -RedirectStandardError $smokeErr
+                if (-not $sp.WaitForExit(60000)) {
+                    try { $sp.Kill() } catch { }
+                    $failureReason = 'Launch smoke timed out: the new shell did not complete --selftest within 60s.'
+                }
+                else {
+                    $launchOk = ($sp.ExitCode -eq 0)
+                    if (-not $launchOk) { $failureReason = "Launch smoke failed: shell --selftest exited $($sp.ExitCode). See $smokeLog(.err)." }
+                }
+            }
+            catch {
+                $failureReason = "Launch smoke could not start the new shell: $($_.Exception.Message)"
+            }
+            if ($launchOk) {
+                Write-Phase 'postcheck' 'OK' @{ launch_selftest = 'served / with 200' }
+            }
+            else {
+                $rollbackNeeded = $true
+                Write-Phase 'postcheck' 'FAILED' @{ message = $failureReason; log = $smokeLog }
+            }
         }
     }
 }

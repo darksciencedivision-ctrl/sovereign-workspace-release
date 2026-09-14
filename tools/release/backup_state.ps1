@@ -169,6 +169,7 @@ try {
                 FullName   = $file.FullName
                 Stream     = $stream
                 Attributes = [string]$file.Attributes
+                LastWrite  = $file.LastWriteTime   # F-044: preserved on the zip entry so mtime round-trips
             })
         }
         catch {
@@ -345,6 +346,9 @@ try {
              $h = $heldByRel[$entry.path]
              $zipEntry = $zip.CreateEntry($STATE_PREFIX + $entry.path,
                                           [IO.Compression.CompressionLevel]::Optimal)
+             # F-044: stamp the real last-write time on the entry (ZipArchive otherwise defaults to
+             # "now"); ExtractToFile then restores it on the file, so mtime survives the round-trip.
+             if ($h.LastWrite) { try { $zipEntry.LastWriteTime = [DateTimeOffset]$h.LastWrite } catch { } }
              $dest = $zipEntry.Open()
              try {
                  $h.Stream.Position = 0

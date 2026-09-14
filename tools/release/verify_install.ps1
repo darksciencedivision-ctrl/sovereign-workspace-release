@@ -50,7 +50,8 @@ $config = Get-Content -Raw -LiteralPath (Join-Path $destRoot 'shell\config\insta
 if (-not ([string]$config.modules_root).Equals($destRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Installed modules_root is not destination-correct'
 }
-$env:PYTHONDONTWRITEBYTECODE = '1'
+# F-054: do NOT set $env:PYTHONDONTWRITEBYTECODE here - it leaked into the caller's environment and
+# is redundant anyway, since every python invocation below passes -B (no bytecode) explicitly.
 $sovereignRoot = Join-Path $destRoot 'modules\sovereign'
 Push-Location $sovereignRoot
 try {
@@ -81,6 +82,11 @@ finally {
 }
 Push-Location (Join-Path $destRoot 'modules\sow\apps\desktop')
 try {
+    # F-054: this loads node-pty under SYSTEM node, which proves the package is installed and
+    # requireable but NOT that its native binding matches Electron's ABI (the runtime the desktop
+    # app actually uses). A true Electron-ABI check needs the Electron binary that install_sow.py
+    # provisions hash-verified; that binary is exercised by the launch smoke (upgrade.ps1 postcheck
+    # / the acceptance harness), not here, because a headless CI lane has no Electron runtime.
     & node -e "require('ws');require('node-pty');console.log('verify SOW desktop import: OK')"
     if ($LASTEXITCODE -ne 0) { throw 'SOW desktop import verification failed' }
 }
