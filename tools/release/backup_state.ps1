@@ -100,6 +100,15 @@ if (-not $Out) {
     $Out = "${stateRootFull}.backup-${stamp}.zip"
 }
 $outFull = [IO.Path]::GetFullPath($Out)
+# R08/F-046. The output (and therefore the staging directory beside it) must be OUTSIDE the state
+# root. An -Out inside the state root made the backup capture its own staging directory as operator
+# state and wrote the archive + sidecars into the supposedly read-only source, so repeated backups
+# nested. Canonical containment catches direct descendants AND junction aliases.
+. (Join-Path $PSScriptRoot 'path_guard.ps1')
+if ((Test-CanonicalContained -Root $stateRootFull -Candidate $outFull) -or
+    $outFull.TrimEnd('\').Equals($stateRootFull, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to write the backup inside the state root: $outFull"
+}
 if (Test-Path -LiteralPath $outFull) {
     throw "Refusing to overwrite an existing backup: $outFull"
 }
@@ -126,6 +135,12 @@ function Get-StreamSha256 {
     }
     finally { $sha.Dispose() }
 }
+
+# F-043: take the shared state-transaction lock so a restore/upgrade cannot displace the state
+# root while this backup is reading it. Held for the whole capture, released in the finally.
+. (Join-Path $PSScriptRoot 'state_lock.ps1')
+$stateParent = Split-Path -Parent $stateRootFull
+$txLock = Enter-StateTransactionLock -StateParent $stateParent -Operation 'backup'
 
 $held = New-Object System.Collections.Generic.List[object]
 try {
@@ -399,6 +414,7 @@ try {
     exit 0
 }
 finally {
+    Exit-StateTransactionLock $txLock
     foreach ($h in $held) {
         if ($h.Stream) {
             try { $h.Stream.Dispose() } catch { }

@@ -171,7 +171,14 @@ if ($Steps -contains '1') {
             "the install artifact does not exist at $artifactPath" $null 'install.ps1' '' $started
     }
     else {
-        $r = Invoke-Child (Join-Path $release 'install.ps1') @('-Dest', $installRoot, '-Artifact', $artifactPath) 'step1-install'
+        # F-080. Always install shortcuts into a FIXTURE directory, never the operator's real
+        # Desktop/Start Menu. The harness claims it "refuses to touch the operator's real
+        # installation or state"; a bare install used to overwrite the real launcher shortcut, and
+        # step 8's uninstall then deleted it. A fixture -TargetDir keeps the whole shortcut
+        # lifecycle inside the acceptance sandbox.
+        $shortcutFixture = Join-Path (Split-Path -Parent $installRoot) 'acceptance-shortcuts'
+        $r = Invoke-Child (Join-Path $release 'install.ps1') `
+            @('-Dest', $installRoot, '-Artifact', $artifactPath, '-TargetDir', $shortcutFixture) 'step1-install'
         Write-Record '1' 'install the candidate artifact' `
             $(if ($r.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }) `
             $(if ($r.ExitCode -eq 0) { '' } else { "install.ps1 exited $($r.ExitCode)" }) `

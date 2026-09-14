@@ -3,7 +3,12 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $Dest,
     [string] $TargetDir,
-    [string] $Artifact
+    [string] $Artifact,
+    # F-063. Real Desktop/Start Menu shortcuts are OPT-IN, as the README documents ("shortcuts are
+    # created only when -TargetDir is given"). Without -TargetDir and without this switch, no
+    # shortcut is written -- so a normal install, an upgrade (which calls install.ps1) and a
+    # clean-room CI run no longer silently repoint the operator's real launcher shortcut.
+    [switch] $CreateShortcuts
 )
 
 $ErrorActionPreference = 'Stop'
@@ -184,8 +189,14 @@ if ($targetRoot) {
     }
     & (Join-Path $destRoot 'tools\release\install_shortcut.ps1') -TargetDir $targetRoot | Out-Null
 }
-else {
+elseif ($CreateShortcuts) {
+    # F-063. Real Desktop/Start Menu shortcuts, only when explicitly requested. install_shortcut
+    # itself refuses to overwrite an existing one (no -Force here), so an operator's launcher
+    # shortcut is never silently replaced.
     & (Join-Path $destRoot 'tools\release\install_shortcut.ps1') | ForEach-Object { $expectedLinks += [string]$_ }
+}
+else {
+    Write-Host 'No shortcuts created (pass -CreateShortcuts for Desktop/Start Menu, or -TargetDir).'
 }
 
 $paths = @()

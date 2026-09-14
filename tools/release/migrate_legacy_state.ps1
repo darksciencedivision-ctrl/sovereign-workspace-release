@@ -110,9 +110,50 @@ function Get-Sha {
     catch { return $null }
 }
 
-$decisions = New-Object System.Collections.Generic.List[object]
-$counts = @{ migrate = 0; conflict = 0; skip = 0; identical = 0 }
+function Copy-FileCreateNew {
+    # F-047: copy with CreateNew semantics. The destination is opened with FileMode.CreateNew, which
+    # FAILS if the file already exists, closing the TOCTOU window between the existence check and the
+    # copy in which a live writer could create the target and have `Copy-Item -Force` silently
+    # overwrite it. Returns 'written' on success or 'exists' if the destination appeared in the race
+    # (nothing overwritten); throws for any other IO failure (disk full, access denied) so the
+    # caller records it and the receipt is still written.
+    param([string] $Source, [string] $Destination)
+    $in = $null; $out = $null
+    try {
+        $in = [IO.File]::Open($Source, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+        try {
+            $out = [IO.FileStream]::new($Destination, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        }
+        catch [System.IO.IOException] {
+            if (Test-Path -LiteralPath $Destination) { return 'exists' }
+            throw
+        }
+        $in.CopyTo($out)
+        return 'written'
+    }
+    finally {
+        if ($out) { $out.Dispose() }
+        if ($in) { $in.Dispose() }
+    }
+}
 
+$decisions = New-Object System.Collections.Generic.List[object]
+$counts = @{ migrate = 0; conflict = 0; skip = 0; identical = 0; error = 0 }
+
+$productVersion = 'unknown'
+$versionFile = Join-Path $PSScriptRoot '..\..\VERSION.json'
+if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+    try { $productVersion = [string](Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json).version }
+    catch { }
+}
+
+# F-047: the plan loop and the receipt write are wrapped so the receipt is ALWAYS written, in a
+# finally, even when -Apply throws part-way (copy-verify mismatch, disk full, access denied, an
+# unreadable subdirectory). Before this, the receipt was written only at the very end, so a throw
+# during -Apply left partially copied files and NO account of them - breaking the script's own
+# "every legacy file is accounted for" contract.
+$completed = $false
+try {
 foreach ($item in $plan) {
     $source = Join-Path $legacyRoot $item.from
     if (-not (Test-Path -LiteralPath $source)) {
@@ -131,8 +172,23 @@ foreach ($item in $plan) {
     }
     else {
         $prefix = ([IO.Path]::GetFullPath($source).TrimEnd('\')) + '\'
-        $sourceFiles = @(Get-ChildItem -LiteralPath $source -Force -Recurse -File -ErrorAction SilentlyContinue |
-            ForEach-Object { [pscustomobject]@{ Full = $_.FullName; Rel = $_.FullName.Substring($prefix.Length) } })
+        # F-047: enumerate with -ErrorAction Stop. Before, -ErrorAction SilentlyContinue dropped
+        # files under an unreadable subdirectory from the receipt entirely - a silent omission the
+        # contract forbids. An enumeration failure is now RECORDED and then re-thrown (fail, do not
+        # silently under-report); the finally still writes the receipt with this error in it.
+        try {
+            $sourceFiles = @(Get-ChildItem -LiteralPath $source -Force -Recurse -File -ErrorAction Stop |
+                ForEach-Object { [pscustomobject]@{ Full = $_.FullName; Rel = $_.FullName.Substring($prefix.Length) } })
+        }
+        catch {
+            $decisions.Add([pscustomobject][ordered]@{
+                module = $item.module; source = $item.from; destination = $item.to
+                decision = 'error'; reason = "could not enumerate the legacy source (would silently omit files): $($_.Exception.Message)"
+                source_sha256 = $null; destination_sha256 = $null; written = $null
+            })
+            $counts.error++
+            throw "Refusing to continue: an unreadable entry under $source would be silently omitted from the migration. $($_.Exception.Message)"
+        }
     }
 
     foreach ($file in $sourceFiles) {
@@ -200,10 +256,19 @@ foreach ($item in $plan) {
 
         if ($Apply -and ($decision -eq 'migrate' -or ($decision -eq 'conflict' -and $written))) {
             New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-            Copy-Item -LiteralPath $file.Full -Destination $target -Force
-            $verify = Get-Sha $target
-            if ($verify -ne $sourceHash) {
-                throw "Migration copy did not reproduce its source: $($file.Full) -> $target"
+            $copyResult = Copy-FileCreateNew $file.Full $target
+            if ($copyResult -eq 'exists') {
+                # The destination appeared AFTER the existence check (a live writer, a racing run).
+                # Non-destructive contract: keep what is there, record the conflict, write nothing.
+                $decision = 'conflict'
+                $reason = 'destination appeared during migration; kept what is there (nothing overwritten)'
+                $written = $null
+            }
+            else {
+                $verify = Get-Sha $target
+                if ($verify -ne $sourceHash) {
+                    throw "Migration copy did not reproduce its source: $($file.Full) -> $target"
+                }
             }
         }
 
@@ -217,30 +282,29 @@ foreach ($item in $plan) {
         elseif ($decision -eq 'identical') { $counts.identical++ }
     }
 }
-
-$productVersion = 'unknown'
-$versionFile = Join-Path $PSScriptRoot '..\..\VERSION.json'
-if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
-    try { $productVersion = [string](Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json).version }
-    catch { }
+$completed = $true
 }
-
-$decisionArray = $decisions.ToArray()
-$receipt = [ordered]@{
-    schema           = 'sovereign.state-migration.v1'
-    created_utc      = (Get-Date).ToUniversalTime().ToString('o')
-    applied          = [bool]$Apply
-    product_version  = $productVersion
-    legacy_install   = $legacyRoot
-    state_root       = $stateRootFull
-    on_conflict      = $OnConflict
-    note             = 'The legacy installation is opened read-only and is never modified, moved or deleted. Nothing is overwritten: a conflicting destination is kept, or the legacy copy is written alongside. Every legacy file appears below exactly once.'
-    counts           = $counts
-    decisions        = $decisionArray
+finally {
+    # F-047: write the receipt HERE so it exists whether the loop finished or threw part-way. It
+    # records `completed`, so a receipt written on abort is not mistaken for a full account.
+    $decisionArray = $decisions.ToArray()
+    $receipt = [ordered]@{
+        schema           = 'sovereign.state-migration.v1'
+        created_utc      = (Get-Date).ToUniversalTime().ToString('o')
+        applied          = [bool]$Apply
+        completed        = [bool]$completed
+        product_version  = $productVersion
+        legacy_install   = $legacyRoot
+        state_root       = $stateRootFull
+        on_conflict      = $OnConflict
+        note             = 'The legacy installation is opened read-only and is never modified, moved or deleted. Nothing is overwritten: a conflicting destination is kept, or the legacy copy is written alongside. Every legacy file appears below exactly once. If completed is false this run threw part-way and the decisions below are only those reached before the failure.'
+        counts           = $counts
+        decisions        = $decisionArray
+    }
+    New-Item -ItemType Directory -Path (Split-Path -Parent ([IO.Path]::GetFullPath($ReceiptPath))) -Force | Out-Null
+    [IO.File]::WriteAllText([IO.Path]::GetFullPath($ReceiptPath),
+                            ($receipt | ConvertTo-Json -Depth 8) + "`n", $utf8NoBom)
 }
-New-Item -ItemType Directory -Path (Split-Path -Parent ([IO.Path]::GetFullPath($ReceiptPath))) -Force | Out-Null
-[IO.File]::WriteAllText([IO.Path]::GetFullPath($ReceiptPath),
-                        ($receipt | ConvertTo-Json -Depth 8) + "`n", $utf8NoBom)
 
 Write-Output ''
 Write-Output $(if ($Apply) { 'migrate: APPLIED' } else { 'migrate: PLAN ONLY - nothing was written (pass -Apply to perform it)' })

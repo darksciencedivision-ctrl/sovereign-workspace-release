@@ -1,9 +1,15 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
+    # Required for a normal upgrade. Omitted (and derived from the journal) only with -Recover.
     [string] $Dest,
 
     [string] $Artifact,
+
+    # F-049: recover an upgrade interrupted after cutover. Point it at the transaction root that the
+    # interrupted run printed / journalled: it reads the journal, and if the outgoing installation
+    # was moved aside but never settled, it moves it back to the destination. No new version is
+    # installed by recovery; it only restores the pre-upgrade installation.
+    [string] $Recover,
 
     # Where the outgoing installation is moved to rather than deleted. Defaults to a sibling
     # of $Dest stamped with the version being replaced. An upgrade that destroys the only copy
@@ -75,6 +81,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
+# F-048: use the single canonical path helper. The local Get-CanonicalPath this file used to carry
+# resolved only a LEAF symlink via .Target and left non-existent / junction-prefixed paths lexical,
+# so a -TransactionRoot spelled through a subst drive or a junction that really lies inside $Dest
+# passed the overlap check and was then carried away with $Dest at cutover (the L1 defect again).
+# path_guard.ps1's Get-CanonicalPath canonicalises the deepest EXISTING ancestor through the
+# filesystem (junction/symlink-resolving) and re-appends the missing tail, and Test-CanonicalContained
+# decides containment on those real paths.
+. (Join-Path $PSScriptRoot 'path_guard.ps1')
 
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 $script:Journal = $null
@@ -101,31 +115,20 @@ function Fail {
     throw $Message
 }
 
-function Get-CanonicalPath {
-    param([string] $Path)
-    # Resolve through the filesystem where possible so a junction, a substituted drive or a
-    # sibling-prefix confusion cannot make two different paths look unrelated.
-    $full = [IO.Path]::GetFullPath($Path).TrimEnd('\')
-    if (Test-Path -LiteralPath $full) {
-        try {
-            $item = Get-Item -LiteralPath $full -Force
-            if ($item.PSObject.Properties.Name -contains 'Target' -and $item.Target) {
-                $full = [IO.Path]::GetFullPath([string]@($item.Target)[0]).TrimEnd('\')
-            }
-        }
-        catch { }
-    }
-    return $full
-}
-
 function Test-PathOverlap {
+    # Canonical, junction/subst-resolving overlap: true when either path is the other or contains
+    # it, decided on real filesystem paths (path_guard's Get-CanonicalPath resolves the deepest
+    # existing ancestor of a not-yet-created path). A path that cannot be canonicalised at all
+    # (no existing ancestor) is treated as overlapping = fail closed.
     param([string] $A, [string] $B)
     if (-not $A -or -not $B) { return $false }
-    $a = $A.TrimEnd('\'); $b = $B.TrimEnd('\')
-    if ($a.Equals($b, [StringComparison]::OrdinalIgnoreCase)) { return $true }
-    if ($b.StartsWith($a + '\', [StringComparison]::OrdinalIgnoreCase)) { return $true }
-    if ($a.StartsWith($b + '\', [StringComparison]::OrdinalIgnoreCase)) { return $true }
-    return $false
+    try {
+        return (Test-CanonicalContained -Root $A -Candidate $B) -or
+               (Test-CanonicalContained -Root $B -Candidate $A)
+    }
+    catch {
+        return $true
+    }
 }
 
 function Assert-SafeRoot {
@@ -204,6 +207,71 @@ function Test-Writable {
     catch { return $false }
 }
 
+# F-043/F-049: the state-transaction lock is shared with backup_state.ps1 and restore_state.ps1.
+. (Join-Path $PSScriptRoot 'state_lock.ps1')
+function Resolve-StateParent {
+    $sr = $env:SOVEREIGN_WORKSPACE_STATE
+    if (-not $sr) {
+        $lad = $env:LOCALAPPDATA
+        if (-not $lad) { $lad = Join-Path $env:USERPROFILE 'AppData\Local' }
+        $sr = Join-Path $lad 'SovereignWorkspace'
+    }
+    return (Split-Path -Parent ([IO.Path]::GetFullPath($sr).TrimEnd('\')))
+}
+
+# ================================================================= mode: -Recover
+if ($Recover) {
+    $recoverRoot = [IO.Path]::GetFullPath($Recover).TrimEnd('\')
+    $journal = Join-Path $recoverRoot 'upgrade-journal.jsonl'
+    if (-not (Test-Path -LiteralPath $journal -PathType Leaf)) {
+        throw "No upgrade journal at $journal - nothing to recover. Pass the transaction root the interrupted run printed."
+    }
+    $records = @(Get-Content -LiteralPath $journal | Where-Object { $_.Trim() } | ForEach-Object { $_ | ConvertFrom-Json })
+    $resolveRec = @($records | Where-Object { $_.phase -eq 'resolve' -and $_.dest })[-1]
+    if (-not $resolveRec) { throw "Journal at $journal has no resolve record; cannot recover." }
+    $rDest = [string]$resolveRec.dest
+    $rBackup = [string]$resolveRec.rollback
+    $completed = @($records | Where-Object { $_.phase -eq 'complete' -and $_.status -eq 'OK' }).Count -gt 0
+    $rolledBack = @($records | Where-Object { $_.phase -eq 'rollback' -and $_.status -eq 'OK' }).Count -gt 0
+
+    $script:Journal = $journal  # append recovery outcome to the same audit trail
+    $lock = Enter-StateTransactionLock -StateParent (Resolve-StateParent) -Operation 'upgrade-recover'
+    try {
+        Write-Output "upgrade -Recover: journal $journal"
+        Write-Output "  destination        $rDest"
+        Write-Output "  rollback location  $rBackup"
+        if ($completed) {
+            Write-Output '  The journal records a COMPLETED upgrade. Nothing to recover.'
+            if (Test-Path -LiteralPath $rDest -PathType Container) { exit 0 }
+            Write-Output "  WARNING: but $rDest is not present now. Investigate by hand; not moving anything automatically."
+            exit 4
+        }
+        if ($rolledBack -and (Test-Path -LiteralPath $rDest -PathType Container)) {
+            Write-Output '  The journal records a completed rollback and the installation is present. Nothing to do.'
+            exit 0
+        }
+        if (Test-Path -LiteralPath $rDest -PathType Container) {
+            Write-Output '  The destination is present; the outgoing installation was not left displaced. Nothing to recover.'
+            exit 0
+        }
+        if (-not (Test-Path -LiteralPath $rBackup -PathType Container)) {
+            Write-Output '  RECOVERY NOT POSSIBLE automatically: the destination is absent AND the rollback'
+            Write-Output "  location $rBackup is absent. Recover by hand from any state snapshot in $recoverRoot."
+            exit 5
+        }
+        Write-Output "  destination is absent; moving the previous installation back from $rBackup"
+        Move-Item -LiteralPath $rBackup -Destination $rDest
+        Write-Phase 'rollback' 'OK' @{ driven_by = 'recover'; from = $rBackup; to = $rDest }
+        Write-Output "  recovered: the previous installation is at $rDest again. Verify with tools\release\verify_install.ps1 -Dest `"$rDest`"."
+        exit 4
+    }
+    finally { Exit-StateTransactionLock $lock }
+}
+
+if (-not $Dest) {
+    throw 'Provide -Dest to upgrade, or -Recover <transactionRoot> to recover an interrupted upgrade.'
+}
+
 # ================================================================= phase: resolve
 $destRoot = Get-CanonicalPath $Dest
 Assert-SafeRoot $destRoot 'Destination'
@@ -274,6 +342,16 @@ $selfIsStaged = $here.TrimEnd('\').Equals($stagedController, [StringComparison]:
 
 Write-Output "upgrade: outgoing installation is version $outgoingVersion at $destRoot"
 Write-Output "upgrade: transaction root $txRoot"
+
+# F-043: hold the shared state-transaction lock for the WHOLE upgrade so no backup/restore/other
+# upgrade can run against the same state in parallel. Taken only by the top-level (non-staged)
+# controller; the staged child and its backup_state.ps1 child reenter it (SOVEREIGN_STATE_TX_LOCK
+# is inherited), so there is no self-deadlock. Held while the staged child runs (this process waits
+# on it) and released at handoff exit; a refusal/throw exits the process, which frees the handle.
+$txStateLock = $null
+if (-not $selfIsStaged) {
+    $txStateLock = Enter-StateTransactionLock -StateParent (Resolve-StateParent) -Operation 'upgrade'
+}
 
 # ================================================================= phase: verify
 Write-Phase 'verify' 'BEGIN' @{}
@@ -457,6 +535,7 @@ if (-not $selfIsStaged) {
     if ($InjectFailureAt) { $handoff += @('-InjectFailureAt', $InjectFailureAt) }
     Invoke-Child (Join-Path $stagedController 'upgrade.ps1') $handoff `
                  (Join-Path $logDir 'staged-controller.log')
+    Exit-StateTransactionLock $txStateLock
     exit $script:LastChildExit
 }
 
@@ -499,9 +578,18 @@ if ($InjectFailureAt -eq 'prepare') {
 }
 
 # ================================================================= phase: cutover
+# F-049: the whole cutover..postcheck..settle region runs inside try/finally. Once the outgoing
+# installation has been moved aside, ANY exit from this region that is not a settled outcome
+# (successful upgrade, or a completed rollback) - a Ctrl+C that the console-sharing child forwards
+# here, or any terminating error before the rollback block - would otherwise leave NO installation
+# at $destRoot and no recovery. The finally rolls back in exactly that case.
+$script:CutoverStarted = $false
+$script:Settled = $false
+try {
 Write-Phase 'cutover' 'BEGIN' @{ from = $destRoot; to = $backupRoot }
 Write-Output "upgrade: moving the outgoing installation to $backupRoot"
 Move-Item -LiteralPath $destRoot -Destination $backupRoot
+$script:CutoverStarted = $true
 if (Test-Path -LiteralPath $destRoot) {
     Fail 'cutover' "Destination is still present after the move: $destRoot"
 }
@@ -592,6 +680,7 @@ if ($rollbackNeeded) {
         Write-Output "    $destRoot"
         Write-Output '  then re-run tools\release\verify_install.ps1 -Dest <that path>.'
         $rollbackErrors | ForEach-Object { Write-Output "    rollback error: $_" }
+        $script:Settled = $true
         exit 5
     }
 
@@ -600,6 +689,7 @@ if ($rollbackNeeded) {
     if ($preserved) { Write-Output "    failed incoming tree    $preserved" }
     if ($stateSnapshot) { Write-Output "    state snapshot          $stateSnapshot" }
     Write-Output "    transaction journal     $script:Journal"
+    $script:Settled = $true
     exit 4
 }
 
@@ -626,4 +716,36 @@ if ($incomingSchema -ne $outgoingSchema -and $outgoingSchema -ne 'unknown' -and 
     Write-Output '  installation back does NOT reverse that. To return to the previous version you'
     Write-Output '  must also restore the state snapshot named above.'
 }
+$script:Settled = $true
 exit 0
+}
+finally {
+    # F-049: reached on every exit from the cutover region, including a terminating error or a
+    # Ctrl+C forwarded from the console-sharing child. If the outgoing installation was moved aside
+    # and no settled outcome was reached, put it back so $destRoot is never left empty.
+    if ($script:CutoverStarted -and -not $script:Settled) {
+        Write-Output ''
+        Write-Output 'upgrade: INTERRUPTED after the outgoing installation was moved aside.'
+        Write-Phase 'rollback' 'BEGIN' @{ reason = 'interrupted after cutover; finally-driven rollback' }
+        try {
+            if ((-not (Test-Path -LiteralPath $destRoot)) -and (Test-Path -LiteralPath $backupRoot)) {
+                Move-Item -LiteralPath $backupRoot -Destination $destRoot
+                Write-Phase 'rollback' 'OK' @{ driven_by = 'finally' }
+                Write-Output "  rolled the previous installation back to $destRoot"
+            }
+            else {
+                Write-Phase 'rollback' 'SKIPPED' @{
+                    dest_present   = [bool](Test-Path -LiteralPath $destRoot)
+                    backup_present = [bool](Test-Path -LiteralPath $backupRoot)
+                }
+            }
+        }
+        catch {
+            Write-Phase 'rollback' 'FAILED' @{ errors = @($_.Exception.Message) }
+            Write-Output '  ROLLBACK DID NOT COMPLETE after interruption. Recover by hand:'
+            Write-Output "    previous installation   $backupRoot"
+            Write-Output "    transaction journal     $script:Journal"
+            Write-Output "  Or run: tools\release\upgrade.ps1 -Recover `"$txRoot`""
+        }
+    }
+}

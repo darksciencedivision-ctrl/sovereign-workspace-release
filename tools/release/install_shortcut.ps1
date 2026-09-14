@@ -1,6 +1,11 @@
 [CmdletBinding()]
 param(
-    [string] $TargetDir
+    [string] $TargetDir,
+    # F-063. Refuse to overwrite an existing shortcut in BOTH branches (real Desktop/Start Menu AND
+    # a -TargetDir fixture). Overwriting the operator's real launcher shortcut silently -- as a
+    # clean-room CI run, an upgrade or a fixture acceptance run used to -- repoints it at a %TEMP%
+    # or clean-room install. Pass -Force only when replacing a shortcut is explicitly intended.
+    [switch] $Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,6 +37,9 @@ $wsh = New-Object -ComObject WScript.Shell
 foreach ($destination in @($desktopDir, $startMenuDir)) {
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
     $linkPath = Join-Path $destination 'Sovereign Workspace.lnk'
+    if ((Test-Path -LiteralPath $linkPath) -and -not $Force) {
+        throw "Refusing to overwrite existing shortcut: $linkPath (pass -Force to replace)"
+    }
     $shortcut = $wsh.CreateShortcut($linkPath)
     $shortcut.TargetPath = $powershell
     $shortcut.Arguments = $arguments

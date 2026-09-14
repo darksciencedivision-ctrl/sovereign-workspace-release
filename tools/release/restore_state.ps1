@@ -13,7 +13,13 @@ param(
 
     # Accept an archive that carries no v2 inventory. Such an archive CANNOT be verified: its
     # completeness and its contents are unchecked, and the result is labelled NOT VERIFIED.
-    [switch] $AllowUnverifiedLegacyArchive
+    [switch] $AllowUnverifiedLegacyArchive,
+
+    # F-043: restore an archive captured under a DIFFERENT product version. Off by default:
+    # a state layout produced by another version may not be understood by the running product
+    # (directive 4.2 requires version validation). Off => a mismatch is refused before anything
+    # is displaced; on => the mismatch is stated and the restore proceeds anyway.
+    [switch] $AllowVersionMismatch
 )
 
 # SWS-CORRECTIVE-01 workstream 1.2 - restore is staged, verified, then placed.
@@ -77,6 +83,13 @@ if (-not $stateParent) { throw "State root has no parent directory: $stateRootFu
 if (-not (Test-Path -LiteralPath $stateParent -PathType Container)) {
     New-Item -ItemType Directory -Path $stateParent -Force | Out-Null
 }
+
+# F-043: take the shared state-transaction lock before any staging or displacement, so a
+# concurrent backup/restore/upgrade cannot recreate the state root between displacement and
+# placement (the "RECOVERY DID NOT COMPLETE" race). Held to process exit; every path below ends
+# in `exit`, which frees the exclusive handle. The outer finally also releases it explicitly.
+. (Join-Path $PSScriptRoot 'state_lock.ps1')
+$txLock = Enter-StateTransactionLock -StateParent $stateParent -Operation 'restore'
 
 $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
 $staging = Join-Path $stateParent ('.sovereign-restore-staging-' + [Guid]::NewGuid().ToString('N').Substring(0, 12))
@@ -227,6 +240,35 @@ try {
         Write-Output 'restore: this archive carries no usable inventory. Its contents are NOT VERIFIED.'
     }
 
+    # --- F-043: product-version compatibility, BEFORE anything is displaced ----------------
+    # The inventory records the product version that produced the capture. Restoring a state
+    # layout from a different version into the running product may hand it a schema it does not
+    # understand; the directive requires this be validated rather than assumed. Legacy archives
+    # carry no version and are already labelled NOT VERIFIED, so this applies to v2 only.
+    if (-not $legacy) {
+        $currentVersion = 'unknown'
+        $versionFile = Join-Path $PSScriptRoot '..\..\VERSION.json'
+        if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+            try { $currentVersion = [string](Get-Content -Raw -LiteralPath $versionFile | ConvertFrom-Json).version } catch { }
+        }
+        $archiveVersion = [string]$inventory.product_version
+        if (-not $archiveVersion) { $archiveVersion = 'unknown' }
+        if ($archiveVersion -ne $currentVersion) {
+            if (-not $AllowVersionMismatch) {
+                Write-Output ''
+                Write-Output 'restore: REFUSED - product-version mismatch.'
+                Write-Output "  archive captured under : $archiveVersion"
+                Write-Output "  product installed here : $currentVersion"
+                Write-Output '  The state layout may not be understood by this version. Re-run with'
+                Write-Output '  -AllowVersionMismatch to restore anyway (after taking your own backup),'
+                Write-Output "  or install matching product version $archiveVersion first."
+                Write-Output "  Nothing was displaced. $stateRootFull is untouched."
+                exit 3
+            }
+            Write-Output "restore: WARNING - restoring a $archiveVersion capture into product $currentVersion (version mismatch accepted)."
+        }
+    }
+
     # --- displace the existing state, then place -------------------------------------------
     $displaced = $null
     if (Test-Path -LiteralPath $stateRootFull -PathType Container) {
@@ -299,4 +341,5 @@ finally {
             Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
+    Exit-StateTransactionLock $txLock
 }

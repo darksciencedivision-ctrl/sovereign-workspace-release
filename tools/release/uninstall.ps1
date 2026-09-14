@@ -83,11 +83,31 @@ foreach ($entry in $externalDirs) {
 }
 
 if ([bool]$manifest.install_root_created) {
-    $resolved = [IO.Path]::GetFullPath($destRoot)
-    if ($resolved -ne $destRoot -or -not $resolved.StartsWith([IO.Path]::GetPathRoot($resolved), [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'Destination resolution changed before recursive removal'
+    # F-042. The old `$resolved -ne $destRoot` compared GetFullPath of an already-full path and
+    # could never fire. Guard the recursive removal properly (path_guard.ps1 is sourced at the top).
+    $canonicalDest = Get-CanonicalPath $destRoot
+    # (a) Refuse a reparse point anywhere in the tree: Remove-Item -Recurse follows a junction into
+    #     its TARGET on PS 5.1, so a junction planted under the install would delete an unrelated
+    #     tree.
+    if (Test-TreeContainsReparsePoint $destRoot) {
+        throw "Refusing recursive removal: a reparse point (junction/symlink) exists under $destRoot"
     }
-    Remove-Item -LiteralPath $destRoot -Recurse -Force
+    # (b) Quiescence: do not delete a running installation out from under itself (which left a
+    #     partial tree that then failed both uninstall -- manifest gone -- and install -- not empty).
+    $busy = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.ExecutablePath -and (Test-CanonicalContained -Root $canonicalDest -Candidate $_.ExecutablePath)
+    })
+    if ($busy.Count -gt 0) {
+        throw ("Refusing to uninstall while the product is running (pid(s): " +
+               (($busy | ForEach-Object { $_.ProcessId }) -join ', ') + "). Stop it first.")
+    }
+    # (c) Atomic-ish: rename the tree to a tombstone FIRST, then delete the tombstone. A failure
+    #     mid-delete then leaves a clearly-named tombstone rather than a half-install at the live
+    #     install path.
+    $parent = Split-Path -Parent $canonicalDest
+    $tombLeaf = (Split-Path -Leaf $canonicalDest) + '.uninstall-tombstone-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+    Rename-Item -LiteralPath $destRoot -NewName $tombLeaf
+    Remove-Item -LiteralPath (Join-Path $parent $tombLeaf) -Recurse -Force
 }
 else {
     Get-ChildItem -LiteralPath $destRoot -Force | Remove-Item -Recurse -Force
