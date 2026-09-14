@@ -135,7 +135,9 @@ class OllamaBackend:
 
     def health(self) -> dict:
         try:
-            _NO_PROXY_OPENER.open(f"{self._host}/api/tags", timeout=3)
+            # F-136(4): close the response - it was leaked, holding a socket per health check.
+            with _NO_PROXY_OPENER.open(f"{self._host}/api/tags", timeout=3):
+                pass
             return {"supported": True, "ok": True}
         except Exception as e:
             return {"supported": True, "ok": False, "reason": str(e)}

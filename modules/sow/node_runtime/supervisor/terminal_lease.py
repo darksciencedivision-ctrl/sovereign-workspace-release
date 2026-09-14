@@ -191,7 +191,10 @@ def pid_is_alive(pid: int) -> bool:
     if sys.platform == "win32":  # pragma: no cover - the rule itself is tested via win_pid_alive
         import ctypes
 
-        kernel32 = ctypes.windll.kernel32
+        # F-136(8): use_last_error=True so ctypes.get_last_error() reflects THIS OpenProcess call's
+        # error. The cached ctypes.windll.kernel32 does not track the last error, so access-denied
+        # (a live process we cannot open) could not be told apart from a truly-absent pid.
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         return win_pid_alive(
             pid,
             open_process=lambda p: kernel32.OpenProcess(_SYNCHRONIZE, False, p),

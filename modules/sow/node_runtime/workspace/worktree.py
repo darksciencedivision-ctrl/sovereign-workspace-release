@@ -44,7 +44,13 @@ def _validate_node_id(node_id: str) -> None:
 
 
 def _git(repo: Path, *args: str) -> str:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    # F-136(7): a git call with no timeout could hang a worktree operation indefinitely (a stuck
+    # index.lock, a credential prompt on a misconfigured remote). Bound it and fail closed.
+    try:
+        proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                              timeout=120)
+    except subprocess.TimeoutExpired as exc:
+        raise WorktreeError(f"git {' '.join(args)} timed out after 120s") from exc
     if proc.returncode != 0:
         raise WorktreeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
     return proc.stdout.strip()

@@ -63,8 +63,12 @@ def cmd_status(_args: argparse.Namespace) -> int:
         payload["hg3_current_status"] = "UNKNOWN_NO_CANONICAL_RECORD"
     trainer = _load_json(TRAINER_REGISTRY)
     payload["hg3_hard_gate"] = trainer["hard_gate"]["HG-3"]
-    primary = next(row for row in trainer["records"] if row["trainer_id"] == "GND-TRAINER-PRIMARY")
-    payload["primary_trainer"] = {"status": primary["status"], "gpu_model": primary.get("measured", {}).get("gpu_model")}
+    # F-136(12): a missing GND-TRAINER-PRIMARY record must not crash the CLI with StopIteration.
+    primary = next((row for row in trainer["records"] if row["trainer_id"] == "GND-TRAINER-PRIMARY"), None)
+    if primary is None:
+        payload["primary_trainer"] = {"status": "ABSENT_NO_PRIMARY_TRAINER_RECORD", "gpu_model": None}
+    else:
+        payload["primary_trainer"] = {"status": primary["status"], "gpu_model": primary.get("measured", {}).get("gpu_model")}
     loop_state_path = ROOT / "runs" / "completion-loop" / "LOOP_STATE.json"
     payload["completion_loop_state_present"] = loop_state_path.is_file()
     _emit(payload)

@@ -122,9 +122,19 @@ def classify_session_residency(payload: Any, *, model: str,
         return {"ok": False, "found": False,
                 "reason": f"the daemon reports no running session for {tag!r} — fail closed"}
 
-    size = int(row.get("size") or 0)
-    size_vram = int(row.get("size_vram") or 0)
-    got_ctx = int(row.get("context_length") or 0)
+    # F-136(5): the daemon's fields are not guaranteed numeric; int("1.5") / int({}) raised an
+    # uncaught ValueError/TypeError. Coerce defensively - a non-numeric field reads as 0.
+    def _as_int(value) -> int:
+        try:
+            return int(value or 0)
+        except (TypeError, ValueError):
+            try:
+                return int(float(value))
+            except (TypeError, ValueError):
+                return 0
+    size = _as_int(row.get("size"))
+    size_vram = _as_int(row.get("size_vram"))
+    got_ctx = _as_int(row.get("context_length"))
     cpu_split = size > 0 and size_vram < size
     pct = round(100 * size_vram / size) if size else 0
 
