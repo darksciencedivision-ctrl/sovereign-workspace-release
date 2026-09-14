@@ -402,6 +402,223 @@ def _harvest(result, calls):
 
 
 # --------------------------------------------------------------------------- main
+class OutputLock:
+    """Exclusive ownership of a benchmark output, backed by an OS file lock.
+
+    Windows: CreateFileW with dwShareMode=0. The open handle IS the lock; the OS
+    releases it on crash. This process never unlinks a lock file (OPEN_ALWAYS
+    reuses the sibling) and never closes a handle it does not own.
+
+    PID text in the lock file is diagnostic only and is never used to decide
+    reclaim — check-then-unlink races and PID reuse are therefore not part of
+    the protocol.
+    """
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        self._fd = None
+        self.owner_pid = os.getpid()
+
+    @property
+    def held(self) -> bool:
+        return self._fd is not None
+
+    def acquire(self) -> bool:
+        if self._fd is not None:
+            return True
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            return self._acquire_windows()
+        return self._acquire_posix()
+
+    def release(self) -> None:
+        fd, self._fd = self._fd, None
+        if fd is None:
+            return
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+    def __enter__(self):
+        if not self.acquire():
+            raise RuntimeError(f"another benchmark holds {self.path}")
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
+        return False
+
+    def _write_owner(self, fd: int) -> None:
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        os.write(fd, f"{self.owner_pid} {utc()}\n".encode("utf-8"))
+        os.fsync(fd)
+
+    def _acquire_windows(self) -> bool:
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        generic_read = 0x80000000
+        generic_write = 0x40000000
+        file_share_none = 0
+        open_always = 4
+        file_attribute_normal = 0x80
+        invalid_handle = ctypes.c_void_p(-1).value
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file_w = k32.CreateFileW
+        create_file_w.argtypes = [
+            wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+            wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+        ]
+        create_file_w.restype = wintypes.HANDLE
+        close_handle = k32.CloseHandle
+        close_handle.argtypes = [wintypes.HANDLE]
+        close_handle.restype = wintypes.BOOL
+
+        k32.SetLastError(0)
+        handle = create_file_w(
+            str(self.path),
+            generic_read | generic_write,
+            file_share_none,
+            None,
+            open_always,
+            file_attribute_normal,
+            None,
+        )
+        hid = int(handle) if handle is not None else invalid_handle
+        if handle is None or hid in (invalid_handle, -1):
+            return False
+        try:
+            fd = msvcrt.open_osfhandle(hid, os.O_RDWR)
+        except OSError:
+            close_handle(handle)
+            return False
+        try:
+            self._write_owner(fd)
+        except OSError:
+            os.close(fd)
+            return False
+        self._fd = fd
+        return True
+
+    def _acquire_posix(self) -> bool:
+        fd = os.open(str(self.path), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (OSError, BlockingIOError):
+            os.close(fd)
+            return False
+        try:
+            self._write_owner(fd)
+        except OSError:
+            os.close(fd)
+            return False
+        self._fd = fd
+        return True
+
+
+def _git(repo: Path, args: list[str]) -> tuple[int, str]:
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return 1, ""
+    return proc.returncode, proc.stdout
+
+
+def collect_candidate_identity(repo: Path, manifest_path: Path, models) -> dict:
+    """Exact candidate identity: HEAD bytes, dirty tree contents, effective models.
+
+    A dirty boolean alone is not identity. A failed git command does not imply a
+    clean candidate — identity_uncertain is set and worktree_dirty is True.
+    """
+    head_rc, head_out = _git(repo, ["rev-parse", "HEAD"])
+    status_rc, status_out = _git(repo, ["status", "--porcelain"])
+    git_head_ok = head_rc == 0 and bool(head_out.strip())
+    git_status_ok = status_rc == 0
+    porcelain = status_out if git_status_ok else ""
+    dirty = True if not git_status_ok else bool(porcelain.strip())
+    manifest_bytes = manifest_path.read_bytes()
+    status_sha = sha(porcelain) if git_status_ok else None
+    dirty_paths = []
+    if git_status_ok:
+        for line in porcelain.splitlines():
+            if line.strip():
+                dirty_paths.append(line[3:] if len(line) >= 3 else line.strip())
+    return {
+        "git_head": head_out.strip() if git_head_ok else None,
+        "git_head_ok": git_head_ok,
+        "worktree_dirty": dirty,
+        "git_status_ok": git_status_ok,
+        "worktree_status_sha256": status_sha,
+        "dirty_paths": dirty_paths if git_status_ok else None,
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "models": models,
+        "identity_uncertain": not (git_head_ok and git_status_ok),
+    }
+
+
+RESUME_IDENTITY_KEYS = (
+    "dataset_sha256", "sources_sha256", "harness_sha256", "protocol_sha256",
+    "candidate_sha", "worktree_status_sha256", "manifest_sha256",
+    "runs_per_cell", "protocol",
+)
+
+
+def load_existing_output(out_path: Path) -> tuple[dict | None, set, str | None]:
+    """Parse an existing jsonl. Returns (env, cells, error_reason)."""
+    try:
+        text = out_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, set(), f"resume refused: cannot read output ({exc})"
+    if not text.strip():
+        return None, set(), "resume refused: existing output is empty"
+    env = None
+    cells: set[tuple[str, str, int]] = set()
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            return None, set(), f"resume refused: malformed JSON on line {lineno}"
+        if not isinstance(rec, dict):
+            return None, set(), f"resume refused: non-object record on line {lineno}"
+        kind = rec.get("record_kind")
+        if kind == "environment":
+            env = rec
+        elif kind == "run":
+            try:
+                cells.add((rec["task_id"], rec["condition"], int(rec["run_index"])))
+            except (KeyError, TypeError, ValueError):
+                return None, set(), f"resume refused: incomplete run record on line {lineno}"
+        elif kind == "aborted":
+            return None, set(), "resume refused: prior run aborted; use a new --out path"
+        else:
+            return None, set(), f"resume refused: unknown record_kind on line {lineno}"
+    if env is None:
+        return None, set(), "resume refused: no environment record"
+    return env, cells, None
+
+
+def resume_incompatible(existing_env: dict, env: dict, conditions: list[str]) -> str | None:
+    for key in RESUME_IDENTITY_KEYS:
+        if existing_env.get(key) != env.get(key):
+            return f"resume refused: {key} changed"
+    if list(existing_env.get("conditions") or []) != conditions:
+        return "resume refused: conditions changed"
+    if existing_env.get("models") != env.get("models"):
+        return "resume refused: models changed"
+    if existing_env.get("runtime_options") != env.get("runtime_options"):
+        return "resume refused: runtime_options changed"
+    return None
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--runs", type=int, default=3,
@@ -420,50 +637,39 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     out_path = Path(args.out).resolve()
+    lock_path = out_path.with_name(out_path.name + ".lock")
+    lock = OutputLock(lock_path)
+    if not lock.acquire():
+        print(f"another benchmark holds {lock_path}", file=sys.stderr)
+        return 2
+
+    try:
+        return _run_with_lock(args, out_path, created_empty_holder := [])
+    finally:
+        if created_empty_holder:
+            leftover = created_empty_holder[0]
+            try:
+                if leftover.exists() and leftover.stat().st_size == 0:
+                    leftover.unlink()
+            except OSError:
+                pass
+        lock.release()
+
+
+def _run_with_lock(args, out_path: Path, created_empty_holder: list) -> int:
     if out_path.exists() and not args.resume:
         print(f"refusing to overwrite existing output: {out_path}", file=sys.stderr)
         print("pass --resume for a compatible continuation, or a new --out path",
               file=sys.stderr)
         return 2
 
-    dataset = json.loads((HERE / "dataset.json").read_text(encoding="utf-8"))
-    tasks = dataset["tasks"]
-    if args.tasks:
-        wanted = {t.strip() for t in args.tasks.split(",")}
-        tasks = [t for t in tasks if t["id"] in wanted]
-    conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
-    partial = bool(args.tasks) or len(conditions) != len(CONDITIONS) or args.runs < 3
-
-    manifest = json.loads((SOVEREIGN / "SYSTEM_MANIFEST.json").read_text(encoding="utf-8"))
-    models = manifest["MODELS"]
-    runtime = manifest.get("RUNTIME") or {}
-    runtime_options = {
-        "num_ctx": runtime["CONTEXT_WINDOW"],
-        "num_predict": runtime["MAX_OUTPUT_TOKENS"],
-    }
-
-    from sovereign_product.model_client import OllamaClient
-    client = OllamaClient()
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    run_id = args.run_id or ("run-" + uuid.uuid4().hex[:12])
-    lock_path = out_path.with_name(out_path.name + ".lock")
-    existing_cells: set[tuple[str, str, int]] = set()
     existing_env = None
+    existing_cells: set[tuple[str, str, int]] = set()
     if out_path.exists():
-        if not args.resume:
-            print(f"refusing to overwrite existing output: {out_path}", file=sys.stderr)
-            print("pass --resume for a compatible continuation, or a new --out path",
-                  file=sys.stderr)
+        existing_env, existing_cells, err = load_existing_output(out_path)
+        if err:
+            print(err, file=sys.stderr)
             return 2
-        for line in out_path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            rec = json.loads(line)
-            if rec.get("record_kind") == "environment":
-                existing_env = rec
-            elif rec.get("record_kind") == "run":
-                existing_cells.add((rec["task_id"], rec["condition"], rec["run_index"]))
     else:
         try:
             fd = os.open(str(out_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -471,22 +677,36 @@ def main(argv=None) -> int:
         except FileExistsError:
             print(f"refusing to race on existing output: {out_path}", file=sys.stderr)
             return 2
-    if lock_path.exists():
-        print(f"another benchmark holds {lock_path}", file=sys.stderr)
-        return 2
-    try:
-        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        try:
-            os.write(fd, f"{os.getpid()} {utc()}\n".encode("utf-8"))
-        finally:
-            os.close(fd)
-    except FileExistsError:
-        print(f"another benchmark holds {lock_path}", file=sys.stderr)
-        return 2
-    artifact_root = out_path.parent / run_id / "artifacts"
+        created_empty_holder.append(out_path)
 
-    candidate = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
-                               capture_output=True, text=True).stdout.strip()
+    try:
+        dataset = json.loads((HERE / "dataset.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"setup failed: dataset ({exc})", file=sys.stderr)
+        return 2
+    tasks = dataset["tasks"]
+    if args.tasks:
+        wanted = {t.strip() for t in args.tasks.split(",")}
+        tasks = [t for t in tasks if t["id"] in wanted]
+    conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
+    partial = bool(args.tasks) or len(conditions) != len(CONDITIONS) or args.runs < 3
+
+    manifest_path = SOVEREIGN / "SYSTEM_MANIFEST.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        models = manifest["MODELS"]
+        runtime = manifest.get("RUNTIME") or {}
+        runtime_options = {
+            "num_ctx": runtime["CONTEXT_WINDOW"],
+            "num_predict": runtime["MAX_OUTPUT_TOKENS"],
+        }
+    except (OSError, json.JSONDecodeError, KeyError) as exc:
+        print(f"setup failed: manifest ({exc})", file=sys.stderr)
+        return 2
+
+    identity = collect_candidate_identity(REPO, manifest_path, models)
+    candidate = identity["git_head"] if identity["git_head_ok"] else "UNKNOWN"
+    run_id = args.run_id or ("run-" + uuid.uuid4().hex[:12])
     tags = sorted({models[k] for k in
                    ("PRIMARY_REASONER", "SYNTHESIZER", "CRITIC", "ADVERSARIAL_CHALLENGER")})
 
@@ -497,6 +717,13 @@ def main(argv=None) -> int:
         "partial": partial,
         "utc": utc(),
         "candidate_sha": candidate,
+        "worktree_dirty": identity["worktree_dirty"],
+        "worktree_status_sha256": identity["worktree_status_sha256"],
+        "manifest_sha256": identity["manifest_sha256"],
+        "identity_uncertain": identity["identity_uncertain"],
+        "dirty_paths": identity["dirty_paths"],
+        "git_head_ok": identity["git_head_ok"],
+        "git_status_ok": identity["git_status_ok"],
         "dataset_sha256": dataset["dataset_sha256"],
         "sources_sha256": dataset["sources_sha256"],
         "harness_sha256": sha(Path(__file__).read_text(encoding="utf-8")),
@@ -520,103 +747,103 @@ def main(argv=None) -> int:
                          "limitation rather than eliminated"),
         "seed": args.seed,
     }
-    try:
-        if existing_env is not None:
-            for key in ("dataset_sha256", "sources_sha256", "harness_sha256", "protocol_sha256",
-                        "candidate_sha", "runs_per_cell"):
-                if existing_env.get(key) != env.get(key):
-                    print(f"resume refused: {key} changed", file=sys.stderr)
-                    return 2
-            if list(existing_env.get("conditions") or []) != conditions:
-                print("resume refused: conditions changed", file=sys.stderr)
-                return 2
-            run_id = existing_env.get("run_id") or run_id
-            env["run_id"] = run_id
-            artifact_root = out_path.parent / run_id / "artifacts"
-        else:
-            with out_path.open("w", encoding="utf-8", newline="\n") as fh:
-                fh.write(json.dumps(env) + "\n")
-        artifact_root.mkdir(parents=True, exist_ok=True)
-        print(json.dumps({k: env[k] for k in
-                          ("run_id", "candidate_sha", "dataset_sha256", "task_count",
-                           "runs_per_cell", "partial")}, indent=2))
 
-        rng = random.Random(args.seed)
-        total = len(tasks) * len(conditions) * args.runs
-        done = 0
-        for run_index in range(args.runs):
-            for task in tasks:
-                order = list(conditions)
-                rng.shuffle(order)
-                for condition in order:
-                    done += 1
-                    cell = (task["id"], condition, run_index)
-                    if cell in existing_cells:
-                        print(f"[{done:>4}/{total}] skip {task['id']:<6} {condition:<14} "
-                              f"(already recorded)")
-                        continue
-                    session = session_for(run_id, task["id"], condition, run_index)
-                    packet = build_packet(session, dataset, task)
-                    started = time.monotonic()
-                    record = {
-                        "record_kind": "run",
-                        "protocol": "SWS-BENCH-02",
-                        "run_id": run_id,
-                        "partial": partial,
-                        "utc": utc(),
-                        "run_index": run_index,
-                        "task_id": task["id"],
-                        "category": task["category"],
-                        "condition": condition,
-                        "order_position": order.index(condition),
-                        "candidate_sha": candidate,
-                        "dataset_sha256": dataset["dataset_sha256"],
-                    }
-                    answer, meta, harvested_error = "", {}, None
-                    error = None
-                    with VramSampler() as vram:
-                        try:
-                            harvested = run_condition(
-                                condition, task, dataset, packet, models, client,
-                                artifact_root, args.timeout, session, runtime_options)
-                            if len(harvested) == 3:
-                                answer, meta, harvested_error = harvested
-                            else:
-                                answer, meta = harvested
-                        except Exception as exc:  # noqa: BLE001 - recorded, never dropped
-                            error = f"{type(exc).__name__}: {exc}"
-                        record["peak_vram_mib"] = vram.peak
-                        record["vram_method"] = (
-                            "nvidia-smi memory.used sampled every 500ms; whole-device, sampled not "
-                            "integrated, so a peak between samples is missed"
-                            if vram.available else "unavailable on this host")
-                    if error is None:
-                        error = harvested_error
-                    record["elapsed_s"] = round(time.monotonic() - started, 3)
-                    record["error"] = error
-                    record.update(meta)
-                    record["grade"] = grade(task, answer, dataset, packet)
-                    record["answer_sha256"] = sha(answer) if answer else None
-                    record["answer"] = answer[:4000]
+    if existing_env is not None:
+        reason = resume_incompatible(existing_env, env, conditions)
+        if reason:
+            print(reason, file=sys.stderr)
+            return 2
+        run_id = existing_env.get("run_id") or run_id
+        env["run_id"] = run_id
+    else:
+        with out_path.open("w", encoding="utf-8", newline="\n") as fh:
+            fh.write(json.dumps(env) + "\n")
+        created_empty_holder.clear()
 
-                    with out_path.open("a", encoding="utf-8", newline="\n") as fh:
-                        fh.write(json.dumps(record) + "\n")
+    artifact_root = out_path.parent / run_id / "artifacts"
+    artifact_root.mkdir(parents=True, exist_ok=True)
 
-                    verdict = "ERR" if error else ("OK " if record["grade"]["correct"] else "no ")
-                    print(f"[{done:>4}/{total}] {verdict} {task['id']:<6} {condition:<14} "
-                          f"{record['elapsed_s']:>7.1f}s"
-                          + (f"  {error[:80]}" if error else ""))
+    from sovereign_product.model_client import OllamaClient
+    client = OllamaClient()
 
-        print(f"\nwrote {out_path}")
-        if partial:
-            print("PARTIAL RUN: this does not satisfy SWS-BENCH-02 and is labelled so in every record.")
-        return 0
-    finally:
-        try:
-            if lock_path.exists():
-                lock_path.unlink()
-        except OSError:
-            pass
+    print(json.dumps({k: env[k] for k in
+                      ("run_id", "candidate_sha", "worktree_dirty", "manifest_sha256",
+                       "dataset_sha256", "task_count", "runs_per_cell", "partial",
+                       "identity_uncertain")}, indent=2))
+
+    rng = random.Random(args.seed)
+    total = len(tasks) * len(conditions) * args.runs
+    done = 0
+    for run_index in range(args.runs):
+        for task in tasks:
+            order = list(conditions)
+            rng.shuffle(order)
+            for condition in order:
+                done += 1
+                cell = (task["id"], condition, run_index)
+                if cell in existing_cells:
+                    print(f"[{done:>4}/{total}] skip {task['id']:<6} {condition:<14} "
+                          f"(already recorded)")
+                    continue
+                session = session_for(run_id, task["id"], condition, run_index)
+                packet = build_packet(session, dataset, task)
+                started = time.monotonic()
+                record = {
+                    "record_kind": "run",
+                    "protocol": "SWS-BENCH-02",
+                    "run_id": run_id,
+                    "partial": partial,
+                    "utc": utc(),
+                    "run_index": run_index,
+                    "task_id": task["id"],
+                    "category": task["category"],
+                    "condition": condition,
+                    "order_position": order.index(condition),
+                    "candidate_sha": candidate,
+                    "worktree_dirty": identity["worktree_dirty"],
+                    "worktree_status_sha256": identity["worktree_status_sha256"],
+                    "manifest_sha256": identity["manifest_sha256"],
+                    "dataset_sha256": dataset["dataset_sha256"],
+                }
+                answer, meta, harvested_error = "", {}, None
+                error = None
+                with VramSampler() as vram:
+                    try:
+                        harvested = run_condition(
+                            condition, task, dataset, packet, models, client,
+                            artifact_root, args.timeout, session, runtime_options)
+                        if len(harvested) == 3:
+                            answer, meta, harvested_error = harvested
+                        else:
+                            answer, meta = harvested
+                    except Exception as exc:  # noqa: BLE001 - recorded, never dropped
+                        error = f"{type(exc).__name__}: {exc}"
+                    record["peak_vram_mib"] = vram.peak
+                    record["vram_method"] = (
+                        "nvidia-smi memory.used sampled every 500ms; whole-device, sampled not "
+                        "integrated, so a peak between samples is missed"
+                        if vram.available else "unavailable on this host")
+                if error is None:
+                    error = harvested_error
+                record["elapsed_s"] = round(time.monotonic() - started, 3)
+                record["error"] = error
+                record.update(meta)
+                record["grade"] = grade(task, answer, dataset, packet)
+                record["answer_sha256"] = sha(answer) if answer else None
+                record["answer"] = answer[:4000]
+
+                with out_path.open("a", encoding="utf-8", newline="\n") as fh:
+                    fh.write(json.dumps(record) + "\n")
+
+                verdict = "ERR" if error else ("OK " if record["grade"]["correct"] else "no ")
+                print(f"[{done:>4}/{total}] {verdict} {task['id']:<6} {condition:<14} "
+                      f"{record['elapsed_s']:>7.1f}s"
+                      + (f"  {error[:80]}" if error else ""))
+
+    print(f"\nwrote {out_path}")
+    if partial:
+        print("PARTIAL RUN: this does not satisfy SWS-BENCH-02 and is labelled so in every record.")
+    return 0
 
 
 def _gpu_name():

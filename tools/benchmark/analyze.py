@@ -50,11 +50,12 @@ def load(path: Path):
             cells.add(cell)
     if len(shas) > 1:
         raise ValueError("mixed candidate_sha values; file is not a single experiment: " + repr(shas))
-    if env and env.get("candidate_sha") and shas and env["candidate_sha"] not in shas and shas:
-        # env sha with no matching runs is allowed only if runs are empty
-        pass
     if env and shas and env.get("candidate_sha") and env["candidate_sha"] not in shas:
         raise ValueError("environment candidate_sha does not match run rows")
+    env_status = (env or {}).get("worktree_status_sha256")
+    run_status = {r.get("worktree_status_sha256") for r in runs if r.get("worktree_status_sha256")}
+    if env_status and run_status and env_status not in run_status:
+        raise ValueError("environment worktree_status_sha256 does not match run rows")
     if dupes:
         raise ValueError("duplicate task/condition/repeat cells: " + repr(dupes[:8]))
     return env, runs
