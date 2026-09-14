@@ -217,7 +217,14 @@ if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
         foreach ($row in $rows) {
             $parts = @($row -split ',' | ForEach-Object { $_.Trim() })
             if ($parts.Count -lt 3) { continue }
-            $used = [int]$parts[1]; $total = [int]$parts[2]
+            # F-004: memory.used/total can be "[N/A]" (probe E) on some GPUs; `[int]"[N/A]"` throws
+            # and terminated this ADVISORY check as a launcher crash. Parse defensively and report
+            # the row as unreadable rather than dying.
+            $used = 0; $total = 0
+            if (-not [int]::TryParse($parts[1], [ref]$used) -or -not [int]::TryParse($parts[2], [ref]$total)) {
+                Line "vram gpu $($parts[0])" 'UNREADABLE - values not numeric ([N/A])' Yellow
+                continue
+            }
             $pct = if ($total -gt 0) { [math]::Round(100 * $used / $total) } else { 0 }
             $col = if ($pct -ge 60) { 'Yellow' } else { 'Green' }
             Line "vram gpu $($parts[0])" "$used MiB of $total MiB ($pct%)" $col
@@ -325,6 +332,12 @@ $gracefulStopTimeoutMs = 30000
 
 $url = "http://127.0.0.1:$Port"
 $env:PYTHONDONTWRITEBYTECODE = '1'
+# F-006: a per-launch nonce, inherited by the shell we start and echoed back by /api/shell-info.
+# Readiness then confirms it is THIS process answering, not another SWS shell (a second
+# checkout/install) that grabbed the port between preflight and bind - which the version-prefix
+# check alone would have accepted while our own process was still coming up or had died.
+$launchNonce = [Guid]::NewGuid().ToString('N')
+$env:SWS_SHELL_NONCE = $launchNonce
 Write-Host "  Starting on $url. Ctrl+C to stop." -ForegroundColor Cyan
 Write-Host "  Modules run inside the shell's Job Object, so they stop with it." -ForegroundColor DarkGray
 Write-Host ""
@@ -348,10 +361,18 @@ try {
         try {
             $info = Invoke-RestMethod -Uri "$url/api/shell-info" -TimeoutSec 2 -ErrorAction Stop
             if ($info -and $info.version -and ([string]$info.version).StartsWith('SWS-UI-001')) {
-                $ready = $true
-                break
+                # F-006: bind to OUR launch via the nonce. A shell that echoes our nonce is the one
+                # we started; one with the right version but a different (or absent) nonce is a
+                # different SWS shell holding the port, and readiness must not accept it as ours.
+                if ([string]$info.nonce -eq $launchNonce) {
+                    $ready = $true
+                    break
+                }
+                $identityProblem = "the service on port $Port is a different SWS shell (nonce mismatch); this launcher's process did not bind the port"
             }
-            $identityProblem = "the service on port $Port is not this shell (version '$($info.version)')"
+            else {
+                $identityProblem = "the service on port $Port is not this shell (version '$($info.version)')"
+            }
         }
         catch { }
         Start-Sleep -Milliseconds 250
