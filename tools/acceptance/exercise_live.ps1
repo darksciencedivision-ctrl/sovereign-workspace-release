@@ -15,6 +15,8 @@ $utf8NoBom = [Text.UTF8Encoding]::new($false)
 $installRoot = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $stateRoot = [IO.Path]::GetFullPath($StateRoot).TrimEnd('\')
 $expectedSovRoot = Get-ExpectedSovereignRoot $installRoot
+$prevStateRoot = $env:SOVEREIGN_WORKSPACE_STATE
+$prevPythonPath = $env:PYTHONPATH
 $env:SOVEREIGN_WORKSPACE_STATE = $stateRoot
 $env:PYTHONPATH = ''
 $query = 'Using only the supplied project evidence, state which model is configured as the primary reasoner and where runtime state is kept. Cite each fact.'
@@ -32,11 +34,29 @@ function Invoke-Db {
     param([string]$Py, [string]$Code, [string[]]$PyArgs)
     $tmpPy = Join-Path $env:TEMP ('sws-accept-db-' + [Guid]::NewGuid().ToString('N') + '.py')
     [IO.File]::WriteAllText($tmpPy, $Code, $utf8NoBom)
-    $out = & $Py $tmpPy @PyArgs 2>&1 | Out-String
-    $code = $LASTEXITCODE
-    Remove-Item -LiteralPath $tmpPy -Force -ErrorAction SilentlyContinue
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & $Py $tmpPy @PyArgs | Out-String
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prevEap
+        Remove-Item -LiteralPath $tmpPy -Force -ErrorAction SilentlyContinue
+    }
     if ($code -ne 0) { throw "database probe exited $code : $out" }
     return $out
+}
+
+function Get-PrimaryReasoner {
+    param([string]$Root)
+    $manifestPath = Join-Path $Root 'modules\sovereign\SYSTEM_MANIFEST.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "SYSTEM_MANIFEST.json missing at $manifestPath"
+    }
+    $doc = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $name = [string]$doc.MODELS.PRIMARY_REASONER
+    if (-not $name) { throw "SYSTEM_MANIFEST MODELS.PRIMARY_REASONER is empty" }
+    return $name
 }
 
 function Wait-Job {
@@ -101,6 +121,7 @@ try {
         -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $launcher,
                         '-Port', "$ShellPort", '-NoBrowser')
+    $null = $proc.Handle
     $launcherPid = [int]$proc.Id
     Add-OwnedProcessInstance -Tracker $owned -ProcessId $launcherPid
     $cimLaunch = Get-CimInstance Win32_Process -Filter "ProcessId=$launcherPid" -ErrorAction SilentlyContinue
@@ -163,9 +184,10 @@ try {
             Write-Output "workflow job $jobId ended $($job.Json.status) : $($job.Text)"
             exit 1
         }
+        $primary = Get-PrimaryReasoner $installRoot
         $answer = [string]$job.Json.message.content
         if (-not $answer) { Write-Output "completed job $jobId has no message.content"; exit 1 }
-        if ($answer -notmatch 'qwen2\.5:3b-instruct') { Write-Output "answer missing primary reasoner: $answer"; exit 1 }
+        if ($answer -notlike "*${primary}*") { Write-Output "answer missing primary reasoner ${primary}: $answer"; exit 1 }
         if ($answer -notmatch 'SovereignWorkspace') { Write-Output "answer missing state location: $answer"; exit 1 }
         if ($answer -notmatch '\[source:[^\]]+\]') { Write-Output "answer missing citations: $answer"; exit 1 }
         if (-not (Test-Path -LiteralPath $db)) { Write-Output "sovereign.db missing at $db"; exit 1 }
@@ -175,7 +197,7 @@ try {
         $probe = @"
 import hashlib, json, re, sqlite3, sys
 from pathlib import Path
-db_path, job_id, pointer, state_dir = sys.argv[1:5]
+db_path, job_id, pointer, state_dir, primary = sys.argv[1:6]
 c = sqlite3.connect(db_path)
 chk = c.execute('PRAGMA integrity_check').fetchone()[0]
 if chk != 'ok':
@@ -187,7 +209,7 @@ if not row:
 if row[1] != 'accepted':
     raise SystemExit('message status ' + row[1])
 content = row[0]
-if 'qwen2.5:3b-instruct' not in content or 'SovereignWorkspace' not in content:
+if primary not in content or 'SovereignWorkspace' not in content:
     raise SystemExit('persisted answer missing required facts')
 job_ptr = c.execute('select evidence_pointer from jobs where job_id=?', (job_id,)).fetchone()
 if not job_ptr or not job_ptr[0]:
@@ -211,7 +233,7 @@ recorded = doc.get('packet_sha256')
 if not recorded or not re.fullmatch(r'[0-9a-f]{64}', str(recorded)):
     raise SystemExit('evidence.json missing packet_sha256')
 text = doc.get('text') or ''
-if 'qwen2.5:3b-instruct' not in text:
+if primary not in text:
     raise SystemExit('packet text missing primary reasoner')
 if 'SovereignWorkspace' not in text:
     raise SystemExit('packet text missing state location')
@@ -240,7 +262,7 @@ print('evidence', path.name)
 print('file_sha256', file_sha)
 print('packet', recorded)
 "@
-        $dbOut = Invoke-Db $py $probe @($db, $jobId, $pointer, $stateDir)
+        $dbOut = Invoke-Db $py $probe @($db, $jobId, $pointer, $stateDir, $primary)
         Write-Output "workflow job=$jobId pointer=$pointer db=$dbOut"
         exit 0
     }
@@ -293,18 +315,22 @@ print('packet', recorded)
         $msg = Invoke-Json -Method POST -Url "$sov/v1/message" -Body $body
         $jobId = $msg.Json.job_id
         if (-not $jobId) { $jobId = $msg.Json.job.job_id }
-        $checkpoint = Wait-Job -Base $sov -JobId $jobId -Seconds 180 -Terminal @('completed','rejected','failed','cancelled','interrupted')
-        if ([string]$checkpoint.Json.status -ne 'completed') {
-            Write-Output "checkpoint job did not complete: $($checkpoint.Json.status)"
-            exit 1
-        }
-        if (-not (Test-Path -LiteralPath $db)) { Write-Output "no db at checkpoint"; exit 1 }
         $pidToKill = $sovOwnerPid
         $killRec = Get-CimInstance Win32_Process -Filter "ProcessId=$pidToKill" -ErrorAction SilentlyContinue
         if ($killRec) {
             Stop-Process -Id $pidToKill -Force
         }
-        Start-Sleep -Seconds 2
+        $noticed = $false
+        $noticeDeadline = [datetime]::UtcNow.AddSeconds(20)
+        while ([datetime]::UtcNow -lt $noticeDeadline) {
+            $stCrash = Invoke-Json -Method GET -Url "$origin/api/state"
+            $modState = [string]$stCrash.Json.modules.sovereign.state
+            if ($modState -and $modState -ne 'READY') { $noticed = $true; break }
+            Start-Sleep -Milliseconds 250
+        }
+        if (-not $noticed) {
+            Write-Output 'shell still reported READY after sovereign crash; not forcing Start'
+        }
         $start2 = Invoke-Json -Method POST -Url "$origin/api/start" -Body '{"id":"sovereign"}' -Headers $csrf
         if ($start2.Code -ne 200) { Write-Output "restart failed $($start2.Code) $($start2.Text)"; exit 1 }
         $up = $false
@@ -322,18 +348,13 @@ c = sqlite3.connect(sys.argv[1])
 chk = c.execute('PRAGMA integrity_check').fetchone()[0]
 if chk != 'ok':
     raise SystemExit('integrity_check=' + chk)
-job_id = sys.argv[2]
-row = c.execute('select status from messages where role=? and job_id=?',
-                ('sovereign', job_id)).fetchone()
-if not row:
-    raise SystemExit('checkpoint message missing')
 stuck = c.execute("select count(*) from jobs where status='running'").fetchone()[0]
 if stuck:
     raise SystemExit('stuck running jobs=' + str(stuck))
 print('ok')
-print('checkpoint', job_id, row[0])
+print('in-flight-crash-recover')
 "@
-        $dbOut = Invoke-Db $py $probe @($db, $jobId)
+        $dbOut = Invoke-Db $py $probe @($db)
         Write-Output "crash-recover pid=$pidToKill db=$dbOut"
         exit 0
     }
@@ -351,6 +372,8 @@ catch {
     exit 1
 }
 finally {
+    if ($null -eq $prevStateRoot) { Remove-Item Env:SOVEREIGN_WORKSPACE_STATE -ErrorAction SilentlyContinue } else { $env:SOVEREIGN_WORKSPACE_STATE = $prevStateRoot }
+    if ($null -eq $prevPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue } else { $env:PYTHONPATH = $prevPythonPath }
     Stop-OwnedProcessTree -Tracker $owned -LauncherPid $launcherPid -LauncherCreated $launcherCreated
     Start-Sleep -Milliseconds 400
     try {

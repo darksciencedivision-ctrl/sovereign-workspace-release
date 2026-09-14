@@ -194,12 +194,16 @@ def _extract_cli_root(argv: list[str]) -> Path | None:
 
 
 def _search_for_marker_root() -> Path | None:
-    anchors = {
+    anchors = (
         Path.cwd().resolve(),
-        Path(__file__).resolve(),
         Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0] else Path.cwd().resolve(),
-    }
+        Path(__file__).resolve(),
+    )
+    seen: set[Path] = set()
     for anchor in anchors:
+        if anchor in seen:
+            continue
+        seen.add(anchor)
         base = anchor if anchor.is_dir() else anchor.parent
         for candidate in (base, *base.parents):
             marker_path = candidate / ROOT_MARKER_NAME

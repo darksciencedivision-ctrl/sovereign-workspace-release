@@ -331,6 +331,8 @@ function Get-SafeExitCode {
 $gracefulStopTimeoutMs = 30000
 
 $url = "http://127.0.0.1:$Port"
+$prevDontWriteBytecode = $env:PYTHONDONTWRITEBYTECODE
+$prevShellNonce = $env:SWS_SHELL_NONCE
 $env:PYTHONDONTWRITEBYTECODE = '1'
 # F-006: a per-launch nonce, inherited by the shell we start and echoed back by /api/shell-info.
 # Readiness then confirms it is THIS process answering, not another SWS shell (a second
@@ -427,5 +429,7 @@ finally {
     }
     Write-Host "  Stopped (exit $script:launcherExit)." -ForegroundColor Cyan
     Write-Host ""
+    if ($null -eq $prevDontWriteBytecode) { Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue } else { $env:PYTHONDONTWRITEBYTECODE = $prevDontWriteBytecode }
+    if ($null -eq $prevShellNonce) { Remove-Item Env:SWS_SHELL_NONCE -ErrorAction SilentlyContinue } else { $env:SWS_SHELL_NONCE = $prevShellNonce }
     exit $script:launcherExit
 }

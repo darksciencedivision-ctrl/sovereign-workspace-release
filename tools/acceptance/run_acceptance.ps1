@@ -154,6 +154,7 @@ function Invoke-Child {
     return @{ ExitCode = [int]$p.ExitCode; Log = $out }
 }
 
+$prevStateRoot = $env:SOVEREIGN_WORKSPACE_STATE
 $env:SOVEREIGN_WORKSPACE_STATE = $stateRoot
 $release = Join-Path $repoRoot 'tools\release'
 
@@ -281,6 +282,15 @@ if ($Steps -contains '6') {
         $reason = "missing $pyLive"
     }
     else {
+        $manifestPath = Join-Path $installRoot 'modules\sovereign\SYSTEM_MANIFEST.json'
+        $primaryReasoner = $null
+        if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+            $primaryReasoner = [string]((Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json).MODELS.PRIMARY_REASONER)
+        }
+        if (-not $primaryReasoner) {
+            $reason = "SYSTEM_MANIFEST MODELS.PRIMARY_REASONER missing at $manifestPath"
+        }
+        else {
         $capturePy = Join-Path $env:TEMP ('sws-accept-cap-' + [Guid]::NewGuid().ToString('N') + '.py')
         [IO.File]::WriteAllText($capturePy, @'
 import hashlib, sqlite3, sys
@@ -288,10 +298,12 @@ c = sqlite3.connect(sys.argv[1])
 chk = c.execute("PRAGMA integrity_check").fetchone()[0]
 if chk != "ok":
     raise SystemExit("integrity_check=" + chk)
+primary = sys.argv[2]
 row = c.execute(
     "select job_id, content from messages where role='sovereign' and status='accepted' "
-    "and content like '%qwen2.5:3b-instruct%' and content like '%SovereignWorkspace%' "
-    "order by created_at desc"
+    "and content like ? and content like ? "
+    "order by created_at desc",
+    ("%" + primary + "%", "%SovereignWorkspace%"),
 ).fetchone()
 if not row:
     raise SystemExit("no accepted useful-workflow answer in live state")
@@ -300,7 +312,7 @@ print(hashlib.sha256(row[1].encode("utf-8")).hexdigest())
 '@, $utf8NoBom)
         $prevEap = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
-        $cap = & $pyLive $capturePy $dbLive 2>&1 | Out-String
+        $cap = & $pyLive $capturePy $dbLive $primaryReasoner | Out-String
         $capCode = if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
         $ErrorActionPreference = $prevEap
         Remove-Item -LiteralPath $capturePy -Force -ErrorAction SilentlyContinue
@@ -348,13 +360,13 @@ if row[1] != "accepted":
 got = hashlib.sha256(row[0].encode("utf-8")).hexdigest()
 if got != expect:
     raise SystemExit("restored answer hash %s != %s" % (got, expect))
-if "qwen2.5:3b-instruct" not in row[0] or "SovereignWorkspace" not in row[0]:
+if sys.argv[4] not in row[0] or "SovereignWorkspace" not in row[0]:
     raise SystemExit("restored answer missing required facts")
 print("ok")
 '@, $utf8NoBom)
                 $prevEap2 = $ErrorActionPreference
                 $ErrorActionPreference = 'Continue'
-                $chkOut = & $pyLive $checkPy $restoredDb $liveJob $liveHash 2>&1 | Out-String
+                $chkOut = & $pyLive $checkPy $restoredDb $liveJob $liveHash $primaryReasoner | Out-String
                 $chkCode = if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
                 $ErrorActionPreference = $prevEap2
                 Remove-Item -LiteralPath $checkPy -Force -ErrorAction SilentlyContinue
@@ -363,6 +375,7 @@ print("ok")
                 }
                 else { $ok = $true }
             }
+        }
         }
     }
     Write-Record '6' 'back up, verify, restore meaningful application state' `
@@ -572,6 +585,7 @@ if ($Environment -ne 'CLEAN') {
     Write-Host "  Gate D requires a fresh Windows VM or clean host." -ForegroundColor Yellow
     Write-Host ""
 }
+if ($null -eq $prevStateRoot) { Remove-Item Env:SOVEREIGN_WORKSPACE_STATE -ErrorAction SilentlyContinue } else { $env:SOVEREIGN_WORKSPACE_STATE = $prevStateRoot }
 $fails = @($records | Where-Object { $_.verdict -eq 'FAIL' })
 $blocked = @($records | Where-Object { $_.verdict -eq 'BLOCKED' })
 if ($fails.Count -gt 0) { exit 1 }

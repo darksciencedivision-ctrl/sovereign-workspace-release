@@ -527,7 +527,11 @@ def _pipe_reader(
 
 
 class DeepExecutor:
-    """Tracked subprocess adapter for the canonical multi-model engine."""
+    """Legacy subprocess adapter for cycle_runner_v3. Not on the product route.
+
+    Product DEEP traffic uses SemanticDeepExecutor. This class remains for
+    bounded drain tests (R34) and must not be wired as the default executor.
+    """
 
     def __init__(
         self,

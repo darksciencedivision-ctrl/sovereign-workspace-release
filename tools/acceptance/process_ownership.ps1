@@ -280,7 +280,7 @@ function Test-SameProcessInstance {
     if ($ProcessId -le 0) { return $false }
     $live = Get-CimInstance Win32_Process -Filter "ProcessId=$ProcessId" -ErrorAction SilentlyContinue
     if ($null -eq $live) { return $false }
-    if ($null -eq $Created) { return $true }
+    if ($null -eq $Created) { return $false }
     return ($live.CreationDate -eq $Created)
 }
 
@@ -299,7 +299,11 @@ function Get-DescendantProcessRecords {
         if ($null -ne $proc) { $out.Add($proc) }
         $kids = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$id" -ErrorAction SilentlyContinue)
         foreach ($kid in $kids) {
-            if ($null -ne $kid) { $queue.Enqueue([int]$kid.ProcessId) }
+            if ($null -eq $kid) { continue }
+            if ($proc -and $proc.CreationDate -and $kid.CreationDate -and ($kid.CreationDate -lt $proc.CreationDate)) {
+                continue
+            }
+            $queue.Enqueue([int]$kid.ProcessId)
         }
     }
     return $out
@@ -350,8 +354,13 @@ function Stop-OwnedProcessTree {
     foreach ($rec in $remain) {
         $ownedId = [int]$rec.ProcessId
         $expect = $created[$ownedId]
-        if ($null -eq $expect -or $rec.CreationDate -eq $expect) {
-            try { Stop-Process -Id $ownedId -Force -ErrorAction SilentlyContinue } catch { }
+        if ($null -eq $expect) { continue }
+        if ($rec.CreationDate -ne $expect) { continue }
+        $parentCreated = $null
+        if ($rec.ParentProcessId -and $created.Contains([int]$rec.ParentProcessId)) {
+            $parentCreated = $created[[int]$rec.ParentProcessId]
         }
+        if ($parentCreated -and $rec.CreationDate -lt $parentCreated) { continue }
+        try { Stop-Process -Id $ownedId -Force -ErrorAction SilentlyContinue } catch { }
     }
 }

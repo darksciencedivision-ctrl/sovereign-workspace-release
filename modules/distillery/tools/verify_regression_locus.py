@@ -20,6 +20,7 @@ reproduce it cold.
 
 import hashlib
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -107,9 +108,18 @@ def verify() -> dict:
                 }
             )
 
+        argv = shlex.split(command, posix=(os.name != "nt"))
+        if not argv:
+            record["error"] = "recorded command is empty"
+            return record
+        env = {
+            key: value for key, value in os.environ.items()
+            if not any(tok in key.upper() for tok in
+                       ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL", "AUTH"))
+        }
+        env["PYTHONPYCACHEPREFIX"] = str(temp_parent / "pycache")
         completed = subprocess.run(
-            command, shell=True, cwd=str(worktree), capture_output=True, text=True,
-            env={**__import__("os").environ, "PYTHONPYCACHEPREFIX": str(temp_parent / "pycache")},
+            argv, shell=False, cwd=str(worktree), capture_output=True, text=True, env=env,
         )
         import re as _re
         lines = [line for line in completed.stdout.splitlines() if line.strip()]

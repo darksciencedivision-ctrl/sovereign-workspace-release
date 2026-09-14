@@ -360,3 +360,29 @@ class NoLaneCoversShippedBytes(unittest.TestCase):
             self.assertFalse(covered,
                              f"lane {lane!r} covers {len(covered)} shipped file(s), e.g. "
                              f"{covered[:3]}")
+
+
+class CredentialPatternTests(GateFixtureBase):
+    def test_detects_product_key_shapes(self):
+        body = (
+            "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123\n"
+            "sk-proj-abcdefghijklmnopqrstuvwxyz0123\n"
+            "hf_abcdefghijklmnopqrstuvwx\n"
+            "AIzaSyDabcdefghijklmnopqrstuv\n"
+            "npm_abcdefghijklmnopqrstuvwx\n"
+            "glpat-abcdefghijklmnopqrstuv\n"
+            "AccountKey=abcdefghijklmnopqrstuvwx+/==\n"
+        )
+        write(os.path.join(self.tmp, "secrets.txt"), body.encode("utf-8"))
+        res = self.scan()
+        rules = {h["rule"] for h in res["credential_hits"]}
+        for name in ("anthropic-key", "openai-proj-key", "huggingface-token",
+                     "google-api-key", "npm-token", "gitlab-pat", "azure-account-key"):
+            self.assertTrue(any(name in r for r in rules), (name, rules))
+
+    def test_unrelated_fixture_allowlist_name_is_still_scanned(self):
+        write(os.path.join(self.tmp, "vendor", "fixture_allowlist.json"),
+              b'{"token": "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123"}')
+        res = self.scan()
+        self.assertTrue(any("anthropic-key" in h["rule"] for h in res["credential_hits"]),
+                        res["credential_hits"])

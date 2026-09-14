@@ -117,7 +117,14 @@ CREDENTIAL_PATTERNS = [
     ("private-key-block", re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----")),
     ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b")),
     ("slack-token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    ("anthropic-key", re.compile(r"\bsk-ant-[A-Za-z0-9_-]{8,}\b")),
+    ("openai-proj-key", re.compile(r"\bsk-proj-[A-Za-z0-9_-]{8,}\b")),
     ("openai-style-key", re.compile(r"\bsk-[A-Za-z0-9]{24,}\b")),
+    ("huggingface-token", re.compile(r"\bhf_[A-Za-z0-9]{16,}\b")),
+    ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{20,}\b")),
+    ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{20,}\b")),
+    ("gitlab-pat", re.compile(r"\bglpat-[A-Za-z0-9_-]{16,}\b")),
+    ("azure-account-key", re.compile(r"(?i)\bAccountKey=[A-Za-z0-9+/=]{16,}")),
 ]
 
 CONTENT_SCAN_MAX_BYTES = 1_000_000  # only content-scan files up to 1 MB
@@ -312,11 +319,10 @@ def scan_tree(root: str, quarantine_lanes: tuple, allowlist: dict,
             # into the repository, so the two never matched and the gate reported its OWN
             # allow-list as a credential hit. Matching the trailing relative path as well
             # makes the exclusion hold wherever the scanned tree happens to live.
-            if allowlist_abs is not None and (
-                full == allowlist_abs
-                or _posix(rel).endswith("/" + os.path.basename(allowlist_abs))
-                or _posix(rel) == os.path.basename(allowlist_abs)
-            ):
+            rel_posix = _posix(rel)
+            if allowlist_abs is not None and os.path.normcase(full) == os.path.normcase(allowlist_abs):
+                continue
+            if rel_posix == "tools/release/fixture_allowlist.json":
                 continue
 
             hits = scan_content(full, fn)
