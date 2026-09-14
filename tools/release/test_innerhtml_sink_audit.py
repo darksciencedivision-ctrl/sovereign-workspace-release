@@ -53,6 +53,15 @@ class ClassifyTests(unittest.TestCase):
     def test_other_needs_justification(self):
         self.assertEqual(isa.classify("op.summary.task_count"), "MUST-JUSTIFY")
 
+    def test_esc_prefix_plus_raw_is_not_escaped(self):
+        self.assertEqual(isa.classify("esc(a) + raw"), "MUST-JUSTIFY")
+
+    def test_length_suffix_of_ternary_is_not_guaranteed(self):
+        self.assertEqual(isa.classify("cond ? html : x.length"), "MUST-JUSTIFY")
+
+    def test_escapeHtml_whole_call_is_escaped(self):
+        self.assertEqual(isa.classify("escapeHtml(row.model)"), "ESCAPED")
+
 
 class ScanTests(unittest.TestCase):
     def test_hazard_flagged_without_ledger(self):
@@ -91,6 +100,36 @@ class ScanTests(unittest.TestCase):
         self.assertIn("raw.thing", exprs)
         self.assertTrue(any(r.get("unjustified") and r["expr"] == "raw.thing"
                             for r in report["interpolations"]))
+
+    def test_compound_assignment_and_outerhtml_are_sinks(self):
+        src = "el.innerHTML += `${rawA}`; node.outerHTML = `${rawB}`;"
+        report = isa.scan(src, {})
+        exprs = {r["expr"] for r in report["interpolations"]}
+        self.assertEqual(exprs, {"rawA", "rawB"})
+
+    def test_insertAdjacentHTML_is_a_sink(self):
+        src = 'el.insertAdjacentHTML("beforeend", `${rawCall}`);'
+        report = isa.scan(src, {})
+        self.assertTrue(any(r.get("unjustified") and r["expr"] == "rawCall"
+                            for r in report["interpolations"]))
+
+    def test_document_write_is_a_sink(self):
+        src = "document.write(`${rawWrite}`);"
+        report = isa.scan(src, {})
+        self.assertTrue(any(r.get("unjustified") and r["expr"] == "rawWrite"
+                            for r in report["interpolations"]))
+
+    def test_concatenation_rhs_templates_are_in_scope(self):
+        src = 'el.innerHTML = prefix + `${rawConcat}` + suffix;'
+        report = isa.scan(src, {})
+        self.assertTrue(any(r.get("unjustified") and r["expr"] == "rawConcat"
+                            for r in report["interpolations"]))
+
+    def test_textContent_is_not_a_sink(self):
+        src = "el.textContent = `${safe}`; el.innerHTML = `${raw}`;"
+        report = isa.scan(src, {})
+        exprs = {r["expr"] for r in report["interpolations"]}
+        self.assertEqual(exprs, {"raw"})
 
 
 if __name__ == "__main__":

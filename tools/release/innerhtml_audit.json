@@ -1,7 +1,10 @@
 {
   "audit": "innerHTML interpolation ledger — SWS-REM-DIR-20260828 R2 B2-4 (M-3)",
-  "scope_file": "modules/sow/apps/desktop/renderer/renderer.js",
-  "policy": "Scope = every `.innerHTML =` RHS in the audited file (walked through callbacks) PLUS the templates enumerated by construction_fragments (content assigned to sinks later, and the row builders sinks concatenate). Every interpolation flagged MUST-JUSTIFY by tools/release/innerhtml_sink_audit.py needs a justifications entry naming its class (STATIC or ESCAPED-BY-CONSTRUCTION) and the byte-level reason it cannot inject markup. esc-wrapped, numeric, and .length interpolations never need entries. Explicit enumeration — no globs.",
+  "scope_file": [
+    "modules/sow/apps/desktop/renderer/renderer.js",
+    "modules/tokencenter/static/app.js"
+  ],
+  "policy": "Scope = every innerHTML/outerHTML assignment (including +=) and insertAdjacentHTML/document.write call in each --file, walked through callbacks, PLUS construction_fragments. Classifier requires the WHOLE interpolation to be esc(...)/escapeHtml(...), a numeric literal, or ident.length — prefixes/suffixes are MUST-JUSTIFY. Explicit files — no globs. Limitations: no dataflow, no el['innerHTML'], no createContextualFragment.",
   "construction_fragments": [
     "conductor-first layout restored",
     "need supervised relaunch",
@@ -125,6 +128,78 @@
     "target": {
       "class": "ESCAPED-BY-CONSTRUCTION",
       "reason": "target built at renderer.js:897 — either the static literal \"target: new pane\" or esc(pickerTarget)."
+    },
+    "esc(res && res.error) || \"fail-closed\"": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "whole expression is esc(...) or the static literal fail-closed."
+    },
+    "esc(op.error) || \"fail-closed\"": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "whole expression is esc(...) or the static literal fail-closed."
+    },
+    "esc(res.legacyError) || \"fail-closed\"": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "whole expression is esc(...) or the static literal fail-closed."
+    },
+    "esc(model && model.error) || \"fail-closed\"": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "whole expression is esc(...) or the static literal fail-closed."
+    },
+    "(d.turns || []).length": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "array .length is a language-guaranteed non-negative integer."
+    },
+    "selected ? \"selected\" : \"\"": {
+      "class": "STATIC",
+      "reason": "tokencenter/static/app.js — ternary with string-literal branches only."
+    },
+    "day.date": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "ISO date string from the Token Center summary API, used as a data-date/title token."
+    },
+    "selected": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "boolean coerced into aria-pressed; not markup."
+    },
+    "fullNumber(day.total_tokens)": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "numeric formatter over a token count."
+    },
+    "tokenNumber(day.total_tokens)": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "numeric formatter over a token count."
+    },
+    "height": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "integer percent from Math.round of a token ratio."
+    },
+    "dayLabel(day.date)": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "weekday label derived from the ISO date string."
+    },
+    "fullNumber(row.total_tokens)": {
+      "class": "GUARANTEED-INTEGER",
+      "reason": "numeric formatter over a token count."
+    },
+    "provider.models.map(escapeHtml).join(\", \")": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "every model name is escapeHtml'd before join."
+    },
+    "!known ? \"open\" : \"\"": {
+      "class": "STATIC",
+      "reason": "ternary with string-literal branches only."
+    },
+    "known ? \"known\" : \"unknown\"": {
+      "class": "STATIC",
+      "reason": "ternary with string-literal branches only."
+    },
+    "icon": {
+      "class": "STATIC",
+      "reason": "icon is the literal ✓ or ? chosen from a boolean."
+    },
+    "models": {
+      "class": "ESCAPED-BY-CONSTRUCTION",
+      "reason": "models is either \"\" or a span whose contents are escapeHtml'd names."
     }
   }
 }

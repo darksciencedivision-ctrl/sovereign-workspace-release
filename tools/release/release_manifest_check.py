@@ -126,23 +126,37 @@ def _hash_bearing_objects(node, jsonpath: str = "$"):
 #: paths did not resolve and nothing noticed — including the manifest's own declared
 #: `release_archive_hash_authority`. A consumer following one found nothing and had no way to
 #: tell an intentional out-of-archive reference from a broken one.
-_PATHISH_KEYS = ("release_archive_hash_authority", "construction_recipe")
+_PATHISH_KEYS = ("release_archive_hash_authority", "construction_recipe", "path")
 
 
-def _declared_out_of_archive(manifest: dict) -> dict:
+def _declared_out_of_archive(manifest: dict, problems: list | None = None) -> dict:
     """path prefix -> reason, from the manifest's own out_of_archive_references block."""
     block = manifest.get("out_of_archive_references") or {}
     out = {}
-    for entry in block.get("references") or []:
+    references = block.get("references") or []
+    if references and not isinstance(references, list):
+        if problems is not None:
+            problems.append("out_of_archive_references.references must be a list")
+        return out
+    for index, entry in enumerate(references):
+        if not isinstance(entry, dict):
+            if problems is not None:
+                problems.append(
+                    f"out_of_archive_references[{index}]: entry must be an object")
+            continue
         path = entry.get("path")
         reason = entry.get("reason")
-        if isinstance(path, str) and isinstance(reason, str) and reason.strip():
-            out[path.replace("\\", "/").rstrip("/")] = reason
+        if not isinstance(path, str) or not path.strip() or not isinstance(reason, str) or not reason.strip():
+            if problems is not None:
+                problems.append(
+                    f"out_of_archive_references[{index}]: requires non-empty path and reason")
+            continue
+        out[path.replace("\\", "/").rstrip("/")] = reason
     return out
 
 
 def _check_path_references(root: str, manifest: dict, problems: list) -> None:
-    declared = _declared_out_of_archive(manifest)
+    declared = _declared_out_of_archive(manifest, problems)
     used_prefixes: set = set()
 
     def resolved_or_declared(value: str, where: str) -> None:
@@ -161,6 +175,8 @@ def _check_path_references(root: str, manifest: dict, problems: list) -> None:
     def walk(node, where: str) -> None:
         if isinstance(node, dict):
             for key, value in node.items():
+                if key == "out_of_archive_references" and where == "$":
+                    continue
                 if key in _PATHISH_KEYS and isinstance(value, str) and value:
                     resolved_or_declared(value, f"{where}.{key}")
                 walk(value, f"{where}.{key}")

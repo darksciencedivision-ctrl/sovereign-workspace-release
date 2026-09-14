@@ -138,7 +138,7 @@ $gates = @(
     'tools\release\generate_notice.py --check',
     'tools\release\provenance_cross_hash_check.py --registry tools/release/module_source_registry.json',
     'tools\release\generate_module_provenance.py --check',
-    'tools\release\innerhtml_sink_audit.py --file modules/sow/apps/desktop/renderer/renderer.js --ledger tools/release/innerhtml_audit.json'
+    'tools\release\innerhtml_sink_audit.py --file modules/sow/apps/desktop/renderer/renderer.js --file modules/tokencenter/static/app.js --ledger tools/release/innerhtml_audit.json'
 )
 foreach ($gate in $gates) {
     $parts = $gate -split ' '

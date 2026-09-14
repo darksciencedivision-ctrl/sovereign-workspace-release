@@ -98,5 +98,11 @@ class GenerateReleaseIdentityTests(unittest.TestCase):
                 "release-artifacts/release-build-manifest.json")
 
 
+    def test_cli_refuses_without_deprecated_override(self) -> None:
+        rc = subject.main(["--root", ".", "--source-commit", "abc",
+                           "--generated-utc", "2026-01-01T00:00:00Z"])
+        self.assertEqual(rc, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

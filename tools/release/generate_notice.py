@@ -131,9 +131,9 @@ def build(sbom_path: Path) -> tuple[str, list[str]]:
         source = "SBOM"
         if not raw or raw.strip().lower() in VAGUE:
             raw, source = from_installed(name)
-            if not raw:
+            if not raw or raw.strip().lower() in VAGUE:
                 unresolved.append(f"{name} {version} ({source})")
-                raw, source = "UNRESOLVED", source
+                continue
         rows.append({
             "name": name,
             "version": version,
@@ -201,6 +201,14 @@ def main() -> int:
     content, unresolved = build(sbom)
     out = Path(args.out)
 
+    if unresolved:
+        print("generate_notice: UNRESOLVED licences — NOTICE is incomplete:", file=sys.stderr)
+        for item in unresolved:
+            print(f"  {item}", file=sys.stderr)
+        if not args.check:
+            print("generate_notice: refusing to write an incomplete NOTICE", file=sys.stderr)
+        return 1
+
     if args.check:
         if not out.is_file():
             print(f"generate_notice: {out} does not exist", file=sys.stderr)
@@ -212,12 +220,6 @@ def main() -> int:
     else:
         out.write_text(content, encoding="utf-8", newline="\n")
         print(f"generate_notice: wrote {out} ({len(content.splitlines())} lines)")
-
-    if unresolved:
-        print("generate_notice: UNRESOLVED licences — NOTICE is incomplete:", file=sys.stderr)
-        for item in unresolved:
-            print(f"  {item}", file=sys.stderr)
-        return 1
     return 0
 
 

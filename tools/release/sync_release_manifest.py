@@ -90,6 +90,12 @@ def repin(args) -> int:
     if not args.reason or not args.reason.strip():
         print("sync_release_manifest: --repin requires --reason. State why the file changed.")
         return 2
+    reason_text = args.reason.strip()
+    trivial = {"green", "fix", "update", "ci", "pass", "ok", "n/a", "none", "re-pin", "repin"}
+    if len(reason_text) < 16 or reason_text.lower() in trivial:
+        print("sync_release_manifest: --reason must describe the reviewed content change "
+              "(at least 16 characters; not a gate-greening placeholder).")
+        return 2
 
     root = repo_root()
     manifest_path = root / "RELEASE-MANIFEST.json"

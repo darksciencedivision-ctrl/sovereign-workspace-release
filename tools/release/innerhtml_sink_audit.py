@@ -1,27 +1,29 @@
 #!/usr/bin/env python
 """innerHTML sink audit scanner — SWS-REM-DIR-20260828 R2, B2-4 (M-3).
 
-Scope (explicit, no globs):
+Scope (explicit files via --file, no globs):
 
-1. Every ``.innerHTML =`` assignment in the audited file — the scanner walks
-   each right-hand expression (paren/bracket/brace/string/template aware, so
-   templates inside ``.map(...)`` callbacks count) and classifies every
-   ``${...}`` interpolation in every template it reaches.
-2. CONSTRUCTION SITES named in the ledger's ``construction_fragments`` —
-   templates that do not sit inside an innerHTML RHS but whose content is
-   later assigned to one (e.g. the ``interruptedNotice`` builder), and the
-   row-builder templates those sinks concatenate. A template is in scope iff
-   it contains one of the enumerated literal fragments.
+1. Assignment sinks: ``.innerHTML =`` / ``+=`` and ``.outerHTML =`` / ``+=``.
+2. Call sinks: ``.insertAdjacentHTML(`` and ``document.write`` / ``writeln(``.
+   The scanner walks each sink's argument/RHS (paren/bracket/brace/string/
+   template aware, so templates inside ``.map(...)`` callbacks count).
+3. CONSTRUCTION SITES named in the ledger's ``construction_fragments``.
 
-Classification of each interpolation:
+Classification of each interpolation (the whole expression, not a prefix or
+suffix):
 
-  ESCAPED       wrapped in esc(...)
-  GUARANTEED    pure numeric literal or ``.length`` (language-guaranteed int)
+  ESCAPED       the entire expression is esc(...) or escapeHtml(...)
+  GUARANTEED    the entire expression is a numeric literal or ``ident.length``
   COMPOSITE     embeds nested template literals — leaf interpolations are
                 scanned in their own right
-  MUST-JUSTIFY  anything else: needs a ledger ``justifications`` entry naming
-                its class (STATIC / ESCAPED-BY-CONSTRUCTION) and the
-                byte-level reason it cannot inject markup
+  MUST-JUSTIFY  anything else, including ``esc(a) + raw`` and
+                ``cond ? html : x.length``
+
+Limitations (not claimed covered): this is a lexer, not a JS parser or
+taint engine. It does not follow variables (``const html = `...`; el.innerHTML
+= html``), bracket access (``el['innerHTML']``), DOM APIs such as
+``Range.createContextualFragment``, or framework sinks such as
+``dangerouslySetInnerHTML``. A file not passed via --file is not audited.
 
 Exit codes: 0 every interpolation safe or justified; 1 unjustified
 interpolations remain; 2 usage error. Stdlib-only.
@@ -230,15 +232,31 @@ def top_level_interpolations(template_text: str) -> list:
 # ------------------------------------------------------------- classify ---
 
 NUM_RE = re.compile(r"^\d+(\.\d+)?$")
+IDENT_LENGTH_RE = re.compile(r"^[\w$]+(?:\.[\w$]+)*\.length$")
+
+
+def _balanced_call(expr: str, name: str) -> bool:
+    prefix = name + "("
+    if not expr.startswith(prefix) or not expr.endswith(")"):
+        return False
+    depth = 0
+    for i, char in enumerate(expr[len(name):], start=len(name)):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return i == len(expr) - 1
+    return False
 
 
 def classify(expr: str) -> str:
     e = " ".join(expr.split())
     if "`" in e:
         return "COMPOSITE"
-    if e.startswith("esc("):
+    if _balanced_call(e, "esc") or _balanced_call(e, "escapeHtml"):
         return "ESCAPED"
-    if NUM_RE.match(e) or e.endswith(".length"):
+    if NUM_RE.match(e) or IDENT_LENGTH_RE.match(e):
         return "GUARANTEED"
     return "MUST-JUSTIFY"
 
@@ -249,56 +267,61 @@ def line_of(src: str, pos: int) -> int:
 
 # ---------------------------------------------------------------- scope ---
 
-def innerhtml_rhs_templates(src: str, templates: list) -> set:
-    """Template indices reached by an innerHTML/outerHTML assignment right-hand side.
+ASSIGN_SINK_RE = re.compile(r"\.(?:inner|outer)HTML\s*\+?=")
+CALL_SINK_RE = re.compile(r"(?:\.insertAdjacentHTML|document\.write|document\.writeln)\s*\(")
 
-    F-068: the sink pattern now matches `.innerHTML +=` and `.outerHTML =`/`+=` as well as
-    `.innerHTML =` - `\\.innerHTML\\s*=` missed the compound-assignment and outerHTML sinks entirely,
-    so a template interpolated through them was invisible to the audit. (insertAdjacentHTML uses
-    call syntax rather than assignment and still needs dedicated handling; documented as a known
-    remaining gap rather than silently claimed covered.)
-    """
-    reached = set()
-    for m in re.finditer(r"\.(?:inner|outer)HTML\s*\+?=", src):
-        i = m.end()
-        n = len(src)
-        depth = 0
-        end = n
-        last_sig = "="
-        while i < n:
-            c = src[i]
-            if c in "([{":
-                depth += 1
-                i += 1
-                last_sig = c
-                continue
-            if c in ")]}":
-                depth -= 1
-                i += 1
-                last_sig = c
-                continue
-            if depth == 0 and c == ";":
-                end = i
-                break
-            if c in ("'", '"'):
-                i = _skip_string(src, i, c)
-                last_sig = c
-                continue
-            if c == "`":
-                # template on the RHS: find its lexed span
-                i = _scan_template(src, i, [])
-                last_sig = "`"
-                continue
-            skip = _skip_comment_or_regex(src, i, last_sig)
-            if skip is not None:
-                i = skip
-                last_sig = "/"
-                continue
-            if not c.isspace():
-                last_sig = c
+
+def _walk_span(src: str, start: int, opener: str) -> int:
+    n = len(src)
+    i = start
+    depth = 0
+    last_sig = opener
+    while i < n:
+        c = src[i]
+        if c in "([{":
+            depth += 1
             i += 1
+            last_sig = c
+            continue
+        if c in ")]}":
+            if depth == 0 and opener == "(" and c == ")":
+                return i
+            depth -= 1
+            i += 1
+            last_sig = c
+            continue
+        if depth == 0 and opener != "(" and c == ";":
+            return i
+        if c in ("'", '"'):
+            i = _skip_string(src, i, c)
+            last_sig = c
+            continue
+        if c == "`":
+            i = _scan_template(src, i, [])
+            last_sig = "`"
+            continue
+        skip = _skip_comment_or_regex(src, i, last_sig)
+        if skip is not None:
+            i = skip
+            last_sig = "/"
+            continue
+        if not c.isspace():
+            last_sig = c
+        i += 1
+    return n
+
+
+def innerhtml_rhs_templates(src: str, templates: list) -> set:
+    """Template indices reached by HTML assignment or call sinks."""
+    reached = set()
+    spans = []
+    for m in ASSIGN_SINK_RE.finditer(src):
+        spans.append((m.end(), _walk_span(src, m.end(), "=")))
+    for m in CALL_SINK_RE.finditer(src):
+        spans.append((m.end(), _walk_span(src, m.end(), "(")))
+    for begin, end in spans:
         for idx, (start, _, _) in enumerate(templates):
-            if m.end() <= start < end:
+            if begin <= start < end:
                 reached.add(idx)
     return reached
 
@@ -362,18 +385,11 @@ def scan(src: str, ledger: dict) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="innerHTML interpolation audit")
-    ap.add_argument("--file", required=True)
+    ap.add_argument("--file", action="append", required=True)
     ap.add_argument("--ledger", required=True)
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
-    try:
-        with open(args.file, "r", encoding="utf-8") as f:
-            src = f.read()
-    except OSError as exc:
-        print(f"innerhtml_sink_audit: cannot read {args.file}: {exc}",
-              file=sys.stderr)
-        return 2
     try:
         with open(args.ledger, "r", encoding="utf-8") as f:
             ledger = json.load(f)
@@ -382,7 +398,30 @@ def main(argv=None) -> int:
               file=sys.stderr)
         return 2
 
-    report = scan(src, ledger)
+    interpolations = []
+    templates_in_scope = 0
+    for path in args.file:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                src = f.read()
+        except OSError as exc:
+            print(f"innerhtml_sink_audit: cannot read {path}: {exc}",
+                  file=sys.stderr)
+            return 2
+        part = scan(src, ledger)
+        templates_in_scope += part["templates_in_scope"]
+        for item in part["interpolations"]:
+            item["file"] = path.replace("\\", "/")
+            interpolations.append(item)
+
+    report = {
+        "gate": "innerhtml_sink_audit",
+        "directive": "SWS-REM-DIR-20260828 R2 / B2-4 (M-3)",
+        "utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "files": [p.replace("\\", "/") for p in args.file],
+        "templates_in_scope": templates_in_scope,
+        "interpolations": interpolations,
+    }
     bad = [r for r in report["interpolations"] if r.get("unjustified")]
     report["verdict"] = "FAIL" if bad else "PASS"
     report["unjustified_count"] = len(bad)
@@ -393,10 +432,10 @@ def main(argv=None) -> int:
         for r in report["interpolations"]:
             counts[r["class"]] = counts.get(r["class"], 0) + 1
         print(f"innerhtml_sink_audit: {report['verdict']} "
-              f"(templates_in_scope={report['templates_in_scope']}, "
+              f"(files={len(args.file)}, templates_in_scope={report['templates_in_scope']}, "
               f"interpolations={len(report['interpolations'])} {counts})")
         for r in bad:
-            print(f"  UNJUSTIFIED line ~{r['line']}: {r['expr']}")
+            print(f"  UNJUSTIFIED {r.get('file', '')} line ~{r['line']}: {r['expr']}")
     return 1 if bad else 0
 
 

@@ -120,7 +120,7 @@ def main(argv=None) -> int:
         print("  {}".format(item))
     if args.write:
         print("  Review the diff and commit it with the manifest change that caused it.")
-        return 0
+        return 1
     print("  Re-project with: py -3.12 tools/release/generate_model_projection.py --write")
     return 1
 

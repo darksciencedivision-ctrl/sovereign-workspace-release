@@ -206,5 +206,47 @@ class HandledSectionsStillValidateTests(unittest.TestCase):
             problems)
 
 
+class ExemptionSchemaTests(unittest.TestCase):
+    def setUp(self):
+        if not os.path.isfile(MANIFEST):
+            self.skipTest("worktree RELEASE-MANIFEST.json not present")
+        self.manifest = load_manifest()
+
+    def test_stale_exemption_is_reported(self):
+        tampered = copy.deepcopy(self.manifest)
+        block = tampered.setdefault("out_of_archive_references", {})
+        refs = list(block.get("references") or [])
+        refs.append({"path": "this-exemption-matches-nothing-xyz",
+                     "reason": "planted stale exemption"})
+        block["references"] = refs
+        problems = rmc.check(WORKTREE_ROOT, tampered)
+        self.assertTrue(any("stale exemption" in p for p in problems), problems)
+
+    def test_exemption_is_not_self_satisfying(self):
+        tampered = copy.deepcopy(self.manifest)
+        refs = list((tampered.get("out_of_archive_references") or {}).get("references") or [])
+        refs.append({"path": "only-declared-here", "reason": "unused"})
+        tampered.setdefault("out_of_archive_references", {})["references"] = refs
+        problems = rmc.check(WORKTREE_ROOT, tampered)
+        self.assertTrue(any("only-declared-here" in p and "stale" in p for p in problems),
+                        problems)
+
+    def test_group_item_without_path_is_reported(self):
+        tampered = copy.deepcopy(self.manifest)
+        tampered["modules"]["sovereign"].setdefault("locks", []).append(
+            {"sha256": "a" * 64})
+        problems = rmc.check(WORKTREE_ROOT, tampered)
+        self.assertTrue(any("has no 'path'" in p for p in problems), problems)
+
+    def test_exemption_entry_missing_reason_is_reported(self):
+        tampered = copy.deepcopy(self.manifest)
+        tampered.setdefault("out_of_archive_references", {})["references"] = [
+            {"path": "somewhere"}
+        ]
+        problems = rmc.check(WORKTREE_ROOT, tampered)
+        self.assertTrue(any("requires non-empty path and reason" in p for p in problems),
+                        problems)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
