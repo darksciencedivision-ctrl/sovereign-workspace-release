@@ -23,9 +23,9 @@ class MarkerRootOrderTests(unittest.TestCase):
 class ProvenanceHeaderTests(unittest.TestCase):
     def test_braces_in_topic_do_not_break_header(self) -> None:
         import format_alignmentforum as af
-        # A synthetic Windows path with a `\U...` sequence (tests LaTeX-strip safety). Use drive Z:
-        # deliberately, not C:\Users\... - the developer-identifier boundary gate treats a literal
-        # C:\Users\<name> as a leaked machine-home path, and this fixture must not trip it.
+        # A synthetic Windows path with a backslash-U sequence (tests LaTeX-strip safety). Drive Z:
+        # is used deliberately: the developer-identifier boundary gate treats a literal user-home
+        # path on the C drive as a leaked machine path, and this synthetic fixture must not trip it.
         header = af._provenance_header(
             "sess-1", "Z:\\Users\\x {not-a-field}", {"gate_timestamp": "t",
                                                     "gate_passed": True,
