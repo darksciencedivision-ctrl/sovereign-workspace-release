@@ -74,7 +74,9 @@ DISCLOSED = {
     "modules/distillery/INSTALL-PROVENANCE.json.previous": "provenance",
     "modules/sovereign/INSTALL-PROVENANCE.json": "provenance",
     "modules/sovereign/INSTALL-PROVENANCE.previous.json": "provenance",
-    "modules/sow/INSTALL-PROVENANCE.json": "provenance",
+    # modules/sow/INSTALL-PROVENANCE.json was here; P1 Package G (F-072/F-073) regenerated it into
+    # a form that no longer carries a developer identifier, so the disclosure is removed rather than
+    # left to rot (the stale-entry test forbids keeping it).
     "modules/sow/.codex/config.toml": "rebased at install; absolute cwd is deliberate (P1-8)",
     "docs/DISCOVERY.md": "provenance: records where each module came from",
     "docs/THEME-BASELINE.md": "provenance",

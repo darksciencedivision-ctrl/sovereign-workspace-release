@@ -95,7 +95,9 @@ def test_the_normal_launch_receipt_is_inside_a_declared_write_target() -> None:
     """Declared writes must cover the write the product actually performs (C3)."""
     sow = _sow()
     receipt = _norm(sow["readiness"]["path"])
-    declared = [_norm(w).rstrip("/") for w in sow["runtime_writes"]]
+    # F-023: runtime_writes entries are {path, kind}; older forms were bare strings.
+    declared = [_norm(w["path"] if isinstance(w, dict) else w).rstrip("/")
+                for w in sow["runtime_writes"]]
     assert any(receipt.startswith(target + "/") for target in declared), (
         "readiness receipt {!r} is not inside any declared runtime_writes target {!r}"
         .format(receipt, declared))
@@ -106,8 +108,9 @@ def test_no_declared_write_target_is_inside_the_installation() -> None:
     sow = _sow()
     root = _norm(sow["root"]).rstrip("/")
     for target in sow["runtime_writes"]:
-        assert not _norm(target).startswith(root + "/"), (
-            "runtime_writes names a path inside the installation: " + target)
+        path = target["path"] if isinstance(target, dict) else target  # F-023 {path, kind}
+        assert not _norm(path).startswith(root + "/"), (
+            "runtime_writes names a path inside the installation: " + path)
 
 
 def test_the_timeout_was_not_extended_as_a_substitute() -> None:

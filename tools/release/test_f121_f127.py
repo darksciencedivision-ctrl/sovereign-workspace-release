@@ -23,18 +23,21 @@ class MarkerRootOrderTests(unittest.TestCase):
 class ProvenanceHeaderTests(unittest.TestCase):
     def test_braces_in_topic_do_not_break_header(self) -> None:
         import format_alignmentforum as af
+        # A synthetic Windows path with a `\U...` sequence (tests LaTeX-strip safety). Use drive Z:
+        # deliberately, not C:\Users\... - the developer-identifier boundary gate treats a literal
+        # C:\Users\<name> as a leaked machine-home path, and this fixture must not trip it.
         header = af._provenance_header(
-            "sess-1", "C:\\Users\\x {not-a-field}", {"gate_timestamp": "t",
+            "sess-1", "Z:\\Users\\x {not-a-field}", {"gate_timestamp": "t",
                                                     "gate_passed": True,
                                                     "synthesis_tag": "tag",
                                                     "seeded_by": []},
             ["tag"], "2026-01-01T00:00:00Z")
-        self.assertIn("C:\\Users\\x {not-a-field}", header)
+        self.assertIn("Z:\\Users\\x {not-a-field}", header)
         self.assertIn("SOVEREIGN v", header)
 
     def test_windows_path_users_not_stripped_as_latex(self) -> None:
         import format_alignmentforum as af
-        out = af._normalize_for_af(r"see C:\Users\operator\file")
+        out = af._normalize_for_af(r"see Z:\Users\operator\file")
         self.assertIn(r"\Users", out)
 
 
