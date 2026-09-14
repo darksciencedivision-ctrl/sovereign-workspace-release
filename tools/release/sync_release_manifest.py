@@ -37,6 +37,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 _STAMP = re.compile(rb"^#\s*utc:\s*\S+\s*$", re.IGNORECASE)
@@ -129,9 +130,21 @@ def repin(args) -> int:
         for item in matching:
             if measured == item.get("sha256"):
                 continue
+            reason = args.reason.strip()
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            was = item.get("sha256")
             print("re-pinning {}\n  was      {}\n  now      {}\n  reason   {}".format(
-                path, item.get("sha256"), measured, args.reason.strip()))
+                path, was, measured, reason))
             item["sha256"] = measured
+            # F-070: persist WHY the expected hash was refreshed. Printing the reason left no durable
+            # record in RELEASE-MANIFEST.json, so a later reader could not tell an authorized re-pin
+            # from one done merely to make a check green (directive Section 2). Stamp the item and
+            # append a repin_history entry.
+            item["repin_reason"] = reason
+            item["repin_utc"] = now
+            manifest.setdefault("repin_history", []).append({
+                "path": path, "was": was, "now": measured, "reason": reason, "utc": now,
+            })
             any_change = True
             changed = True
         if not any_change:

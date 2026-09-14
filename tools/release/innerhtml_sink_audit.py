@@ -250,9 +250,16 @@ def line_of(src: str, pos: int) -> int:
 # ---------------------------------------------------------------- scope ---
 
 def innerhtml_rhs_templates(src: str, templates: list) -> set:
-    """Template indices reached by any `.innerHTML =` right-hand side."""
+    """Template indices reached by an innerHTML/outerHTML assignment right-hand side.
+
+    F-068: the sink pattern now matches `.innerHTML +=` and `.outerHTML =`/`+=` as well as
+    `.innerHTML =` - `\\.innerHTML\\s*=` missed the compound-assignment and outerHTML sinks entirely,
+    so a template interpolated through them was invisible to the audit. (insertAdjacentHTML uses
+    call syntax rather than assignment and still needs dedicated handling; documented as a known
+    remaining gap rather than silently claimed covered.)
+    """
     reached = set()
-    for m in re.finditer(r"\.innerHTML\s*=", src):
+    for m in re.finditer(r"\.(?:inner|outer)HTML\s*\+?=", src):
         i = m.end()
         n = len(src)
         depth = 0
