@@ -83,11 +83,10 @@ class ModelSelectionWritesStateNotTheManifest(unittest.TestCase):
         self.assertEqual(self.store.get_meta(MODEL_ASSIGNMENTS_META_KEY), {"CRITIC": "qwen3:8b"})
 
     def test_the_override_is_overlaid_when_the_manifest_is_read(self) -> None:
-        self.assertEqual(self.svc._manifest()["MODELS"]["CRITIC"], "dolphin3:8b")  # shipped default
+        self.assertEqual(self.svc._manifest()["MODELS"]["CRITIC"], "sam860/dolphin3-llama3.2:3b")
         self.svc._store_model_overrides({"CRITIC": "qwen3:8b"})
-        self.assertEqual(self.svc._manifest()["MODELS"]["CRITIC"], "qwen3:8b")  # overlaid
-        # A role that was not overridden keeps the shipped value.
-        self.assertEqual(self.svc._manifest()["MODELS"]["PRIMARY_REASONER"], "ornith:9b")
+        self.assertEqual(self.svc._manifest()["MODELS"]["CRITIC"], "qwen3:8b")
+        self.assertEqual(self.svc._manifest()["MODELS"]["PRIMARY_REASONER"], "qwen2.5:3b-instruct")
 
     def test_profile_reports_the_state_source_once_overridden(self) -> None:
         pristine = self.svc.profile()

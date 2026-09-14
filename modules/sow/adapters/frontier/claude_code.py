@@ -410,7 +410,7 @@ class ClaudeCliBackend:
         # print mode + machine-readable JSON (R8 §2: the CLI's documented headless mode). No
         # `--api-key`, no permission-bypass flags: nothing that carries or weakens auth. An
         # explicit `--model <slug>` selects the per-node model; omitted ⇒ CLI default (fallback).
-        cmd = [self._resolve_executable(), "-p"]
+        cmd = [self.executable, "-p"]
         if self.model:
             cmd += [CLAUDE_CODE_MODEL_FLAG, self.model]
         cmd += ["--output-format", "json"]
@@ -461,6 +461,7 @@ class ClaudeCliBackend:
 
     def generate(self, prompt: str, *, max_tokens: int = 256) -> str:
         cmd = self.build_command(prompt)
+        cmd[0] = self._resolve_executable()
         env = self.build_env()
         # counted BEFORE the call: a subscription call that fails still consumed the attempt, and
         # under-reporting spend is the dishonest direction (Buildout §4)
