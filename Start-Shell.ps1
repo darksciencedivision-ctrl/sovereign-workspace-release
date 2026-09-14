@@ -400,7 +400,7 @@ try {
         exit 1
     }
     else {
-        Write-Host "  The shell did not answer /api/shell-info within 10s." -ForegroundColor Yellow
+        Write-Host "  The shell did not answer /api/shell-info within the readiness window (~90s: 40 tries, each a 2s probe plus 250ms)." -ForegroundColor Yellow
         Write-Host "  Leaving it running; check the output above for the reason." -ForegroundColor Yellow
     }
 
