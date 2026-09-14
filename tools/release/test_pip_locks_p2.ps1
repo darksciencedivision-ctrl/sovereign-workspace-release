@@ -61,6 +61,21 @@ try {
         $args = Get-CapturedArgs
         if (-not ($args -contains '--require-hashes')) { throw 'a hashed lock MUST be installed with --require-hashes' }
     }
+
+    # A lock where only SOME pins carry hashes must still go to pip in --require-hashes mode, which
+    # then refuses the unhashed pin (verified against real pip in the F-071 acceptance record). It
+    # must never be treated as an unhashed lock that an -AllowUnhashed caller could slip through.
+    $partialLock = Join-Path $root 'partial.txt'
+    Set-Content -LiteralPath $partialLock -Encoding ascii -Value @(
+        'flask==3.1.3 --hash=sha256:0000000000000000000000000000000000000000000000000000000000000000',
+        'requests==2.34.2'
+    )
+    Check 'partially hashed lock installs WITH --require-hashes even under -AllowUnhashed' {
+        Remove-Item -LiteralPath $capture -ErrorAction SilentlyContinue
+        Install-LockedRequirements -PythonExe $stub -LockPath $partialLock -Label 'T' -AllowUnhashed | Out-Null
+        $args = Get-CapturedArgs
+        if (-not ($args -contains '--require-hashes')) { throw 'a partially hashed lock MUST be installed with --require-hashes' }
+    }
 }
 finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

@@ -78,8 +78,8 @@
     },
     {
       "path": "requirements.lock.txt",
-      "size": 1613,
-      "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2"
+      "size": 6118,
+      "sha256": "14f2e6e98c53c81f30f1d2e4790e481ebe209c9e5cea7730bd776ac5bde5abc6"
     },
     {
       "path": "requirements.txt",

@@ -90,13 +90,15 @@ jobs:
         # freshly would test a different dependency set than the release describes.
         #   - 3.12 carries the shell, sow and SOVEREIGN closures (the pytest interpreter);
         #   - 3.14 carries Debate, which install.ps1 provisions under py -3.14.
+        # F-071: every lock carries --hash pins; --require-hashes makes pip refuse any byte it cannot
+        # verify, with the same flags install.ps1 uses (wheels only, the lock is the whole closure).
         run: |
           py -3.12 -m pip install --upgrade pip
-          py -3.12 -m pip install -r modules/sow/requirements.txt
-          py -3.12 -m pip install -r modules/sow/requirements-dev.txt
-          py -3.12 -m pip install -r modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt
+          py -3.12 -m pip install --require-hashes --only-binary=:all: --no-deps -r modules/sow/requirements.txt
+          py -3.12 -m pip install --require-hashes --only-binary=:all: --no-deps -r modules/sow/requirements-dev.txt
+          py -3.12 -m pip install --require-hashes --only-binary=:all: --no-deps -r modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt
           py -3.14 -m pip install --upgrade pip
-          py -3.14 -m pip install -r modules/debate/requirements.lock.txt
+          py -3.14 -m pip install --require-hashes --only-binary=:all: --no-deps -r modules/debate/requirements.lock.txt
 
       - name: Provision the Node trees
         # F-064(b). ADR-005 blocks dependency lifecycle scripts (notably Electron's unverified

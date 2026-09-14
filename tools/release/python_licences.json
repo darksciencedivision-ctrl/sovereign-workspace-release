@@ -445,6 +445,18 @@
       ],
       "source": "License-Expression"
     },
+    "iniconfig==2.3.0": {
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
+    },
     "itsdangerous==2.2.0": {
       "name": "itsdangerous",
       "version": "2.2.0",
@@ -709,6 +721,18 @@
       ],
       "source": "License-Expression"
     },
+    "pluggy==1.6.0": {
+      "name": "pluggy",
+      "version": "1.6.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "Trove classifier"
+    },
     "propcache==0.5.2": {
       "name": "propcache",
       "version": "0.5.2",
@@ -816,6 +840,18 @@
         }
       ],
       "source": "Trove classifier"
+    },
+    "pytest==9.0.2": {
+      "name": "pytest",
+      "version": "9.0.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "source": "License-Expression"
     },
     "python-dateutil==2.9.0.post0": {
       "name": "python-dateutil",

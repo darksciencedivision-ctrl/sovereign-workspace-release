@@ -138,6 +138,9 @@ $gates = @(
     'tools\release\generate_notice.py --check',
     'tools\release\provenance_cross_hash_check.py --registry tools/release/module_source_registry.json',
     'tools\release\generate_module_provenance.py --check',
+    # F-071: every Python lock the installer or this lane consumes carries --hash pins, so pip can
+    # verify downloaded bytes. install.ps1 refuses an unhashed lock; this gate fails the build first.
+    'tools\release\hash_python_locks.py --check',
     'tools\release\innerhtml_sink_audit.py --file modules/sow/apps/desktop/renderer/renderer.js --file modules/tokencenter/static/app.js --ledger tools/release/innerhtml_audit.json'
 )
 foreach ($gate in $gates) {
@@ -255,7 +258,7 @@ $releaseRequired = @(
     'gate: check_model_consistency.py', 'gate: check_governance_bom.py',
     'gate: generate_sbom.py', 'gate: generate_notice.py',
     'gate: provenance_cross_hash_check.py', 'gate: generate_module_provenance.py',
-    'gate: innerhtml_sink_audit.py',
+    'gate: hash_python_locks.py', 'gate: innerhtml_sink_audit.py',
     'gate: check_node_advisories', 'boundary gate (distribution)',
     'pytest (whole product, from repo root)',
     # F-064(c): the Node suites are release-required. Previously they were absent from this list,

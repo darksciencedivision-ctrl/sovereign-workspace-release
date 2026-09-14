@@ -1,10 +1,28 @@
 # SOW DEVELOPMENT dependencies.
 #
 # EPC-01 P0-2: the runtime closure now lives in requirements.txt and is included here, so
-# a development environment is the runtime environment plus test tooling — never a
+# a development environment is the runtime environment plus test tooling - never a
 # different, accidentally-larger set. Before this split, jsonschema was declared ONLY
 # here, which is why nothing installed it for the twelve runtime modules that import it.
+#
+# F-071: requirements.txt carries --hash pins, and pip enables hash-checking mode for the
+# WHOLE install as soon as one requirement is hashed. The former floor `pytest>=7` could not
+# be installed alongside it at all, so the test tooling is now an exact, hashed closure for
+# CPython 3.12 on Windows (pytest 9.0.2 and every distribution it requires there). The
+# packaging, Pygments and colorama pins equal the SOVEREIGN lock's, because the CI lane
+# installs both files into the same interpreter. Hashes: tools/release/hash_python_locks.py.
 
 -r requirements.txt
 
-pytest>=7
+colorama==0.4.6 \
+    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
+iniconfig==2.3.0 \
+    --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+pluggy==1.6.0 \
+    --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
+Pygments==2.21.0 \
+    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
+pytest==9.0.2 \
+    --hash=sha256:711ffd45bf766d5264d487b917733b453d917afd2b0ad65223959f59089f875b

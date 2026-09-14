@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import generate_release_identity as subject
+# Like its siblings: under --import-mode=importlib this directory is not on sys.path, so the bare
+# import below resolved only when some EARLIER test in the same run had inserted it.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import generate_release_identity as subject  # noqa: E402
 
 
 class GenerateReleaseIdentityTests(unittest.TestCase):
@@ -97,6 +101,22 @@ class GenerateReleaseIdentityTests(unittest.TestCase):
                 version["seal_commit_record"],
                 "release-artifacts/release-build-manifest.json")
 
+
+    def test_hash_pinned_locks_parse_to_the_same_pins(self) -> None:
+        """F-071. A pip hash-pinned lock spans lines; its pins must be read exactly as before, and a
+        non-exact requirement hidden among hashed ones must still be refused."""
+        digest = "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            lock = Path(temporary) / "lock.txt"
+            lock.write_text(
+                "# header\n"
+                f"demo==1.0 \\\n    --hash=sha256:{digest} \\\n    --hash=sha256:{'b' * 64}\n"
+                f"Other_Pkg==2.0 \\\n    --hash=sha256:{digest}\n",
+                encoding="utf-8")
+            self.assertEqual([("demo", "1.0"), ("other-pkg", "2.0")], subject.parse_python_lock(lock))
+            lock.write_text(f"demo>=1.0 \\\n    --hash=sha256:{digest}\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                subject.parse_python_lock(lock)
 
     def test_cli_refuses_without_deprecated_override(self) -> None:
         rc = subject.main(["--root", ".", "--source-commit", "abc",

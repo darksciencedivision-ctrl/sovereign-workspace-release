@@ -8,7 +8,9 @@
   "lockfiles": [
     {
       "path": "WORKSPACE-RESOLVED-LOCK.txt",
-      "sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f"
+      "sha256": "b0ce1f437a54e9cf94a16190d68c2ef4dc0108228e551973b655f5ac1e2830bd",
+      "prior_sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f",
+      "change_note": "F-071 (2026-09-14): the pip-freeze lock was re-encoded UTF-16LE->UTF-8 and every one of its 85 unchanged == pins gained --hash=sha256 entries for its PyPI win_amd64/any wheels (tools/release/hash_python_locks.py). prior_sha256 is the digest verification_basis refers to."
     }
   ],
   "dependency_lock_status": "WORKSPACE_OWNED_RESOLVED",

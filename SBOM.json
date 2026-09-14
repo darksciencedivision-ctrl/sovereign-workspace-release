@@ -11,7 +11,7 @@
       "properties": [
         {
           "name": "sovereign:source-commit",
-          "value": "10cb30e0edd915fd8105296ad1c0bdbfa49848ca"
+          "value": "542be624ddf5165e4599b6ea018ade4fe2bf8a5f"
         },
         {
           "name": "sovereign:generated-from",
@@ -38,28 +38,28 @@
     {
       "module": "sovereign",
       "path": "modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt",
-      "sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f",
+      "sha256": "b0ce1f437a54e9cf94a16190d68c2ef4dc0108228e551973b655f5ac1e2830bd",
       "scope": "required",
       "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "debate",
       "path": "modules/debate/requirements.lock.txt",
-      "sha256": "2ff25bb523a3f6593d1969cb0ac1ba87f6c3f14ebe70bf596a33c406ec1d03b2",
+      "sha256": "14f2e6e98c53c81f30f1d2e4790e481ebe209c9e5cea7730bd776ac5bde5abc6",
       "scope": "required",
       "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "sow",
       "path": "modules/sow/requirements.txt",
-      "sha256": "aa4d74cc865552ff750143dcdd2dbe5b14650c22596f14fab9bb47faa4d76930",
+      "sha256": "16400c43d850904c309114ae504bcf70df5f29af1c71e2d06cb4e521823024ef",
       "scope": "required",
       "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
     {
       "module": "sow",
       "path": "modules/sow/requirements-dev.txt",
-      "sha256": "720c17009281112917502ab093050321bd9b354d3e5ed1cb958e79acf83172e1",
+      "sha256": "b63c9fb02c557d38ebf0eace8560ec3dc7366a4777a3cb6c0cd1cf26eb5bd28f",
       "scope": "optional",
       "licences_resolved_from": "tools/release/python_licences.json (committed map)"
     },
@@ -4876,6 +4876,10 @@
         {
           "name": "sovereign:required-by",
           "value": "debate"
+        },
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
         }
       ]
     },
@@ -5320,6 +5324,30 @@
         {
           "name": "sovereign:required-by",
           "value": "sovereign"
+        },
+        {
+          "name": "sovereign:licence-source",
+          "value": "License-Expression"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "purl": "pkg:pypi/iniconfig@2.3.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
         },
         {
           "name": "sovereign:licence-source",
@@ -5860,6 +5888,34 @@
         {
           "name": "sovereign:licence-source",
           "value": "License-Expression"
+        },
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pluggy",
+      "version": "1.6.0",
+      "purl": "pkg:pypi/pluggy@1.6.0",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
+        },
+        {
+          "name": "sovereign:licence-source",
+          "value": "Trove classifier"
         }
       ]
     },
@@ -6036,6 +6092,10 @@
         {
           "name": "sovereign:licence-source",
           "value": "License-Expression"
+        },
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
         }
       ]
     },
@@ -6084,6 +6144,30 @@
         {
           "name": "sovereign:licence-source",
           "value": "Trove classifier"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pytest",
+      "version": "9.0.2",
+      "purl": "pkg:pypi/pytest@9.0.2",
+      "scope": "optional",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "properties": [
+        {
+          "name": "sovereign:required-by",
+          "value": "sow"
+        },
+        {
+          "name": "sovereign:licence-source",
+          "value": "License-Expression"
         }
       ]
     },

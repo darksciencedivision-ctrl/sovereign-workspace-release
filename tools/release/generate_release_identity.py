@@ -70,9 +70,24 @@ def read_bom_aware_text(path: Path) -> str:
 
 
 def parse_python_lock(path: Path) -> list[tuple[str, str]]:
+    """Exact pins from a lock. F-071: locks are pip hash-pinned, so a requirement spans lines -
+    `name==version \\` followed by indented `--hash=sha256:...` continuations. Continuations are
+    joined and hash options dropped; anything else that is not an exact pin is still refused."""
     pins: list[tuple[str, str]] = []
+    logical: list[str] = []
+    pending = ""
     for raw in read_bom_aware_text(path).splitlines():
         line = raw.strip()
+        if line.endswith("\\") and not line.startswith("#"):
+            pending += line[:-1] + " "
+            continue
+        logical.append(pending + line)
+        pending = ""
+    if pending:
+        logical.append(pending)
+    for joined in logical:
+        tokens = [t for t in joined.split() if not re.fullmatch(r"--hash=sha256:[0-9a-f]{64}", t)]
+        line = " ".join(tokens)
         if not line or line.startswith("#"):
             continue
         match = re.fullmatch(r"([^=<>!~\s]+)==([^\s]+)", line)
