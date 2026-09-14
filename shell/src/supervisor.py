@@ -43,6 +43,9 @@ CTRL_BREAK_EVENT = 1
 STARTF_USESTDHANDLES = 0x00000100
 HANDLE_FLAG_INHERIT = 0x00000001
 STILL_ACTIVE = 259
+# F-024: scope handle inheritance to an explicit list instead of "every inheritable handle".
+EXTENDED_STARTUPINFO_PRESENT = 0x00080000
+PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 GENERIC_WRITE = 0x40000000
@@ -184,6 +187,51 @@ kernel32.OpenProcess.restype = wintypes.HANDLE
 kernel32.QueryFullProcessImageNameW.argtypes = [
     wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
 kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+# F-025: these were previously called with no argtypes/restype, so HANDLE/HWND round-tripped as a
+# C int (default). It worked only while handle values stayed small; a high 64-bit HANDLE/HWND would
+# be truncated. Declare them like every kernel32 entry point above.
+kernel32.QueryInformationJobObject.argtypes = [
+    wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+kernel32.QueryInformationJobObject.restype = wintypes.BOOL
+user32.IsWindowVisible.argtypes = [wintypes.HWND]
+user32.IsWindowVisible.restype = wintypes.BOOL
+user32.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+user32.GetWindow.restype = wintypes.HWND
+user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+user32.GetWindowTextLengthW.restype = ctypes.c_int
+user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+# EnumWindows argtypes are declared just after _ENUM_WINDOWS_PROC is defined (its callback type).
+user32.IsIconic.argtypes = [wintypes.HWND]
+user32.IsIconic.restype = wintypes.BOOL
+user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+user32.ShowWindow.restype = wintypes.BOOL
+user32.BringWindowToTop.argtypes = [wintypes.HWND]
+user32.BringWindowToTop.restype = wintypes.BOOL
+user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+user32.SetForegroundWindow.restype = wintypes.BOOL
+
+
+# F-024: STARTUPINFOEX + the proc-thread attribute list, so CreateProcessW inherits ONLY the
+# child's own stdio handles rather than every inheritable handle in the shell at spawn time (a
+# concurrent probe's pipe handle would otherwise leak into a long-lived module and wedge the
+# probe's communicate()). All declared with argtypes; guarded by a fallback at the call site.
+class STARTUPINFOEXW(ctypes.Structure):
+    _fields_ = [
+        ("StartupInfo", STARTUPINFOW),
+        ("lpAttributeList", ctypes.c_void_p),
+    ]
+
+
+kernel32.InitializeProcThreadAttributeList.argtypes = [
+    ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.c_size_t)]
+kernel32.InitializeProcThreadAttributeList.restype = wintypes.BOOL
+kernel32.UpdateProcThreadAttribute.argtypes = [
+    ctypes.c_void_p, wintypes.DWORD, ctypes.c_size_t, ctypes.c_void_p,
+    ctypes.c_size_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t)]
+kernel32.UpdateProcThreadAttribute.restype = wintypes.BOOL
+kernel32.DeleteProcThreadAttributeList.argtypes = [ctypes.c_void_p]
+kernel32.DeleteProcThreadAttributeList.restype = None
 
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -211,6 +259,9 @@ SW_RESTORE = 9
 SW_SHOW = 5
 
 _ENUM_WINDOWS_PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+# F-025: declared now that the callback type exists.
+user32.EnumWindows.argtypes = [_ENUM_WINDOWS_PROC, wintypes.LPARAM]
+user32.EnumWindows.restype = wintypes.BOOL
 
 
 def _top_level_windows_for(pids: set) -> list:
@@ -485,13 +536,46 @@ class JobSupervisor:
             si.hStdOutput = write_h
             si.hStdError = write_h
 
+            # F-024: build a proc-thread attribute list naming EXACTLY the handles this child may
+            # inherit (its stdout/stderr pipe and its NUL stdin). With this present, bInheritHandles
+            # inherits only these, not whatever inheritable pipe handles a concurrent request-thread
+            # probe happened to have open at this instant. Best-effort: if any step fails, fall back
+            # to the plain STARTUPINFOW path (never worse than before).
+            attr_buf = None
+            startup_ref = ctypes.byref(si)
+            extended_flag = 0
+            try:
+                inherit = [h for h in (write_h, (nul if nul and nul != INVALID_HANDLE_VALUE else None)) if h]
+                attr_size = ctypes.c_size_t(0)
+                kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
+                if attr_size.value:
+                    attr_buf = ctypes.create_string_buffer(attr_size.value)
+                    if kernel32.InitializeProcThreadAttributeList(attr_buf, 1, 0, ctypes.byref(attr_size)):
+                        handle_array = (wintypes.HANDLE * len(inherit))(*inherit)
+                        if kernel32.UpdateProcThreadAttribute(
+                                attr_buf, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                handle_array, ctypes.sizeof(handle_array), None, None):
+                            six = STARTUPINFOEXW()
+                            six.StartupInfo = si
+                            six.StartupInfo.cb = ctypes.sizeof(STARTUPINFOEXW)
+                            six.lpAttributeList = ctypes.cast(attr_buf, ctypes.c_void_p)
+                            startup_ref = ctypes.cast(ctypes.byref(six), ctypes.POINTER(STARTUPINFOW))
+                            extended_flag = EXTENDED_STARTUPINFO_PRESENT
+                        else:
+                            kernel32.DeleteProcThreadAttributeList(attr_buf)
+                            attr_buf = None
+            except Exception:  # noqa: BLE001 - never let handle-list setup block a launch
+                attr_buf = None
+                startup_ref = ctypes.byref(si)
+                extended_flag = 0
+
             pi = PROCESS_INFORMATION()
             cmdline = ctypes.create_unicode_buffer(build_cmdline(argv))
 
             # CREATE_UNICODE_ENVIRONMENT is required because the block below is UTF-16.
             # CREATE_NEW_PROCESS_GROUP makes GenerateConsoleCtrlEvent addressable.
             flags = (CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP
-                     | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW)
+                     | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW | extended_flag)
 
             # F-011: create the per-module graceful-shutdown Event (manual-reset, unsignalled) and
             # pass its name to the child in SWS_SHUTDOWN_EVENT. A module that installs the watcher
@@ -513,8 +597,10 @@ class JobSupervisor:
 
             ok = kernel32.CreateProcessW(
                 None, cmdline, None, None, True, flags,
-                ctypes.byref(env_buf), cwd, ctypes.byref(si), ctypes.byref(pi))
+                ctypes.byref(env_buf), cwd, startup_ref, ctypes.byref(pi))
 
+            if attr_buf is not None:
+                kernel32.DeleteProcThreadAttributeList(attr_buf)  # F-024: free the attribute list
             kernel32.CloseHandle(write_h)
             if nul and nul != INVALID_HANDLE_VALUE:
                 kernel32.CloseHandle(nul)

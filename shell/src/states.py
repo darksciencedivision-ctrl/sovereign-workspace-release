@@ -57,23 +57,57 @@ def classify_failure(reason: str) -> str:
 
 
 def port_owner_pid(port: int):
-    """Return the pid currently LISTENING on the loopback port, or None. G17 pre-check."""
-    import subprocess
+    """Return the pid currently LISTENING on the loopback port, or None. G17 pre-check.
+
+    F-022: this used to grep `netstat -ano` for the literal "LISTENING", which is LOCALIZED
+    ("ABHOEREN" on German Windows, etc.), so the port-conflict pre-check silently never fired on a
+    non-English host. It now queries GetExtendedTcpTable (iphlpapi) directly - the TCP state is the
+    numeric MIB_TCP_STATE_LISTEN, independent of the console language.
+    """
+    import ctypes
+    import socket
+    from ctypes import wintypes
+
+    AF_INET = 2
+    TCP_TABLE_OWNER_PID_LISTENER = 3
+    MIB_TCP_STATE_LISTEN = 2
+
+    class MIB_TCPROW_OWNER_PID(ctypes.Structure):
+        _fields_ = [
+            ("dwState", wintypes.DWORD),
+            ("dwLocalAddr", wintypes.DWORD),
+            ("dwLocalPort", wintypes.DWORD),
+            ("dwRemoteAddr", wintypes.DWORD),
+            ("dwRemotePort", wintypes.DWORD),
+            ("dwOwningPid", wintypes.DWORD),
+        ]
+
     try:
-        # Bounded: an unbounded subprocess here would hold a start operation open
-        # indefinitely on a host where netstat wedges.
-        out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
-                             capture_output=True, text=True, timeout=10).stdout
-    except (subprocess.TimeoutExpired, OSError):
-        # Unobservable is not "free". The caller treats None as "no recognised owner", so an
-        # unreadable table must not be reported as an owner either - but it is recorded rather
-        # than silently swallowed.
+        get_table = ctypes.windll.iphlpapi.GetExtendedTcpTable
+    except (AttributeError, OSError):
         return None
-    suffix = ":{}".format(port)
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 5 and parts[3].upper() == "LISTENING" and parts[1].endswith(suffix):
-            return parts[4]
+    get_table.restype = wintypes.DWORD
+
+    size = wintypes.DWORD(0)
+    # First call sizes the buffer (returns ERROR_INSUFFICIENT_BUFFER = 122).
+    get_table(None, ctypes.byref(size), False, AF_INET, TCP_TABLE_OWNER_PID_LISTENER, 0)
+    if size.value == 0:
+        return None
+    buf = ctypes.create_string_buffer(size.value)
+    rc = get_table(buf, ctypes.byref(size), False, AF_INET, TCP_TABLE_OWNER_PID_LISTENER, 0)
+    if rc != 0:  # NO_ERROR == 0; anything else is unobservable, which is not "free"
+        return None
+
+    num = ctypes.cast(buf, ctypes.POINTER(wintypes.DWORD)).contents.value
+    rows_addr = ctypes.addressof(buf) + ctypes.sizeof(wintypes.DWORD)
+    rows = (MIB_TCPROW_OWNER_PID * num).from_address(rows_addr)
+    for row in rows:
+        if row.dwState != MIB_TCP_STATE_LISTEN:
+            continue
+        # dwLocalPort holds the port in network byte order in its low 16 bits.
+        row_port = socket.ntohs(row.dwLocalPort & 0xFFFF)
+        if row_port == port:
+            return str(row.dwOwningPid)
     return None
 
 PORT_OCCUPIED_UNRECOGNIZED = "PORT_OCCUPIED_UNRECOGNIZED"
