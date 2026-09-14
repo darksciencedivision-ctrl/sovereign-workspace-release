@@ -357,7 +357,14 @@ class RegressionLocusVerifierGateTests(unittest.TestCase):
         shutil.copyfile(self.verifier_source, sandbox / "tools" / "verify_regression_locus.py")
         seal = sandbox / "runs" / "completion-loop"
         seal.mkdir(parents=True)
-        command = 'python -c "print(\'' + self.MEASURED_COMMAND_RESULT + '\')"'
+        # F-137: the verifier only admits `<interpreter> -m pytest|unittest ...`. A sandbox-local
+        # `pytest` package shadows the real one (python -m puts the worktree first on sys.path), so
+        # the run stays hermetic and deterministic while exercising the admissible command shape.
+        (sandbox / "pytest").mkdir()
+        (sandbox / "pytest" / "__init__.py").write_text("", encoding="utf-8")
+        (sandbox / "pytest" / "__main__.py").write_text(
+            "print(" + repr(self.MEASURED_COMMAND_RESULT + " in 0.01s") + ")\n", encoding="utf-8")
+        command = "python -m pytest -q -p no:cacheprovider"
         loop_state = {
             "implementation_seal_commit": IMPLEMENTATION_SEAL_COMMIT,
             "last_full_regression": {
@@ -401,6 +408,26 @@ class RegressionLocusVerifierGateTests(unittest.TestCase):
         self.assertEqual(record["verdict"], "FAIL")
         self.assertEqual(record["recorded"]["result"], "199 passed, 375 subtests passed")
         self.assertNotEqual(record["observed"]["result"], record["recorded"]["result"])
+
+    def test_a_non_test_command_in_the_ledger_is_refused_unexecuted(self) -> None:
+        """F-137: the recorded command is tracked DATA; a non-test program must never run."""
+        sandbox, _head = self._sandbox(self.MEASURED_COMMAND_RESULT)
+        state_path = sandbox / "runs" / "completion-loop" / "LOOP_STATE.json"
+        marker = sandbox / "EXECUTED"
+        for command in ('python -c "open(\'EXECUTED\', \'w\')"', "cmd /c echo pwned",
+                        "python -m http.server", "python -m pytest && echo pwned"):
+            with self.subTest(command=command):
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+                state["last_full_regression"]["command"] = command
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                completed = self._run_verifier(sandbox)
+                record = json.loads((sandbox / "runs" / "release-baseline" /
+                                     "REGRESSION_LOCUS_VERIFICATION.json").read_text(encoding="utf-8"))
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertEqual(record["verdict"], "FAIL")
+                self.assertIn("not an admissible regression run", record.get("error", ""))
+                self.assertEqual({}, record["observed"])
+                self.assertFalse(marker.exists())
 
     def test_matching_result_string_on_real_ancestor_settles_to_pass(self) -> None:
         sandbox, head = self._sandbox(self.MEASURED_COMMAND_RESULT)

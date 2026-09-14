@@ -19,9 +19,9 @@ reproduce it cold.
 """
 
 import hashlib
+import re
 import json
 import os
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -31,6 +31,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LOOP_STATE_PATH = ROOT / "runs" / "completion-loop" / "LOOP_STATE.json"
 RECORD_PATH = ROOT / "runs" / "release-baseline" / "REGRESSION_LOCUS_VERIFICATION.json"
+
+
+#: F-137. The command comes from a TRACKED data file, so it is data, not a program. Only a test run
+#: of the module's own suite is admissible: an interpreter, `-m pytest` or `-m unittest`, and plain
+#: option/path tokens. No quoting, no shell metacharacters, no `-c`, no other executable - anything
+#: else is refused before a worktree is created or a process is started.
+_ALLOWED_INTERPRETERS = ("python", "python3", "python.exe", "py")
+_ALLOWED_MODULES = ("pytest", "unittest")
+_SAFE_TOKEN = re.compile(r"^[A-Za-z0-9_.:/=+,@-]+$")
+
+
+def admissible_regression_argv(command: str) -> list[str] | None:
+    """The argv the recorded command denotes, or None when it is not an admissible test run."""
+    if not isinstance(command, str) or not command.strip():
+        return None
+    tokens = command.split()
+    if not all(_SAFE_TOKEN.match(token) for token in tokens):
+        return None
+    index = 0
+    if tokens[index] not in _ALLOWED_INTERPRETERS:
+        return None
+    index += 1
+    if tokens[0] == "py" and index < len(tokens) and re.fullmatch(r"-3(\.\d+)?", tokens[index]):
+        index += 1
+    if tokens[index:index + 1] != ["-m"] or len(tokens) <= index + 1 or tokens[index + 1] not in _ALLOWED_MODULES:
+        return None
+    return tokens
 
 
 def _git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -68,6 +95,10 @@ def verify() -> dict:
         "result": recorded_result,
         "exit_code": recorded_exit,
     }
+    if admissible_regression_argv(command) is None:
+        record["error"] = ("recorded command is not an admissible regression run (allowed: an "
+                           "interpreter, -m pytest|unittest, plain option tokens); refused unexecuted")
+        return record
 
     ancestor = _git(ROOT, "merge-base", "--is-ancestor", measured_at_commit, "HEAD", check=False)
     record["is_ancestor_or_self_of_head"] = ancestor.returncode == 0
@@ -108,18 +139,9 @@ def verify() -> dict:
                 }
             )
 
-        if os.name == "nt":
-            # shlex has no Windows mode: posix=False KEEPS the quote characters inside each token,
-            # so `python -c "print('x')"` handed python the string literal "print('x')", which it
-            # evaluated silently - empty stdout, exit 0, and an honest record verified as FAIL.
-            # CreateProcess parses a command-line string with the MSVC rules a recorded Windows
-            # command was written for, so the string is passed through unsplit (still shell=False).
-            argv = command if command.strip() else []
-        else:
-            argv = shlex.split(command)
-        if not argv:
-            record["error"] = "recorded command is empty"
-            return record
+        # F-137: validated argv, shell=False, on every platform. (shlex.split(posix=False) on Windows
+        # also kept quote characters inside tokens, so a quoted command ran as something else.)
+        argv = admissible_regression_argv(command)
         env = {
             key: value for key, value in os.environ.items()
             if not any(tok in key.upper() for tok in
