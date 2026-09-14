@@ -792,7 +792,15 @@ class SemanticDeepExecutor:
         # recommendation caps at 32768 is NOT greater than num_predict -- so the public constructor
         # raised ValueError on its own defaults. An explicit base_options still wins.
         provided = dict(base_options or {})
-        effective_ctx = int(provided.get("num_ctx", recommended_num_ctx()[0]))
+        # F-115: compute recommended_num_ctx() (which shells out to nvidia-smi, up to ~20s) ONLY when
+        # the caller did not supply num_ctx. `provided.get("num_ctx", recommended_num_ctx()[0])`
+        # evaluated the default EAGERLY on every construction - including under _configuration_lock
+        # in update_model_assignments - even though the manifest path always passes num_ctx and the
+        # probe's result was then discarded.
+        if "num_ctx" in provided:
+            effective_ctx = int(provided["num_ctx"])
+        else:
+            effective_ctx = int(recommended_num_ctx()[0])
         default_predict = min(32_768, max(256, effective_ctx // 2))
         defaults = {
             "temperature": 0.1,

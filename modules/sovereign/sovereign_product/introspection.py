@@ -266,9 +266,9 @@ def _ceiling_state(name: str, parameter_size: str | None,
         return {"parameter_size": parameter_size, "within_ceiling": False,
                 "runs_remotely": False,
                 "ceiling_reason": f"{name} has {parameter_size} parameters, above the operator's "
-                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (ENTRY 017) - this "
-                                  f"host's GPU carries 8 GB of VRAM. Installed and kept, but not "
-                                  f"assignable to a SOVEREIGN role in this build"}
+                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (ENTRY 017). "
+                                  f"Installed and kept, but not assignable to a SOVEREIGN role in "
+                                  f"this build"}
     return {"parameter_size": parameter_size, "within_ceiling": True,
             "ceiling_reason": None, "runs_remotely": False}
 
@@ -902,9 +902,17 @@ def collect_self_state(
     base_url = runtime.get("OLLAMA_BASE_URL") if isinstance(runtime, Mapping) else None
 
     store_state = _store_state(store)
+    # F-115: readiness must not require the EMBEDDING model. No sovereign_product route uses
+    # embeddings, yet including EMBEDDING_MODEL here made /v1/health report degraded and QUICK/DEEP
+    # "not ready" whenever nomic-embed-text was absent. Gate readiness on the roles the product
+    # actually calls; the embedding role is still reported in configured_models_by_role below.
+    readiness_models = [
+        model for role, model in configured_roles.items()
+        if "EMBED" not in str(role).upper()
+    ]
     ollama = _probe_ollama(
         str(base_url) if isinstance(base_url, str) else None,
-        configured_models=configured_roles.values(),
+        configured_models=readiness_models,
         http_get=http_get,
         timeout=timeout,
     )
