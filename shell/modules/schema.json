@@ -147,6 +147,7 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
+      "description": "F-034 (documented limitation): identity confirms the service on the port is the RIGHT KIND of service, not a cryptographically authenticated instance. http_json checks that required_keys are present, http_html_marker that a marker string appears, and process_image that the pid the shell spawned runs the expected image. Within the single-operator loopback scope (see the sovereign_product server header) that is sufficient - it catches the wrong module or a stale foreign listener on the port. It is NOT proof against a co-located adversary standing up a look-alike service with the same keys; closing that would need a per-launch shared secret echoed by each service (as the shell does with SWS_SHELL_NONCE, F-006). That hardening is out of scope for this single-operator build and recorded here so the check is not mistaken for authentication.",
       "required": [
         "kind"
       ],
