@@ -71,8 +71,10 @@ class ProvenanceHeaderIsBraceSafe(unittest.TestCase):
 
 class NormalisationKeepsWindowsPaths(unittest.TestCase):
     def test_backslash_words_without_braces_survive(self) -> None:
-        text = faf._normalize_for_af(r"Stored at C:\Users\operator\notes and \textbf{bold}.")
-        self.assertIn(r"C:\Users\operator\notes", text)
+        # Drive Z: on purpose: a user-home path on the C drive is what the developer-identifier
+        # boundary gate treats as a leaked machine path, and this synthetic fixture must not trip it.
+        text = faf._normalize_for_af(r"Stored at Z:\Users\operator\notes and \textbf{bold}.")
+        self.assertIn(r"Z:\Users\operator\notes", text)
         self.assertIn("and bold.", text)
         self.assertNotIn(r"\textbf", text)
 
