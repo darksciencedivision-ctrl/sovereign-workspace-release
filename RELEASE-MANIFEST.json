@@ -1,7 +1,7 @@
 {
   "manifest_kind": "RELEASE-MANIFEST",
   "directive": "SWS-REM-DIR-20260828 R2 / CONVERGE-01 C6",
-  "generated_utc": "2026-08-30T06:14:42Z",
+  "generated_utc": "2026-09-14T14:34:12Z",
   "producer": "builder claude-code (opus-5) via bundles/LOCAL01/H",
   "policy": "Validation reads only explicitly enumerated paths and freshly measured hashes. Module content identities cover git-tracked archive bytes and exclude ignored host state. Prior RELEASE-MANIFEST.json preserved as RELEASE-MANIFEST.json.pre-CONVERGE01. batch_files enumerates Batch 4-E plus CONVERGE-01 identity/UI/C4 tooling files except RELEASE-MANIFEST.json itself. This manifest covers TRACKED BYTES ONLY and carries no release-artifact hash: a tracked manifest enters the archive it would describe, so the archive's hash cannot live inside it (CLOSEOUT-01 A-1/OD-24). Release-artifact and sidecar hashes are authoritative only in the untracked release-artifacts/release-build-manifest.json, named here by release_archive_hash_authority. Every path+sha256 pair in this file is verified by tools/release/release_manifest_check.py; adding a hash-bearing section the checker does not verify makes the gate FAIL by construction (S-15).",
   "candidate": {
@@ -18,16 +18,19 @@
   "modules": {
     "debate": {
       "current_provenance_path": "modules/debate/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "b4ba0f845959d054cd439e2dfae8405cd41136e2d2c4406abf9cb37e8ac4b7b2",
+      "provenance_record_sha256": "b2c8633aa3d7f9930f430745e88e5f96530fc88a235711a031925a00dcc604a4",
       "superseded_provenance_paths": [
         "modules/debate/INSTALL-PROVENANCE.previous.json",
         "modules/debate/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a",
-        "content_file_count": 55,
-        "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417\u2026 [U]"
+        "content_digest_sha256": "021aef784aa56ba567bf4cada98089f2cba79017b3f1438f7992a9b423ffde6c",
+        "content_file_count": 58,
+        "lineage": "v1.2 Phase1 archive 29b364b075e55b4ac5e66cd1399145838dfca691d82c4500253d4ece36742f93 superseded by the director-accepted v1.2.1-hardening swap (BUILD-INFO.json source_commit 43695bd; upstream baseline d7be33579c0f986db74c0b221b5bdf06a9d280df); release ZIP d03ba417\u2026 [U]",
+        "historical_source_hashes": [
+          "b89c773051eafa2a9e2c4ee8c364a8c6641df33a676ab1a9b75e838fdcb51e7a"
+        ]
       },
       "version": "v1.2.1-hardening",
       "locks": [
@@ -46,7 +49,7 @@
     },
     "distillery": {
       "current_provenance_path": "modules/distillery/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "c58c9540ff1e614ad8df237a2a6bdce6e068f8795bc5fce56d04f0dfa7dd43cd",
+      "provenance_record_sha256": "401eaa9f039f8dd39fea94c802946e93b8d14099b922fb494ee29ba489693ccf",
       "superseded_provenance_paths": [
         "modules/distillery/INSTALL-PROVENANCE.json.previous",
         "modules/distillery/INSTALL-MANIFEST.txt.previous",
@@ -54,10 +57,11 @@
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "1efcf7c0d1caf96eed79caf4dcd50e0ebfa4d01451e3636ff88b3b5742f6fc4b",
+        "content_digest_sha256": "fa1eed9bbd96095dc5cadc06835cc1a9f84062f4f6117d113b60bb4302f38e90",
         "content_file_count": 206,
         "historical_source_hashes": [
-          "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96"
+          "620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96",
+          "1efcf7c0d1caf96eed79caf4dcd50e0ebfa4d01451e3636ff88b3b5742f6fc4b"
         ],
         "lineage": "robocopy /E from D:\\Product Software\\SOVEREIGN_DISTILLERY_ENTERPRISE_20260821T011825Z_5ff6f56e\\SOURCE_TREE; commit 6cd9886 [U]"
       },
@@ -103,16 +107,19 @@
     },
     "sow": {
       "current_provenance_path": "modules/sow/INSTALL-PROVENANCE.json",
-      "provenance_record_sha256": "524c1e756dbd12da64ce4476be09e964143c8868ab5093e35af3186ccbb48a87",
+      "provenance_record_sha256": "9108dd62c661e1764aabf4b49f2d249e4e9b22d9e55912ba38dc64808d987af4",
       "superseded_provenance_paths": [
         "modules/sow/INSTALL-PROVENANCE.previous.json",
         "modules/sow/INSTALL-PROVENANCE.json.pre-CONVERGE01"
       ],
       "source_identity": {
         "kind": "candidate_tree_module",
-        "content_digest_sha256": "7a8e81aaab91706825b8a1a105e2d53847465993aba3b0bafa61b0137b6681aa",
-        "content_file_count": 958,
-        "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)"
+        "content_digest_sha256": "7b08c5427bae06a52b8d177ce7ce54209794c25166d2e0f353116cc504cca6c2",
+        "content_file_count": 1040,
+        "lineage": "git_worktree_copy git_head 6d23a81082836778ffd46c70151821b467dc7432; upstream e6fcb89 [U]; canonical SOW lineage UNRESOLVED pending OD-20 (H-5)",
+        "historical_source_hashes": [
+          "7a8e81aaab91706825b8a1a105e2d53847465993aba3b0bafa61b0137b6681aa"
+        ]
       },
       "version": "0.1.0",
       "locks": [
@@ -130,7 +137,9 @@
       "source_identity": {
         "kind": "copy-based",
         "source": "D:\\Token Piggy Bank",
-        "note": "option-A copy per the existing record (utc 2026-08-26T15:43:52Z); no source archive digest exists for copy-based provenance; record left byte-identical by B2-2"
+        "note": "option-A copy per the existing record (utc 2026-08-26T15:43:52Z); no source archive digest exists for copy-based provenance; record left byte-identical by B2-2",
+        "historical_source_hashes": [],
+        "content_digest_sha256": "ad81cc050f69c4231182ab76852014800aef641ecebeeb8b4ad0002588d4431b"
       },
       "version": "record-dated 2026-08-26",
       "locks": [],
@@ -166,7 +175,9 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d"
+      "sha256": "abde1ef2517ebaaefcd25f1077d2e5edbc6024e8d65c91a42adda360a058934e",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113474Z"
     }
   ],
   "ui_assets": [
@@ -206,7 +217,9 @@
     },
     {
       "path": "SBOM.json",
-      "sha256": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d"
+      "sha256": "abde1ef2517ebaaefcd25f1077d2e5edbc6024e8d65c91a42adda360a058934e",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113474Z"
     },
     {
       "path": "SBOM.json.pre-CONVERGE01",
@@ -214,7 +227,9 @@
     },
     {
       "path": "Start-Shell.ps1",
-      "sha256": "65d0ba5200c213f9641a5766e01020cbb5738516276e3a0277babeaf95079f85"
+      "sha256": "ca683c9ec8f4fc04a2e00a655aefc05ab53229b121f5a976475f658fa69f61cd",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
@@ -270,7 +285,7 @@
     },
     {
       "path": "shell/BUILD-MANIFEST.txt",
-      "sha256": "7de6459ebe1af755b91dd50ac379084050527598df4ece25507e9d765da1fd80"
+      "sha256": "d3de5173927b41e19e5d5fa45a49fb910ba5e5bd24fcab8018523d5549864df4"
     },
     {
       "path": "shell/config/install.json",
@@ -278,7 +293,9 @@
     },
     {
       "path": "shell/src/probe.py",
-      "sha256": "a76de2eb73b7c65667340859aa4675ba93614a152651bfd7cb82fbaf05925e9d"
+      "sha256": "baedc6f68ccfe8fe4e697e2106cea481f9c436ac643f1a2f35011ac106dc304c",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "shell/static/app.css",
@@ -286,7 +303,9 @@
     },
     {
       "path": "shell/static/app.js",
-      "sha256": "674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390"
+      "sha256": "abf3e7ec91257318353e6c15f1e0bb42bff4dc18cac2d4c39f4044df61deba1f",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "shell/static/brand-mark.svg",
@@ -322,7 +341,9 @@
     },
     {
       "path": "tools/release/build_release.ps1",
-      "sha256": "2e39c9d3fa185e9bbf3d9b72e0d2beda590ed7fea293b7f8fc73daab6a31f1db"
+      "sha256": "cd1f58547fe47f1a9b39df96c6cf16f2687842728e2c0247f120be07e9414a62",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "tools/release/fixture_allowlist.json",
@@ -330,23 +351,33 @@
     },
     {
       "path": "tools/release/generate_module_provenance.py",
-      "sha256": "f13fe0505ee8d147c09445bbb84158b2b60286a54d2dd5f76902833ca7b583b5"
+      "sha256": "9e54530996713bc43acd835468996302f3d811b8327e44dbf6e2c91b326ab3de",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "tools/release/generate_release_identity.py",
-      "sha256": "ebd27610e27375479b55f69579993de4c282b04c5b4e32a042d6b5979fff7bad"
+      "sha256": "74cec121a1721be4df31fc58edf8d621b64887576cbf7c0bd49d37a3fb73e331",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.113979Z"
     },
     {
       "path": "tools/release/install.ps1",
-      "sha256": "ffe411fcb69da61c7d16e57231fab0b28b60d649002ad69b4f24ca8ba11ebc8d"
+      "sha256": "e5b6526852c91b4b01c87c52010fee3380dac62a11432020d0b2ea3908dc9f15",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.114986Z"
     },
     {
       "path": "tools/release/install_shortcut.ps1",
-      "sha256": "ebf50fcf05d96f8d4d4071f2ed7ee9ae677c4e884636bd0159dd6709c40296a5"
+      "sha256": "2b8833db1b2588e62d17c581f5bdaa70eb121c8af6585b6e6ceea6360e2a35b8",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.114986Z"
     },
     {
       "path": "tools/release/module_source_registry.json",
-      "sha256": "0c5cc0fbecb8d5a011afb6cd452163362f115df01e69417be3e82964d6e49160"
+      "sha256": "d7159ae6c808a1edad2a77c74b7c3ddcbf3ddb44752bccbd1d7e62f84638fb41",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/rebase_adapters.py",
@@ -354,11 +385,15 @@
     },
     {
       "path": "tools/release/release_manifest_check.py",
-      "sha256": "53f41913e0ad9ebe39611d91ccb760b7a5ee24bd84390176e92cd932ca58b39a"
+      "sha256": "c5f6e5fcfe96cdf0b17d8286f0c6e32993a19ca5def7aed18f370dea356355de",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/test_generate_release_identity.py",
-      "sha256": "7ae9db24b8a721a9f64aa5bc83b0e44563be3fe005f5b31cc994dfcd6d608329"
+      "sha256": "e3b61a56219959a9b695bcfa83e21871825cf44cf725a667392f303465349a6b",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/test_install_shortcut.ps1",
@@ -366,7 +401,9 @@
     },
     {
       "path": "tools/release/test_package_boundary_gate.py",
-      "sha256": "534507bfe325a23abfcadcb99dde3a210e7bdd623557eeb540d13d8c5cdc13db"
+      "sha256": "402a0613fcf48266d9548d323e7c00d246f90999e3337ff989db59cc8cbc9e6e",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/test_rebase_adapters.py",
@@ -374,15 +411,21 @@
     },
     {
       "path": "tools/release/test_release_manifest_check.py",
-      "sha256": "3de4eb3a2148cc692be1749dd226488189aae5524ad7bb4c865b8f10bb18b765"
+      "sha256": "0661139e39c29344d447221cf52ecf8951776e357d9e3cd58e27dab5589e0f53",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/uninstall.ps1",
-      "sha256": "863fefbe533e22e3fd0cd26507927ae4d88e11db2951f569f71b6f0f15990404"
+      "sha256": "3d9abc5b874678b09e1b51885fc5bb4d5191770c8634e8a9d70e1b5114a93401",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.121529Z"
     },
     {
       "path": "tools/release/verify_install.ps1",
-      "sha256": "957023c59fced9ae332f8afc5c91979447c52e64ec3e2882cf8de23587e20a2d"
+      "sha256": "f6202d71a556157e3e47d72ada7906ffd34b9962b434345995447dd7e1d337c9",
+      "repin_reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "repin_utc": "2026-09-14T14:34:19.123036Z"
     }
   ],
   "out_of_archive_references": {
@@ -414,5 +457,126 @@
     "paths": [
       "shell/BUILD-MANIFEST.txt"
     ]
-  }
+  },
+  "repin_history": [
+    {
+      "path": "SBOM.json",
+      "was": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d",
+      "now": "abde1ef2517ebaaefcd25f1077d2e5edbc6024e8d65c91a42adda360a058934e",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113474Z"
+    },
+    {
+      "path": "SBOM.json",
+      "was": "1a90ab3fcb23c77f870a7bf2a6a3629c377aaf7e394f4bdbb1f0fb8a99b4784d",
+      "now": "abde1ef2517ebaaefcd25f1077d2e5edbc6024e8d65c91a42adda360a058934e",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113474Z"
+    },
+    {
+      "path": "Start-Shell.ps1",
+      "was": "65d0ba5200c213f9641a5766e01020cbb5738516276e3a0277babeaf95079f85",
+      "now": "ca683c9ec8f4fc04a2e00a655aefc05ab53229b121f5a976475f658fa69f61cd",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "shell/src/probe.py",
+      "was": "a76de2eb73b7c65667340859aa4675ba93614a152651bfd7cb82fbaf05925e9d",
+      "now": "baedc6f68ccfe8fe4e697e2106cea481f9c436ac643f1a2f35011ac106dc304c",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "shell/static/app.js",
+      "was": "674b02af7167b07507a1a99cf3bc381cb3a0bc19e381413a02428401476ac390",
+      "now": "abf3e7ec91257318353e6c15f1e0bb42bff4dc18cac2d4c39f4044df61deba1f",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "tools/release/build_release.ps1",
+      "was": "2e39c9d3fa185e9bbf3d9b72e0d2beda590ed7fea293b7f8fc73daab6a31f1db",
+      "now": "cd1f58547fe47f1a9b39df96c6cf16f2687842728e2c0247f120be07e9414a62",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "tools/release/generate_module_provenance.py",
+      "was": "f13fe0505ee8d147c09445bbb84158b2b60286a54d2dd5f76902833ca7b583b5",
+      "now": "9e54530996713bc43acd835468996302f3d811b8327e44dbf6e2c91b326ab3de",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "tools/release/generate_release_identity.py",
+      "was": "ebd27610e27375479b55f69579993de4c282b04c5b4e32a042d6b5979fff7bad",
+      "now": "74cec121a1721be4df31fc58edf8d621b64887576cbf7c0bd49d37a3fb73e331",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.113979Z"
+    },
+    {
+      "path": "tools/release/install.ps1",
+      "was": "ffe411fcb69da61c7d16e57231fab0b28b60d649002ad69b4f24ca8ba11ebc8d",
+      "now": "e5b6526852c91b4b01c87c52010fee3380dac62a11432020d0b2ea3908dc9f15",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.114986Z"
+    },
+    {
+      "path": "tools/release/install_shortcut.ps1",
+      "was": "ebf50fcf05d96f8d4d4071f2ed7ee9ae677c4e884636bd0159dd6709c40296a5",
+      "now": "2b8833db1b2588e62d17c581f5bdaa70eb121c8af6585b6e6ceea6360e2a35b8",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.114986Z"
+    },
+    {
+      "path": "tools/release/module_source_registry.json",
+      "was": "0c5cc0fbecb8d5a011afb6cd452163362f115df01e69417be3e82964d6e49160",
+      "now": "d7159ae6c808a1edad2a77c74b7c3ddcbf3ddb44752bccbd1d7e62f84638fb41",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/release_manifest_check.py",
+      "was": "53f41913e0ad9ebe39611d91ccb760b7a5ee24bd84390176e92cd932ca58b39a",
+      "now": "c5f6e5fcfe96cdf0b17d8286f0c6e32993a19ca5def7aed18f370dea356355de",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/test_generate_release_identity.py",
+      "was": "7ae9db24b8a721a9f64aa5bc83b0e44563be3fe005f5b31cc994dfcd6d608329",
+      "now": "e3b61a56219959a9b695bcfa83e21871825cf44cf725a667392f303465349a6b",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/test_package_boundary_gate.py",
+      "was": "534507bfe325a23abfcadcb99dde3a210e7bdd623557eeb540d13d8c5cdc13db",
+      "now": "402a0613fcf48266d9548d323e7c00d246f90999e3337ff989db59cc8cbc9e6e",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/test_release_manifest_check.py",
+      "was": "3de4eb3a2148cc692be1749dd226488189aae5524ad7bb4c865b8f10bb18b765",
+      "now": "0661139e39c29344d447221cf52ecf8951776e357d9e3cd58e27dab5589e0f53",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/uninstall.ps1",
+      "was": "863fefbe533e22e3fd0cd26507927ae4d88e11db2951f569f71b6f0f15990404",
+      "now": "3d9abc5b874678b09e1b51885fc5bb4d5191770c8634e8a9d70e1b5114a93401",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.121529Z"
+    },
+    {
+      "path": "tools/release/verify_install.ps1",
+      "was": "957023c59fced9ae332f8afc5c91979447c52e64ec3e2882cf8de23587e20a2d",
+      "now": "f6202d71a556157e3e47d72ada7906ffd34b9962b434345995447dd7e1d337c9",
+      "reason": "F-074 LF renormalize plus frozen remediation/p1 implementation (F-007/F-034/F-136/F-113) on reviewed candidate bytes",
+      "utc": "2026-09-14T14:34:19.123036Z"
+    }
+  ]
 }

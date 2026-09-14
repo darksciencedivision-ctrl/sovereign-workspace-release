@@ -1,13 +1,33 @@
 # Root attributes — CLOSEOUT-01.
-# Scope: release-archive membership only. No text/eol/diff attributes are set
-# here, so the existing modules/sow/.gitattributes and
-# modules/distillery/.gitattributes keep full control of normalisation for
-# their subtrees. Git resolves attributes per attribute, not per file, and a
-# deeper .gitattributes wins only for attributes it actually sets; neither of
-# those files sets export-ignore, so these rules apply unopposed.
+# F-074: text files checkout as LF regardless of core.autocrlf, so hash gates
+# that read working-tree bytes match git blobs and git archive. Subtree
+# modules/sow/.gitattributes and modules/distillery/.gitattributes already set
+# eol=lf; this extends the same rule to shell/, tools/, and root manifests.
+# export-ignore rules below still apply unopposed (deeper files do not set them).
 #
 # export-ignore removes a path from `git archive` ONLY. Every path below stays
 # tracked, stays in `git ls-files`, and stays in history.
+
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.bundle binary
+*.whl binary
+*.pyc binary
+*.pyd binary
+*.dll binary
+*.exe binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.sqlite binary
+*.db binary
+*.pdf binary
 
 # X-2 (A-2 / OD-25) — the Phase-1 throwaway spike is not product code. Its
 # package-lock pins electron 31.7.7 and extract-zip 2.0.1, the two

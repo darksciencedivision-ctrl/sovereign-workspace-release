@@ -1,17 +1,17 @@
 {
   "module": "distillery",
   "record_kind": "candidate-content provenance (SWS-REM-DIR-20260828 R2 B2-2)",
-  "generated_utc": "2026-09-12T17:49:17Z",
+  "generated_utc": "2026-09-14T14:33:02Z",
   "producer": "builder codex via tools/release/generate_module_provenance.py",
   "candidate": {
     "baseline_archive": "SOVEREIGN_SYSTEM_BASELINE_20260827.zip",
     "baseline_sha256": "75e4be075dcb5629c3175850f5aa3f342c7c693f2967c3620d6cd4914ac27138",
     "worktree": "release-worktree",
     "worktree_initial_commit": "cf50cde2f64b9db1a5021db80da8d9843a657926",
-    "worktree_commit_at_generation": "10cb30e0edd915fd8105296ad1c0bdbfa49848ca"
+    "worktree_commit_at_generation": "404df1c3ce5112b26a69c1ebd4a431f328d19c11"
   },
   "source_kind": "candidate_tree_module",
-  "source_sha256": "8df3e586347291fcba7fe71288ed41c45fed2b0af8a7598b1f5d85921a4cca4d",
+  "source_sha256": "fa1eed9bbd96095dc5cadc06835cc1a9f84062f4f6117d113b60bb4302f38e90",
   "source_sha256_basis": "archive-stable module content digest: SHA-256 over sorted '<sha256>  <relpath>' lines of all 206 git-tracked files under modules/distillery/ at generation time, excluding INSTALL-PROVENANCE.json itself; ignored host state is excluded",
   "content_file_count": 206,
   "version": "1.1.0rc3",

@@ -36,6 +36,11 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # F-074: windows-latest defaults core.autocrlf=true, which materialises i/lf files as
+      # CRLF and breaks working-tree hash gates. Pin false before checkout.
+      - name: Disable Git autocrlf
+        run: git config --global core.autocrlf false
+
       # F-064(e): actions are pinned to a full commit SHA (not a movable tag), with the tag in a
       # trailing comment. A tag can be repointed at attacker-controlled code; a SHA cannot.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
