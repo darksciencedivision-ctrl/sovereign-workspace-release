@@ -143,6 +143,7 @@ def _declared_out_of_archive(manifest: dict) -> dict:
 
 def _check_path_references(root: str, manifest: dict, problems: list) -> None:
     declared = _declared_out_of_archive(manifest)
+    used_prefixes: set = set()
 
     def resolved_or_declared(value: str, where: str) -> None:
         normalized = value.replace("\\", "/")
@@ -150,6 +151,7 @@ def _check_path_references(root: str, manifest: dict, problems: list) -> None:
             return
         for prefix, _reason in declared.items():
             if normalized == prefix or normalized.startswith(prefix + "/"):
+                used_prefixes.add(prefix)  # F-067: this exemption was actually needed
                 return
         problems.append(
             f"path_references: {where} names {value!r}, which does not resolve in the archive "
@@ -168,14 +170,17 @@ def _check_path_references(root: str, manifest: dict, problems: list) -> None:
 
     walk(manifest, "$")
 
-    # A declaration that no longer names anything is rot: it would let a genuinely broken path
-    # be introduced later under cover of a stale exemption.
+    # F-067: a declaration that no longer names anything is rot - it would let a genuinely broken
+    # path be introduced later under cover of a stale exemption. The old check tested
+    # `prefix in json.dumps(manifest)`, but every prefix is taken FROM the manifest's own
+    # out_of_archive_references block, so it was always true and the branch could never fire. The
+    # real test is whether any PATHISH VALUE actually needed the exemption during the walk above:
+    # an exemption that resolved nothing is stale.
     for prefix in declared:
-        used = json.dumps(manifest).replace("\\\\", "/")
-        if prefix not in used:
+        if prefix not in used_prefixes:
             problems.append(
-                f"out_of_archive_references: {prefix!r} is declared but nothing in the "
-                f"manifest names it — remove the stale exemption"
+                f"out_of_archive_references: {prefix!r} is declared but no path in the "
+                f"manifest resolves through it — remove the stale exemption"
             )
 
 
@@ -221,6 +226,11 @@ def check(root: str, manifest: dict) -> list:
                 p = item.get("path")
                 want = item.get("sha256")
                 verified.add(id(item))
+                # F-067: a group item with no "path" (or a non-string one) is a manifest defect and
+                # must be REPORTED, not crash the checker with AttributeError on None.replace().
+                if not isinstance(p, str) or not p:
+                    problems.append(f"{name}: {group} item has no 'path'")
+                    continue
                 full = os.path.join(root, p.replace("/", os.sep))
                 if not os.path.isfile(full):
                     problems.append(f"{name}: {group} file missing at {p}")

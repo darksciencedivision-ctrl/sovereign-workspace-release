@@ -9,6 +9,7 @@ metadata and native-file hashes. Missing metadata is surfaced as UNKNOWN.
 from __future__ import annotations
 
 import argparse
+import sys
 import hashlib
 import json
 import re
@@ -330,7 +331,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--generated-utc", required=True)
+    # F-069: this is a SECOND, conflicting identity/SBOM generator. It hard-codes SYSTEM_VERSION,
+    # rewrites VERSION.json WITHOUT state_schema (which upgrade.ps1 depends on, F-052), and rewrites
+    # SBOM.json in the exact old format generate_sbom.py's docstring calls the defect. Running it by
+    # mistake silently regresses three release inputs, so it REFUSES to run unless the operator
+    # passes --i-understand-this-is-deprecated. The canonical generators are generate_build_manifest.py,
+    # generate_sbom.py and generate_notice.py (run via tools/ci/run_ci.ps1).
+    parser.add_argument("--i-understand-this-is-deprecated", action="store_true",
+                        help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if not args.i_understand_this_is_deprecated:
+        print(
+            "generate_release_identity: REFUSING to run. This generator is DEPRECATED and conflicts "
+            "with the canonical release inputs: it hard-codes the version, writes VERSION.json "
+            "without state_schema (breaks upgrade.ps1), and rewrites SBOM.json in the superseded "
+            "format. Use generate_build_manifest.py + generate_sbom.py + generate_notice.py "
+            "(tools/ci/run_ci.ps1). Pass --i-understand-this-is-deprecated only if you are certain.",
+            file=sys.stderr,
+        )
+        return 2
     paths = generate(args.root.resolve(), args.source_commit, args.generated_utc)
     print(
         "generate_release_identity: wrote "

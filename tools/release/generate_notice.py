@@ -55,7 +55,11 @@ SPELLINGS = {
 #: Values that are technically present but say nothing useful. `python-dateutil` declares
 #: "Dual License" in its License field while naming both options in its classifiers; a NOTICE
 #: that repeats the vague field is worse than one that reads the classifiers.
-VAGUE = {"", "unknown", "dual license", "other", "other/proprietary license"}
+# F-075: "unresolved" is itself vague - a component whose SBOM licence is literally "UNRESOLVED"
+# must NOT be written into NOTICE as a licence named UNRESOLVED with exit 0. Treating it as vague
+# sends it through from_installed and, failing that, into the unresolved list -> the tool exits
+# non-zero, so an incomplete NOTICE fails the build (as this module's docstring promises).
+VAGUE = {"", "unknown", "dual license", "other", "other/proprietary license", "unresolved"}
 
 #: Licences whose obligations need more than attribution. Each maps to the section of
 #: docs/THIRD-PARTY-LICENCE-POSITION.md that records the position taken.
