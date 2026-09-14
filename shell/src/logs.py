@@ -76,15 +76,34 @@ class RotatingLineSink:
         self.max_bytes = max_bytes
         self.keep = keep
         self.errors = 0
+        self.dropped = 0
         self._lock = threading.Lock()
+        # F-026: the handle is held OPEN and the size tracked in memory, so the pipe-pump thread
+        # does not open/close/stat the file on every line (a slow disk otherwise stalled the pump
+        # and the child blocked on a full pipe). None until first successful open.
+        self._handle = None
+        self._size = 0
 
-    def _rotate_if_needed(self) -> None:
+    def _open(self) -> None:
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        # Binary append: line lengths are counted in BYTES (utf-8) to bound size correctly.
+        self._handle = open(self.path, "ab")  # noqa: SIM115 - long-lived handle, closed in close()
         try:
-            if os.path.getsize(self.path) < self.max_bytes:
-                return
+            self._size = os.path.getsize(self.path)
         except OSError:
-            return
-        # Oldest first, so no generation overwrites one that has not moved yet.
+            self._size = 0
+
+    def _close_handle(self) -> None:
+        if self._handle is not None:
+            try:
+                self._handle.close()
+            except OSError:
+                pass
+            self._handle = None
+
+    def _rotate(self) -> bool:
+        """Close, shift generations, reopen fresh. Returns True on success."""
+        self._close_handle()
         for index in range(self.keep - 1, 0, -1):
             source = f"{self.path}.{index}"
             target = f"{self.path}.{index + 1}"
@@ -92,21 +111,41 @@ class RotatingLineSink:
                 try:
                     os.replace(source, target)
                 except OSError:
-                    return
+                    return False
         try:
             os.replace(self.path, f"{self.path}.1")
         except OSError:
-            return
+            return False
+        return True
 
     def write_line(self, line: str) -> None:
+        data = (line + "\n").encode("utf-8", errors="replace")
         with self._lock:
             try:
-                os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                self._rotate_if_needed()
-                with open(self.path, "a", encoding="utf-8", newline="\n") as handle:
-                    handle.write(line + "\n")
+                if self._handle is None:
+                    self._open()
+                if self._size + len(data) > self.max_bytes and self._size > 0:
+                    if self._rotate():
+                        self._open()  # fresh generation at size 0
+                    else:
+                        # F-026: rotation could not proceed (file held by a viewer/AV). Rather than
+                        # let the active file grow without bound - contradicting the "cannot fill a
+                        # disk" guarantee - drop the line and count it, so size stays near max_bytes.
+                        self.errors += 1
+                        self.dropped += 1
+                        if self._handle is None:
+                            self._open()  # reopen so subsequent reads still see the (capped) file
+                        return
+                self._handle.write(data)
+                self._handle.flush()
+                self._size += len(data)
             except OSError:
                 self.errors += 1
+                self._close_handle()
+
+    def close(self) -> None:
+        with self._lock:
+            self._close_handle()
 
 
 def module_sink(module_id: str) -> RotatingLineSink:

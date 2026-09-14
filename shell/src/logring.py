@@ -12,8 +12,11 @@ import codecs
 import re
 import threading
 
-# ANSI escape sequences: CSI and OSC
-_ANSI_CSI = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+# ANSI escape sequences: CSI and OSC.
+# F-032: the CSI class covers the full grammar - private-parameter bytes (0x30-0x3F: digits, ';'
+# and '?') and intermediates (0x20-0x2F) before the final byte (0x40-0x7E). The old
+# `[0-9;]*[a-zA-Z]` missed private sequences such as ESC[?25l (hide cursor), leaving a stray '?25l'.
+_ANSI_CSI = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
 _ANSI_OSC = re.compile(r'\x1b\][^\x07]*\x07')
 # C0/C1 controls to strip (keep \t, \n, \r)
 _CONTROLS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]')

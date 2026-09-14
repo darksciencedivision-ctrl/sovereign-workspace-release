@@ -31,6 +31,33 @@ from shell.src.states import ModuleRunner, EXTERNAL, FAILED, READY, DEGRADED, ST
 MAX_BODY = 16384
 START_RATE_LIMIT_S = 2.0  # H-7: one Start per module per 2 s
 
+_BUILD_IDENTITY = None
+
+
+def _build_identity():
+    """F-032: build id derived from the tracked VERSION.json (cached), not a hand-edited literal.
+
+    Falls back to 'unknown' if VERSION.json cannot be read, so /api/shell-info never fails on it.
+    """
+    global _BUILD_IDENTITY
+    if _BUILD_IDENTITY is not None:
+        return _BUILD_IDENTITY
+    value = "unknown"
+    try:
+        version_path = os.path.join(os.path.dirname(__file__), "..", "..", "VERSION.json")
+        with open(version_path, "r", encoding="utf-8") as fh:
+            doc = json.load(fh)
+        version = str(doc.get("version", "")).strip()
+        commit = str(doc.get("source_commit", "")).strip()
+        if version and commit:
+            value = f"{version}+{commit[:12]}"
+        elif version:
+            value = version
+    except Exception:  # noqa: BLE001 - identity is informational; never fail the endpoint on it
+        value = "unknown"
+    _BUILD_IDENTITY = value
+    return value
+
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
        "connect-src 'self'; img-src 'self' data:; "
        "frame-src http://127.0.0.1:8765; "
@@ -257,10 +284,13 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
 
     def _serve_static(self, path: str):
         safe = path.replace("\\", "/").lstrip("/")
-        if ".." in safe:
+        # F-032: decide traversal by canonical containment (like the docs route), not a `".." in`
+        # substring test that both false-rejects innocent names and can be bypassed by encodings.
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        file_path = os.path.abspath(os.path.join(base, safe))
+        if not is_contained(base, file_path):
             self._send_error("Forbidden", 403)
             return
-        file_path = os.path.join(os.path.dirname(__file__), "..", safe)
         if not os.path.isfile(file_path):
             self._send_error("Not found", 404)
             return
@@ -313,10 +343,17 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
     def _handle_get_shell_info(self):
         self._send_json({
             "version": "SWS-UI-001 v1.2",
-            "build_id": "2026-08-21",
+            # F-032: build identity derived from VERSION.json (version + source commit), not a
+            # hand-edited date literal that drifts from the release the bytes came from.
+            "build_id": _build_identity(),
             "host": os.environ.get("COMPUTERNAME", "unknown"),
             "clock": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "uptime_s": int(time.time() - self.server_start),
+            # F-006: echo this process's pid and the per-launch nonce (SWS_SHELL_NONCE) so the
+            # launcher can confirm THIS process is ready, not another SWS shell (a second
+            # checkout/install) that grabbed the port between preflight and bind.
+            "pid": os.getpid(),
+            "nonce": os.environ.get("SWS_SHELL_NONCE"),
         })
 
     def _handle_get_logs(self, module_id: str):
@@ -452,7 +489,10 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
             self._send_error("Startup test not applicable for this module", 400)
             return
         if "error" in adapter:
-            self._send_error(f"Adapter error: {adapter['reason']}", 400)
+            # F-021: read the reason defensively - an adapter can carry "error" without "reason",
+            # and adapter['reason'] then raised KeyError (a dropped connection, not a 400).
+            reason = adapter.get("reason") or adapter.get("error") or "unspecified"
+            self._send_error(f"Adapter error: {reason}", 400)
             return
 
         if runner.state in (READY, STARTING, DEGRADED):

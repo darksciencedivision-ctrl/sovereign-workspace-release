@@ -76,6 +76,10 @@ def http_json_identity(url: str, required_keys: list[str]) -> tuple[bool, str]:
         req = urllib.request.Request(url, method="GET")
         resp = _open_direct(req, timeout=5)
         data = json.loads(resp.read().decode())
+        # F-032: require a JSON OBJECT. A bare JSON string body (e.g. "status ok") would otherwise
+        # satisfy `key in data` by substring match and pass identity against the wrong server.
+        if not isinstance(data, dict):
+            return False, "identity response is not a JSON object"
         for key in required_keys:
             if key not in data:
                 return False, f"Missing key: {key}"
@@ -193,10 +197,24 @@ def preflight_toolchain() -> dict:
     return results
 
 
-def preflight_ports() -> dict:
-    """Check if ports 5175, 8700, 5180 are free."""
+def _shell_port() -> int:
+    """F-032: the shell's actual listen port, so the port check is not hard-wired to 5180.
+
+    Derived from SWS_SHELL_ORIGIN (set by main() to http://127.0.0.1:<port>), default 5180.
+    """
+    origin = os.environ.get("SWS_SHELL_ORIGIN", "")
+    try:
+        return int(origin.rsplit(":", 1)[1])
+    except (IndexError, ValueError):
+        return 5180
+
+
+def preflight_ports(shell_port: int = None) -> dict:
+    """Check whether the module ports and the shell's own port are free."""
+    if shell_port is None:
+        shell_port = _shell_port()
     results = {}
-    for port in [5175, 8700, 5180]:
+    for port in [5175, 8700, shell_port]:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(1)
         try:
