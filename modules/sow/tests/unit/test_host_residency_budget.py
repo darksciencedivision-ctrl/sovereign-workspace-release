@@ -51,6 +51,17 @@ def _residency(monkeypatch: pytest.MonkeyPatch, tags, running=None):
     return epp._host_residency()
 
 
+def _fake_host(monkeypatch: pytest.MonkeyPatch, tags: dict[str, int], running=None) -> None:
+    """Inject the daemon for the END-TO-END picker as well. `build_host_picker` reads residency
+    through `_daemon_json` but enumerates the model list through `detect.ollama_model_records`, a
+    separate HTTP read. Faking only the first left the list coming from whatever the operator's
+    Ollama was serving, so the assertion held on his host and failed wherever no daemon ran."""
+    monkeypatch.setattr(epp, "_daemon_json", _daemon(tags, running))
+    monkeypatch.setattr(epp.detect, "ollama_model_records", lambda timeout=3.0: [
+        {"name": n, "size": mb * MB, "details": {"parameter_size": n.rsplit(":", 1)[-1].upper()}}
+        for n, mb in tags.items()])
+
+
 def _budget(prov: list[dict]) -> dict:
     return next(row for row in prov if "vram_budget_mb" in row)
 
@@ -247,7 +258,7 @@ def test_a_falsified_budget_does_not_tell_the_operator_a_running_model_is_unload
     from scheduler.residency_planner.residency_planner import NOT_LOADED, UNKNOWN
 
     monkeypatch.setenv("SOW_VRAM_BUDGET_MB", "1")
-    monkeypatch.setattr(epp, "_daemon_json", _daemon({"big:70b": 8000}, {"big:70b": 8000}))
+    _fake_host(monkeypatch, {"big:70b": 8000}, {"big:70b": 8000})
     picker, meta = epp.build_host_picker(op12_probes=epp.no_op12_probes())
     local = [o for o in picker["options"] if o["locality"] == "local"]
     assert local, "the host enumeration still offers the local models"
@@ -273,7 +284,7 @@ def test_the_whole_picker_survives_a_falsified_budget(monkeypatch: pytest.Monkey
     """End to end through the shell's own `--emit-picker` source: a local-VRAM problem must never
     cost the operator the frontier options too."""
     monkeypatch.setenv("SOW_VRAM_BUDGET_MB", "1")
-    monkeypatch.setattr(epp, "_daemon_json", _daemon({"a:8b": 5000}, {"a:8b": 5000}))
+    _fake_host(monkeypatch, {"a:8b": 5000}, {"a:8b": 5000})
     picker, meta = epp.build_host_picker(op12_probes=epp.no_op12_probes())
     assert isinstance(picker.get("options"), list)
     assert meta["residency_snapshot"] is None

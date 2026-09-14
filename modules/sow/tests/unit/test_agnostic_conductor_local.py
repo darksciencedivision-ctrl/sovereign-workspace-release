@@ -216,8 +216,14 @@ class TestTheSelectionStore:
         """The defect this closes: `select()` wrote EVERY selection into `config/live_operation.json`
         and read it first, so choosing a free local model required the spend-authorization file to
         exist — and under OD-31 it is deliberately absent. A builder must never create it (S-18)."""
+        import control_plane.conductor.registry as registry
         import tools.live.select_conductor as sc
 
+        # `select` resolves the seat through the HOST enumeration. Inject it: otherwise this passed
+        # only while the operator's Ollama daemon was serving qwen3:8b.
+        real = registry._local_conductor_registrations
+        monkeypatch.setattr(registry, "_local_conductor_registrations",
+                            lambda verdicts=None: real(ADMITTED if verdicts is None else verdicts))
         store = tmp_path / ".runtime" / "conductor-selection.json"
         monkeypatch.setattr(sc, "LOCAL_CONDUCTOR_SELECTION_PATH", store)
         live_cfg = tmp_path / "live_operation.json"

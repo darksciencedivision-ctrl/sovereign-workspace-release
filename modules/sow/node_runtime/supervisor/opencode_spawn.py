@@ -104,6 +104,17 @@ def spawn_opencode_harness(
     `mcp_client` and `workspace_root` are bound now (the harness reads scoped context from MCP and
     edits an isolated worktree in `.worktree`); this sub-step gates presence/version + identity.
     """
+    # (0) supervised identity FIRST — no naked session (invariant 2); mirrors BaseAdapter's guard.
+    # It is a property of the request, not of the host, so it is decided before anything is probed:
+    # a launch with no permission profile or node identity is refused even when OpenCode is present
+    # and whatever local models exist. It used to run last, so on a host with OpenCode but no local
+    # coder model the coder gate answered first and a naked launch was refused for the wrong reason.
+    if not permission_profile_id:
+        raise NakedLaunchRefused(
+            "OpenCode harness has no supervisor-issued permission profile (I-C1 / invariant 2)")
+    if not node_id:
+        raise NakedLaunchRefused("OpenCode harness has no node identity (I-C1 / invariant 2)")
+
     if harness is None:
         harness = OpenCodeCliHarness()
     if probe is None:
@@ -124,12 +135,6 @@ def spawn_opencode_harness(
         raise OpenCodeUnavailable(
             "no local Ollama coder model detected — refuse to spawn a coding harness with no local "
             "model to drive (fail closed §2.3; pass require_coder_model=False for a mock drive)")
-    # (3) supervised identity — no naked session (invariant 2); mirrors BaseAdapter's guard
-    if not permission_profile_id:
-        raise NakedLaunchRefused(
-            "OpenCode harness has no supervisor-issued permission profile (I-C1 / invariant 2)")
-    if not node_id:
-        raise NakedLaunchRefused("OpenCode harness has no node identity (I-C1 / invariant 2)")
 
     context = AdapterContext(
         node_id=node_id, role="worker", project_id=project_id,

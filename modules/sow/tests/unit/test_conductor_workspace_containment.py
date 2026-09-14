@@ -28,6 +28,28 @@ from control_plane.conductor.registry import (
 LOCAL_MODEL = "granite4.2:3b"
 
 
+class _Admitted:
+    """The shape `adapters.local.model_ceiling` returns, reduced to what the registry reads."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.admitted = True
+
+
+@pytest.fixture(autouse=True)
+def _host_offers_the_local_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Local conductor seats are enumerated from the live Ollama daemon. Without this the model
+    above was "registered" only while the operator's daemon happened to be serving it, and every
+    test here failed closed on the registry lookup on any host without it — never reaching the
+    workspace decision they exist to pin. An explicitly injected verdict list is left alone."""
+    import control_plane.conductor.registry as registry
+
+    real = registry._local_conductor_registrations
+    monkeypatch.setattr(
+        registry, "_local_conductor_registrations",
+        lambda verdicts=None: real([_Admitted(LOCAL_MODEL)] if verdicts is None else verdicts))
+
+
 def _selection(workspace: str | None) -> dict[str, object]:
     raw: dict[str, object] = {
         "provider_id": OLLAMA_LOCAL_ADAPTER,

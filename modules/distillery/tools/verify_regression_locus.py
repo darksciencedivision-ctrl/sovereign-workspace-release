@@ -108,7 +108,15 @@ def verify() -> dict:
                 }
             )
 
-        argv = shlex.split(command, posix=(os.name != "nt"))
+        if os.name == "nt":
+            # shlex has no Windows mode: posix=False KEEPS the quote characters inside each token,
+            # so `python -c "print('x')"` handed python the string literal "print('x')", which it
+            # evaluated silently - empty stdout, exit 0, and an honest record verified as FAIL.
+            # CreateProcess parses a command-line string with the MSVC rules a recorded Windows
+            # command was written for, so the string is passed through unsplit (still shell=False).
+            argv = command if command.strip() else []
+        else:
+            argv = shlex.split(command)
         if not argv:
             record["error"] = "recorded command is empty"
             return record

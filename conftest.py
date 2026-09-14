@@ -177,11 +177,31 @@ def _is_git_checkout() -> bool:
     return (ROOT / ".git").exists()
 
 
-def _assert_enumeration_is_current(collected: set) -> None:
+def _files_selected_by_node_id(args) -> set:
+    """Files named on the command line with a `::` node-id suffix, as repository-relative paths.
+    Such a run collects only the named ids, so the rest of that file's listed ids are absent by
+    selection, not by rename."""
+    selected = set()
+    for arg in args or ():
+        text = str(arg)
+        if "::" not in text:
+            continue
+        path = Path(text.split("::", 1)[0])
+        try:
+            path = path.resolve().relative_to(ROOT)
+        except (OSError, ValueError):
+            pass
+        selected.add(path.as_posix())
+    return selected
+
+
+def _assert_enumeration_is_current(collected: set, selected_by_id: set | None = None) -> None:
     """A listed id that no longer exists is a rename, and a stale exemption list is how a
     narrow skip quietly becomes a blanket one. Checked per FILE so a partial run
-    (`pytest shell/tests`) does not trip on ids it never collected."""
-    files_seen = {nid.split("::", 1)[0] for nid in collected}
+    (`pytest shell/tests`) does not trip on ids it never collected - and a file selected by
+    node id (`pytest file.py::Test::one`) is skipped for the same reason: it aborted every
+    targeted rerun of a test sharing a file with a listed id."""
+    files_seen = {nid.split("::", 1)[0] for nid in collected} - (selected_by_id or set())
     stale = [nid for nid in CHECKOUT_ONLY
              if nid.split("::", 1)[0] in files_seen and nid not in collected]
     if stale:
@@ -214,4 +234,4 @@ def pytest_collection_modifyitems(config, items):
                 reason=f"repository validator: {reason}. Run it from a git checkout — "
                        f"see docs/INSTALL.md, 'Running the test suite'."))
     if checkout:
-        _assert_enumeration_is_current(collected)
+        _assert_enumeration_is_current(collected, _files_selected_by_node_id(config.args))
