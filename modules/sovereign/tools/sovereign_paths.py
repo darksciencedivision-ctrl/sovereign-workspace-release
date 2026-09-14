@@ -175,8 +175,12 @@ def _validate_repo_root(candidate: Path, *, require_marker: bool = True) -> Path
             raise RootResolutionError(f"Invalid {ROOT_MARKER_NAME} contents under {resolved}")
     if not (resolved / "sandbox_agi").exists():
         raise RootResolutionError(f"sandbox_agi directory missing under {resolved}")
-    if not (resolved / "URI").exists():
-        raise RootResolutionError(f"URI directory missing under {resolved}")
+    # F-122: do NOT require URI/ to pre-exist. URI/ is a runtime-OUTPUT directory (get_uri_root),
+    # not source: no file under it is tracked, so it is absent from every checkout and every install
+    # archive, and this check therefore raised "URI directory missing" on every machine but the
+    # build host - breaking every legacy entry point that resolves the root without an explicit
+    # manifest path. Its callers create it on demand; root validation must not depend on its
+    # presence. (The tracked .sovereign-root marker and sandbox_agi/ remain the real anchors.)
     return resolved
 
 

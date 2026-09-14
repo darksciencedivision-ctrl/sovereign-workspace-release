@@ -23,6 +23,14 @@ param(
     [ValidateSet('FIXTURE', 'CLEAN')]
     [string] $Environment = 'FIXTURE',
 
+    # F-081: the artifact of the PREVIOUS release. When given, step 7 performs a REAL cross-version
+    # upgrade - install the previous artifact into a disposable root, then upgrade it to the
+    # candidate - so a version change (and any state-schema migration the two artifacts differ on)
+    # is actually exercised. When omitted, step 7's post-rollback upgrade can only reinstall the
+    # candidate over itself, and is recorded honestly as a same-version reinstall rather than as a
+    # version upgrade.
+    [string] $PreviousArtifact,
+
     # Steps to run. Default is the whole sequence from docs/ACCEPTANCE-WORKFLOW.md.
     #
     # NOTE THE ORDER. The workflow numbers uninstall as 8 and the non-writable launch as 9, but
@@ -384,29 +392,81 @@ if ($Steps -contains '7') {
         Write-Record '7' 'upgrade rollback with an injected candidate failure' $verdict $reason `
             $r.ExitCode 'upgrade.ps1 -InjectFailureAt postcheck' $r.Log $started
         if ($verdict -eq 'PASS') {
-            $startedUp = Get-Date
-            $u = Invoke-Child (Join-Path $release 'upgrade.ps1') `
-                @('-Dest', $installRoot, '-Artifact', $artifactPath) 'step7-upgrade'
-            $still = Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json')
-            $upOk = ($u.ExitCode -eq 0 -and $still)
-            $upReason = if (-not $still) { 'successful upgrade removed the installation' }
-                        elseif ($u.ExitCode -ne 0) { "upgrade.ps1 exited $($u.ExitCode)" }
-                        else { '' }
-            Write-Record '7' 'successful upgrade after rollback recovery' `
-                $(if ($upOk) { 'PASS' } else { 'FAIL' }) $upReason `
-                $u.ExitCode 'upgrade.ps1' $u.Log $startedUp
-            if ($upOk) {
-                $startedWf = Get-Date
-                $wf = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
-                    '-InstallRoot', $installRoot, '-StateRoot', $stateRoot,
-                    '-Mode', 'workflow', '-ShellPort', '15182',
-                    '-EvidenceLog', (Join-Path $logDir 'step7-upgrade-workflow.log')
-                ) 'step7-upgrade-workflow'
-                $wfOk = ($wf.ExitCode -eq 0)
-                Write-Record '7' 'useful workflow after successful upgrade' `
-                    $(if ($wfOk) { 'PASS' } else { 'FAIL' }) `
-                    $(if ($wfOk) { '' } else { "post-upgrade workflow exited $($wf.ExitCode)" }) `
-                    $wf.ExitCode 'exercise_live.ps1 after upgrade' $wf.Log $startedWf
+            $candidateVersion = 'unknown'
+            $candVersionPath = Join-Path $installRoot 'VERSION.json'
+            if (Test-Path -LiteralPath $candVersionPath) {
+                try { $candidateVersion = [string](Get-Content -Raw -LiteralPath $candVersionPath | ConvertFrom-Json).version } catch { }
+            }
+
+            if ($PreviousArtifact) {
+                # F-081: a REAL cross-version upgrade. Install the PREVIOUS release into a disposable
+                # root, then upgrade THAT to the candidate, so a version change (and whatever state
+                # migration the two artifacts differ on) is genuinely exercised - not the candidate
+                # upgraded to itself.
+                $startedUp = Get-Date
+                $prevArtifactPath = [IO.Path]::GetFullPath($PreviousArtifact)
+                $prevRoot = $installRoot + '.previous-candidate'
+                $prevVersion = 'unknown'; $nowVersion = 'unknown'
+                $crossOk = $false; $crossReason = ''
+                if (-not (Test-Path -LiteralPath $prevArtifactPath -PathType Leaf)) {
+                    $crossReason = "the -PreviousArtifact was not found: $prevArtifactPath"
+                }
+                else {
+                    $pi = Invoke-Child (Join-Path $release 'install.ps1') `
+                        @('-Dest', $prevRoot, '-Artifact', $prevArtifactPath) 'step7-prev-install'
+                    $prevVersionPath = Join-Path $prevRoot 'VERSION.json'
+                    if (Test-Path -LiteralPath $prevVersionPath) {
+                        try { $prevVersion = [string](Get-Content -Raw -LiteralPath $prevVersionPath | ConvertFrom-Json).version } catch { }
+                    }
+                    if ($pi.ExitCode -ne 0) { $crossReason = "installing the previous artifact exited $($pi.ExitCode)" }
+                    else {
+                        $pu = Invoke-Child (Join-Path $release 'upgrade.ps1') `
+                            @('-Dest', $prevRoot, '-Artifact', $artifactPath, '-NoStateBackup') 'step7-cross-upgrade'
+                        if (Test-Path -LiteralPath $prevVersionPath) {
+                            try { $nowVersion = [string](Get-Content -Raw -LiteralPath $prevVersionPath | ConvertFrom-Json).version } catch { }
+                        }
+                        $stillThere = Test-Path -LiteralPath (Join-Path $prevRoot 'install-manifest.json')
+                        if ($pu.ExitCode -ne 0) { $crossReason = "cross-version upgrade exited $($pu.ExitCode)" }
+                        elseif (-not $stillThere) { $crossReason = 'cross-version upgrade removed the installation' }
+                        elseif ($nowVersion -ne $candidateVersion) { $crossReason = "upgraded installation reports $nowVersion, expected candidate $candidateVersion" }
+                        elseif ($prevVersion -eq $candidateVersion) { $crossReason = "the previous artifact is the SAME version ($prevVersion) as the candidate; supply an older -PreviousArtifact to exercise a version change" }
+                        else { $crossOk = $true }
+                    }
+                }
+                Write-Record '7' ("cross-version upgrade ({0} -> {1})" -f $prevVersion, $candidateVersion) `
+                    $(if ($crossOk) { 'PASS' } else { 'FAIL' }) $crossReason `
+                    $null 'install.ps1 (previous) + upgrade.ps1 (to candidate)' '' $startedUp
+                if (Test-Path -LiteralPath $prevRoot) { Remove-Item -LiteralPath $prevRoot -Recurse -Force -ErrorAction SilentlyContinue }
+            }
+            else {
+                # F-081: no -PreviousArtifact given, so this can only reinstall the candidate over
+                # itself. That proves upgrade.ps1 runs cleanly but exercises NO version change or
+                # state migration; it is recorded as a same-version reinstall, never as a
+                # "successful upgrade", so the record cannot be mistaken for cross-version evidence.
+                $startedUp = Get-Date
+                $u = Invoke-Child (Join-Path $release 'upgrade.ps1') `
+                    @('-Dest', $installRoot, '-Artifact', $artifactPath) 'step7-reinstall'
+                $still = Test-Path -LiteralPath (Join-Path $installRoot 'install-manifest.json')
+                $upOk = ($u.ExitCode -eq 0 -and $still)
+                $upReason = if (-not $still) { 'same-version reinstall removed the installation' }
+                            elseif ($u.ExitCode -ne 0) { "upgrade.ps1 exited $($u.ExitCode)" }
+                            else { 'same-version reinstall only; no version change or state migration exercised (pass -PreviousArtifact for a real cross-version upgrade)' }
+                Write-Record '7' ("same-version reinstall (candidate {0} over itself)" -f $candidateVersion) `
+                    $(if ($upOk) { 'PASS' } else { 'FAIL' }) $upReason `
+                    $u.ExitCode 'upgrade.ps1 (same-version reinstall)' $u.Log $startedUp
+                if ($upOk) {
+                    $startedWf = Get-Date
+                    $wf = Invoke-Child (Join-Path $PSScriptRoot 'exercise_live.ps1') @(
+                        '-InstallRoot', $installRoot, '-StateRoot', $stateRoot,
+                        '-Mode', 'workflow', '-ShellPort', '15182',
+                        '-EvidenceLog', (Join-Path $logDir 'step7-upgrade-workflow.log')
+                    ) 'step7-upgrade-workflow'
+                    $wfOk = ($wf.ExitCode -eq 0)
+                    Write-Record '7' 'useful workflow after same-version reinstall' `
+                        $(if ($wfOk) { 'PASS' } else { 'FAIL' }) `
+                        $(if ($wfOk) { '' } else { "post-reinstall workflow exited $($wf.ExitCode)" }) `
+                        $wf.ExitCode 'exercise_live.ps1 after reinstall' $wf.Log $startedWf
+                }
             }
         }
     }

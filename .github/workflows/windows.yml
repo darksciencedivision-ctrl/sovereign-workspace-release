@@ -36,7 +36,9 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      # F-064(e): actions are pinned to a full commit SHA (not a movable tag), with the tag in a
+      # trailing comment. A tag can be repointed at attacker-controlled code; a SHA cannot.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # The boundary gate and the developer-identifier guard read `git archive HEAD`,
           # and package_boundary_gate --from-commit needs real history rather than a graft.
@@ -47,12 +49,12 @@ jobs:
       # stage could therefore never have passed on a runner. Both interpreters are required
       # for an install, and docs/SUPPORT-POLICY.md records why the split exists.
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.14"
 
@@ -70,22 +72,33 @@ jobs:
           if ($failed) { exit 1 }
 
       - name: Set up Node 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
 
       - name: Install Python dependencies from the locks
-        # From the lock files, never from a resolver. The SBOM is generated from these same
-        # files, so a lane that resolved freshly would be testing a different dependency set
-        # than the one the release describes.
+        # F-064(a). The whole-product pytest stage shares one interpreter and PYTHONPATH across
+        # every module, so EVERY module's dependencies must be present or that stage imports a
+        # half-provisioned product. Previously only modules/sow was installed, so SOVEREIGN
+        # (Flask, chromadb, ...) and Debate (fastapi, ...) were absent. From the lock files, never
+        # from a resolver: the SBOM is generated from these same files, so a lane that resolved
+        # freshly would test a different dependency set than the release describes.
+        #   - 3.12 carries the shell, sow and SOVEREIGN closures (the pytest interpreter);
+        #   - 3.14 carries Debate, which install.ps1 provisions under py -3.14.
         run: |
           py -3.12 -m pip install --upgrade pip
           py -3.12 -m pip install -r modules/sow/requirements.txt
           py -3.12 -m pip install -r modules/sow/requirements-dev.txt
+          py -3.12 -m pip install -r modules/sovereign/WORKSPACE-RESOLVED-LOCK.txt
+          py -3.14 -m pip install --upgrade pip
+          py -3.14 -m pip install -r modules/debate/requirements.lock.txt
 
       - name: Provision the Node trees
-        # ADR-005: lifecycle scripts are blocked by default. `npm ci` honours package-lock
-        # exactly, which is what check_node_advisories is then auditing.
+        # F-064(b). ADR-005 blocks dependency lifecycle scripts (notably Electron's unverified
+        # binary download). That posture is now REAL: each tree carries a tracked .npmrc with
+        # ignore-scripts=true (previously none was tracked anywhere, so `npm ci` ran every
+        # dependency's install script). `npm ci` still honours package-lock exactly, which is what
+        # check_node_advisories then audits.
         run: |
           npm ci --prefix modules/sow/apps/desktop
           npm ci --prefix modules/sovereign/ui/ui_shell
@@ -103,7 +116,7 @@ jobs:
 
       - name: Upload the run record
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ci-run-record
           path: |

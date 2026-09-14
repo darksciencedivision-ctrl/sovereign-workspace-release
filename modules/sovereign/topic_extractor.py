@@ -50,14 +50,30 @@ MODULE_NAME      = "TOPIC_EXTRACTOR"
 # importing this module always reaches argument parsing, even on a relocated/misconfigured
 # install. The active root is resolved via tools/sovereign_paths.py in main().
 DEFAULT_ROOT     = str(Path(__file__).resolve().parent)
+_MANIFEST_ERROR: Optional[str] = None
 try:
     _MANIFEST        = load_system_manifest()
     OLLAMA_BASE_URL  = str(runtime_value("OLLAMA_BASE_URL", _MANIFEST)).strip()
     EXTRACT_MODEL    = model_name("CRITIC", _MANIFEST)
-except Exception:
+except Exception as _exc:  # noqa: BLE001 - import must stay non-fatal (argparse must be reachable)
+    # F-122: keep IMPORT non-fatal so `--help`/argument parsing still works on a misconfigured
+    # install, but do NOT silently pretend a model was configured. EXTRACT_MODEL="" used to be sent
+    # to Ollama verbatim, producing a silently broken /api/generate call. The error is recorded and
+    # _require_extract_model() raises loudly the moment the model is actually needed.
     _MANIFEST        = {}
     OLLAMA_BASE_URL  = "http://127.0.0.1:11434"
     EXTRACT_MODEL    = ""
+    _MANIFEST_ERROR  = repr(_exc)
+
+
+def _require_extract_model() -> str:
+    if not EXTRACT_MODEL:
+        raise RuntimeError(
+            "TOPIC_EXTRACTOR cannot run: no critic model is configured. The system manifest "
+            "could not be loaded" + (f" ({_MANIFEST_ERROR})" if _MANIFEST_ERROR else "") +
+            ". Resolve the SOVEREIGN root / SYSTEM_MANIFEST.json before extracting topics."
+        )
+    return EXTRACT_MODEL
 LOG_DIR          = "logs"
 LOG_FILENAME     = "corpus_build_log.txt"
 MAX_LOG_BYTES    = 10 * 1024 * 1024
@@ -173,7 +189,7 @@ def _ollama_generate(
     Temperature 0.0 (deterministic via seed).
     """
     payload = {
-        "model":  EXTRACT_MODEL,
+        "model":  _require_extract_model(),
         "prompt": prompt,
         "stream": False,
         "options": {

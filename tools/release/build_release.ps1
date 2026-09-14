@@ -38,8 +38,28 @@ $resolvedCommit = (& git -C $workspaceRoot rev-parse $Commit).Trim()
 if ($LASTEXITCODE -ne 0 -or $resolvedCommit -notmatch '^[0-9a-f]{40}$') {
     throw "Unable to resolve release commit: $Commit"
 }
+$headCommit = (& git -C $workspaceRoot rev-parse HEAD).Trim()
 
-$versionDoc = Get-Content -Raw -LiteralPath (Join-Path $workspaceRoot 'VERSION.json') | ConvertFrom-Json
+# F-062. The bytes come from `git archive $resolvedCommit`, but the IDENTITY inputs - the version,
+# the per-module versions (INSTALL-PROVENANCE.json), and the SBOM/NOTICE --check - used to be read
+# from the WORKING TREE. With -Commit != HEAD the artifact was named and manifested with HEAD's
+# identity while containing another commit's files. The identity must originate from the SAME
+# candidate as the packaged bytes (directive 2.5). When the requested commit is HEAD, the working
+# tree is that commit (tracked modifications were just refused), so it is used directly; otherwise
+# a detached worktree is checked out at $resolvedCommit and EVERY identity input is read from it.
+$identityRoot = $workspaceRoot
+$identityWorktree = $null
+if ($resolvedCommit -ne $headCommit) {
+    $identityWorktree = Join-Path ([IO.Path]::GetTempPath()) ("sws-build-identity-" + [Guid]::NewGuid().ToString('N').Substring(0, 12))
+    & git -C $workspaceRoot worktree add --detach $identityWorktree $resolvedCommit | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Unable to check out identity worktree at $resolvedCommit" }
+    $identityRoot = [IO.Path]::GetFullPath($identityWorktree)
+    Write-Output "identity read from clean worktree at $resolvedCommit ($identityRoot)"
+}
+
+try {
+
+$versionDoc = Get-Content -Raw -LiteralPath (Join-Path $identityRoot 'VERSION.json') | ConvertFrom-Json
 $version = [string]$versionDoc.version
 if (-not $version) { throw 'VERSION.json does not contain a version' }
 
@@ -51,8 +71,11 @@ if (-not $version) { throw 'VERSION.json does not contain a version' }
 # whole script exists to prevent. Checked here, before the first archive is cut, so the build
 # fails without leaving half a release behind.
 foreach ($generator in @('generate_sbom.py', 'generate_notice.py')) {
-    $tool = Join-Path $PSScriptRoot $generator
-    & py -3.12 $tool --check
+    # F-062: run the COMMIT's copy of the tool from the identity root, so --check describes the
+    # commit's tracked inputs (the bytes being packaged), not the working tree's.
+    $tool = Join-Path $identityRoot (Join-Path 'tools\release' $generator)
+    Push-Location $identityRoot
+    try { & py -3.12 $tool --check } finally { Pop-Location }
     if ($LASTEXITCODE -ne 0) {
         throw ("$generator --check failed: the shipped attribution files are out of date with " +
                "their sources. Re-run tools/release/generate_sbom.py then generate_notice.py, " +
@@ -69,7 +92,8 @@ foreach ($generator in @('generate_sbom.py', 'generate_notice.py')) {
 
 function Get-JsonField {
     param([string] $RelativePath, [string] $Field)
-    $path = Join-Path $workspaceRoot $RelativePath
+    # F-062: identity is read from the identity root (the commit's worktree when != HEAD).
+    $path = Join-Path $identityRoot $RelativePath
     if (-not (Test-Path -LiteralPath $path)) { throw "Version source missing: $RelativePath" }
     $doc = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
     $value = [string]$doc.$Field
@@ -178,4 +202,15 @@ Write-Output "commit $resolvedCommit"
 Write-Output "artifacts $($artifacts.Count)"
 foreach ($artifact in $artifacts) {
     Write-Output ("{0} {1} {2}" -f $artifact.sha256, $artifact.bytes, $artifact.name)
+}
+
+}
+finally {
+    # F-062: remove the identity worktree (only created when building a non-HEAD commit).
+    if ($identityWorktree) {
+        & git -C $workspaceRoot worktree remove --force $identityWorktree | Out-Null
+        if (Test-Path -LiteralPath $identityWorktree) {
+            Remove-Item -LiteralPath $identityWorktree -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }

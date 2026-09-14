@@ -45,10 +45,14 @@ def detect_repo_root(start: str | Path | None = None) -> Path:
     for candidate in [target, *target.parents]:
         if candidate.is_dir() and (candidate / ".sovereign-root").exists():
             return candidate
-    for candidate in [target, *target.parents]:
-        if candidate.name.upper() == "SOVEREIGN":
-            return candidate
-    raise RuntimeError(f"Could not locate SOVEREIGN repo root from {target}")
+    # F-122: the root is the directory carrying the tracked .sovereign-root marker, nothing else.
+    # The old fallback returned ANY ancestor merely NAMED "SOVEREIGN" (case-insensitively), so an
+    # unrelated directory in the path (e.g. C:\Sovereign\...) would be mistaken for the repo root
+    # and state written beneath it. A missing marker is now a hard error, not a guess.
+    raise RuntimeError(
+        f"Could not locate the .sovereign-root marker from {target}. The SOVEREIGN root is the "
+        f"directory containing .sovereign-root; no directory-name heuristic is used."
+    )
 
 
 def kb_root(root: str | Path | None = None) -> Path:

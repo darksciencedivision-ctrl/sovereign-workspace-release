@@ -46,14 +46,28 @@ MODULE_NAME       = "DOMAIN_CHECKER"
 # importing this module always reaches argument parsing, even on a relocated/misconfigured
 # install. The active root is resolved via tools/sovereign_paths.py in main().
 DEFAULT_ROOT      = str(Path(__file__).resolve().parent)
+_MANIFEST_ERROR: Optional[str] = None
 try:
     _MANIFEST         = load_system_manifest()
     OLLAMA_BASE_URL   = str(runtime_value("OLLAMA_BASE_URL", _MANIFEST)).strip()
     EMBED_MODEL       = model_name("EMBEDDING_MODEL", _MANIFEST)
-except Exception:
+except Exception as _exc:  # noqa: BLE001 - import must stay non-fatal (argparse must be reachable)
+    # F-122: keep IMPORT non-fatal, but do NOT silently send EMBED_MODEL="" to Ollama (a broken
+    # /api/embeddings call). Record the error and raise loudly at the point of use.
     _MANIFEST         = {}
     OLLAMA_BASE_URL   = "http://127.0.0.1:11434"
     EMBED_MODEL       = ""
+    _MANIFEST_ERROR   = repr(_exc)
+
+
+def _require_embed_model() -> str:
+    if not EMBED_MODEL:
+        raise RuntimeError(
+            "DOMAIN_CHECKER cannot run: no embedding model is configured. The system manifest "
+            "could not be loaded" + (f" ({_MANIFEST_ERROR})" if _MANIFEST_ERROR else "") +
+            ". Resolve the SOVEREIGN root / SYSTEM_MANIFEST.json before checking domains."
+        )
+    return EMBED_MODEL
 LOG_DIR           = "logs"
 BUILD_LOG         = "corpus_build_log.txt"
 DOMAIN_CHECK_LOG  = "domain_check_log.txt"
@@ -173,7 +187,7 @@ def _ollama_embed(text: str, root: str, base_url: str, timeout_sec: int) -> Opti
     Returns a float list (the embedding vector), or None on any error.
     """
     payload = {
-        "model":  EMBED_MODEL,
+        "model":  _require_embed_model(),
         "prompt": text,
     }
 

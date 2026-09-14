@@ -29,6 +29,11 @@ param(
 
 $ErrorActionPreference = 'Continue'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+# F-064(d): the gates are invoked with repo-relative arguments (--file modules/..., --registry
+# tools/...) and the scripts default to `--root .`, but only the pytest stage used to Push-Location
+# to the repo root. Run the whole suite from the repo root so gates resolve their inputs the same
+# way no matter what CWD invoked this script. Child processes (Invoke-Script) inherit this CWD.
+Set-Location -LiteralPath $repoRoot
 $results = New-Object System.Collections.Generic.List[object]
 
 function Invoke-Stage {
@@ -100,9 +105,13 @@ $headCommit = (& git -C $repoRoot rev-parse HEAD).Trim()
 $resolvedBuildCommit = (& git -C $repoRoot rev-parse $BuildCommit).Trim()
 Write-Host ("working checkout: {0}" -f $headCommit)
 Write-Host ("build commit:     {0}" -f $resolvedBuildCommit)
-if ($resolvedBuildCommit -ne $headCommit) {
-    # Workstream 2.5: the artifact and the tests must describe ONE candidate. If they cannot,
-    # say so at the top rather than letting a green summary imply they did.
+$commitMismatch = ($resolvedBuildCommit -ne $headCommit)
+if ($commitMismatch) {
+    # Workstream 2.5 / F-061: the artifact and the tests must describe ONE candidate. Every stage
+    # (including the boundary gate, hard-wired to --from-commit HEAD) runs against the working
+    # checkout, so a -BuildCommit other than HEAD means this run cannot qualify that artifact. It
+    # is a release BLOCKER, not merely a warning: previously the run still printed
+    # "RELEASE-QUALIFYING: yes, for commit <BuildCommit>" although nothing tested that commit.
     Write-Host ""
     Write-Host ("WARNING: the artifact will be cut from {0} while these tests run against the " -f $resolvedBuildCommit)
     Write-Host  "         working checkout. Those are different candidates; this run cannot"
@@ -249,6 +258,14 @@ $releaseRequired = @(
     'gate: innerhtml_sink_audit.py',
     'gate: check_node_advisories', 'boundary gate (distribution)',
     'pytest (whole product, from repo root)',
+    # F-064(c): the Node suites are release-required. Previously they were absent from this list,
+    # so a run with no node_modules SKIPPED them and still printed RELEASE-QUALIFYING: yes - the
+    # product ships an Electron app whose tests and typecheck never gated a release. A SKIP of any
+    # of these (node_modules not provisioned) is now a release blocker; the CI lane must run
+    # `npm ci` in each tree first (see .github/workflows/windows.yml).
+    'npm test (modules\sow\apps\desktop)',
+    'npm test (modules\sovereign\ui\ui_shell)',
+    'npm run typecheck (modules\sovereign\ui\ui_shell)',
     'build the release artifact', 'clean-room install', 'clean-room verify'
 )
 $blockers = @($results | Where-Object {
@@ -257,12 +274,24 @@ $blockers = @($results | Where-Object {
 $missing = @($releaseRequired | Where-Object { $name = $_; -not ($results | Where-Object { $_.Stage -eq $name }) })
 
 Write-Host ""
-if ($blockers.Count -eq 0 -and $missing.Count -eq 0) {
+if ($blockers.Count -eq 0 -and $missing.Count -eq 0 -and -not $commitMismatch) {
     Write-Host ("RELEASE-QUALIFYING: yes, for commit {0}" -f $resolvedBuildCommit)
 } else {
     Write-Host "RELEASE-QUALIFYING: NO. This run does not qualify a release."
+    if ($commitMismatch) {
+        Write-Host ("  MISMATCH: tests ran against working checkout {0} but the artifact is cut from {1}" -f $headCommit, $resolvedBuildCommit)
+    }
     $blockers | ForEach-Object { Write-Host ("  {0} {1}: {2}" -f $_.Result, $_.Stage, $_.Detail) }
     $missing | ForEach-Object { Write-Host ("  ABSENT {0}: the stage did not run at all" -f $_) }
+}
+
+# F-064(e): the clean-room artifact and destination trees live in %TEMP% and were never removed.
+# Clean them up now that qualification has been decided (existence was only needed for the skip
+# reasoning above). Best-effort; a leftover temp tree is not a CI failure.
+foreach ($tmp in @($artifactDir, $destination)) {
+    if ($tmp -and (Test-Path -LiteralPath $tmp)) {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 if ($failed.Count -gt 0) { exit 1 }

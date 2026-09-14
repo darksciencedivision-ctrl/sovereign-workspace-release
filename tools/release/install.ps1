@@ -8,11 +8,21 @@ param(
     # created only when -TargetDir is given"). Without -TargetDir and without this switch, no
     # shortcut is written -- so a normal install, an upgrade (which calls install.ps1) and a
     # clean-room CI run no longer silently repoint the operator's real launcher shortcut.
-    [switch] $CreateShortcuts
+    [switch] $CreateShortcuts,
+
+    # F-071. The Python locks are installed with --require-hashes so pip verifies the bytes of
+    # every downloaded wheel against a hash pinned in the lock - closing the gap where a newly
+    # uploaded wheel for an existing version, or a mirror/proxy substitution, is accepted silently
+    # (== pins names and versions, not bytes). A lock that carries no --hash= entries cannot be
+    # verified, so the install REFUSES it. This switch is the transitional escape for a lock that
+    # has not yet been regenerated with hashes (pip-compile --generate-hashes); it installs without
+    # byte verification and says so loudly. Do not pass it for a real release.
+    [switch] $AllowUnhashedLocks
 )
 
 $ErrorActionPreference = 'Stop'
 Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop
+. (Join-Path $PSScriptRoot 'pip_locks.ps1')  # F-071: Install-LockedRequirements (--require-hashes)
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 $destRoot = [IO.Path]::GetFullPath($Dest).TrimEnd('\')
 $destPrefix = $destRoot + '\'
@@ -111,15 +121,17 @@ Write-Output 'install: provisioning SOVEREIGN Python from exact retained lock'
 & $pyLauncher -3.12 -m venv (Join-Path $destRoot 'modules\sovereign\.venv')
 if ($LASTEXITCODE -ne 0) { throw 'SOVEREIGN venv creation failed' }
 $sovereignPython = Join-Path $destRoot 'modules\sovereign\.venv\Scripts\python.exe'
-& $sovereignPython -m pip install --disable-pip-version-check --index-url https://pypi.org/simple --only-binary=:all: --no-deps -r (Join-Path $destRoot 'modules\sovereign\WORKSPACE-RESOLVED-LOCK.txt')
-if ($LASTEXITCODE -ne 0) { throw 'SOVEREIGN lock install failed' }
+Install-LockedRequirements -PythonExe $sovereignPython `
+    -LockPath (Join-Path $destRoot 'modules\sovereign\WORKSPACE-RESOLVED-LOCK.txt') -Label 'SOVEREIGN' `
+    -AllowUnhashed:$AllowUnhashedLocks
 
 Write-Output 'install: provisioning Debate Python from exact retained lock'
 & $pyLauncher -3.14 -m venv (Join-Path $destRoot 'modules\debate\.venv')
 if ($LASTEXITCODE -ne 0) { throw 'Debate venv creation failed' }
 $debatePython = Join-Path $destRoot 'modules\debate\.venv\Scripts\python.exe'
-& $debatePython -m pip install --disable-pip-version-check --index-url https://pypi.org/simple --only-binary=:all: --no-deps -r (Join-Path $destRoot 'modules\debate\requirements.lock.txt')
-if ($LASTEXITCODE -ne 0) { throw 'Debate lock install failed' }
+Install-LockedRequirements -PythonExe $debatePython `
+    -LockPath (Join-Path $destRoot 'modules\debate\requirements.lock.txt') -Label 'Debate' `
+    -AllowUnhashed:$AllowUnhashedLocks
 
 Write-Output 'install: provisioning SOW Python from exact pinned runtime closure'
 # EPC-01 P0-2. This block did not exist. SOVEREIGN and Debate were provisioned; SOW was
@@ -131,8 +143,9 @@ Write-Output 'install: provisioning SOW Python from exact pinned runtime closure
 & $pyLauncher -3.12 -m venv (Join-Path $destRoot 'modules\sow\.venv')
 if ($LASTEXITCODE -ne 0) { throw 'SOW venv creation failed' }
 $sowPython = Join-Path $destRoot 'modules\sow\.venv\Scripts\python.exe'
-& $sowPython -m pip install --disable-pip-version-check --index-url https://pypi.org/simple --only-binary=:all: --no-deps -r (Join-Path $destRoot 'modules\sow\requirements.txt')
-if ($LASTEXITCODE -ne 0) { throw 'SOW runtime lock install failed' }
+Install-LockedRequirements -PythonExe $sowPython `
+    -LockPath (Join-Path $destRoot 'modules\sow\requirements.txt') -Label 'SOW' `
+    -AllowUnhashed:$AllowUnhashedLocks
 # Prove the gateway imports in the environment we just built, before declaring install
 # success. A provisioning step that is not verified is a provisioning step that silently
 # regresses. This is the exact failure P0-2 records, asserted at install time. The check
