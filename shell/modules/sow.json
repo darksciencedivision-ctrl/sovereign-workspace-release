@@ -6,7 +6,10 @@
   "root": "${install_root}/modules/sow",
   "runtime_writes": [
     "${state_root}/.recovery",
-    "${state_root}/receipts"
+    "${state_root}/receipts",
+    "${state_root}/store",
+    "${state_root}/.approvals",
+    "${state_root}/journal"
   ],
   "launch": {
     "cwd": "${root}/apps/desktop",

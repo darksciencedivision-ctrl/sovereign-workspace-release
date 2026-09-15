@@ -355,8 +355,15 @@ Write-Host "  Starting on $url. Ctrl+C to stop." -ForegroundColor Cyan
 Write-Host "  Modules run inside the shell's Job Object, so they stop with it." -ForegroundColor DarkGray
 Write-Host ""
 
+# CR-016: launch through the ISOLATED interpreter form, not `-m shell.src`. `-m` runs full site
+# initialization, so a machine-global site-packages hook (the review saw `_distutils_hack`) entered
+# the process despite the product's zero-site-packages runtime boundary. `-I -S` runs with no site
+# module and an isolated environment; `__main__.py` derives and inserts the workspace root itself
+# (its documented H-11 isolated-interpreter form), so intra-package imports still resolve. `-B`
+# keeps bytecode out of the (immutable) install tree.
+$mainScript = Join-Path $root 'shell\src\__main__.py'
 $proc = Start-Process -FilePath $py `
-                      -ArgumentList @('-3.12', '-B', '-m', 'shell.src', '--port', "$Port") `
+                      -ArgumentList @('-3.12', '-I', '-B', '-S', $mainScript, '--port', "$Port") `
                       -WorkingDirectory $root -NoNewWindow -PassThru
 # F-002. Cache the process Handle while it is alive so ExitCode is populated when it exits;
 # without this, PS 5.1 reports ExitCode = $null and `exit $proc.ExitCode` becomes exit 0.
