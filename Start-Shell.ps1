@@ -363,7 +363,7 @@ Write-Host ""
 # keeps bytecode out of the (immutable) install tree.
 $mainScript = Join-Path $root 'shell\src\__main__.py'
 $proc = Start-Process -FilePath $py `
-                      -ArgumentList @('-3.12', '-I', '-B', '-S', $mainScript, '--port', "$Port") `
+                      -ArgumentList @('-3.12', '-I', '-B', '-S', ('"{0}"' -f $mainScript), '--port', "$Port") `
                       -WorkingDirectory $root -NoNewWindow -PassThru
 # F-002. Cache the process Handle while it is alive so ExitCode is populated when it exits;
 # without this, PS 5.1 reports ExitCode = $null and `exit $proc.ExitCode` becomes exit 0.
