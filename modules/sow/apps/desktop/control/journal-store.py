@@ -126,12 +126,21 @@ def _handle(request):
         session = request.get("session_id")
         connection = sqlite3.connect(db.as_uri() + "?mode=ro", uri=True)
         try:
+            # CR-004: filter to THIS node's own private rows in SQL, BEFORE ORDER BY/LIMIT. The
+            # previous query limited project-wide private_node rows first and only then filtered
+            # ownership in Python, so a node's own row could be pushed past the LIMIT by unrelated
+            # nodes' private history and silently vanish. Ownership for private_node is
+            # provenance.author_node == node_id (matches policy.authorize_read_entry, still applied
+            # below as defense-in-depth). Ordering stays ASC/chronological: the node-memory
+            # projection appends only new bytes and prefix-checks the existing rendering, so the
+            # retrieval order must be stable oldest-first.
             rows = connection.execute(
                 "SELECT me.entry_id, me.entry_json, me.content_hash FROM memory_entries me "
                 "JOIN heads h ON h.head_ref = me.ref "
                 "WHERE me.project_id=? AND me.tier=? "
+                "AND json_extract(me.entry_json, '$.provenance.author_node') = ? "
                 "ORDER BY me.inserted_ts ASC, me.rowid ASC LIMIT ?",
-                (worker.project_id, "private_node", limit)).fetchall()
+                (worker.project_id, "private_node", node_id, limit)).fetchall()
             cas = ContentAddressedStore(root / "cas")
             entries = []
             for _ref, entry_json, content_hash in rows:

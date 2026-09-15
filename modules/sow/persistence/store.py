@@ -155,6 +155,19 @@ class SovereignStore:
                 CREATE INDEX IF NOT EXISTS idx_ops_tasks_project ON operational_tasks(project_id, updated_ts);
                 CREATE INDEX IF NOT EXISTS idx_ops_messages_scope ON operational_messages(project_id, task_id, created_ts);
                 CREATE INDEX IF NOT EXISTS idx_ops_debates_scope ON operational_debates(project_id, task_id, updated_ts);
+                -- CR-029: indexes matching the journal retrieval access patterns. Created here so
+                -- legacy stores acquire them on the next write-open (idempotent, transactional).
+                -- Private-journal read: WHERE project_id, tier, provenance.author_node ORDER BY
+                -- inserted_ts (expression index because author lives in the JSON blob).
+                CREATE INDEX IF NOT EXISTS idx_mem_private ON memory_entries(
+                    project_id, tier, json_extract(entry_json, '$.provenance.author_node'), inserted_ts);
+                -- The private/shared head join tests h.head_ref = me.ref; without this the heads
+                -- side is a full scan per candidate row.
+                CREATE INDEX IF NOT EXISTS idx_heads_head_ref ON heads(head_ref);
+                -- Public journal read over artifact_meta: WHERE project_id AND created_by_node
+                -- ORDER BY inserted_ts (created_by_node lives in the JSON blob).
+                CREATE INDEX IF NOT EXISTS idx_artifact_journal ON artifact_meta(
+                    project_id, json_extract(meta_json, '$.created_by_node'), inserted_ts);
                 """
             )
 
