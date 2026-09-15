@@ -658,6 +658,16 @@ class Hub:
         finally:
             self.clients.discard(conn)
             conn.closed = True
+            # CR-023: when the sender terminates (a send failure/timeout, or the normal sentinel),
+            # close the WebSocket so the receiver's blocked receive_text() unblocks promptly. The
+            # old code left the socket open on a terminal send failure, so the endpoint task and its
+            # socket lingered until the peer happened to disconnect (the review observed zero close
+            # calls). Closing here coordinates sender/receiver teardown; a double close on the
+            # normal path is a harmless no-op.
+            try:
+                await conn.ws.close()
+            except Exception:
+                pass
 
 
 hub = Hub()
