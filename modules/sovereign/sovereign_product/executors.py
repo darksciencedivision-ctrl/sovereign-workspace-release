@@ -147,6 +147,69 @@ def _execution_id(prefix: str) -> str:
     return f"{prefix}-{timestamp}-{uuid.uuid4().hex[:8]}"
 
 
+@dataclass(frozen=True)
+class _DeepExecutionPlan:
+    execution_dir: Path
+    topic_path: Path
+    command_path: Path
+    stdout_path: Path
+    stderr_path: Path
+    result_path: Path
+    command: tuple[str, ...]
+    artifacts: dict[str, str]
+
+
+def _prepare_legacy_deep_execution(
+    *,
+    root: Path,
+    artifact_root: Path,
+    python_executable: str,
+    runner_path: Path,
+    session_id: str,
+    topic: str,
+    timeout_seconds: float | None,
+) -> _DeepExecutionPlan:
+    session_id = _validate_session_id(session_id)
+    if not isinstance(topic, str) or not topic.strip():
+        raise ValueError("topic must be a non-empty string")
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+
+    execution_dir = artifact_root / "deep" / session_id / _execution_id("deep")
+    topic_path = execution_dir / "topic.txt"
+    command_path = execution_dir / "command.json"
+    stdout_path = execution_dir / "stdout.txt"
+    stderr_path = execution_dir / "stderr.txt"
+    result_path = execution_dir / "result.json"
+    command = (
+        python_executable,
+        str(runner_path),
+        "--root",
+        str(root),
+        "--topic",
+        topic,
+        "--once",
+        "--session-id",
+        session_id,
+    )
+    return _DeepExecutionPlan(
+        execution_dir=execution_dir,
+        topic_path=topic_path,
+        command_path=command_path,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        result_path=result_path,
+        command=command,
+        artifacts={
+            "topic": _relative_artifact(topic_path, root),
+            "command": _relative_artifact(command_path, root),
+            "stdout": _relative_artifact(stdout_path, root),
+            "stderr": _relative_artifact(stderr_path, root),
+            "result": _relative_artifact(result_path, root),
+        },
+    )
+
+
 def _build_quick_prompt(prompt: str, evidence: EvidencePacket | None) -> str:
     # Grounding rules sit at the tail, after the evidence and the request: ahead
     # of a multi-kilobyte packet they were reliably ignored.
@@ -683,40 +746,25 @@ class DeepExecutor:
                 "DeepExecutor is unsupported legacy; set SOVEREIGN_ALLOW_LEGACY_DEEP=1 "
                 "only for R34/legacy harnesses. Product DEEP uses SemanticDeepExecutor."
             )
-        session_id = _validate_session_id(session_id)
-        if not isinstance(topic, str) or not topic.strip():
-            raise ValueError("topic must be a non-empty string")
-        if timeout_seconds is not None and timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
-
-        execution_dir = (
-            self.artifact_root / "deep" / session_id / _execution_id("deep")
+        plan = _prepare_legacy_deep_execution(
+            root=self.root,
+            artifact_root=self.artifact_root,
+            python_executable=self.python_executable,
+            runner_path=self.runner_path,
+            session_id=session_id,
+            topic=topic,
+            timeout_seconds=timeout_seconds,
         )
-        topic_path = execution_dir / "topic.txt"
-        command_path = execution_dir / "command.json"
-        stdout_path = execution_dir / "stdout.txt"
-        stderr_path = execution_dir / "stderr.txt"
-        result_path = execution_dir / "result.json"
-        artifacts = {
-            "topic": _relative_artifact(topic_path, self.root),
-            "command": _relative_artifact(command_path, self.root),
-            "stdout": _relative_artifact(stdout_path, self.root),
-            "stderr": _relative_artifact(stderr_path, self.root),
-            "result": _relative_artifact(result_path, self.root),
-        }
+        session_id = _validate_session_id(session_id)
+        execution_dir = plan.execution_dir
+        topic_path = plan.topic_path
+        command_path = plan.command_path
+        stdout_path = plan.stdout_path
+        stderr_path = plan.stderr_path
+        result_path = plan.result_path
+        artifacts = plan.artifacts
         _atomic_write_text(topic_path, topic)
-
-        command = [
-            self.python_executable,
-            str(self.runner_path),
-            "--root",
-            str(self.root),
-            "--topic",
-            topic,
-            "--once",
-            "--session-id",
-            session_id,
-        ]
+        command = list(plan.command)
         _atomic_write_json(
             command_path,
             {

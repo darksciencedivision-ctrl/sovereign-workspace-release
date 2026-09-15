@@ -2028,6 +2028,31 @@ def _activation_report(
     return attach_canonical_provenance(payload, provenance["runtime_root"], provenance["broker_root"])
 
 
+def _resolve_runtime_models(args: Any, manifest: dict[str, Any]) -> None:
+    """Apply manifest defaults without mixing configuration with live debate work."""
+    args.ollama_base_url = str(args.ollama_base_url).strip() or str(
+        runtime_value("OLLAMA_BASE_URL", manifest)
+    ).strip()
+    for attribute, role in (
+        ("model_a", "PRIMARY_REASONER"),
+        ("model_b", "ADVERSARIAL_CHALLENGER"),
+        ("model_c", "CRITIC"),
+        ("model_synth", "SYNTHESIZER"),
+    ):
+        current = str(getattr(args, attribute)).strip()
+        setattr(args, attribute, current or model_name(role, manifest))
+
+
+def _warmup_model_names(args: Any) -> tuple[str, ...]:
+    ordered = (
+        str(args.model_a).strip(),
+        str(args.model_b).strip(),
+        str(args.model_c).strip(),
+        str(args.model_synth).strip(),
+    )
+    return tuple(dict.fromkeys(model for model in ordered if model))
+
+
 def main() -> int:
     args = base._parse_args()
     root = Path(args.root).resolve()
@@ -2045,19 +2070,7 @@ def main() -> int:
     broker: dict[str, str] = {}
     provenance: dict[str, Any] = build_canonical_provenance(root, "")
     manifest = load_system_manifest(root)
-    args.ollama_base_url = str(args.ollama_base_url).strip() or str(
-        runtime_value("OLLAMA_BASE_URL", manifest)
-    ).strip()
-    args.model_a = str(args.model_a).strip() or model_name("PRIMARY_REASONER", manifest)
-    args.model_b = str(args.model_b).strip() or model_name(
-        "ADVERSARIAL_CHALLENGER",
-        manifest,
-    )
-    args.model_c = str(args.model_c).strip() or model_name("CRITIC", manifest)
-    args.model_synth = str(args.model_synth).strip() or model_name(
-        "SYNTHESIZER",
-        manifest,
-    )
+    _resolve_runtime_models(args, manifest)
 
     # Phase 20.4 — Pressure-Adaptive Routing block (single block, between model-arg resolution and debate)
     _routing_meta: dict[str, Any] = {"enabled": False}
@@ -2123,13 +2136,7 @@ def main() -> int:
     _warmed_up_models: set[str] = set()
     _warmup_results: list[dict[str, Any]] = []
     if os.environ.get("SOVEREIGN_ENABLE_MODEL_WARMUP", "").strip() == "1":
-        _warmup_models = [
-            str(args.model_a).strip(),
-            str(args.model_b).strip(),
-            str(args.model_c).strip(),
-            str(args.model_synth).strip(),
-        ]
-        for _wm in dict.fromkeys(m for m in _warmup_models if m):
+        for _wm in _warmup_model_names(args):
             _wr = _run_warmup(_wm, args.ollama_base_url)
             _warmup_results.append(_wr)
             if _wr.get("status") == "PASS":
@@ -2898,7 +2905,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
 
 
 

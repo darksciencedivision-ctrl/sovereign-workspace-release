@@ -432,6 +432,60 @@ def _validate_session_id(session_id: str) -> str:
     return session_id
 
 
+def _validate_semantic_execution_request(
+    *,
+    session_id: str,
+    job_id: str | None,
+    topic: str,
+    options: Mapping[str, Any] | None,
+    timeout_seconds: float | None,
+) -> tuple[str, str | None, str, dict[str, Any]]:
+    validated_session = _validate_session_id(session_id)
+    validated_job = _validate_session_id(job_id) if job_id is not None else None
+    if not isinstance(topic, str) or not topic.strip():
+        raise ValueError("topic must be nonempty text")
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    return validated_session, validated_job, topic, dict(options or {})
+
+
+def _semantic_request_record(
+    *,
+    session_id: str,
+    job_id: str | None,
+    execution_id: str,
+    topic: str,
+    model_slate: Mapping[str, str],
+    model_provenance: Mapping[str, Any],
+    base_options: Mapping[str, Any],
+    runtime_options: Mapping[str, Any],
+    timeout_seconds: float | None,
+    evidence_supplied: bool,
+    evidence_builder_configured: bool,
+    started_at: str,
+) -> dict[str, Any]:
+    """Build the immutable request phase record before any model turn runs."""
+    return _with_digest(
+        {
+            "schema_version": 1,
+            "record_type": "semantic_deep_request",
+            "session_id": session_id,
+            "job_id": job_id,
+            "execution_id": execution_id,
+            "topic": topic,
+            "topic_sha256": _sha256_text(topic),
+            "model_slate": dict(model_slate),
+            "model_provenance": dict(model_provenance),
+            "base_options": dict(base_options),
+            "runtime_options": dict(runtime_options),
+            "timeout_seconds": timeout_seconds,
+            "evidence_supplied": evidence_supplied,
+            "evidence_builder_configured": evidence_builder_configured,
+            "started_at": started_at,
+        }
+    )
+
+
 def _safe_relative(path: Path, root: Path | Sequence[Path]) -> str:
     """An artifact path expressed relative to whichever trusted root contains it.
 
@@ -2234,14 +2288,13 @@ class SemanticDeepExecutor:
         cancel_requested: CancelCallback | None = None,
         timeout_seconds: float | None = None,
     ) -> ExecutionResult:
-        session_id = _validate_session_id(session_id)
-        if job_id is not None:
-            job_id = _validate_session_id(job_id)
-        if not isinstance(topic, str) or not topic.strip():
-            raise ValueError("topic must be nonempty text")
-        if timeout_seconds is not None and timeout_seconds <= 0:
-            raise ValueError("timeout_seconds must be positive")
-        runtime_options = dict(options or {})
+        session_id, job_id, topic, runtime_options = _validate_semantic_execution_request(
+            session_id=session_id,
+            job_id=job_id,
+            topic=topic,
+            options=options,
+            timeout_seconds=timeout_seconds,
+        )
         # Validate before any model call while preserving stage-specific config.
         self._options_for("member_1", runtime_options)
         execution_id = self._execution_id_factory()
@@ -2299,24 +2352,19 @@ class SemanticDeepExecutor:
                 and isinstance(item.get("configured_model"), str)
                 and isinstance(item.get("record_sha256"), str)
             }
-        request_record = _with_digest(
-            {
-                "schema_version": 1,
-                "record_type": "semantic_deep_request",
-                "session_id": session_id,
-                "job_id": job_id,
-                "execution_id": execution_id,
-                "topic": topic,
-                "topic_sha256": _sha256_text(topic),
-                "model_slate": self.model_slate,
-                "model_provenance": model_provenance,
-                "base_options": self.base_options,
-                "runtime_options": runtime_options,
-                "timeout_seconds": timeout_seconds,
-                "evidence_supplied": evidence is not None,
-                "evidence_builder_configured": self.evidence_builder is not None,
-                "started_at": started_at,
-            }
+        request_record = _semantic_request_record(
+            session_id=session_id,
+            job_id=job_id,
+            execution_id=execution_id,
+            topic=topic,
+            model_slate=self.model_slate,
+            model_provenance=model_provenance,
+            base_options=self.base_options,
+            runtime_options=runtime_options,
+            timeout_seconds=timeout_seconds,
+            evidence_supplied=evidence is not None,
+            evidence_builder_configured=self.evidence_builder is not None,
+            started_at=started_at,
         )
         _atomic_json(request_path, request_record)
 

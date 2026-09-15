@@ -124,6 +124,20 @@ class ParsedSynthesis:
     raw_text: str
 
 
+@dataclass(frozen=True)
+class CycleRunPlan:
+    """Resolved identity and output locations for one legacy cycle.
+
+    Keeping this deterministic setup outside ``main`` makes the execution phase
+    consume one validated object instead of rebuilding paths while it mutates
+    runtime state.
+    """
+
+    topic: str
+    session_id: str
+    artifacts: Dict[str, Any]
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -134,6 +148,45 @@ def ensure_dir(path: Path) -> None:
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+def build_cycle_run_plan(args: Any, root: Path, paths: Dict[str, Path]) -> CycleRunPlan:
+    topic = str(args.topic or "").strip()
+    if not topic:
+        raw_topic = read_text(paths["topic_file"]).strip()
+        raw_topic = TOPIC_OPEN_TAG_RE.sub("", raw_topic)
+        topic = TOPIC_CLOSE_TAG_RE.sub("", raw_topic).strip()
+
+    session_id = (
+        validate_session_id(args.session_id)
+        if str(args.session_id or "").strip()
+        else generate_session_id(topic or "empty-topic")
+    )
+    artifacts: Dict[str, Any] = {
+        "synthesis_path": str(paths["synthesis_path"]),
+        "praxis_answer_path": str(paths["praxis_answer_path"]),
+        "praxis_answer_session_path": str(
+            root / "output" / "praxis" / f"{session_id}_praxis_answer.json"
+        ),
+        "sovereign_voice_path": str(paths["sovereign_voice_path"]),
+        "sovereign_voice_session_path": str(
+            root / "output" / "sovereign_voice" / f"{session_id}_sovereign_voice.md"
+        ),
+        "praxis_report_path": str(paths["praxis_report_path"]),
+        "praxis_report_session_path": str(
+            root / "output" / "praxis_reports" / f"{session_id}_praxis_report.md"
+        ),
+        "dialog_session_path": str(
+            root / "output" / "dialog" / f"{session_id}_dialog.txt"
+        ),
+    }
+    if args.safe_theorem_mode:
+        artifacts["safe_theorem_manifest_path"] = str(
+            Path(args.safe_theorem_manifest).expanduser().resolve()
+        )
+        artifacts["safe_theorem_mode"] = True
+    artifacts.update(predict_artifact_integrity_paths(root, session_id))
+    return CycleRunPlan(topic=topic, session_id=session_id, artifacts=artifacts)
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -2082,43 +2135,13 @@ def main() -> int:
 
         ensure_dir(paths["runs_dir"])
 
-        topic = args.topic.strip()
-        if not topic:
-            raw_topic = read_text(paths["topic_file"]).strip()
-            raw_topic = TOPIC_OPEN_TAG_RE.sub("", raw_topic)
-            raw_topic = TOPIC_CLOSE_TAG_RE.sub("", raw_topic).strip()
-            topic = raw_topic
-
-        session_id = (
-            validate_session_id(args.session_id)
-            if str(args.session_id or "").strip()
-            else generate_session_id(topic or "empty-topic")
-        )
+        plan = build_cycle_run_plan(args, root, paths)
+        topic = plan.topic
+        session_id = plan.session_id
         _set_runtime_session_id(session_id)
         parsed = blank_parsed_synthesis(session_id)
         metrics = zero_metrics()
-        artifacts = {
-            "synthesis_path": str(paths["synthesis_path"]),
-            "praxis_answer_path": str(paths["praxis_answer_path"]),
-            "praxis_answer_session_path": str(
-                root / "output" / "praxis" / f"{session_id}_praxis_answer.json"
-            ),
-            "sovereign_voice_path": str(paths["sovereign_voice_path"]),
-            "sovereign_voice_session_path": str(
-                root / "output" / "sovereign_voice" / f"{session_id}_sovereign_voice.md"
-            ),
-            "praxis_report_path": str(paths["praxis_report_path"]),
-            "praxis_report_session_path": str(
-                root / "output" / "praxis_reports" / f"{session_id}_praxis_report.md"
-            ),
-            "dialog_session_path": str(
-                root / "output" / "dialog" / f"{session_id}_dialog.txt"
-            ),
-        }
-        if args.safe_theorem_mode:
-            artifacts["safe_theorem_manifest_path"] = str(Path(args.safe_theorem_manifest).expanduser().resolve())
-            artifacts["safe_theorem_mode"] = True
-        artifacts.update(predict_artifact_integrity_paths(root, session_id))
+        artifacts = dict(plan.artifacts)
 
         execution_state = initial_execution_state()
         execution_mode = "UNKNOWN"

@@ -558,55 +558,20 @@
   function applyModuleState(id, record) {
     const refs = cards.get(id);
     if (!refs) return;
-    const mod = moduleById(id);
-    record = record && typeof record === "object" ? record : {};
-
-    let state = String(record.state || record.status || "").toUpperCase();
-    if (!STATE_META[state] && !state) state = "";
-
-    const meta = STATE_META[state] || { cls: "badge-muted", label: state || "Unknown" };
-    refs.badge.className = "badge " + meta.cls;
-
-    let reasonText = firstString(record.reason_code, record.reason, record.detail);
-    /* N-22/OBS-2: an optional runtime that ships in no archive has a valid adapter and no binary.
-       It must read as present-and-unavailable, naming the path the operator has to supply -
-       never as absent, and never as a module that merely failed. */
-    if (record.runtime_present === false && !reasonText) {
-      reasonText = "Runtime not installed: " + firstString(record.runtime_path, "path not declared");
-    }
-    if ((state === "FAILED" || state === "CONFIG_ERROR") && reasonText) {
-      refs.stateText.textContent = meta.label + ": " + reasonText;
-      refs.reason.textContent = "";
-    } else {
-      refs.stateText.textContent = meta.label;
-      const hideReason = (state === "READY" || state === "NOT_STARTED")
-        && record.runtime_present !== false;
-      refs.reason.textContent = hideReason ? "" : reasonText;
-    }
+    const previous = moduleState.get(id) || {};
+    const projected = window.SWSModuleState.projectModuleState(
+      record, previous, STATE_META, urlForPort,
+    );
+    refs.badge.className = "badge " + projected.meta.cls;
+    refs.stateText.textContent = projected.stateText;
+    refs.reason.textContent = projected.reasonText;
 
     refs.lastCheck.textContent = formatTime(
-      record.last_check !== undefined ? record.last_check : record.lastCheck
+      record && record.last_check !== undefined ? record.last_check : record && record.lastCheck
     );
-
-    // Endpoint / URL
-    const previous = moduleState.get(id) || {};
-    const url = firstString(record.url, record.href);
-    const port = record.port !== undefined && record.port !== null ? String(record.port) : "";
-    const resolvedUrl = url || (port ? urlForPort(port) : previous._url || "");
-
-    refs.endpoint.textContent = url || (port ? "port " + port : previous._endpointText || "—");
-
-    // G18: leaving READY/EXTERNAL closes the shell-opened surface for this module.
-    const prevState = previous.state;
-    if ((prevState === "READY" || prevState === "EXTERNAL") &&
-        (state !== "READY" && state !== "EXTERNAL")) {
-      closeBrowserHandle(id);
-    }
-    moduleState.set(id, Object.assign({}, previous, record, {
-      state: state || previous.state || "NOT_STARTED",
-      _url: resolvedUrl,
-      _endpointText: url || (port ? "port " + port : ""),
-    }));
+    refs.endpoint.textContent = projected.endpointText;
+    if (projected.shouldCloseBrowser) closeBrowserHandle(id);
+    moduleState.set(id, projected.stored);
 
     refreshTokenCenterEmbed(id);
     refreshButtons(id);

@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { sovereignClient } from "../services/sovereignClient";
+import type { SubmissionResult } from "../services/transport";
 import {
   isActiveJobStatus,
   type ChatMessage,
@@ -38,6 +39,42 @@ function acceptedMessage(
 ): ChatMessage[] {
   if (messages.some((item) => item.id === message.id)) return messages;
   return [...messages, message];
+}
+
+
+export function submissionJob(
+  result: SubmissionResult,
+  sessionId: string,
+  now = Date.now()
+): JobSnapshot | undefined {
+  if (result.job) return result.job;
+  if (!result.status) return undefined;
+  return {
+    job_id: `${result.status}-${now}`,
+    session_id: sessionId,
+    status: result.status,
+    route: result.route,
+    progress: { percent: result.status === "completed" ? 100 : 0 },
+    message: result.status === "completed" ? result.message : undefined,
+    evidence: result.message?.evidence,
+    error: result.error,
+  };
+}
+
+
+export function retainDirectCompletedMessage(
+  sessions: ChatSession[],
+  sessionId: string,
+  message: ChatMessage
+): ChatSession[] {
+  return sessions.map((session) =>
+    session.session_id === sessionId
+      ? {
+          ...session,
+          messages: acceptedMessage(session.messages, message),
+        }
+      : session
+  );
 }
 
 export function useChatState() {
@@ -209,21 +246,8 @@ export function useChatState() {
         );
         if (!mounted.current) return;
 
-        if (result.job) {
-          adoptJob(sessionId, result.job);
-        } else if (result.status) {
-          adoptJob(sessionId, {
-            job_id: `${result.status}-${Date.now()}`,
-            session_id: sessionId,
-            status: result.status,
-            route: result.route,
-            progress: { percent: result.status === "completed" ? 100 : 0 },
-            message:
-              result.status === "completed" ? result.message : undefined,
-            evidence: result.message?.evidence,
-            error: result.error,
-          });
-        }
+        const submittedJob = submissionJob(result, sessionId);
+        if (submittedJob) adoptJob(sessionId, submittedJob);
 
         if (!result.ok) {
           setError(
@@ -239,17 +263,7 @@ export function useChatState() {
           // The direct response is itself authoritative server output. Keep it
           // visible if the follow-up refresh was transiently unavailable.
           setSessions((previous) =>
-            previous.map((session) =>
-              session.session_id === sessionId
-                ? {
-                    ...session,
-                    messages: acceptedMessage(
-                      session.messages,
-                      result.message!
-                    ),
-                  }
-                : session
-            )
+            retainDirectCompletedMessage(previous, sessionId, result.message!)
           );
           setPollError("Session refresh failed; reconnecting will verify persistence.");
         }

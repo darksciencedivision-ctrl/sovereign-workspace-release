@@ -39,13 +39,14 @@ def test_cr030_sow_default_command_collects_tests():
     assert "tests collected" in proc.stdout
 
 
-def test_cr030_ui_test_lane_is_non_qualifying_not_false_pass():
+def test_cr030_ui_test_lane_runs_the_retained_minimal_pack():
     pkg = json.loads((SOVEREIGN / "ui" / "ui_shell" / "package.json").read_text(encoding="utf-8"))
     test_cmd = pkg["scripts"]["test"]
     # must NOT silently pass with zero tests
     assert "--passWithNoTests" not in test_cmd
     assert test_cmd.strip() != "vitest run"
-    assert "UNSUPPORTED" in test_cmd and "process.exit(1)" in test_cmd
+    assert test_cmd == "vitest run tests/remediation"
+    assert list((SOVEREIGN / "ui" / "ui_shell" / "tests" / "remediation").glob("*.test.ts"))
 
 
 def test_cr030_test_sovereign_pytest_is_conditional():
@@ -53,5 +54,6 @@ def test_cr030_test_sovereign_pytest_is_conditional():
     # no unconditional `pytest ... tests` that fails on the removed dir
     assert "INTENTIONALLY UNSUPPORTED" in script
     assert "unsupportedLanes" in script
+    assert "& npm test" in script
     # the final banner must not unconditionally claim a clean pass
     assert 'if ($script:unsupportedLanes.Count -gt 0)' in script

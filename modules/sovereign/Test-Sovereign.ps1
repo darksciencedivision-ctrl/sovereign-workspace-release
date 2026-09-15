@@ -1,10 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$Root = $PSScriptRoot,
+    [string]$Root = "",
     [switch]$Full
 )
 
 $ErrorActionPreference = "Stop"
+if ([string]::IsNullOrWhiteSpace($Root)) {
+    $Root = $PSScriptRoot
+}
 $rootPath = [System.IO.Path]::GetFullPath($Root)
 $markerPath = Join-Path $rootPath ".sovereign-root"
 $pythonPath = Join-Path $rootPath ".venv\Scripts\python.exe"
@@ -96,6 +99,10 @@ try {
 
     Push-Location $uiPath
     try {
+        & npm test
+        if ($LASTEXITCODE -ne 0) {
+            throw "UI unit tests failed."
+        }
         & npm run typecheck
         if ($LASTEXITCODE -ne 0) {
             throw "UI type check failed."

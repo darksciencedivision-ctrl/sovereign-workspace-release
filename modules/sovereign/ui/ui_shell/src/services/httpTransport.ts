@@ -346,6 +346,71 @@ function sessionResult(result: HttpResult<ApiSessionResponse>): SessionResult {
     : { ok: false, error: "Sovereign returned an invalid session record." };
 }
 
+
+export function normalizeSubmissionResult(
+  result: HttpResult<ApiMessageResponse>
+): SubmissionResult {
+  if (!result.ok) {
+    const rejectedJob = normalizeJob(result.data, `rejected-${Date.now()}`);
+    return {
+      ok: false,
+      status: rejectedJob?.status,
+      route: rejectedJob?.route,
+      job: rejectedJob,
+      error: rejectedJob?.error ?? result.error,
+    };
+  }
+
+  const record = isRecord(result.data) ? result.data : {};
+  const job = normalizeJob(record, firstString(record.job_id));
+  const directMessage = normalizeMessage(record.message);
+  const status =
+    normalizeStatus(record.status) ??
+    job?.status ??
+    (directMessage ? "completed" : undefined);
+  const route = normalizeRoute(record.route) ?? job?.route;
+  const failure = status ? FAILURE_JOB_STATUSES.includes(status) : false;
+
+  if (job && job.status !== "completed") {
+    return {
+      ok: !failure,
+      status: job.status,
+      route,
+      job,
+      error: failure
+        ? job.error ?? extractError(record, `Run ${job.status}.`)
+        : undefined,
+    };
+  }
+
+  const completedMessage = job?.message ?? directMessage;
+  if (status === "completed" && completedMessage) {
+    return {
+      ok: true,
+      status,
+      route,
+      message: {
+        ...completedMessage,
+        route: completedMessage.route ?? route,
+        job_status: "completed",
+        evidence:
+          completedMessage.evidence ??
+          job?.evidence ??
+          normalizeEvidence(record),
+      },
+      job,
+    };
+  }
+
+  return {
+    ok: false,
+    status,
+    route,
+    job,
+    error: extractError(record, "Sovereign did not accept the request."),
+  };
+}
+
 export function createHttpTransport(baseUrl = ""): SovereignTransport {
   return {
     async sendMessage(
@@ -364,70 +429,7 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
         }
       );
 
-      if (!result.ok) {
-        const rejectedJob = normalizeJob(
-          result.data,
-          `rejected-${Date.now()}`
-        );
-        return {
-          ok: false,
-          status: rejectedJob?.status,
-          route: rejectedJob?.route,
-          job: rejectedJob,
-          error: rejectedJob?.error ?? result.error,
-        };
-      }
-
-      const record = isRecord(result.data) ? result.data : {};
-      const job = normalizeJob(record, firstString(record.job_id));
-      const directMessage = normalizeMessage(record.message);
-      const status =
-        normalizeStatus(record.status) ??
-        job?.status ??
-        (directMessage ? "completed" : undefined);
-      const route = normalizeRoute(record.route) ?? job?.route;
-      const failure = status
-        ? FAILURE_JOB_STATUSES.includes(status)
-        : false;
-
-      if (job && job.status !== "completed") {
-        return {
-          ok: !failure,
-          status: job.status,
-          route,
-          job,
-          error: failure
-            ? job.error ?? extractError(record, `Run ${job.status}.`)
-            : undefined,
-        };
-      }
-
-      const completedMessage = job?.message ?? directMessage;
-      if (status === "completed" && completedMessage) {
-        return {
-          ok: true,
-          status,
-          route,
-          message: {
-            ...completedMessage,
-            route: completedMessage.route ?? route,
-            job_status: "completed",
-            evidence:
-              completedMessage.evidence ??
-              job?.evidence ??
-              normalizeEvidence(record),
-          },
-          job,
-        };
-      }
-
-      return {
-        ok: false,
-        status,
-        route,
-        job,
-        error: extractError(record, "Sovereign did not accept the request."),
-      };
+      return normalizeSubmissionResult(result);
     },
 
     async getJob(jobId: string): Promise<JobResult> {
