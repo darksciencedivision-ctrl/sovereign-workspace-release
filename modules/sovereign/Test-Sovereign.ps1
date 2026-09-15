@@ -38,6 +38,12 @@ $compileTargets += @(
         Select-Object -ExpandProperty FullName
 )
 
+# CR-030: the source-only tree intentionally removed the Sovereign Python and UI unit-test suites.
+# The retained validation must be TRUTHFUL: run the lanes that exist, and record any intentionally
+# removed lane as UNSUPPORTED (non-qualifying) rather than throwing a false failure or claiming a
+# pass it never ran. The final banner reflects whether any lane was unsupported.
+$script:unsupportedLanes = @()
+
 Push-Location $rootPath
 try {
     & $pythonPath -c (
@@ -63,16 +69,24 @@ try {
         throw "Python compile check failed."
     }
 
-    # F-120. `tests_product` does not exist in this module (0 tracked files), so the old
-    # `pytest tests tests_product` ALWAYS failed regardless of product state. Run the dirs that
-    # actually exist.
-    $testTargets = @("tests")
-    if (Test-Path -LiteralPath (Join-Path $rootPath "tests_product") -PathType Container) {
-        $testTargets += "tests_product"
+    # CR-030: run only the Python test dirs that actually EXIST in this source-only tree. The
+    # Sovereign unit-test suite was intentionally removed, so `pytest tests` would always fail on a
+    # missing directory. If a test dir exists, run it and fail closed on a real failure; otherwise
+    # record the lane as intentionally unsupported (non-qualifying) instead of inventing a failure.
+    $testTargets = @()
+    foreach ($dir in @("tests", "tests_product")) {
+        if (Test-Path -LiteralPath (Join-Path $rootPath $dir) -PathType Container) {
+            $testTargets += $dir
+        }
     }
-    & $pythonPath -m pytest -q @testTargets
-    if ($LASTEXITCODE -ne 0) {
-        throw "Python test suite failed."
+    if ($testTargets.Count -gt 0) {
+        & $pythonPath -m pytest -q @testTargets
+        if ($LASTEXITCODE -ne 0) {
+            throw "Python test suite failed."
+        }
+    } else {
+        Write-Host "  Sovereign Python unit tests: INTENTIONALLY UNSUPPORTED in the source-only tree (non-qualifying)." -ForegroundColor Yellow
+        $script:unsupportedLanes += "sovereign-python-unit"
     }
 
     & $pythonPath "ui\adapter_service\adapter.py" --help *> $null
@@ -110,4 +124,12 @@ try {
     Pop-Location
 }
 
-Write-Host "SOVEREIGN validation passed."
+# CR-030: never claim a clean "validation passed" when a lane was intentionally unsupported — that
+# would be a release-qualifying claim without executable coverage. Report the honest outcome.
+if ($script:unsupportedLanes.Count -gt 0) {
+    Write-Host ("SOVEREIGN validation completed; the executed lanes passed, but " +
+        "$($script:unsupportedLanes.Count) lane(s) are intentionally unsupported (non-qualifying): " +
+        ($script:unsupportedLanes -join ", ")) -ForegroundColor Yellow
+} else {
+    Write-Host "SOVEREIGN validation passed."
+}
