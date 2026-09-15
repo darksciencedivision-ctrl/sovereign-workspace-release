@@ -49,6 +49,10 @@ class LogRing:
         self._lines: list[str] = []
         self._sink = sink
         self._lock = threading.Lock()
+        # CR-011: a dedicated lock serializes ALL transitions of the incremental decoder and the
+        # partial-line carry, so no reader/writer/clear interleaving can tear that state or emit a
+        # half-decoded line. Held only around the cheap decode+split; redaction/emit happen outside.
+        self._stream_lock = threading.Lock()
         # R14: streaming decode + partial-line carry, for the byte-chunk pipe path.
         self._decoder = codecs.getincrementaldecoder('utf-8')('replace')
         self._carry = ""
@@ -105,27 +109,32 @@ class LogRing:
                 self._emit_line(line)
             return
 
-        # Stream semantics.
-        if isinstance(data, (bytes, bytearray)):
-            text = self._decoder.decode(bytes(data))
-        else:
-            text = str(data or "")
-        buffer = self._carry + text
-        parts = buffer.split('\n')
-        self._carry = parts.pop()   # the trailing partial line, if any, waits for more input
-        for line in parts:
+        # Stream semantics. CR-011: decode + carry-split happen atomically under the stream lock,
+        # so a concurrent clear()/writer can never observe or reset a half-updated carry. The
+        # completed lines are collected, then redacted and emitted OUTSIDE the lock.
+        with self._stream_lock:
+            if isinstance(data, (bytes, bytearray)):
+                text = self._decoder.decode(bytes(data))
+            else:
+                text = str(data or "")
+            buffer = self._carry + text
+            parts = buffer.split('\n')
+            self._carry = parts.pop()   # the trailing partial line, if any, waits for more input
+            complete = parts
+        for line in complete:
             self._emit_line(line)
 
     def flush(self) -> None:
         """End of stream: decode any bytes held by the incremental decoder and emit the final
         partial line. Called by the supervisor pump when the child's pipe reaches EOF, so a last
         line with no trailing newline is not silently dropped (and is still redacted first)."""
-        try:
-            tail = self._decoder.decode(b"", final=True)
-        except Exception:
-            tail = ""
-        buffer = self._carry + tail
-        self._carry = ""
+        with self._stream_lock:
+            try:
+                tail = self._decoder.decode(b"", final=True)
+            except Exception:
+                tail = ""
+            buffer = self._carry + tail
+            self._carry = ""
         if buffer:
             self._emit_line(buffer)
 
@@ -143,6 +152,11 @@ class LogRing:
             return list(self._lines[-200:])
 
     def clear(self):
+        # CR-011: clear only the visible, ALREADY-REDACTED lines. The streaming carry is deliberately
+        # NOT reset here. Resetting it mid-stream orphaned a secret's prefix: after clear() wiped the
+        # carry, the secret's trailing chunk arrived and was emitted as a standalone line that no
+        # longer matched any redaction pattern, leaking the suffix. Preserving the carry guarantees
+        # redaction always runs over a COMPLETE line. The carry holds at most one partial line and is
+        # never returned by read() until it completes and is redacted.
         with self._lock:
             self._lines.clear()
-            self._carry = ""
