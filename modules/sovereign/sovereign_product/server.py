@@ -571,6 +571,7 @@ class ProductService:
         self._enqueued: set[str] = set()
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
+        self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after close()
         recovery = self.store.recover_incomplete_jobs()
         for job_id in recovery["queued"]:
             self._enqueue(job_id)
@@ -862,16 +863,36 @@ class ProductService:
             thread.start()
             self._workers.append(thread)
 
-    def close(self) -> None:
+    def close(self) -> dict:
+        """Shut the worker pool down under a bounded drain.
+
+        CR-026: the old close() joined each worker for two seconds and then cleared the worker list
+        REGARDLESS of liveness — a worker still running was silently forgotten while shutdown
+        claimed success and went on to close the store. Now workers that survive the bounded drain
+        are RETAINED and REPORTED (self._shutdown_survivors / the returned record), so a caller can
+        fail shutdown health/exit instead of pretending the service is quiescent. Also signals every
+        in-flight job's cancel event so cancellation-aware work can wind down within the drain.
+        """
         if self._closed.is_set():
-            return
+            return {"already_closed": True, "survivors": list(self._shutdown_survivors),
+                    "clean": not self._shutdown_survivors}
         self._closed.set()
+        # Ask any in-flight jobs to cancel so cancellation-aware work can exit within the drain.
+        for cancel_event in list(self._active_cancel.values()):
+            try:
+                cancel_event.set()
+            except Exception:
+                pass
         for _thread in self._workers:
             self._queue.put(None)
         for thread in self._workers:
             thread.join(timeout=2.0)
-        self._workers.clear()
+        survivors = [t for t in self._workers if t.is_alive()]
+        # Keep survivors tracked rather than clearing them; only forget the workers that truly exited.
+        self._workers = list(survivors)
+        self._shutdown_survivors = [t.name for t in survivors]
         self.store.close()
+        return {"survivors": list(self._shutdown_survivors), "clean": not survivors}
 
     def _enqueue(self, job_id: str) -> None:
         with self._queue_lock:

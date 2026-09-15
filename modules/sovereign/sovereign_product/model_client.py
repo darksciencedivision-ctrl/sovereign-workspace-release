@@ -171,16 +171,29 @@ class OllamaClient:
         self.connect_timeout = float(connect_timeout)
         self.read_timeout = float(read_timeout)
         self.overall_timeout = float(overall_timeout)
-        if session is not None:
-            self._session = session
-        else:
+        # CR-037: a single requests.Session is not a documented thread-safe boundary, and
+        # ProductService can run more than one generation worker. An explicitly injected session is
+        # the caller's deliberate choice (tests, or a caller providing a synchronized transport) and
+        # is used as-is; otherwise every thread lazily gets its OWN Session, so concurrent workers
+        # never share mutable session/connection-pool state.
+        self._explicit_session = session
+        self._session_local = threading.local()
+        self._monotonic = monotonic
+
+    @property
+    def _session(self):
+        if self._explicit_session is not None:
+            return self._explicit_session
+        sess = getattr(self._session_local, "session", None)
+        if sess is None:
             # R23/F-109: this client only ever talks to a validated loopback Ollama. A registry or
-            # environment proxy (HTTP_PROXY/HTTPS_PROXY) must never sit between us and 127.0.0.1 -
+            # environment proxy (HTTP_PROXY/HTTPS_PROXY) must never sit between us and 127.0.0.1 —
             # that would route the prompt and completion through a third party. requests honours
             # those env proxies by default; disable that here since we own this session.
-            self._session = requests.Session()
-            self._session.trust_env = False
-        self._monotonic = monotonic
+            sess = requests.Session()
+            sess.trust_env = False
+            self._session_local.session = sess
+        return sess
 
     def _remaining_budget(self, deadline: float | None) -> float | None:
         """Seconds left until an absolute monotonic `deadline` (R22). Raises the overall timeout if
@@ -192,11 +205,15 @@ class OllamaClient:
             raise GenerationTimeout("overall")
         return remaining
 
-    def _show_model(self, model: str, *, deadline: float | None = None) -> dict[str, Any]:
+    def _show_model(self, model: str, *, deadline: float | None = None,
+                    on_active: "Callable[[Any], None] | None" = None) -> dict[str, Any]:
         """Read Ollama's existing generic metadata for one exact model tag.
 
         R22: when a generation deadline is supplied, the connect and read socket timeouts are
         capped by the time remaining, so a metadata stall cannot outlive the overall deadline.
+        CR-025: `on_active`, when given, receives the streaming response so an outer cancellation
+        watcher can close it mid-body-read — a non-streaming metadata call could not be interrupted
+        until its socket timeout, so an immediate cancel was ignored during model discovery.
         """
 
         connect_to = min(self.connect_timeout, self.overall_timeout)
@@ -213,7 +230,10 @@ class OllamaClient:
                     json={"model": model},
                     timeout=(connect_to, read_to),
                     allow_redirects=False,
+                    stream=True,
                 )
+                if on_active is not None:
+                    on_active(response)
             except requests.ConnectTimeout as exc:
                 raise GenerationTimeout("connect") from exc
             except requests.ReadTimeout as exc:
@@ -246,12 +266,13 @@ class OllamaClient:
                 if callable(close):
                     close()
 
-    def native_context_length(self, model: str, *, deadline: float | None = None) -> int:
+    def native_context_length(self, model: str, *, deadline: float | None = None,
+                              on_active: "Callable[[Any], None] | None" = None) -> int:
         """Return the unguessed native context from generic Ollama metadata."""
 
         if not isinstance(model, str) or not model.strip():
             raise ValueError("model must be a non-empty string")
-        payload = self._show_model(model.strip(), deadline=deadline)
+        payload = self._show_model(model.strip(), deadline=deadline, on_active=on_active)
         model_info = payload.get("model_info")
         if not isinstance(model_info, Mapping):
             raise ModelCapabilityError(
@@ -305,6 +326,7 @@ class OllamaClient:
         system: str | None,
         response_format: str | Mapping[str, Any] | None,
         deadline: float | None = None,
+        on_active: "Callable[[Any], None] | None" = None,
     ) -> tuple[dict[str, Any], dict[str, int]]:
         resolved = dict(options)
         if "num_ctx" not in resolved or "num_predict" not in resolved:
@@ -323,7 +345,7 @@ class OllamaClient:
             or requested_generation <= 0
         ):
             raise ValueError("options.num_predict must be a positive integer")
-        native_context = self.native_context_length(model, deadline=deadline)
+        native_context = self.native_context_length(model, deadline=deadline, on_active=on_active)
         effective_context = min(requested_context, native_context)
         input_bound = self._conservative_input_bound(
             prompt,
@@ -446,37 +468,6 @@ class OllamaClient:
             raise TypeError(
                 "response_format must be 'json', a JSON schema mapping, or None"
             )
-        request_options, capacity = self._resolve_generation_capacity(
-            model=model,
-            prompt=prompt,
-            options=request_options,
-            system=system,
-            response_format=requested_format,
-            deadline=deadline,
-        )
-        payload: dict[str, Any] = {
-            "model": model,
-            "prompt": prompt,
-            "stream": True,
-            "options": request_options,
-        }
-        if system is not None:
-            payload["system"] = system
-        if think is not None:
-            if not isinstance(think, bool):
-                raise TypeError("think must be a boolean or None")
-            # Ollama's thinking control is a top-level request field, not a
-            # model option.  Keeping it out of ``options`` also makes the
-            # requested mode unambiguous in captured telemetry.
-            payload["think"] = think
-        if requested_format is not None:
-            payload["format"] = requested_format
-
-        # R22. Each socket op is bounded by the time left to the deadline, so no single connect or
-        # read can outlive it even if the watcher is slow to fire.
-        remaining_now = max(0.0, deadline - self._monotonic())
-        connect_budget = min(self.connect_timeout, remaining_now) or self.connect_timeout
-        read_budget = min(self.read_timeout, remaining_now) or self.read_timeout
         response: requests.Response | Any | None = None
         raw_events: list[dict[str, Any]] = []
         raw_lines: list[str] = []
@@ -485,9 +476,14 @@ class OllamaClient:
         abort_observed = threading.Event()
         deadline_exceeded = threading.Event()
         abort_watcher_stop = threading.Event()
+        # CR-025: the response the watcher may close is the metadata response during the /api/show
+        # probe and the generation response afterward. Both are covered by the SAME watcher, so a
+        # stalled /api/show is interrupted by cancel/deadline instead of running to the full route
+        # timeout.
+        active_response_ref: list[Any] = [None]
 
         def close_active_response() -> None:
-            current = response
+            current = active_response_ref[0]
             if current is None:
                 return
             close = getattr(current, "close", None)
@@ -514,6 +510,65 @@ class OllamaClient:
         )
         abort_watcher.start()
         try:
+            # CR-025: resolve model metadata UNDER the watcher (it starts BEFORE any network call).
+            # Register the /api/show response so a stall is interrupted by cancel/deadline; a
+            # forced-close failure is reclassified as cancellation/overall rather than a transport
+            # error.
+            try:
+                request_options, capacity = self._resolve_generation_capacity(
+                    model=model,
+                    prompt=prompt,
+                    options=request_options,
+                    system=system,
+                    response_format=requested_format,
+                    deadline=deadline,
+                    on_active=lambda resp: active_response_ref.__setitem__(0, resp),
+                )
+            except (GenerationTimeout, GenerationCancelled):
+                raise
+            except (ModelClientError, OllamaProtocolError, requests.RequestException) as exc:
+                if abort_observed.is_set() or cancellation():
+                    raise GenerationCancelled(
+                        "generation cancelled during model metadata") from exc
+                if deadline_exceeded.is_set() or self._monotonic() >= deadline:
+                    raise GenerationTimeout("overall") from exc
+                raise
+            finally:
+                active_response_ref[0] = None  # metadata response is closed by _show_model
+            if abort_observed.is_set() or cancellation():
+                raise GenerationCancelled("generation cancelled")
+
+            payload: dict[str, Any] = {
+                "model": model,
+                "prompt": prompt,
+                "stream": True,
+                "options": request_options,
+            }
+            if system is not None:
+                payload["system"] = system
+            if think is not None:
+                if not isinstance(think, bool):
+                    raise TypeError("think must be a boolean or None")
+                # Ollama's thinking control is a top-level request field, not a
+                # model option.  Keeping it out of ``options`` also makes the
+                # requested mode unambiguous in captured telemetry.
+                payload["think"] = think
+            if requested_format is not None:
+                payload["format"] = requested_format
+
+            # CR-024: bound each socket op by the remaining budget WITHOUT a truthiness fallback.
+            # `min(timeout, remaining) or timeout` restored the FULL timeout the instant `remaining`
+            # reached zero, letting a request run long past its advertised overall deadline (the
+            # review reproduced transport receiving the full (30.0, 99.0)). Take the remaining budget
+            # (which raises the overall timeout if already expired) and use min() directly.
+            remaining_now = self._remaining_budget(deadline)
+            if remaining_now is None:
+                connect_budget = self.connect_timeout
+                read_budget = self.read_timeout
+            else:
+                connect_budget = min(self.connect_timeout, remaining_now)
+                read_budget = min(self.read_timeout, remaining_now)
+
             try:
                 response = self._session.post(
                     f"{self.base_url}/api/generate",
@@ -522,6 +577,8 @@ class OllamaClient:
                     timeout=(connect_budget, read_budget),
                     allow_redirects=False,
                 )
+                # CR-025: the generation stream is now the active response the watcher may close.
+                active_response_ref[0] = response
             except requests.ConnectTimeout as exc:
                 if deadline_exceeded.is_set() or self._monotonic() >= deadline:
                     raise GenerationTimeout("overall") from exc
