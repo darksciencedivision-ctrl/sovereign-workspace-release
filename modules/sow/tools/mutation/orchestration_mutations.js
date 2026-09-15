@@ -180,7 +180,7 @@ const rows = [
     find: "        if not set(recipient_node_ids).issubset(participants):",
     replace: "        if False and not set(recipient_node_ids).issubset(participants):",
     expect: "test_progress_lifecycle_and_cross_task_access_fail_closed",
-    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/unit/test_mcp_collaboration.py"] },
+    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/remediation/test_orchestration_policy_boundaries.py"] },
   // Re-anchored at 19.6. The round ceiling moved INSIDE the `mutate_operational_debate` fence at
   // 19.5 (`5d56e19`: a rule that reads record CONTENT must be evaluated against the row read in the
   // transaction, not against a snapshot), so it is now `current["max_rounds"]` one indent deeper.
@@ -190,7 +190,7 @@ const rows = [
     file: "mcp_server/collaboration_service.py", find: "            if round_no > current[\"max_rounds\"]:",
     replace: "            if False and round_no > current[\"max_rounds\"]:",
     expect: "test_bounded_debate_preserves_evidence_and_dissent",
-    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/unit/test_mcp_collaboration.py"] },
+    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/remediation/test_orchestration_policy_boundaries.py"] },
   { id: "O5", what: "worker processes lose their node-scoped MCP environment",
     file: "apps/desktop/picker/worker-spawn.js",
     find: "    env = augmentSpawnEnv(env, { ticket, paneId: pid, sessionId, identity });",
@@ -329,7 +329,7 @@ const rows = [
     find: "  return crypto.createHmac(\"sha256\", key).update(canonicalEnvelope(envelope)).digest(\"hex\");",
     replace: "  return crypto.createHmac(\"sha256\", key).update(canonicalPayload(envelope.payload)).digest(\"hex\");",
     expect: "the two implementations disagree on the HMAC of the fixed vector",
-    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/unit/test_envelope_cross_language_parity.py"] },
+    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/remediation/test_orchestration_envelope_parity.py"] },
   // O21 grades the freshness rule this corrective ADDED to the Node side. A rule that cannot fail is
   // not a rule: without this row, deleting the window comparison would leave every test green
   // because a permanently-fresh reader still agrees with Python about everything else.
@@ -338,7 +338,7 @@ const rows = [
     find: "  return Math.abs(reference - stamped) <= windowS * 1000;",
     replace: "  return true;",
     expect: "python says fresh=False and node says fresh=True",
-    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/unit/test_envelope_cross_language_parity.py"] },
+    cmd: "py", args: ["-3.12", "-m", "pytest", "-q", "tests/remediation/test_orchestration_envelope_parity.py"] },
 ];
 
 const hash = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex").toUpperCase();
