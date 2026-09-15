@@ -27,6 +27,22 @@ _MEMORY_SCHEMA = json.loads((_SCHEMA_DIR / "memory.schema.json").read_text(encod
 _CONFLICT_SCHEMA = {**_MEMORY_SCHEMA["definitions"]["conflict_record"], "$schema": "http://json-schema.org/draft-07/schema#"}
 _FMT = jsonschema.FormatChecker()  # actually enforce date-time etc. (spec-audit F12)
 
+
+# CR-003 (dependent correction): jsonschema only registers a built-in "date-time" checker when the
+# optional rfc3339-validator/fqdn package is installed. On this environment it is NOT, so _FMT
+# silently skipped date-time entirely — meaning neither the append path nor commit_version actually
+# rejected malformed timestamps despite passing format_checker=_FMT. Register a dependency-free
+# checker so the memory@1.0 date-time contract (provenance.ts) is enforced deterministically on
+# every write path.
+@_FMT.checks("date-time", raises=ValueError)
+def _is_iso_datetime(value: object) -> bool:
+    if not isinstance(value, str):
+        return True  # non-strings are rejected by the type keyword, not the format keyword
+    from datetime import datetime
+    candidate = value[:-1] + "+00:00" if value.endswith(("Z", "z")) else value
+    datetime.fromisoformat(candidate)  # raises ValueError on a malformed timestamp
+    return True
+
 GENESIS_HEAD = ""  # a key with no prior head
 
 
@@ -194,6 +210,12 @@ class SovereignStore:
             conn = self._conn()
             conn.execute("BEGIN IMMEDIATE")
             try:
+                # CR-036: refuse to point a head at a version that does not exist. Without this a
+                # direct/future caller could create a dangling head that breaks every read of the
+                # key. The existing head is left untouched on refusal (rollback below).
+                if not conn.execute("SELECT 1 FROM memory_entries WHERE ref=?", (new_ref,)).fetchone():
+                    conn.execute("ROLLBACK")
+                    raise StoreError(f"cannot advance head {key!r} to nonexistent version {new_ref!r}")
                 row = conn.execute("SELECT head_ref FROM heads WHERE key=?", (key,)).fetchone()
                 current = row["head_ref"] if row else GENESIS_HEAD
                 if current != expected_head:
@@ -208,6 +230,8 @@ class SovereignStore:
                     conn.execute("INSERT INTO heads (key, head_ref, updated_ts) VALUES (?,?,?)", (key, new_ref, time.time()))
                 conn.execute("COMMIT")
                 return CasResult(ok=True, head_ref=new_ref)
+            except StoreError:
+                raise  # already rolled back at the raise site; do not ROLLBACK a closed txn
             except Exception:
                 conn.execute("ROLLBACK")
                 raise
@@ -236,7 +260,12 @@ class SovereignStore:
                 full = {**entry, "version": version,
                         "prev_version_ref": (expected_head or None), "schema": "memory@1.0"}
                 try:
-                    jsonschema.validate(full, _MEMORY_SCHEMA)
+                    # CR-003: use the shared format checker here too. append_memory_version()
+                    # validated with format_checker=_FMT, but this canonical commit path omitted it,
+                    # so a malformed date-time (e.g. ts='not-a-date') was accepted by commit_version
+                    # though the append path rejected it — an inconsistent provenance/timestamp
+                    # contract across write paths.
+                    jsonschema.validate(full, _MEMORY_SCHEMA, format_checker=_FMT)
                 except jsonschema.ValidationError as exc:
                     conn.execute("ROLLBACK")
                     raise StoreError(f"memory entry violates memory@1.0 (provenance/shape): {exc.message}") from exc
@@ -297,6 +326,17 @@ class SovereignStore:
 
     def has_entry(self, ref: str) -> bool:
         return self._conn().execute("SELECT 1 FROM memory_entries WHERE ref=?", (ref,)).fetchone() is not None
+
+    def all_artifact_refs(self) -> list[tuple[str, str]]:
+        """CR-035: (artifact_id/content_hash, project_id) for every artifact metadata row, so a
+        referential integrity check can confirm each names a real CAS blob."""
+        rows = self._conn().execute("SELECT artifact_id, project_id FROM artifact_meta").fetchall()
+        return [(r["artifact_id"], r["project_id"]) for r in rows]
+
+    def all_memory_content_hashes(self) -> list[str]:
+        """CR-035: every distinct CAS content hash referenced by a memory version."""
+        rows = self._conn().execute("SELECT DISTINCT content_hash FROM memory_entries").fetchall()
+        return [r["content_hash"] for r in rows]
 
     # -- operational collaboration state ------------------------------------
     # Two entry points per record kind, and no third (U330): CREATE, which refuses to overwrite,

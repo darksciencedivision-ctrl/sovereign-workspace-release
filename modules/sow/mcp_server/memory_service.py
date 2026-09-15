@@ -25,6 +25,11 @@ class MemoryServiceError(Exception):
     pass
 
 
+#: CR-035: cap on how many CAS refs the bounded quick health pass hash-verifies. The deep offline
+#: integrity() pass ignores this and verifies every reference.
+_QUICK_INTEGRITY_CAP = 512
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -76,7 +81,12 @@ class MemoryService:
     def publish(self, identity: Identity, *, kind: str, tier: str, content: bytes,
                 provenance: dict[str, Any], status: str = "CANDIDATE") -> dict[str, Any]:
         entry_id = _new_id("m")
-        content_ref = self._cas.put(content)
+        # CR-002: authorize and shape-validate BEFORE any durable byte is written. The old order
+        # called cas.put() first, so an authenticated caller could burn durable CAS disk on every
+        # rejected/malformed request. ref_for() derives the content hash without writing, so the
+        # entry can be fully authorized and validated; the blob is only put() once the write is
+        # certain to be accepted.
+        content_ref = self._cas.ref_for(content)
         prov = dict(provenance)
         prov.setdefault("author_node", identity.node_id)
         prov.setdefault("ts", _now())
@@ -88,6 +98,9 @@ class MemoryService:
         verdict = self._policy.authorize_publish(identity, entry)
         if not verdict.allow:
             raise MemoryServiceError(verdict.reason)
+        # Blob first, then metadata (CR-005 ordering): the durable version row must never reference
+        # bytes that are not yet in CAS.
+        self._cas.put(content)
         cas = self._store.commit_version(entry, entry_id, "", conflict_id=_new_id("c"))
         if not cas.ok:  # a fresh random id cannot normally collide; fail closed if it does
             raise MemoryServiceError(f"head init conflict for {entry_id}")
@@ -137,17 +150,21 @@ class MemoryService:
         if task_id is not None and self._store.get_operational_task(identity.project_id, task_id) is None:
             raise MemoryServiceError(
                 f"unknown task {task_id!r} in project {identity.project_id!r}")
-        # W-69 orphan prevention by ORDERING, never a collector: the record commits BEFORE the
-        # blob is written, so a refused record leaves nothing in CAS. A blob failure after this
-        # point surfaces as a missing-blob error on read, never as silent unrecorded bytes.
+        # CR-005: publish the blob to CAS BEFORE committing its metadata. The old order committed
+        # metadata first, so a disk/write failure between the two left an authorized artifact_meta
+        # record whose CAS bytes never existed — a durable dangling reference that health() did not
+        # detect. Authorization already happened above, so writing the blob first cannot let an
+        # unauthorized caller consume storage. CAS is immutable and content-addressed: if the
+        # metadata commit later fails, the orphaned blob is harmless (identical bytes de-duplicate)
+        # and is reported by the offline integrity check, never surfaced as a broken reference.
         ref = self._cas.ref_for(content)
+        self._cas.put(content)
         meta = {
             "artifact_id": ref, "media_type": media_type, "size_bytes": len(content),
             "created_by_node": identity.node_id, "task_id": task_id, "ts": _now(),
             "storage": {"store": "cas"}, "schema": "artifact@1.0",
         }
         self._store.put_artifact_meta(meta, identity.project_id)
-        self._cas.put(content)
         return meta
 
     def get_artifact(self, identity: Identity, artifact_id: str) -> dict[str, Any]:
@@ -171,8 +188,43 @@ class MemoryService:
         v = self._policy.authorize_health(identity)
         if not v.allow:
             raise MemoryServiceError(v.reason)
-        # return only a boolean; never leak cross-project entry ids over the wire (F8)
-        return {"ok": bool(self._store.verify()["ok"])}
+        # CR-035: health now also confirms that referenced CAS content exists and hashes
+        # correctly (bounded quick pass), not just that the store's head/version chains are
+        # consistent. Still returns only a boolean; never leak cross-project entry ids over the
+        # wire (F8).
+        return {"ok": bool(self._referential_integrity(deep=False)["ok"])}
+
+    def integrity(self, identity: Identity, *, deep: bool = True) -> dict[str, Any]:
+        """CR-035/CR-005: complete offline referential integrity report classifying every
+        metadata-to-CAS reference as missing / corrupt, plus orphaned CAS blobs (deep only).
+        Operator/CLI command — returns detail, unlike the boolean health() wire response."""
+        v = self._policy.authorize_health(identity)
+        if not v.allow:
+            raise MemoryServiceError(v.reason)
+        return self._referential_integrity(deep=deep)
+
+    def _referential_integrity(self, *, deep: bool) -> dict[str, Any]:
+        store_res = self._store.verify()
+        refs: list[tuple[str, str]] = [(aid, "artifact") for aid, _ in self._store.all_artifact_refs()]
+        refs += [(h, "memory") for h in self._store.all_memory_content_hashes()]
+        # Bounded quick pass caps how many refs are hash-verified so health() stays cheap on large
+        # stores; the deep offline pass verifies everything.
+        checked = refs if deep else refs[:_QUICK_INTEGRITY_CAP]
+        missing: list[dict[str, str]] = []
+        corrupt: list[dict[str, str]] = []
+        for ref, kind in checked:
+            verdict = self._cas.classify(ref)
+            if verdict == "missing":
+                missing.append({"ref": ref, "kind": kind})
+            elif verdict == "corrupt":
+                corrupt.append({"ref": ref, "kind": kind})
+        orphans: list[str] = []
+        if deep:
+            referenced = {r for r, _ in refs}
+            orphans = [ref for ref in self._cas.iter_refs() if ref not in referenced]
+        ok = bool(store_res["ok"]) and not missing and not corrupt
+        return {"ok": ok, "store": store_res, "missing": missing,
+                "corrupt": corrupt, "orphans": orphans, "deep": deep}
 
 
 def _b64(data: bytes) -> str:
