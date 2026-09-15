@@ -240,6 +240,13 @@ class SupervisorError(Exception):
     pass
 
 
+def _win_check(ok, api: str) -> None:
+    """CR-009: raise SupervisorError with the OS error if a Win32 call reported failure. Read
+    GetLastError immediately after the call (use_last_error captures it per-thread)."""
+    if not ok:
+        raise SupervisorError(f"{api} failed: GetLastError={ctypes.get_last_error()}")
+
+
 def query_process_image(pid: int) -> str | None:
     """Full image path of a live process, or None. Used by identity.kind == process_image."""
     h = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
@@ -458,6 +465,7 @@ class JobSupervisor:
         self._shell_job = _make_job(kill_on_close=True)
         self._processes: dict = {}
         self._readers: dict = {}
+        self._log_health: dict = {}  # CR-010: per-module degraded-logging state
         self._lock = threading.RLock()
         self._max_processes = max_processes
         self._closed = False
@@ -482,6 +490,12 @@ class JobSupervisor:
     def spawn(self, module_id: str, argv: list, cwd: str, env: dict, log_ring=None):
         """Create suspended, assign to both jobs, resume. Raises SupervisorError on failure."""
         with self._lock:
+            # CR-007: reap dead entries FIRST, under the lock, before admission counting and before
+            # replacing this module's slot. Previously only a LIVE existing entry blocked a spawn; a
+            # DEAD entry was neither cleaned before the len(_processes) check (so four crashed
+            # modules could falsely exhaust the max) nor before being overwritten at
+            # `_processes[module_id] = ph` (leaking its process/pipe/reader/job/event handles).
+            self._reap_dead_locked()
             # F-014. Refuse to spawn over a module that already has a LIVE managed process.
             # `self._processes[module_id] = ph` used to silently replace an existing handle, so the
             # previous process (and its job handle) became unreachable by stop()/Open -- it kept
@@ -510,8 +524,14 @@ class JobSupervisor:
                                            ctypes.byref(sa), 0):
                     kernel32.CloseHandle(module_job)
                     raise SupervisorError(f"CreatePipe failed: {ctypes.get_last_error()}")
-                # The parent's read end must not be inherited by the child.
-                kernel32.SetHandleInformation(read_h, HANDLE_FLAG_INHERIT, 0)
+                # The parent's read end must not be inherited by the child. CR-009: check the result
+                # and fail closed — an unchecked failure could leave the read end inheritable.
+                if not kernel32.SetHandleInformation(read_h, HANDLE_FLAG_INHERIT, 0):
+                    err = ctypes.get_last_error()
+                    kernel32.CloseHandle(read_h)
+                    kernel32.CloseHandle(write_h)
+                    kernel32.CloseHandle(module_job)
+                    raise SupervisorError(f"SetHandleInformation(read_h) failed: GetLastError={err}")
             else:
                 # No consumer for the output. Give the child NUL rather than a pipe whose read
                 # end we immediately close: that would break the child's first write, killing a
@@ -536,38 +556,49 @@ class JobSupervisor:
             si.hStdOutput = write_h
             si.hStdError = write_h
 
-            # F-024: build a proc-thread attribute list naming EXACTLY the handles this child may
-            # inherit (its stdout/stderr pipe and its NUL stdin). With this present, bInheritHandles
-            # inherits only these, not whatever inheritable pipe handles a concurrent request-thread
-            # probe happened to have open at this instant. Best-effort: if any step fails, fall back
-            # to the plain STARTUPINFOW path (never worse than before).
+            # CR-008: build a proc-thread attribute list naming EXACTLY the handles this child may
+            # inherit (its stdout/stderr pipe and its NUL stdin), and FAIL CLOSED if it cannot be
+            # installed. The previous code fell back to a plain STARTUPINFOW while bInheritHandles
+            # stayed TRUE, so any failure here silently broadened inheritance to EVERY inheritable
+            # handle in the shell — a concurrent probe's pipe handle could leak into a long-lived
+            # module and wedge the probe. Nested Job Objects already require Windows 8+, where this
+            # API is always present, so refusing the launch on failure never regresses a supported
+            # host. Every step's Win32 result is checked (CR-009).
+            def _abort_spawn(msg: str):
+                err = ctypes.get_last_error()
+                if attr_buf is not None:
+                    kernel32.DeleteProcThreadAttributeList(attr_buf)
+                if log_ring is not None:
+                    kernel32.CloseHandle(read_h)
+                kernel32.CloseHandle(write_h)
+                if nul and nul != INVALID_HANDLE_VALUE:
+                    kernel32.CloseHandle(nul)
+                kernel32.CloseHandle(module_job)
+                raise SupervisorError(f"{msg}: GetLastError={err}")
+
             attr_buf = None
-            startup_ref = ctypes.byref(si)
-            extended_flag = 0
-            try:
-                inherit = [h for h in (write_h, (nul if nul and nul != INVALID_HANDLE_VALUE else None)) if h]
-                attr_size = ctypes.c_size_t(0)
-                kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
-                if attr_size.value:
-                    attr_buf = ctypes.create_string_buffer(attr_size.value)
-                    if kernel32.InitializeProcThreadAttributeList(attr_buf, 1, 0, ctypes.byref(attr_size)):
-                        handle_array = (wintypes.HANDLE * len(inherit))(*inherit)
-                        if kernel32.UpdateProcThreadAttribute(
-                                attr_buf, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                handle_array, ctypes.sizeof(handle_array), None, None):
-                            six = STARTUPINFOEXW()
-                            six.StartupInfo = si
-                            six.StartupInfo.cb = ctypes.sizeof(STARTUPINFOEXW)
-                            six.lpAttributeList = ctypes.cast(attr_buf, ctypes.c_void_p)
-                            startup_ref = ctypes.cast(ctypes.byref(six), ctypes.POINTER(STARTUPINFOW))
-                            extended_flag = EXTENDED_STARTUPINFO_PRESENT
-                        else:
-                            kernel32.DeleteProcThreadAttributeList(attr_buf)
-                            attr_buf = None
-            except Exception:  # noqa: BLE001 - never let handle-list setup block a launch
-                attr_buf = None
-                startup_ref = ctypes.byref(si)
-                extended_flag = 0
+            inherit = [h for h in (write_h, (nul if nul and nul != INVALID_HANDLE_VALUE else None)) if h]
+            attr_size = ctypes.c_size_t(0)
+            # First call returns required size via the out-param and fails by contract; the size is
+            # what we check, not the BOOL.
+            kernel32.InitializeProcThreadAttributeList(None, 1, 0, ctypes.byref(attr_size))
+            if not attr_size.value:
+                _abort_spawn("InitializeProcThreadAttributeList(size) returned zero size")
+            attr_buf = ctypes.create_string_buffer(attr_size.value)
+            if not kernel32.InitializeProcThreadAttributeList(attr_buf, 1, 0, ctypes.byref(attr_size)):
+                attr_buf = None  # not yet initialized; nothing to delete
+                _abort_spawn("InitializeProcThreadAttributeList failed")
+            handle_array = (wintypes.HANDLE * len(inherit))(*inherit)
+            if not kernel32.UpdateProcThreadAttribute(
+                    attr_buf, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                    handle_array, ctypes.sizeof(handle_array), None, None):
+                _abort_spawn("UpdateProcThreadAttribute(handle list) failed")
+            six = STARTUPINFOEXW()
+            six.StartupInfo = si
+            six.StartupInfo.cb = ctypes.sizeof(STARTUPINFOEXW)
+            six.lpAttributeList = ctypes.cast(attr_buf, ctypes.c_void_p)
+            startup_ref = ctypes.cast(ctypes.byref(six), ctypes.POINTER(STARTUPINFOW))
+            extended_flag = EXTENDED_STARTUPINFO_PRESENT
 
             pi = PROCESS_INFORMATION()
             cmdline = ctypes.create_unicode_buffer(build_cmdline(argv))
@@ -643,21 +674,48 @@ class JobSupervisor:
                     kernel32.CloseHandle(h_event)
                 raise SupervisorError(f"AssignProcessToJobObject failed: {err} (JOB_ASSIGN)")
 
-            kernel32.ResumeThread(pi.hThread)
+            # CR-009: ResumeThread returns (DWORD)-1 on failure. An unchecked failure would leave a
+            # process registered as running that is actually still suspended and will never execute
+            # (nor receive graceful shutdown). Fail closed: tear the child down and unwind handles.
+            if kernel32.ResumeThread(pi.hThread) == 0xFFFFFFFF:
+                err = ctypes.get_last_error()
+                kernel32.TerminateProcess(pi.hProcess, 1)
+                kernel32.CloseHandle(pi.hProcess)
+                kernel32.CloseHandle(pi.hThread)
+                if log_ring is not None:
+                    kernel32.CloseHandle(read_h)
+                kernel32.CloseHandle(module_job)
+                if h_event:
+                    kernel32.CloseHandle(h_event)
+                raise SupervisorError(f"ResumeThread failed: GetLastError={err}")
 
             ph = ProcessHandle(pi.hProcess, pi.hThread, pi.dwProcessId, module_job, module_id,
                                shutdown_event=(h_event or None), shutdown_event_name=evt_name)
             self._processes[module_id] = ph
 
             if log_ring is not None:
-                t = threading.Thread(target=self._pump, args=(read_h, log_ring), daemon=True)
+                self._log_health[module_id] = {"degraded": False, "sink_errors": 0}
+                t = threading.Thread(target=self._pump, args=(module_id, read_h, log_ring),
+                                     daemon=True)
                 self._readers[module_id] = (t, read_h)
                 t.start()
             return ph
 
-    @staticmethod
-    def _pump(read_h, log_ring):
-        """Drain the child's pipe into the LogRing. Redaction happens inside LogRing.write."""
+    def log_health(self, module_id: str) -> dict:
+        """CR-010: degraded-logging visibility. `degraded` is True once any LogRing/sink write
+        raised; `sink_errors` counts those. The child keeps running and its pipe keeps draining
+        regardless — this only reports that stored/redacted output may be incomplete."""
+        return dict(self._log_health.get(module_id, {"degraded": False, "sink_errors": 0}))
+
+    def _pump(self, module_id, read_h, log_ring):
+        """Drain the child's pipe into the LogRing. Redaction happens inside LogRing.write.
+
+        CR-010: pipe DRAINING is separated from optional sink storage. A failure in
+        `log_ring.write`/`flush` must never stop the ReadFile loop — otherwise a chatty child
+        blocks forever on a full stdout/stderr pipe because logging happened to fail. On a sink
+        error the loop keeps reading (and discarding) the pipe and records degraded logging health;
+        only ReadFile EOF/failure ends the loop.
+        """
         buf = ctypes.create_string_buffer(8192)
         n = wintypes.DWORD()
         try:
@@ -669,15 +727,25 @@ class JobSupervisor:
                 try:
                     log_ring.write(buf.raw[:n.value])
                 except Exception:
-                    break
+                    self._note_sink_error(module_id)
+                    # keep draining: discard these bytes rather than wedge the child's pipe
+                    continue
         finally:
             # R14: the stream ended; emit any partial final line held in the carry (redacted),
             # so a last line without a trailing newline is neither dropped nor left un-redacted.
             try:
                 log_ring.flush()
             except Exception:
-                pass
+                self._note_sink_error(module_id)
             kernel32.CloseHandle(read_h)
+
+    def _note_sink_error(self, module_id) -> None:
+        health = self._log_health.get(module_id)
+        if health is None:
+            health = {"degraded": False, "sink_errors": 0}
+            self._log_health[module_id] = health
+        health["degraded"] = True
+        health["sink_errors"] += 1
 
     # -- stop ---------------------------------------------------------------
     def stop(self, module_id: str, grace_s: int = 10):
@@ -739,12 +807,63 @@ class JobSupervisor:
         return {"module_id": module_id, "found": True, "graceful": graceful, "forced": forced,
                 "waited_ms": int((time.time() - started) * 1000), "exit_code": exit_code}
 
-    def stop_all(self):
+    def stop_all(self, total_grace_s: int = 10):
+        """CR-006: ordinary shutdown attempts BOUNDED GRACEFUL termination of every module before
+        forcing survivors. The old stop_all() called TerminateJobObject on each module immediately,
+        so normal server/Ctrl+C teardown (close() -> stop_all()) hard-killed modules mid-write —
+        risking SQLite/WAL or buffered-evidence corruption. Now every module's graceful shutdown
+        Event is signalled first (concurrently), all modules share one total deadline to exit
+        cleanly, and only those still alive at the deadline are force-terminated.
+
+        Returns a list of per-module records ({module_id, graceful, forced, exit_code}) so callers
+        can observe how each module went down.
+        """
         with self._lock:
-            for module_id, ph in list(self._processes.items()):
-                kernel32.TerminateJobObject(ph.job_handle, 1)
+            snapshot = list(self._processes.items())
+            # Phase 1: signal graceful shutdown to everything, concurrently (fast, non-blocking).
+            for _module_id, ph in snapshot:
+                if ph.is_alive():
+                    if ph.shutdown_event:
+                        if not kernel32.SetEvent(ph.shutdown_event):
+                            # CR-009: record but do not abort teardown; the force path below still runs.
+                            pass
+                    kernel32.GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, ph.pid)
+
+        # Phase 2: wait, OUTSIDE the lock, up to one shared deadline for clean exits.
+        deadline = time.time() + max(0, total_grace_s)
+        while time.time() < deadline:
+            if all(not ph.is_alive() for _m, ph in snapshot):
+                break
+            time.sleep(0.05)
+
+        # Phase 3: force-terminate survivors, collect records, clean everything up.
+        records = []
+        with self._lock:
+            for module_id, ph in snapshot:
+                graceful = not ph.is_alive()
+                forced = False
+                if not graceful:
+                    kernel32.TerminateJobObject(ph.job_handle, 1)
+                    forced = True
+                    fdl = time.time() + 2
+                    while time.time() < fdl and ph.is_alive():
+                        time.sleep(0.02)
+                records.append({"module_id": module_id, "graceful": graceful,
+                                "forced": forced, "exit_code": ph.exit_code})
+                reader = self._readers.get(module_id)
                 self._cleanup(module_id, ph)
+                if reader is not None:
+                    reader[0].join(timeout=5)
             self._processes.clear()
+        return records
+
+    def _reap_dead_locked(self):
+        """CR-007: close and drop every entry whose process has exited. Idempotent; must be called
+        under self._lock. Frees the process/thread/job/event handles and the reader slot so dead
+        modules neither leak handles nor consume the max-process budget."""
+        for mid, ph in list(self._processes.items()):
+            if not ph.is_alive():
+                self._cleanup(mid, ph)
 
     def _cleanup(self, module_id: str, ph):
         for h in (ph.h_process, ph.h_thread, ph.job_handle, ph.shutdown_event):
@@ -756,6 +875,7 @@ class JobSupervisor:
                 pass
         self._processes.pop(module_id, None)
         self._readers.pop(module_id, None)
+        self._log_health.pop(module_id, None)
 
     def close(self):
         if self._closed:
