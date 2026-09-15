@@ -54,11 +54,13 @@ from __future__ import annotations
 import base64
 import json
 import subprocess
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from adapters.coding.opencode.git_porcelain import parse_porcelain_z
+from node_runtime.workspace.git_runner import GitTimeout, run_git
 from adapters.coding.opencode.harness import (
     ModelNotLocal,
     OpenCodeCliHarness,
@@ -89,6 +91,10 @@ class RunOutcome:
     stdout: str
     stderr: str
     timed_out: bool = False
+    # CR-027: tool-event count computed DURING draining by the real runner (so a bounded stdout
+    # tail does not undercount). None => the caller should count from stdout/stderr (fake runner,
+    # whose output is small and complete).
+    event_count: int | None = None
 
 
 class Runner(Protocol):
@@ -100,23 +106,85 @@ class Runner(Protocol):
                  timeout: float) -> RunOutcome: ...
 
 
+# CR-027: cap on how many bytes of each stream the real runner retains. Only tails are ever used
+# downstream (stdout_tail/stderr_tail keep <=800), so retaining the whole stream of a verbose or
+# stuck model run is pure memory pressure. Event counting happens during draining, so bounding the
+# retained bytes does not lose the tool-event metric.
+_STREAM_TAIL_BYTES = 262_144  # 256 KiB per stream
+
+
+class _BoundedTail:
+    """Retains only the last `cap` characters fed to it, across many feed() calls."""
+
+    def __init__(self, cap: int) -> None:
+        self._cap = cap
+        self._parts: list[str] = []
+        self._size = 0
+
+    def feed(self, s: str) -> None:
+        if not s:
+            return
+        self._parts.append(s)
+        self._size += len(s)
+        while self._size > self._cap and len(self._parts) > 1:
+            self._size -= len(self._parts.pop(0))
+        if self._size > self._cap and self._parts:
+            over = self._size - self._cap
+            self._parts[0] = self._parts[0][over:]
+            self._size -= over
+
+    def text(self) -> str:
+        return "".join(self._parts)
+
+
 def _run_tree_killable(argv: list[str], *, cwd: str, env: dict[str, str],
-                        timeout: float) -> tuple[int, str, str, bool]:
+                       timeout: float) -> tuple[int, str, str, bool, int]:
     """Run a command and, on timeout, kill the WHOLE process TREE - not just the direct child.
 
     F-135: `opencode` resolves to the npm shim opencode.CMD (a cmd.exe wrapper), and the post-drive
     tests likewise spawn node/pytest grandchildren. subprocess.run(timeout=...) kills only the
     direct child, so on timeout cmd.exe died while node/opencode kept running inside the worktree.
     The child is started in its own process group and, on timeout, `taskkill /T /F` terminates the
-    whole tree (Windows-only product). Returns (returncode, stdout, stderr, timed_out).
+    whole tree (Windows-only product).
+
+    CR-027: stdout and stderr are DRAINED CONCURRENTLY by reader threads into bounded ring buffers
+    (so a verbose/stuck model run cannot grow the driver process without bound), while tool events
+    are counted incrementally as lines arrive. Returns
+    (returncode, stdout_tail, stderr_tail, timed_out, event_count).
     """
     creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, text=True, creationflags=creationflags)
+                            stderr=subprocess.PIPE, text=True, bufsize=1,
+                            creationflags=creationflags)
+    out_tail = _BoundedTail(_STREAM_TAIL_BYTES)
+    err_tail = _BoundedTail(_STREAM_TAIL_BYTES)
+    counters = {"events": 0}
+    counter_lock = threading.Lock()
+
+    def _pump_stdout() -> None:
+        for line in proc.stdout:  # line-buffered; concurrent with the wait below
+            out_tail.feed(line)
+            if _is_tool_event_json_line(line):
+                with counter_lock:
+                    counters["events"] += 1
+
+    def _pump_stderr() -> None:
+        for line in proc.stderr:
+            err_tail.feed(line)
+            markers = _count_stderr_markers(line)
+            if markers:
+                with counter_lock:
+                    counters["events"] += markers
+
+    t_out = threading.Thread(target=_pump_stdout, name="opencode-stdout", daemon=True)
+    t_err = threading.Thread(target=_pump_stderr, name="opencode-stderr", daemon=True)
+    t_out.start()
+    t_err.start()
+    timed_out = False
     try:
-        out, err = proc.communicate(timeout=timeout)
-        return proc.returncode, out or "", err or "", False
+        proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
+        timed_out = True
         try:
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
                            capture_output=True, timeout=15, check=False)
@@ -126,10 +194,17 @@ def _run_tree_killable(argv: list[str], *, cwd: str, env: dict[str, str],
             except OSError:
                 pass
         try:
-            out, err = proc.communicate(timeout=10)
+            proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            out, err = "", ""
-        return 124, out or "", err or "", True
+            pass
+    # The pipes reach EOF once the process (and its tree) is gone; join the drainers so the tails
+    # and event count are complete before we return.
+    t_out.join(timeout=10)
+    t_err.join(timeout=10)
+    rc = proc.returncode if proc.returncode is not None else (124 if timed_out else -1)
+    if timed_out:
+        rc = 124
+    return rc, out_tail.text(), err_tail.text(), timed_out, counters["events"]
 
 
 def subprocess_runner(argv: list[str], *, cwd: str, env: dict[str, str],
@@ -137,8 +212,9 @@ def subprocess_runner(argv: list[str], *, cwd: str, env: dict[str, str],
     """The REAL runner: spawn `opencode run …` as a subprocess. Never used by the deterministic
     suite (only the opt-in live integration test passes it). F-135: the whole process tree is
     killed on timeout so opencode/node grandchildren cannot keep running in the worktree."""
-    rc, out, err, timed_out = _run_tree_killable(argv, cwd=cwd, env=env, timeout=timeout)
-    return RunOutcome(returncode=rc, stdout=out, stderr=err, timed_out=timed_out)
+    rc, out, err, timed_out, events = _run_tree_killable(argv, cwd=cwd, env=env, timeout=timeout)
+    return RunOutcome(returncode=rc, stdout=out, stderr=err, timed_out=timed_out,
+                      event_count=events)
 
 
 @dataclass(frozen=True)
@@ -224,44 +300,62 @@ def write_scoped_opencode_config(session_dir: Path, *, model: str,
 
 
 def _git_out(repo: Path, *args: str) -> str:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise DriveRefused(f"git {' '.join(args)} failed in {repo}: {proc.stderr.strip()}")
-    return proc.stdout
+    # CR-028: bounded, non-interactive git wrapper (timeout + process-tree kill).
+    try:
+        rc, out, err = run_git(repo, *args, timeout=120)
+    except GitTimeout as exc:
+        raise DriveRefused(f"git {' '.join(args)} timed out in {repo}: {exc}") from exc
+    if rc != 0:
+        raise DriveRefused(f"git {' '.join(args)} failed in {repo}: {err.strip()}")
+    return out
 
 
 def _porcelain_paths(repo: Path) -> set[str]:
     """Modified/added/untracked paths per `git status -z --porcelain` (worktree-relative)."""
-    proc = subprocess.run(
-        ["git", "-C", str(repo), "status", "-z", "--porcelain", "--untracked-files=all"],
-        capture_output=True)
-    if proc.returncode != 0:
-        err = (proc.stderr or b"").decode("utf-8", "replace").strip()
-        raise DriveRefused(f"git status -z --porcelain failed in {repo}: {err}")
-    return {path for _xy, path in parse_porcelain_z(proc.stdout)}
+    try:
+        rc, out, err = run_git(repo, "status", "-z", "--porcelain", "--untracked-files=all",
+                               timeout=120, text=False)
+    except GitTimeout as exc:
+        raise DriveRefused(f"git status -z --porcelain timed out in {repo}: {exc}") from exc
+    if rc != 0:
+        msg = (err or b"").decode("utf-8", "replace").strip()
+        raise DriveRefused(f"git status -z --porcelain failed in {repo}: {msg}")
+    return {path for _xy, path in parse_porcelain_z(out)}
+
+
+_STDERR_TOOL_MARKERS = ("→ Read", "→ Edit", "→ Write", "→ Glob", "→ Grep", "→ Bash",
+                        "Read ", "Edit ", "Glob ")
+
+
+def _is_tool_event_json_line(line: str) -> bool:
+    """True if one output line is a JSON tool-execution event. Shared by the streaming drainer
+    (CR-027) and the whole-string counter below so both agree exactly."""
+    line = line.strip()
+    if not line.startswith("{"):
+        return False
+    try:
+        ev = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(ev, dict) and (
+        ev.get("type") in ("tool", "tool_use", "tool_call")
+        or ev.get("name") in ("read", "edit", "write", "glob", "grep", "bash", "list"))
+
+
+def _count_stderr_markers(chunk: str) -> int:
+    return sum((chunk or "").count(marker) for marker in _STDERR_TOOL_MARKERS)
 
 
 def _count_tool_events(stdout: str, stderr: str) -> int:
     """Count tool-execution signals in OpenCode's output. `--format json` emits JSON event lines;
     the human stream marks executed tools with the arrows/labels we saw live (Read/Glob/Edit …).
-    A best-effort observability metric (NOT a gate) — the gate is the file-change + tests-run."""
+    A best-effort observability metric (NOT a gate) — the gate is the file-change + tests-run.
+    Used for the fake runner (small, complete output); the real runner counts during draining."""
     n = 0
     for line in (stdout or "").splitlines():
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            ev = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(ev, dict) and (ev.get("type") in ("tool", "tool_use", "tool_call")
-                                     or ev.get("name") in ("read", "edit", "write", "glob",
-                                                           "grep", "bash", "list")):
+        if _is_tool_event_json_line(line):
             n += 1
-    # human-stream fallback: OpenCode prints executed tools as "→ Read …" / "✗ Read … failed"
-    for marker in ("→ Read", "→ Edit", "→ Write", "→ Glob", "→ Grep", "→ Bash",
-                   "Read ", "Edit ", "Glob "):
-        n += (stderr or "").count(marker)
+    n += _count_stderr_markers(stderr or "")
     return n
 
 
@@ -368,7 +462,10 @@ class OpenCodeDriver:
         drove = not outcome.timed_out and outcome.returncode is not None
         result = DriveResult(
             drove=drove, returncode=outcome.returncode, timed_out=outcome.timed_out,
-            tool_events=_count_tool_events(outcome.stdout, outcome.stderr),
+            # CR-027: prefer the count the real runner computed while draining (its stdout is only a
+            # bounded tail); fall back to counting the full output for the fake runner.
+            tool_events=(outcome.event_count if outcome.event_count is not None
+                         else _count_tool_events(outcome.stdout, outcome.stderr)),
             changed_files=changed, edit_completed=len(changed) > 0, escaped=escaped,
             model=self._model, config_path=str(config_path),
             containment_verified=containment_verified,

@@ -40,6 +40,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from adapters.coding.opencode.git_porcelain import parse_porcelain_z
+from node_runtime.workspace.git_runner import GitTimeout, run_git
 from node_runtime.gate.local_gate import GateVerdict, LocalGate
 from node_runtime.workspace.worktree import (
     MergeCoordinator,
@@ -67,18 +68,25 @@ def _now() -> str:
 
 
 def _git_out(repo: Path, *args: str) -> str:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise CandidateRefused(f"git {' '.join(args)} failed in {repo}: {proc.stderr.strip()}")
-    return proc.stdout
+    # CR-028: bounded, non-interactive git wrapper (timeout + process-tree kill).
+    try:
+        rc, out, err = run_git(repo, *args, timeout=120)
+    except GitTimeout as exc:
+        raise CandidateRefused(f"git {' '.join(args)} timed out in {repo}: {exc}") from exc
+    if rc != 0:
+        raise CandidateRefused(f"git {' '.join(args)} failed in {repo}: {err.strip()}")
+    return out
 
 
 def _git_out_bytes(repo: Path, *args: str) -> bytes:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True)
-    if proc.returncode != 0:
-        err = (proc.stderr or b"").decode("utf-8", "replace").strip()
-        raise CandidateRefused(f"git {' '.join(args)} failed in {repo}: {err}")
-    return proc.stdout
+    try:
+        rc, out, err = run_git(repo, *args, timeout=120, text=False)
+    except GitTimeout as exc:
+        raise CandidateRefused(f"git {' '.join(args)} timed out in {repo}: {exc}") from exc
+    if rc != 0:
+        msg = (err or b"").decode("utf-8", "replace").strip()
+        raise CandidateRefused(f"git {' '.join(args)} failed in {repo}: {msg}")
+    return out
 
 
 def _worktree_changes(wt_path: Path) -> dict[str, bytes | None]:

@@ -18,6 +18,8 @@ from __future__ import annotations
 import re
 import subprocess
 from dataclasses import dataclass, field
+
+from node_runtime.workspace.git_runner import GitTimeout, run_git
 from pathlib import Path
 from typing import Any, Callable
 
@@ -44,16 +46,16 @@ def _validate_node_id(node_id: str) -> None:
 
 
 def _git(repo: Path, *args: str) -> str:
-    # F-136(7): a git call with no timeout could hang a worktree operation indefinitely (a stuck
-    # index.lock, a credential prompt on a misconfigured remote). Bound it and fail closed.
+    # CR-028/F-136(7): route through the single bounded, non-interactive git wrapper so a stuck
+    # index.lock, credential prompt or hook cannot hang the operation, and a timeout kills the whole
+    # git process tree (not just the direct child). Fail closed on timeout/failure.
     try:
-        proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
-                              timeout=120)
-    except subprocess.TimeoutExpired as exc:
-        raise WorktreeError(f"git {' '.join(args)} timed out after 120s") from exc
-    if proc.returncode != 0:
-        raise WorktreeError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
-    return proc.stdout.strip()
+        rc, out, err = run_git(repo, *args, timeout=120)
+    except GitTimeout as exc:
+        raise WorktreeError(str(exc)) from exc
+    if rc != 0:
+        raise WorktreeError(f"git {' '.join(args)} failed: {err.strip()}")
+    return out.strip()
 
 
 @dataclass
@@ -110,9 +112,13 @@ class WorktreeManager:
         # Attaching to the existing branch is what `ensure`'s own contract asks for: the branch is
         # this node's accumulated work, and a pane reopening should continue it, not be refused
         # because it exists. Creating is for a node that has none.
-        exists = subprocess.run(
-            ["git", "-C", str(self._base), "rev-parse", "--verify", "--quiet",
-             f"refs/heads/{branch}"], capture_output=True, text=True).returncode == 0
+        # CR-028: bounded/non-interactive like every other git call here.
+        try:
+            _rc, _o, _e = run_git(self._base, "rev-parse", "--verify", "--quiet",
+                                  f"refs/heads/{branch}", timeout=30)
+        except GitTimeout as exc:
+            raise WorktreeError(str(exc)) from exc
+        exists = _rc == 0
         if exists:
             _git(self._base, "worktree", "add", str(path), branch)
         else:
@@ -312,17 +318,30 @@ class MergeCoordinator:
             self._emit("merge_refused", node_id=wt.node_id, branch=wt.branch, reason="operator approval required")
             raise MergeRefused("merge refused: operator approval required (invariant 1)")
         trunk = _git(self._base, "rev-parse", "--abbrev-ref", "HEAD")
-        proc = subprocess.run(["git", "-C", str(self._base), "merge", "--no-ff", wt.branch,
-                               "-m", f"merge {wt.branch} into {trunk} (gate {gate_verdict})"],
-                              capture_output=True, text=True)
-        if proc.returncode != 0:
+        # CR-028: bounded/non-interactive merge; a timeout kills the whole git tree. On timeout,
+        # abort to restore a clean trunk, then fail closed.
+        try:
+            rc, _out, err = run_git(self._base, "merge", "--no-ff", wt.branch,
+                                    "-m", f"merge {wt.branch} into {trunk} (gate {gate_verdict})")
+        except GitTimeout as exc:
+            try:
+                run_git(self._base, "merge", "--abort", timeout=30)
+            except GitTimeout:
+                pass
+            self._emit("merge_failed", node_id=wt.node_id, branch=wt.branch, trunk=trunk,
+                       reason="merge timed out")
+            raise MergeRefused(f"merge of {wt.branch} timed out and was aborted: {exc}") from exc
+        if rc != 0:
             # a conflict/failure must not leave the trunk half-merged: abort to restore a clean
             # trunk (fail closed), log it, and raise (spec-audit F1)
-            subprocess.run(["git", "-C", str(self._base), "merge", "--abort"], capture_output=True, text=True)
+            try:
+                run_git(self._base, "merge", "--abort", timeout=30)
+            except GitTimeout:
+                pass
             self._emit("merge_failed", node_id=wt.node_id, branch=wt.branch, trunk=trunk,
-                       reason=proc.stderr.strip()[:300])
+                       reason=err.strip()[:300])
             raise MergeRefused(f"merge of {wt.branch} failed and was aborted (trunk restored): "
-                               f"{proc.stderr.strip()[:200]}")
+                               f"{err.strip()[:200]}")
         sha = _git(self._base, "rev-parse", "HEAD")
         self._emit("merge_applied", node_id=wt.node_id, branch=wt.branch, trunk=trunk, sha=sha, gate_verdict=gate_verdict)
         return sha
