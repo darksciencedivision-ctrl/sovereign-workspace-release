@@ -28,6 +28,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from logging.handlers import RotatingFileHandler
 
 from shell.src.adapter import module_state_root, workspace_state_root
@@ -40,6 +41,13 @@ DEFAULT_LEVEL = "INFO"
 #: fault's context is still present. Five generations of 2 MB is at most 10 MB per module.
 MAX_BYTES = 2 * 1024 * 1024
 KEEP = 5
+
+#: CR-020: batched-flush policy. The sink used to flush() on EVERY line, coupling module pipe
+#: throughput to disk latency. Instead flush when either enough bytes have accumulated or enough
+#: time has elapsed; explicit flush+fsync happens at lifecycle/evidence boundaries (flush()/close()).
+#: Loss on a hard crash is bounded to at most one batch (FLUSH_BYTES or FLUSH_INTERVAL_S of output).
+FLUSH_BYTES = 64 * 1024
+FLUSH_INTERVAL_S = 1.0
 
 _configure_lock = threading.Lock()
 _configured = False
@@ -77,12 +85,16 @@ class RotatingLineSink:
         self.keep = keep
         self.errors = 0
         self.dropped = 0
+        self.flush_calls = 0  # CR-020: observable, so a benchmark can prove reduced flush syscalls
         self._lock = threading.Lock()
         # F-026: the handle is held OPEN and the size tracked in memory, so the pipe-pump thread
         # does not open/close/stat the file on every line (a slow disk otherwise stalled the pump
         # and the child blocked on a full pipe). None until first successful open.
         self._handle = None
         self._size = 0
+        # CR-020: bytes written since the last flush, and when we last flushed.
+        self._unflushed = 0
+        self._last_flush = time.monotonic()
 
     def _open(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -92,6 +104,8 @@ class RotatingLineSink:
             self._size = os.path.getsize(self.path)
         except OSError:
             self._size = 0
+        self._unflushed = 0  # CR-020: fresh handle has nothing pending
+        self._last_flush = time.monotonic()
 
     def _close_handle(self) -> None:
         if self._handle is not None:
@@ -137,14 +151,41 @@ class RotatingLineSink:
                             self._open()  # reopen so subsequent reads still see the (capped) file
                         return
                 self._handle.write(data)
-                self._handle.flush()
                 self._size += len(data)
+                # CR-020: batched flush — flush when enough bytes or enough time have accumulated,
+                # instead of once per line. Bounds crash-loss to one batch while removing a flush
+                # syscall from the hot path of every chatty line.
+                self._unflushed += len(data)
+                now = time.monotonic()
+                if self._unflushed >= FLUSH_BYTES or (now - self._last_flush) >= FLUSH_INTERVAL_S:
+                    self._handle.flush()
+                    self._unflushed = 0
+                    self._last_flush = now
+                    self.flush_calls += 1
             except OSError:
                 self.errors += 1
                 self._close_handle()
 
+    def _flush_locked(self) -> None:
+        """Flush and fsync buffered data to disk. Caller holds self._lock."""
+        if self._handle is not None:
+            try:
+                self._handle.flush()
+                os.fsync(self._handle.fileno())
+                self.flush_calls += 1
+            except OSError:
+                self.errors += 1
+            self._unflushed = 0
+            self._last_flush = time.monotonic()
+
+    def flush(self) -> None:
+        """CR-020: explicit durability boundary (e.g. before reading evidence). Flush + fsync."""
+        with self._lock:
+            self._flush_locked()
+
     def close(self) -> None:
         with self._lock:
+            self._flush_locked()  # CR-020: never lose a partial final batch on shutdown
             self._close_handle()
 
 

@@ -146,6 +146,33 @@ def _iter_jsonl(path: Path) -> Iterable[tuple[int, dict[str, Any]]]:
         return
 
 
+# CR-022: a single malformed numeric field in one external provider log used to abort the ENTIRE
+# refresh (a bare int("garbage") raised out of the whole collect_all). Coerce per field instead:
+# a missing/empty value is 0 (matching the old `int(x or 0)`), and a genuinely malformed truthy
+# value counts a parse warning and falls back to 0, so valid providers/records stay visible. Warning
+# counts are aggregated per refresh (thread-local, since the refresh mutex serializes collectors)
+# and surfaced without echoing the offending content.
+_parse_state = threading.local()
+
+
+def _reset_parse_warnings() -> None:
+    _parse_state.warnings = 0
+
+
+def parse_warning_count() -> int:
+    return int(getattr(_parse_state, "warnings", 0))
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    if not value:  # None / 0 / "" — the old `x or 0` treated these as 0, no warning
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        _parse_state.warnings = getattr(_parse_state, "warnings", 0) + 1
+        return default
+
+
 def collect_codex(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], ProviderStatus]:
     root = home / ".codex" / "sessions"
     events: list[UsageEvent] = []
@@ -173,16 +200,16 @@ def collect_codex(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Provi
                 usage = info.get("last_token_usage")
                 if not isinstance(usage, dict):
                     continue
-                total = int(usage.get("total_tokens") or 0)
+                total = _safe_int(usage.get("total_tokens"))
                 if total <= 0:
                     continue
                 ts = str(item.get("timestamp") or "")
                 parsed = _parse_timestamp(ts)
                 if parsed is None or parsed < cutoff:
                     continue
-                input_total = int(usage.get("input_tokens") or 0)
-                cache_read = int(usage.get("cached_input_tokens") or 0)
-                cache_write = int(usage.get("cache_write_input_tokens") or 0)
+                input_total = _safe_int(usage.get("input_tokens"))
+                cache_read = _safe_int(usage.get("cached_input_tokens"))
+                cache_write = _safe_int(usage.get("cache_write_input_tokens"))
                 events.append(
                     UsageEvent(
                         event_id=_event_id("codex", path, line_no),
@@ -194,10 +221,10 @@ def collect_codex(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Provi
                         confidence="VERIFIED",
                         total_tokens=total,
                         input_tokens=max(0, input_total - cache_read - cache_write),
-                        output_tokens=int(usage.get("output_tokens") or 0),
+                        output_tokens=_safe_int(usage.get("output_tokens")),
                         cache_read_tokens=cache_read,
                         cache_write_tokens=cache_write,
-                        reasoning_tokens=int(usage.get("reasoning_output_tokens") or 0),
+                        reasoning_tokens=_safe_int(usage.get("reasoning_output_tokens")),
                     )
                 )
                 latest = max(latest or ts, ts)
@@ -217,7 +244,7 @@ def collect_codex(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Provi
 
 def _claude_total(usage: dict[str, Any]) -> int:
     return sum(
-        int(usage.get(key) or 0)
+        _safe_int(usage.get(key))
         for key in (
             "input_tokens",
             "cache_creation_input_tokens",
@@ -265,10 +292,10 @@ def collect_claude(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Prov
                     locality="hosted",
                     confidence="VERIFIED",
                     total_tokens=total,
-                    input_tokens=int(usage.get("input_tokens") or 0),
-                    output_tokens=int(usage.get("output_tokens") or 0),
-                    cache_read_tokens=int(usage.get("cache_read_input_tokens") or 0),
-                    cache_write_tokens=int(usage.get("cache_creation_input_tokens") or 0),
+                    input_tokens=_safe_int(usage.get("input_tokens")),
+                    output_tokens=_safe_int(usage.get("output_tokens")),
+                    cache_read_tokens=_safe_int(usage.get("cache_read_input_tokens")),
+                    cache_write_tokens=_safe_int(usage.get("cache_creation_input_tokens")),
                 )
                 previous = by_message.get(message_id)
                 if previous is None or record.total_tokens > previous.total_tokens:
@@ -334,10 +361,10 @@ def collect_opencode(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], li
                     if not isinstance(tokens, dict):
                         continue
                     cache = tokens.get("cache") if isinstance(tokens.get("cache"), dict) else {}
-                    total = int(tokens.get("total") or 0)
+                    total = _safe_int(tokens.get("total"))
                     if total <= 0:
                         total = sum(
-                            int(value or 0)
+                            _safe_int(value)
                             for value in (
                                 tokens.get("input"),
                                 tokens.get("output"),
@@ -365,11 +392,11 @@ def collect_opencode(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], li
                             locality=locality,
                             confidence="VERIFIED",
                             total_tokens=total,
-                            input_tokens=int(tokens.get("input") or 0),
-                            output_tokens=int(tokens.get("output") or 0),
-                            cache_read_tokens=int(cache.get("read") or 0),
-                            cache_write_tokens=int(cache.get("write") or 0),
-                            reasoning_tokens=int(tokens.get("reasoning") or 0),
+                            input_tokens=_safe_int(tokens.get("input")),
+                            output_tokens=_safe_int(tokens.get("output")),
+                            cache_read_tokens=_safe_int(cache.get("read")),
+                            cache_write_tokens=_safe_int(cache.get("write")),
+                            reasoning_tokens=_safe_int(tokens.get("reasoning")),
                             cost_usd=float(cost) if isinstance(cost, (int, float)) else None,
                         )
                     )
@@ -527,7 +554,7 @@ def collect_grok(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Provid
             for model, values in model_usage.items():
                 if not isinstance(values, dict):
                     continue
-                total = int(values.get("totalTokens") or 0)
+                total = _safe_int(values.get("totalTokens"))
                 if total <= 0:
                     continue
                 key = (session_id, str(model))
@@ -540,11 +567,11 @@ def collect_grok(home: Path, cutoff: datetime) -> tuple[list[UsageEvent], Provid
                     locality="hosted",
                     confidence="VERIFIED",
                     total_tokens=total,
-                    input_tokens=max(0, int(values.get("inputTokens") or 0) - int(values.get("cachedReadTokens") or 0)),
-                    output_tokens=int(values.get("outputTokens") or 0),
-                    cache_read_tokens=int(values.get("cachedReadTokens") or 0),
-                    cache_write_tokens=int(values.get("cacheCreationTokens") or 0),
-                    reasoning_tokens=int(values.get("reasoningTokens") or 0),
+                    input_tokens=max(0, _safe_int(values.get("inputTokens")) - _safe_int(values.get("cachedReadTokens"))),
+                    output_tokens=_safe_int(values.get("outputTokens")),
+                    cache_read_tokens=_safe_int(values.get("cachedReadTokens")),
+                    cache_write_tokens=_safe_int(values.get("cacheCreationTokens")),
+                    reasoning_tokens=_safe_int(values.get("reasoningTokens")),
                 )
                 previous = by_session_model.get(key)
                 if previous is None or record.total_tokens > previous.total_tokens:
@@ -599,6 +626,60 @@ def unknown_provider_statuses(home: Path) -> list[ProviderStatus]:
         for provider, path, detail in probes
         if path.exists()
     ]
+
+
+# CR-021 incremental cursor: the collector input roots. The fingerprint over these files'
+# path/mtime/size (plus the cutoff day) lets an unchanged refresh skip re-reading every log.
+_COLLECTOR_ROOTS: tuple[tuple[str, ...], ...] = (
+    (".codex", "sessions"),
+    (".claude", "projects"),
+    (".local", "share", "opencode", "opencode.db"),
+    (".lmstudio", "server-logs"),
+    (".grok", "logs", "unified.jsonl"),
+    ("AppData", "Local", "Ollama"),
+    (".gemini", "antigravity-cli"),
+    ("AppData", "Roaming", "kimi-desktop"),
+    ("AppData", "Roaming", "Qwen"),
+)
+
+
+def _fp_entry(path: Path) -> str | None:
+    try:
+        st = path.stat()
+    except OSError:
+        return None
+    return f"{path}|{st.st_mtime_ns}|{st.st_size}"
+
+
+def _collect_fingerprint(home: Path, lookback_days: int) -> str | None:
+    """A stable fingerprint of the collector inputs (stat only, no reads) plus the lookback cutoff
+    day, so refresh() can skip a redundant re-scan when nothing changed. Returns None if it cannot
+    stat the roots (then the caller always re-scans — fail toward freshness)."""
+    entries: list[str] = []
+    try:
+        for parts in _COLLECTOR_ROOTS:
+            p = home.joinpath(*parts)
+            if p.is_file():
+                entry = _fp_entry(p)
+                if entry is not None:
+                    entries.append(entry)
+            elif p.is_dir():
+                entries.append(f"{p}|dir")  # a dir's own presence matters (status collectors)
+                for dirpath, _dirs, files in os.walk(p):
+                    for name in files:
+                        entry = _fp_entry(Path(dirpath) / name)
+                        if entry is not None:
+                            entries.append(entry)
+    except OSError:
+        return None
+    entries.sort()  # deterministic regardless of walk order
+    digest = hashlib.sha256()
+    cutoff_day = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).date().isoformat()
+    digest.update(cutoff_day.encode("utf-8"))
+    for entry in entries:
+        digest.update(entry.encode("utf-8", "replace"))
+        digest.update(b"\n")
+    return digest.hexdigest()
 
 
 def collect_all(home: Path, lookback_days: int = LOOKBACK_DAYS) -> tuple[list[UsageEvent], list[ProviderStatus]]:
@@ -753,30 +834,58 @@ class State:
         self.home = home
         self.lookback_days = lookback_days
         self.lock = threading.Lock()
+        # CR-021: serialize the collector so at most ONE full scan runs at a time. The old refresh()
+        # ran collect_all OUTSIDE any lock, so the background loop and a POST /refresh could scan
+        # concurrently (the review observed peak collector concurrency of two).
+        self._refresh_lock = threading.Lock()
+        # CR-021 incremental cursor: fingerprint of the collector inputs (path/mtime/size) plus the
+        # cutoff day. When nothing changed, refresh() reuses the last summary instead of re-reading
+        # every log — and a second caller that arrives while a scan is in flight coalesces onto its
+        # result (unchanged fingerprint) rather than starting a redundant scan.
+        self._input_fingerprint: str | None = None
+        self._last_summary: dict[str, Any] | None = None
         self.events: list[UsageEvent] = []
         self.statuses: list[ProviderStatus] = []
         self.error: str | None = None
         self.last_refresh_seconds = 0.0
         self.collected_at: str | None = None
+        self.parse_warnings = 0
 
     def refresh(self) -> dict[str, Any]:
         started = time.monotonic()
-        try:
-            events, statuses = collect_all(self.home, self.lookback_days)
-            summary = build_summary(events, statuses)
-            save_snapshot(summary)
-            with self.lock:
-                self.events = events
-                self.statuses = statuses
-                self.error = None
-                self.last_refresh_seconds = time.monotonic() - started
-                self.collected_at = summary["collected_at"]
-            return summary
-        except Exception as exc:  # collector failures must not crash the dashboard
-            with self.lock:
-                self.error = type(exc).__name__
-                self.last_refresh_seconds = time.monotonic() - started
-            raise
+        with self._refresh_lock:  # CR-021: exactly one collector run at a time
+            fingerprint = _collect_fingerprint(self.home, self.lookback_days)
+            if (fingerprint is not None and fingerprint == self._input_fingerprint
+                    and self._last_summary is not None):
+                # Inputs unchanged since the last scan (or a concurrent scan just finished): reuse
+                # its result — do not reread the logs. This is the coalescing + incremental cursor.
+                with self.lock:
+                    self.last_refresh_seconds = time.monotonic() - started
+                return self._last_summary
+            try:
+                _reset_parse_warnings()
+                events, statuses = collect_all(self.home, self.lookback_days)
+                warnings = parse_warning_count()
+                summary = build_summary(events, statuses)
+                summary["parse_warnings"] = warnings
+                save_snapshot(summary)
+                with self.lock:
+                    self.events = events
+                    self.statuses = statuses
+                    self.error = None
+                    self.parse_warnings = warnings
+                    self.last_refresh_seconds = time.monotonic() - started
+                    self.collected_at = summary["collected_at"]
+                    self._input_fingerprint = fingerprint
+                    self._last_summary = summary
+                return summary
+            except Exception as exc:  # collector failures must not crash the dashboard
+                with self.lock:
+                    self.error = type(exc).__name__
+                    self.last_refresh_seconds = time.monotonic() - started
+                # a failed scan invalidates the cursor so the next refresh retries a real scan
+                self._input_fingerprint = None
+                raise
 
     def summary(self, days: int) -> dict[str, Any]:
         with self.lock:
@@ -785,9 +894,11 @@ class State:
             error = self.error
             elapsed = self.last_refresh_seconds
             collected_at = self.collected_at
+            warnings = self.parse_warnings
         result = build_summary(events, statuses, days, collected_at=collected_at)
         result["collector_error"] = error
         result["refresh_seconds"] = round(elapsed, 3)
+        result["parse_warnings"] = warnings
         return result
 
 
