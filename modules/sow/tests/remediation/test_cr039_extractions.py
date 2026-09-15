@@ -1,5 +1,8 @@
 """CR-039 — behavior-preserving extraction of protocol validation from the desktop controller into
-independently testable modules (renderer-spec.js, and navigation-guard.js from CR-032)."""
+an independently testable module. navigation-guard.js is the demonstrated extraction (a protocol
+validator split out of main.js), exercised directly here for the CR-039 pattern. (A renderer-spec
+extraction was tried and reverted: it collided with retained mutation anchor P28, and the review's
+guidance is to avoid churn in the retained falsification contract.)"""
 from __future__ import annotations
 
 import json
@@ -10,38 +13,29 @@ from pathlib import Path
 import pytest
 
 DESKTOP = Path(__file__).resolve().parents[4] / "modules" / "sow" / "apps" / "desktop"
+GUARD = DESKTOP / "navigation-guard.js"
 _NODE = shutil.which("node")
 
 
 @pytest.mark.skipif(_NODE is None, reason="node not available")
-def test_cr039_renderer_spec_pure_core(tmp_path):
-    mod = (DESKTOP / "renderer-spec.js").as_posix()
+def test_cr039_extracted_protocol_validator_is_independently_testable(tmp_path):
     script = tmp_path / "run.js"
     script.write_text(
-        "const { sanitizeRendererSpec } = require(%s);\n"
-        "const allow = ['title', 'file', 'cwd'];\n"
-        "const out = {};\n"
-        "out.filters = sanitizeRendererSpec({title:'t', file:'f', evil:'x', env:{K:'v'}}, allow);\n"
-        "out.nonobject = sanitizeRendererSpec(null, allow);\n"
-        "out.empty = sanitizeRendererSpec({}, allow);\n"
-        "console.log(JSON.stringify(out));\n" % json.dumps(mod),
+        "const { makeNavigationGuard } = require(%s);\n"
+        "const path = require('path');\n"
+        "const g = makeNavigationGuard(path.resolve('C:/app/renderer'));\n"
+        "console.log(JSON.stringify({ok: g('file:///C:/app/renderer/index.html'),"
+        " bad: g('file:///C:/app/secret.txt'), remote: g('https://x/y')}));\n"
+        % json.dumps(GUARD.as_posix()),
         encoding="utf-8")
     proc = subprocess.run([_NODE, str(script)], capture_output=True, text=True)
     assert proc.returncode == 0, proc.stderr
-    out = json.loads(proc.stdout)
-    # allow-listed keys kept, everything else refused (and refused key NAMES surfaced for logging)
-    assert out["filters"]["clean"] == {"title": "t", "file": "f"}
-    assert sorted(out["filters"]["refused"]) == ["env", "evil"]
-    assert out["nonobject"] == {"clean": {}, "refused": []}
-    assert out["empty"] == {"clean": {}, "refused": []}
+    assert json.loads(proc.stdout) == {"ok": True, "bad": False, "remote": False}
 
 
-def test_cr039_main_wires_extracted_protocol_modules():
+def test_cr039_main_wires_extracted_protocol_module():
     main = (DESKTOP / "main.js").read_text(encoding="utf-8", errors="replace")
-    # both protocol-validation splits are required from main.js and their modules exist
-    assert 'require("./renderer-spec")' in main
     assert 'require("./navigation-guard")' in main
-    assert (DESKTOP / "renderer-spec.js").exists()
     assert (DESKTOP / "navigation-guard.js").exists()
-    # the pure logic no longer lives inline as a raw loop in the controller
-    assert "sanitizeRendererSpecCore" in main
+    # the renderer-spec extraction was reverted to preserve the retained mutation anchor (P28)
+    assert not (DESKTOP / "renderer-spec.js").exists()

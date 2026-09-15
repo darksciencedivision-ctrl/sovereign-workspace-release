@@ -315,7 +315,16 @@ const LOCK = path.join(__dirname, ".mutation.lock");
 // target; the diff was re-read against every anchor and main.js carries zero CR bytes (U274). The
 // pin was accepted only after this harness and system_pane_write_mutations.js were re-run on these
 // exact bytes with every mutation CAUGHT and every restore BYTE-IDENTICAL. Previous pin: 8AB5E8BB...C55C33F90.
-const PINNED_BASELINE = "AF410B21D6E341A96A3F9AD7E18AA5BFE685CC0092024C41850E8C2BCCB65EDA";
+// Re-pinned for the Codex remediation CR-032. main.js changed in ONE way: the will-navigate guard
+// was tightened from `startsWith("file://")` (any local file) to the extracted
+// makeNavigationGuard(RENDERER_ROOT) (a require of ./navigation-guard). It lives in the NAVIGATION
+// path and edits none of the pane:input handler, handleOperatorResumeInput, the before-input-event
+// disarm, makeWindow, clearConductorInputResidue, or any voice-authority release sink. The splice
+// anchors were re-read (IN_HANDLER, HANDLER_TOP, makeWindow, resume-input CALL, REAL_DISARM, residue
+// name) and are unchanged. The pin was accepted only after this harness and
+// system_pane_write_mutations.js were re-run on these exact bytes with every mutation CAUGHT and
+// every restore BYTE-IDENTICAL. Previous pin: AF410B21...CCB65EDA.
+const PINNED_BASELINE = "1D0BEA874C6ABED92F94A5A76865FFC5B72ABA39484436287E316BAA679FBF16";
 
 let lockFd;
 try {

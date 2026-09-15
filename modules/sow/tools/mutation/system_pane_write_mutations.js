@@ -302,7 +302,11 @@ const PINS = {
   // target; the diff was re-read against every anchor and main.js carries zero CR bytes (U274). The
   // pin was accepted only after this harness and pane_input_bypass_mutations.js were re-run on these
   // exact bytes with every mutation CAUGHT and every restore BYTE-IDENTICAL. Previous pin: C43A91A2...E31010B. M7's anchor is untouched.
-  [MAIN]: "AF410B21D6E341A96A3F9AD7E18AA5BFE685CC0092024C41850E8C2BCCB65EDA",
+  // Re-pinned for the Codex remediation CR-032 (the will-navigate guard tightened to the extracted
+  // makeNavigationGuard). The change is in the NAVIGATION path and edits no system→pane write site,
+  // no pane:input edge, and no authority-release sink; this harness's anchors (M1-M7, P1-P28) are
+  // untouched and were re-run CAUGHT with byte-identical restores. Previous pin: AF410B21...CCB65EDA.
+  [MAIN]: "1D0BEA874C6ABED92F94A5A76865FFC5B72ABA39484436287E316BAA679FBF16",
   // Added at 19.9 with M3. Its suite drives a modal refusal and proves zero prompt writes,
   // replacing the old circular source-order assertion over main.js.
   [CONDUCTOR_READINESS]: "B264243DF664E5DD75EA4B582B51C386E973EF84FA9A80E4FDEC623F3EA21D49",

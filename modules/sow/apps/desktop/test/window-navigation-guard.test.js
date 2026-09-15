@@ -69,11 +69,20 @@ test("W-30 NEGATIVE: a navigation away from the app's own document is CANCELLED"
     "the permit decision must be a named predicate, so a mutation can revert it and be graded");
 });
 
-test("W-30 POSITIVE: the app's own file:// document still loads", () => {
+test("W-30 POSITIVE: the packaged renderer loads and OTHER file URLs are refused (CR-032)", () => {
+  // CR-032 tightened this guard from `startsWith("file://")` (which permitted ANY local file) to a
+  // contained-renderer-root check, extracted into navigation-guard.js so it is exercised directly.
   const predicate = executableOnly(slice(MAIN, "const navigationIsPermitted", "\nfunction makeWindow"));
-  assert.match(predicate, /startsWith\("file:\/\/"\)/,
-    "the app is loaded with loadFile(); a predicate that refuses file:// would refuse the shell's "
-    + "own document and the window would never render");
+  assert.match(predicate, /makeNavigationGuard\(/,
+    "the permit decision must be the extracted, mutation-gradable navigation guard");
+  const { makeNavigationGuard } = require("../navigation-guard");
+  const rroot = path.resolve("C:/app/renderer");
+  const guard = makeNavigationGuard(rroot);
+  assert.ok(guard("file:///C:/app/renderer/index.html"),
+    "the app's own packaged renderer must still load");
+  assert.ok(!guard("file:///C:/app/secret.txt"),
+    "a sibling local file must be refused (CR-032: not any file:// URL)");
+  assert.ok(!guard("https://evil.example/x"), "remote content must be refused");
 });
 
 test("W-30: a denied navigation is observable, without reproducing the URL", () => {

@@ -556,10 +556,13 @@ function ptyFactory(spec) {
 const RENDERER_SPEC_ALLOWED_KEYS = Object.freeze(["title", "cols", "rows"]);
 
 /** Keep ONLY the fields a renderer is permitted to set. Pure. */
-const { sanitizeRendererSpec: sanitizeRendererSpecCore } = require("./renderer-spec");
 function sanitizeRendererSpec(spec) {
-  // CR-039: the allow-list filtering is the extracted pure core; the refusal LOGGING stays here.
-  const { clean, refused } = sanitizeRendererSpecCore(spec, RENDERER_SPEC_ALLOWED_KEYS);
+  const source = spec && typeof spec === "object" ? spec : {};
+  const clean = {};
+  for (const key of RENDERER_SPEC_ALLOWED_KEYS) {
+    if (key in source) clean[key] = source[key];
+  }
+  const refused = Object.keys(source).filter((k) => !RENDERER_SPEC_ALLOWED_KEYS.includes(k));
   if (refused.length) {
     // KEY NAMES only (§2.2) — a refused value is never logged, and `env` values would be credentials.
     log(`pane:new — renderer-supplied ${refused.sort().join(", ")} REFUSED (allow-list: `
