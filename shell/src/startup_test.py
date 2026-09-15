@@ -122,9 +122,14 @@ def run_startup_test(module_id: str, adapter: dict, supervisor, log_ring,
 
     if not keep and display.startswith("READY"):
         runner.stop()
+        # CR-018: capture the exit code from the SAME handle right after the graceful stop, BEFORE
+        # dropping the reference. The supervisor reads and caches the child's exit code before it
+        # closes the process handle, so ph.exit_code here is the real code — the old order cleared
+        # ph first and then read it, so the evidence always recorded a null exit code.
+        result["exit_code"] = ph.exit_code if ph is not None else None
         ph = None
-
-    result["exit_code"] = ph.exit_code if ph is not None else None
+    else:
+        result["exit_code"] = ph.exit_code if ph is not None else None
     # H-8: the ring already holds redacted lines; redact again on the way into the record so a
     # future change to the ring cannot leak into persisted evidence.
     result["logs"] = [redact(line) for line in log_ring.read_lines()]
@@ -155,9 +160,26 @@ def _save_record(result: dict, module_id: str):
     payload = redact(payload)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(payload)
-            f.write("\n")
+        # CR-018: write atomically. A direct open("w") could leave a torn/partial evidence file if
+        # the process is interrupted mid-write. Write to a unique same-directory temp file, flush +
+        # fsync the bytes, then os.replace (atomic on Windows and POSIX) so a reader only ever sees
+        # a complete record.
+        import tempfile
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".",
+                                   prefix=os.path.basename(path) + ".tmp-")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+                f.write(payload)
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
         result["_record_path"] = path
     except OSError:
         # A non-writable evidence location is recorded as an unpersisted result, never raised.

@@ -306,18 +306,43 @@ def workspace_state_root() -> str:
         # profile rather than inventing a drive path.
         local = os.path.join(os.path.expanduser("~"), "AppData", "Local")
     if override:
+        # CR-019: reject unsupported/dangerous path forms and enforce containment for relative
+        # overrides. The old code joined a relative override with `local` and abspath-normalized it
+        # WITHOUT re-checking containment, so `..` segments escaped %LOCALAPPDATA%; and UNC/device
+        # absolute paths were accepted here far more broadly than adapter executable paths.
+        _reject_unsupported_state_path(override)
         if os.path.isabs(override):
-            base = override
+            # An absolute override is the operator's explicit, documented choice; canonicalize it
+            # once (resolving junctions) but do not force it under LOCALAPPDATA.
+            base = os.path.realpath(override)
         else:
-            # F-027: a RELATIVE override must not be resolved against the current working directory
-            # (os.path.abspath would do that), or the same value would silently select different
-            # state roots depending on where each process was launched - dev checkout, installed
-            # copy and the old/new trees of an upgrade would drift apart. Anchor it to the stable
-            # per-user base instead, so a given relative value always maps to one absolute path.
-            base = os.path.join(local, override)
+            # A relative override is anchored to the stable per-user base (never the cwd), then the
+            # canonicalized result must be CONTAINED by that base — `..`, alternate separators and
+            # junction escapes are rejected.
+            local_real = os.path.realpath(local)
+            anchored = os.path.realpath(os.path.join(local_real, override))
+            try:
+                contained = os.path.commonpath([local_real, anchored]) == local_real
+            except ValueError:
+                contained = False  # different drive => not contained
+            if not contained:
+                raise ValueError(
+                    f"relative state override {override!r} escapes the state root")
+            base = anchored
     else:
         base = os.path.join(local, STATE_ROOT_DIRNAME)
     return os.path.abspath(base).replace("\\", "/")
+
+
+def _reject_unsupported_state_path(override: str) -> None:
+    """CR-019: refuse device-namespace (\\\\?\\, \\\\.\\) and UNC (\\\\server\\share) state roots.
+    Both are accepted by os.path.isabs but are not supported/contained state-root forms and are a
+    channel for redirecting durable writes to unexpected local or network locations."""
+    q = override.replace("/", "\\")
+    if q.startswith("\\\\?\\") or q.startswith("\\\\.\\"):
+        raise ValueError(f"device-namespace path not allowed for state root: {override!r}")
+    if q.startswith("\\\\"):  # UNC \\server\share
+        raise ValueError(f"UNC path not allowed for state root: {override!r}")
 
 
 def module_state_root(module_id: str) -> str:

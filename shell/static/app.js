@@ -115,7 +115,10 @@
     { id: "npm", label: "npm", keys: ["npm"] },
     { id: "port_5175", label: "port 5175", keys: ["port5175", "5175"] },
     { id: "port_8700", label: "port 8700", keys: ["port8700", "8700"] },
-    { id: "port_5180", label: "port 5180", keys: ["port5180", "5180"] },
+    // CR-012: the shell listen port is configurable, so this row is port-agnostic. The backend
+    // emits a stable "port_shell" check whose detail names the actual configured port. Legacy
+    // "port_5180" is kept as a fallback key for older payloads.
+    { id: "port_shell", label: "shell port", keys: ["port_shell", "portshell", "port_5180", "port5180", "5180"] },
   ];
 
   /* ------------------------------------------------------------------ *
@@ -139,9 +142,6 @@
     build: document.getElementById("shell-build"),
     host: document.getElementById("shell-host"),
     clock: document.getElementById("shell-clock"),
-    linkDiscovery: document.getElementById("link-discovery"),
-    linkTheme: document.getElementById("link-theme-baseline"),
-    linkDirective: document.getElementById("link-directive"),
     preflightGrid: document.getElementById("preflight-grid"),
     preflightSummary: document.getElementById("preflight-summary"),
     moduleGrid: document.getElementById("module-grid"),
@@ -852,17 +852,11 @@
       if (version) el.version.textContent = version;
       if (build) el.build.textContent = "build " + build;
       if (host) el.host.textContent = host;
-
-      setLink(el.linkDiscovery, firstString(info.discovery_url, info.discovery));
-      setLink(el.linkTheme, firstString(info.theme_baseline_url, info.theme_baseline));
-      setLink(el.linkDirective, firstString(info.directive_url, info.directive));
+      // CR-015: the DISCOVERY/THEME-BASELINE/directive header links were removed; the documents
+      // they pointed at are not part of the source-only tree.
     } catch (err) {
       console.warn("SWS: /api/shell-info failed:", err.message);
     }
-  }
-
-  function setLink(anchor, href) {
-    if (anchor && href) anchor.href = href;
   }
 
   function tickClock() {

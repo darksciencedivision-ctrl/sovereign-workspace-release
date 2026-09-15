@@ -182,7 +182,11 @@ def get_distillery_status() -> dict:
     questions = _parse_open_questions()
     snapshot = _find_snapshot()
 
-    for part in (handoff, questions):
+    # CR-014: the top-level state is computed from EVERY component, including the snapshot.
+    # Previously only handoff/questions were examined, so a snapshot CONFIG_ERROR (unreadable or
+    # ambiguous snapshot root) was hidden behind a benign top-level NOT_STARTED. NOT_CONFIGURED is
+    # exempt for every component — it is an ordinary "no corpus" state, not a misconfiguration.
+    for part in (handoff, questions, snapshot):
         error = part.get("error")
         if error and error != NOT_CONFIGURED:
             return {"state": "CONFIG_ERROR", "reason": error, "handoff": handoff,

@@ -58,10 +58,13 @@ def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tu
     while time.time() < deadline:
         try:
             req = urllib.request.Request(url, method="GET")
-            resp = _open_direct(req, timeout=_request_timeout(deadline))
-            if resp.status == expect_status:
+            # CR-013: close the response deterministically so repeated dashboard probes do not
+            # retain sockets/handles (http_json_identity already did this; the others did not).
+            with _open_direct(req, timeout=_request_timeout(deadline)) as resp:
+                status = resp.status
+            if status == expect_status:
                 return True, time.time() - start, ""
-            last_error = f"HTTP {resp.status}"
+            last_error = f"HTTP {status}"
         except urllib.error.HTTPError as e:
             last_error = f"HTTP {e.code}"
         except Exception as e:
@@ -106,8 +109,8 @@ def http_html_identity(url: str, marker: str) -> tuple[bool, str]:
     """GET url and verify response body contains marker string."""
     try:
         req = urllib.request.Request(url, method="GET")
-        resp = _open_direct(req, timeout=5)
-        body = resp.read().decode("utf-8", errors="replace")
+        with _open_direct(req, timeout=5) as resp:  # CR-013: always close the response
+            body = resp.read().decode("utf-8", errors="replace")
         if marker in body:
             return True, ""
         return False, f"HTML marker '{marker}' not found"
@@ -169,8 +172,8 @@ def preflight_ollama() -> dict:
     """Probe Ollama at 127.0.0.1:11434."""
     try:
         req = urllib.request.Request("http://127.0.0.1:11434/api/tags", method="GET")
-        resp = _open_direct(req, timeout=5)
-        data = json.loads(resp.read().decode())
+        with _open_direct(req, timeout=5) as resp:  # CR-013: always close the response
+            data = json.loads(resp.read().decode())
         models = [m.get("name", m.get("model", "")) for m in data.get("models", [])]
         return {"reachable": True, "model_count": len(models), "models": models}
     except Exception as e:
@@ -241,14 +244,18 @@ def preflight_ports(shell_port: int = None) -> dict:
     return results
 
 
-def resolve_preflight_checks(ollama: dict, toolchain: dict, ports: dict) -> list:
+def resolve_preflight_checks(ollama: dict, toolchain: dict, ports: dict,
+                             shell_port: int = None) -> list:
     """Resolve raw probe output into panel-ready checks (THEME-01 D4).
 
     Semantics are pinned by directive section 4.1: each id gets a definite
-    ok|bad status plus a non-empty detail; port_5180 inverts deliberately
+    ok|bad status plus a non-empty detail; the shell-port check inverts deliberately
     (occupied means the shell you are talking to - REVIEW-BUILD-06 section 3,
-    correction 1). Absent tooling stays a truthful bad with its reason.
+    correction 1). Absent tooling stays a truthful bad with its reason. CR-012: the
+    shell port is derived from configuration, not hard-wired.
     """
+    if shell_port is None:
+        shell_port = _shell_port()
     checks = []
     if ollama.get("reachable"):
         checks.append({"id": "ollama", "status": "ok",
@@ -264,16 +271,21 @@ def resolve_preflight_checks(ollama: dict, toolchain: dict, ports: dict) -> list
         else:
             reason = str(entry.get("error") or "not found")
             checks.append({"id": cid, "status": "bad", "detail": reason})
-    for port in (5175, 8700, 5180):
+    for port in (5175, 8700):
         free = bool((ports.get(str(port)) or {}).get("free"))
-        if port == 5180:
-            checks.append({"id": "port_5180",
-                           "status": "bad" if free else "ok",
-                           "detail": "free" if free else "shell"})
-        else:
-            checks.append({"id": "port_{}".format(port),
-                           "status": "ok" if free else "bad",
-                           "detail": "free" if free else "in use"})
+        checks.append({"id": "port_{}".format(port),
+                       "status": "ok" if free else "bad",
+                       "detail": "free" if free else "in use"})
+    # CR-012: the shell-port check is derived from the CONFIGURED port, not hard-wired to 5180.
+    # The old code looked up ports[str(5180)] and emitted id "port_5180" regardless of the real
+    # port, so a custom deployment on 5181 reported "port_5180 ok shell" — approving the wrong
+    # endpoint. The id is now the stable, port-agnostic "port_shell" and the configured port is
+    # carried in `port` and the detail. Occupied still means "the shell you are talking to" (the
+    # inverted status is deliberate — REVIEW-BUILD-06 section 3, correction 1).
+    shell_free = bool((ports.get(str(shell_port)) or {}).get("free"))
+    checks.append({"id": "port_shell", "port": shell_port,
+                   "status": "bad" if shell_free else "ok",
+                   "detail": ("free ({})" if shell_free else "shell ({})").format(shell_port)})
     return checks
 
 
@@ -284,8 +296,11 @@ def run_preflight() -> dict:
     definite status; the frontend consumes the already-supported payload.checks
     array instead of guessing at nested boolean key names.
     """
+    # CR-012: resolve the port ONCE and pass it to both the port probe and the check resolver, so
+    # the probed target and the reported check are the same configured endpoint.
+    shell_port = _shell_port()
     return {
         "checks": resolve_preflight_checks(preflight_ollama(), preflight_toolchain(),
-                                           preflight_ports()),
+                                           preflight_ports(shell_port), shell_port=shell_port),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     }

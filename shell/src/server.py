@@ -63,12 +63,12 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; "
        "frame-src http://127.0.0.1:8765; "
        "frame-ancestors 'none'; object-src 'none'; base-uri 'none'")
 
-# REM-02 D2: the single permitted route addition; anything unnamed is a 404.
-_DOC_ROUTES = {
-    "discovery": os.path.join("docs", "DISCOVERY.md"),
-    "theme-baseline": os.path.join("docs", "THEME-BASELINE-v3.md"),
-    "directive": "BUILD-DIRECTIVE-SWS-UI-001.md",
-}
+# CR-015: the source-only tree intentionally removed docs/DISCOVERY.md,
+# docs/THEME-BASELINE-v3.md and BUILD-DIRECTIVE-SWS-UI-001.md, so these /doc routes advertised
+# documents that no longer exist and returned 404. With no retained operator document to replace
+# them, the routes are removed entirely (and the corresponding header links deleted from the UI),
+# so every advertised internal route now resolves. Any /doc/<name> is a uniform 404.
+_DOC_ROUTES: dict = {}
 
 
 class ShellAPIHandler(BaseHTTPRequestHandler):
