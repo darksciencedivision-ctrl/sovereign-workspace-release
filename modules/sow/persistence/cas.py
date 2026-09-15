@@ -11,15 +11,37 @@ import hashlib
 import os
 import re
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 _REF_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+# CR-001: bounded retry for the atomic publish rename. Windows can transiently refuse os.replace
+# (AV/indexer/concurrent identical publisher holding the target); a few short retries absorb it.
+_PUBLISH_ATTEMPTS = 8
+_PUBLISH_BACKOFF_S = 0.01
 
 
 class ContentAddressedStore:
     def __init__(self, root: Path) -> None:
         self._root = Path(root)
         self._root.mkdir(parents=True, exist_ok=True)
+        # CR-001: a per-ref publication lock serializes SAME-content publication within this process
+        # so only one thread ever writes+renames a given digest (others short-circuit on exists()).
+        # Distinct content (different refs) still publishes concurrently. This removes the
+        # concurrent-rename / read-during-rename Windows sharing violations the 100+ thread
+        # acceptance exposes; cross-process safety still rests on the unique temp + atomic replace.
+        self._publish_locks: dict[str, threading.Lock] = {}
+        self._publish_locks_guard = threading.Lock()
+
+    def _lock_for(self, ref: str) -> threading.Lock:
+        with self._publish_locks_guard:
+            lock = self._publish_locks.get(ref)
+            if lock is None:
+                lock = threading.Lock()
+                self._publish_locks[ref] = lock
+            return lock
 
     @staticmethod
     def ref_for(content: bytes) -> str:
@@ -38,6 +60,12 @@ class ContentAddressedStore:
         path = self._path_for(ref)
         if path.exists():
             return ref  # idempotent: identical content already stored
+        with self._lock_for(ref):  # CR-001: one publisher per ref within this process
+            return self._put_locked(content, ref, path)
+
+    def _put_locked(self, content: bytes, ref: str, path: Path) -> str:
+        if path.exists():
+            return ref  # a sibling thread published it while we waited for the lock
         path.parent.mkdir(parents=True, exist_ok=True)
         # CR-001: a per-PROCESS temp name (the old `.tmp-<pid>`) still collided between THREADS of
         # one process — the MCP server handles requests on threads, so two threads publishing the
@@ -59,7 +87,22 @@ class ContentAddressedStore:
                 # blob as success and drop only our own temp file — never another writer's.
                 os.unlink(tmp)
                 return ref
-            os.replace(tmp, path)  # atomic publish of our own uniquely-named temp
+            # CR-001: atomic publish of our own uniquely-named temp. On Windows os.replace can
+            # transiently fail with PermissionError (ERROR_ACCESS_DENIED) when AV/the indexer or a
+            # concurrent identical publisher briefly holds the target — the acceptance hammers 100+
+            # threads, so tolerate it: retry with a short backoff, and treat "the final blob now
+            # exists" (a concurrent identical publish won) as success (idempotent).
+            for attempt in range(_PUBLISH_ATTEMPTS):
+                try:
+                    os.replace(tmp, path)
+                    break
+                except PermissionError:
+                    if path.exists():
+                        os.unlink(tmp)
+                        return ref
+                    if attempt == _PUBLISH_ATTEMPTS - 1:
+                        raise
+                    time.sleep(_PUBLISH_BACKOFF_S)
         except BaseException:
             # Clean up only the caller's own temp file on any failure; never touch the final path
             # or another writer's temp.
