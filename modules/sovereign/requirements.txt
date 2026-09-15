@@ -1,6 +1,13 @@
 # SOVEREIGN runtime dependencies — pinned to the versions this build was tested against
 # so two operators get the same stack. Ranges live in pyproject.toml; this file is the
-# authoritative install list referenced by README_RUN.md.
+# authoritative human install list referenced by README_RUN.md.
+#
+# CR-034: for reproducible, provenance-verified installs (build / clean-room lanes), use the
+# hash-locked lock instead, which pip verifies with --require-hashes and rejects any altered
+# artifact:
+#     pip install --require-hashes -r requirements.lock.txt
+# requirements.lock.txt is generated from requirements.in (the approved top-level input) with
+# `pip-compile --generate-hashes`; regenerate it whenever these pins change.
 flask==3.1.3
 requests==2.34.2
 chromadb==1.5.9

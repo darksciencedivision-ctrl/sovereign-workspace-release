@@ -3048,13 +3048,16 @@ function handleOperatorResumeInput(event, input) {
 }
 
 /**
- * W-30: the ONE navigation this shell ever performs is its own `loadFile`. Everything else is an
- * escape. `file://` is the permitted set, which is the review's recommended shape — and its limit is
- * recorded rather than described away: a navigation to some OTHER local file is still permitted. The
- * renderer stays sandboxed with `contextIsolation`, so the value of that to an attacker is low, and
- * the advisory class being closed here is escape to REMOTE content.
+ * W-30 / CR-032: the ONE navigation this shell performs is its own `loadFile` of the packaged
+ * renderer. The old guard permitted ANY `file://` URL, so a compromised renderer could navigate to
+ * any local file (encoded traversal, a sibling/parent path, a UNC or alternate-drive path). The
+ * guard now resolves the canonical renderer asset root once and permits only a `file:` URL whose
+ * resolved path is contained by that root — everything else (remote schemes and other local files)
+ * is denied.
  */
-const navigationIsPermitted = (url) => String(url || "").startsWith("file://");
+const { makeNavigationGuard } = require("./navigation-guard");
+const RENDERER_ROOT = path.resolve(path.join(__dirname, "renderer"));
+const navigationIsPermitted = makeNavigationGuard(RENDERER_ROOT);
 
 function makeWindow() {
   win = new BrowserWindow({
