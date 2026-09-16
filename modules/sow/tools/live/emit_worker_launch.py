@@ -70,6 +70,7 @@ from adapters.frontier.codex import CODEX_ADAPTER  # noqa: E402
 from adapters.frontier.grok_build import GROK_ADAPTER  # noqa: E402
 from adapters import detect  # noqa: E402
 from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER  # noqa: E402
+from adapters.coding.opencode.session import OPENCODE_LOCAL_ADAPTER  # noqa: E402
 from control_plane.profiles.live_authorization import (  # noqa: E402
     LiveAuthorization,
     LiveAuthorizationError,
@@ -746,9 +747,13 @@ def build_worker_launch_ticket(
                 registrar, session, session_id=str(session_id or ""), lease_id=lease.lease_id,
                 adapter_id=adapter_id)
         else:
-            if adapter_id == LLAMACPP_LOCAL_ADAPTER:
+            if adapter_id in (LLAMACPP_LOCAL_ADAPTER, OPENCODE_LOCAL_ADAPTER):
                 # llama.cpp's supervisor/router owns its child model process and one-model
-                # residency limit.  An Ollama-derived planner cannot observe that runtime.
+                # residency limit.  An Ollama-derived planner cannot observe that runtime — and an
+                # OpenCode coding pane reaches that same router over loopback HTTP, so plumbing it
+                # through the Ollama planner refused working panes for a daemon this workspace does
+                # not use. Both local-router adapters are gated on the router answering, measured
+                # below, and nothing else.
                 planner, budget = None, None
                 gates["local_runtime_present"] = detect.llamacpp_available()
             else:

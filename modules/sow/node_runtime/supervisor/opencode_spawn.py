@@ -68,7 +68,11 @@ def probe_opencode(
                             executable=executable, coder_model=None, detail=f"unparseable: {exc}")
 
     meets = vt >= MIN_OPENCODE_VERSION
-    models = detect.ollama_models() if available_models is None else available_models
+    # The models this harness can drive are the ones the supervised llama.cpp router advertises.
+    # `detect.ollama_models()` is not consulted: an OpenCode harness reaches its model over the
+    # workspace's loopback endpoint, so the daemon on 11434 being down is not a fact about whether
+    # this harness has anything to drive.
+    models = detect.llamacpp_models() if available_models is None else available_models
     coder_model = detect.pick_model(models, OPENCODE_CODER_MODELS) if models else None
     detail = "ok" if meets else f"below minimum {MIN_OPENCODE_VERSION}"
     return HarnessProbe(present=True, version=raw, version_tuple=vt, meets_minimum=meets,
@@ -129,12 +133,13 @@ def spawn_opencode_harness(
         raise OpenCodeVersionError(
             f"`opencode` version {probe.version!r} does not meet minimum {MIN_OPENCODE_VERSION} "
             f"({probe.detail}) — refuse to spawn (fail closed)")
-    # (2b) local-coder gate — a coding harness with NO local model to drive would tempt a non-local
+    # (2b) local-model gate — a coding harness with NO local model to drive would tempt a non-local
     # (paid/cloud) fallback; refuse fail-closed (§2.3). Overridable only for an explicit mock drive.
     if require_coder_model and probe.coder_model is None:
         raise OpenCodeUnavailable(
-            "no local Ollama coder model detected — refuse to spawn a coding harness with no local "
-            "model to drive (fail closed §2.3; pass require_coder_model=False for a mock drive)")
+            "no runnable local model is registered on the supervised llama.cpp endpoint — refuse to "
+            "spawn a coding harness with no local model to drive (fail closed §2.3; pass "
+            "require_coder_model=False for a mock drive)")
 
     context = AdapterContext(
         node_id=node_id, role="worker", project_id=project_id,

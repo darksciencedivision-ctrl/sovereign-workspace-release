@@ -48,6 +48,11 @@ from adapters.local.model_ceiling import (
     classify_local_models,
     reasons_by_name,
 )
+from adapters.local.library_catalog import (
+    catalog_counts,
+    library_records,
+    picker_rows,
+)
 from control_plane.nodes.pane_picker import ProviderCliInventory, build_pane_picker, local_only_authorization
 from control_plane.local_only import LOCAL_ONLY_MODE, LOCAL_ONLY_REASON
 from control_plane.profiles.live_authorization import (
@@ -437,13 +442,28 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
                                      else (op12_probes or _probe_op12_providers()))
     # the LAUNCHABLE runtime, not the reachable daemon — see `local_admission_reason`
     ollama_runtime = detect.ollama_executable() is not None
-    # Embedding endpoints are registered on the same router but cannot back an
-    # interactive chat pane.  Keep them in the product registry while excluding
-    # them from this chat-only picker.
-    llamacpp_models = [
-        model for model in detect.llamacpp_models()
-        if "embed" not in model.casefold()
-    ]
+    # THE model source for every local group is the union catalog, not a runtime's happy list.
+    # The router's own listing still decides what is RUNNABLE (it is the only thing that can prove a
+    # file is served here), but the catalog is what lets the picker also say what the host owns and
+    # cannot run — the D:/E: safetensors families, an Ollama cloud pointer with no weights, a GGUF
+    # file nobody registered. Embedding endpoints stay in the catalog and out of the chat groups:
+    # they are registered on the same router and cannot back a conversation.
+    catalog = library_records()
+    runnable_rows, in_library_rows = picker_rows(catalog)
+    llamacpp_models = [row["model_slug"] for row in runnable_rows
+                       if "embed" not in row["capabilities"]]
+    catalog_by_slug = {row["model_slug"]: row for row in runnable_rows}
+    # OpenCode is a PANE, and the models it may be loaded with are the router's chat models. Which
+    # of them to offer is model policy, and it lives with the harness that drives them: the
+    # operator's tiers from `OPENCODE_CODER_MODELS` first, then anything the catalog labels `code`.
+    # Measured, not assumed — a `sovereign-llamacpp/<id>` ref is accepted by the installed CLI for
+    # any id the router advertises, declared in an opencode.json or not, and returns `"cost":0`.
+    from adapters.coding.opencode.harness import OPENCODE_CODER_MODELS
+
+    offered = set(llamacpp_models)
+    opencode_models = [name for name in OPENCODE_CODER_MODELS if name in offered]
+    opencode_models += [row["model_slug"] for row in runnable_rows
+                        if "code" in row["capabilities"] and row["model_slug"] not in opencode_models]
     llamacpp_runtime = bool(llamacpp_models)
     llamacpp_client = detect.llamacpp_executable() is not None
     llamacpp_reason = None if llamacpp_runtime and llamacpp_client else (
@@ -474,6 +494,9 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         llamacpp_models=llamacpp_models,
         llamacpp_unavailable_reason=llamacpp_reason,
         llamacpp_runtime_present=llamacpp_runtime and llamacpp_client,
+        llamacpp_catalog=catalog_by_slug,
+        in_library_models=in_library_rows,
+        opencode_models=opencode_models,
     )
     meta = {
         "authorization": (local_only_authorization() if LOCAL_ONLY_MODE else live.as_dict()),
@@ -485,6 +508,11 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         ANTIGRAVITY_ADAPTER + "_probe": antigravity_probe.as_dict(),
         "ollama_enumerated": ollama_models,
         "llamacpp_enumerated": llamacpp_models,
+        # The union catalog's provenance: what was found, on which drive, and how much of it
+        # llama.cpp can actually serve. `local_library_catalog` keeps its old name and old row
+        # shape for consumers that only ever read the in-library half.
+        "library_catalog": catalog_counts(catalog),
+        "local_library_catalog": in_library_rows,
         "llamacpp_probe": {"server_reachable": llamacpp_runtime,
                            "endpoint_client_available": llamacpp_client,
                            "llama_cli_required": False},

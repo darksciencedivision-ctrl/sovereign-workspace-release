@@ -31,17 +31,17 @@ Load-bearing properties, all enforced in code and fail-closed (Buildout Directiv
 
   - **U30 discharged — OpenCode config isolation.** OpenCode reads provider config from
     `opencode.json`/`OPENCODE_CONFIG`, not only the env. `write_scoped_opencode_config` writes a
-    SESSION-LOCAL config declaring ONLY the loopback Ollama provider + the pinned local model, and
-    the driver points `OPENCODE_CONFIG` at it — so a host cloud-provider `opencode.json` cannot
-    influence the driven run. Defence in depth: the harness `build_env` scrubs every provider
-    credential var and the model is pinned to `ollama/*` (`_require_local_model`), so even a leaked
-    cloud provider definition has no key and is never selected. The config's Ollama `baseURL` MUST
-    be loopback or the write is refused (§2.3 — no off-box/paid routing).
+    SESSION-LOCAL config declaring ONLY the loopback llama.cpp provider + the pinned local model,
+    and the driver points `OPENCODE_CONFIG` at it — so a host cloud-provider `opencode.json` cannot
+    influence the driven run. Defence in depth: the harness `build_env` scrubs every cloud provider
+    credential var and the model is pinned to `sovereign-llamacpp/*` (`_require_local_model`), so
+    even a leaked cloud provider definition has no key and is never selected. The config's llama.cpp
+    `baseURL` MUST be loopback or the write is refused (§2.3 — no off-box/paid routing).
 
   - **§2.2 no credential / §2.3 local-only.** Inherited verbatim from the harness builders.
 
 HONESTY (recorded, directive §6). OpenCode ITSELF is genuinely driven headlessly: it spawns,
-connects to the pinned local Ollama model, runs its agent loop, and EXECUTES its real tools
+connects to the pinned local llama.cpp model, runs its agent loop, and EXECUTES its real tools
 (read/glob/edit) inside the worktree — observed live. Small local coder models are FLAKY at
 COMPLETING a multi-step tool edit headlessly (tool-arg schema slips, early stops, prose-only turns)
 — a model-quality limitation, not a harness/governance defect (model-quality conclusions are
@@ -63,16 +63,25 @@ from adapters.coding.opencode.git_porcelain import parse_porcelain_z
 from node_runtime.workspace.git_runner import GitTimeout, run_git
 from adapters.coding.opencode.harness import (
     ModelNotLocal,
+    _LOCAL_MODEL_PREFIX,
+    _LOCAL_ROUTER_KEY_ENV,
     OpenCodeCliHarness,
-    _is_loopback_ollama_host,
+    _is_loopback_endpoint,
     _require_local_model,
     local_model_ref,
 )
 from node_runtime.supervisor.opencode_spawn import SupervisedOpenCode
 from node_runtime.workspace.worktree import NodeWorktree
 
-# The local Ollama OpenAI-compatible endpoint the scoped config points at. Loopback ONLY.
-DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
+# The supervised llama.cpp endpoint, in the OpenAI-compatible form OpenCode's provider config takes.
+# Loopback ONLY, and the write below refuses anything else. This replaced the Ollama daemon's URL:
+# an OpenCode drive that pointed at 11434 was pointing at a runtime the workspace no longer runs.
+DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:18080/v1"
+# Read from the same authority every other local path reads, so a relocated router is honored here
+# too rather than silently driving a different server than the picker enumerated.
+def local_base_url() -> str:
+    from adapters import detect  # noqa: PLC0415 — host detection owns the endpoint
+    return detect.LLAMACPP_HOST.rstrip("/") + "/v1"
 
 # default wall-clock budget for one `opencode run` drive (a local model can be slow; the caller
 # may lower it). The drive performs no git commits — that is worktree.py/`.gate` territory.
@@ -230,7 +239,7 @@ class DriveResult:
     edit_completed: bool              # at least one file in the worktree actually changed
     escaped: bool                     # a modification was detected in the base trunk tree, OR
                                       # containment could not be verified (fail-closed — see below)
-    model: str                        # the pinned local model actually driven (ollama/*)
+    model: str                        # the pinned local model actually driven (llama.cpp router id)
     config_path: str                  # the session-local OPENCODE_CONFIG used (U30)
     containment_verified: bool = True  # False ⇒ the base-trunk escape check could not run; when
                                       # False, `escaped` is forced True (fail closed, Buildout §4)
@@ -263,33 +272,37 @@ class TestOutcome:
 
 
 def write_scoped_opencode_config(session_dir: Path, *, model: str,
-                                 base_url: str = DEFAULT_OLLAMA_BASE_URL) -> Path:
-    """U30 discharge. Write a SESSION-LOCAL `opencode.json` declaring ONLY the loopback Ollama
-    provider and the pinned local model, and return its path. `OPENCODE_CONFIG` will point here so a
-    host cloud-provider config cannot influence the driven run. `model` is a bare tag or `ollama/`
-    ref; the `baseURL` MUST be loopback (§2.3 — no off-box/paid routing) or the write is refused."""
-    # a model already qualified with a NON-ollama provider (e.g. "openai/gpt-4o") must be refused,
-    # not silently re-prefixed to a nonsensical "ollama/openai/…" — fail closed (§2.3).
-    if "/" in (model or "") and not model.startswith("ollama/"):
+                                 base_url: str | None = None) -> Path:
+    """U30 discharge. Write a SESSION-LOCAL `opencode.json` declaring ONLY the supervised loopback
+    llama.cpp provider and the pinned local model, and return its path. `OPENCODE_CONFIG` will point
+    here so a host cloud-provider config cannot influence the driven run. `model` is a bare router id
+    or a `sovereign-llamacpp/` ref; the `baseURL` MUST be loopback (§2.3 — no off-box/paid routing)
+    or the write is refused."""
+    base_url = base_url or local_base_url()
+    # a model already qualified with a NON-local provider (e.g. "openai/gpt-4o") must be refused,
+    # not silently re-prefixed to a nonsensical "sovereign-llamacpp/openai/…" — fail closed (§2.3).
+    if "/" in (model or "") and not model.startswith(_LOCAL_MODEL_PREFIX):
         raise ModelNotLocal(
-            f"model {model!r} names a non-local provider — only bare tags or ollama/* are drivable "
-            f"(§2.3, fail closed)")
+            f"model {model!r} names a non-local provider — only bare llama.cpp router ids or "
+            f"{_LOCAL_MODEL_PREFIX}* refs are drivable (§2.3, fail closed)")
     ref = local_model_ref(model)
-    _require_local_model(ref)  # fail closed: only ollama/* is drivable
+    _require_local_model(ref)  # fail closed: only the local llama.cpp provider is drivable
     tag = ref.split("/", 1)[1]
-    if not _is_loopback_ollama_host(base_url):
+    if not _is_loopback_endpoint(base_url):
         raise DriveRefused(
-            f"refuse to write an OpenCode config with a non-loopback Ollama baseURL {base_url!r} "
+            f"refuse to write an OpenCode config with a non-loopback llama.cpp baseURL {base_url!r} "
             f"— that would route the 'local' model off-box (§2.3, fail closed)")
     session_dir = Path(session_dir)
     session_dir.mkdir(parents=True, exist_ok=True)
+    provider = _LOCAL_MODEL_PREFIX.rstrip("/")
     cfg = {
         "$schema": "https://opencode.ai/config.json",
         "provider": {
-            "ollama": {
+            provider: {
                 "npm": "@ai-sdk/openai-compatible",
-                "name": "Ollama (local, sovereign-pinned)",
-                "options": {"baseURL": base_url},
+                "name": "Sovereign llama.cpp (local, sovereign-pinned)",
+                "options": {"baseURL": base_url,
+                            "apiKey": "{env:" + _LOCAL_ROUTER_KEY_ENV + "}"},
                 "models": {tag: {"name": tag, "tools": True}},
             }
         },
@@ -364,7 +377,7 @@ class OpenCodeDriver:
     worktree, from a single scoped MCP entry. Everything fail-closed."""
 
     def __init__(self, supervised: SupervisedOpenCode, worktree: NodeWorktree, mcp_client: Any, *,
-                 base_repo: Path, session_dir: Path, base_url: str = DEFAULT_OLLAMA_BASE_URL,
+                 base_repo: Path, session_dir: Path, base_url: str | None = None,
                  timeout_s: float = _DRIVE_TIMEOUT_S, runner: Runner | None = None,
                  use_pure: bool = True, on_event: Callable[..., Any] | None = None) -> None:
         if not isinstance(supervised.harness, OpenCodeCliHarness):
@@ -416,7 +429,7 @@ class OpenCodeDriver:
         return objective
 
     def build_command(self, objective: str) -> list[str]:
-        """`opencode run [--pure] --auto --dir <worktree> -m ollama/<model> --format json <obj>`.
+        """`opencode run [--pure] --auto --dir <worktree> -m sovereign-llamacpp/<model> --format json <obj>`.
         The model pin (§2.3) is enforced inside the harness builder."""
         return self._harness.build_run_command(
             objective, model=self._model, workdir=str(self._wt.path),

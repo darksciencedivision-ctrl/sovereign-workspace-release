@@ -82,6 +82,16 @@ if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
     $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $llamaApiKeyPath -Raw).Trim()
 }
 
+# The repository an OpenCode CODING pane cuts its worktree from. It has to be named: the only
+# repository enclosing the workspace is this product checkout, and `coding_worktrees.resolve_base_repo`
+# deliberately refuses to cut node/* branches and working trees into the shipped tree (F-131f — that
+# refusal is where the orphan `worktrees/worker-pane-2` records came from). No containment means no
+# coding pane, so an unset value here is a `worktree_unavailable` refusal, not a silent fallback.
+# An operator-set value wins: this launcher only defaults it when nothing else already has.
+if (-not $env:SOW_CODING_BASE_REPO) {
+    $env:SOW_CODING_BASE_REPO = 'D:\Git\sow-sovereign-workspace'
+}
+
 $blocking = New-Object System.Collections.Generic.List[string]
 $advisory = New-Object System.Collections.Generic.List[string]
 

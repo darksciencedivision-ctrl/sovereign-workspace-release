@@ -124,6 +124,14 @@ _LOCAL_PROVIDER = "ollama_local"
 _OPENCODE_PROVIDER = "opencode_local"
 _LLAMACPP_PROVIDER = "llamacpp_local"
 
+#: The catalog group for models this host OWNS and cannot run on llama.cpp — a D:/E: safetensors
+#: family, an Ollama cloud pointer with no local weights, a GGUF file not yet registered on the
+#: router. It is a DISPLAY group, not a provider: no option in it is `available`, and its adapter id
+#: is deliberately absent from `worker_pane_spawn`'s dispatch set, so a forged ticket for one of
+#: these rows reaches `GATE_UNKNOWN_ADAPTER` instead of silently launching something else. That is
+#: also why `registered_providers()` does not report it — it can be rendered, never selected.
+_LIBRARY_PROVIDER = "local_library"
+
 
 # THE picker's provider table: (provider id, display, locality). One declaration, from which the
 # rendered group list AND both registration accessors are derived. Two hand-maintained enumerations
@@ -150,9 +158,10 @@ _PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     # group rendered correctly and was invisible: the operator restarted the app, looked at the
     # picker, and reported the options were not there. They were, below a screen and a half of
     # scrolling. A handful of coding options ahead of a 71-row list costs that list nothing.
-    (_OPENCODE_PROVIDER, "OpenCode (local harness)", "local"),
+    (_OPENCODE_PROVIDER, "OpenCode (local coding pane)", "local"),
     (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
-    (_LLAMACPP_PROVIDER, "Local (llama.cpp)", "local"),
+    (_LLAMACPP_PROVIDER, "Runnable now (local llama.cpp library)", "local"),
+    (_LIBRARY_PROVIDER, "In library (not runnable on llama.cpp)", "local"),
     )
 
 
@@ -565,8 +574,16 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
 
 def _llamacpp_options(models: list[str], residency: dict[str, str] | None = None, *,
                       unavailable_reason: str | None = None,
-                      runtime_present: bool = False) -> list[dict[str, Any]]:
-    """Build local llama.cpp options from the server's own model listing."""
+                      runtime_present: bool = False,
+                      catalog: dict[str, dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Build local llama.cpp options from the server's own model listing.
+
+    `catalog` is `{model_slug: row}` from `adapters.local.library_catalog`. It is enrichment, not
+    authority: the router's listing still decides WHAT is offered here, and a row the catalog does
+    not recognise is offered unchanged rather than dropped. The fields it adds — the absolute path
+    the weights are read from, the drive, the format, the size — are the ones the operator asks for
+    the moment a list of sixty names appears: "which of these is on E:".
+    """
     reason = unavailable_reason
     if reason is None and not runtime_present:
         reason = ("the supervised local llama.cpp router is not reachable at its configured "
@@ -579,25 +596,86 @@ def _llamacpp_options(models: list[str], residency: dict[str, str] | None = None
     for option in options:
         option["roles"] = ["reasoning"]
         option["conductor_capable"] = False
+        row = (catalog or {}).get(option["model_slug"])
+        if row:
+            option.update({key: row[key] for key in
+                           ("path", "disk", "format", "size_bytes", "capabilities", "family",
+                            "label", "active")
+                           if key in row})
+            if row.get("active"):
+                option["note"] = (f"{option['note']}; loaded on the router now")
     return options
 
 
-#: Substrings that mark a local model as CODE-ORIENTED. An OpenCode pane will technically start
-#: with any model, but offering every general chat model as a coding harness makes the menu a wall
-#: of options the operator has to know better than. This narrows the DEFAULT menu; it is not a
-#: capability claim and it gates nothing — `worker_pane_spawn` never consults it.
+def _library_options(rows: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """The catalog's IN-LIBRARY group: everything on this host that llama.cpp cannot serve.
+
+    Every row is greyed with its own reason and keeps its ORIGINAL absolute path. The rule this
+    group exists to enforce is the one this picker has to state most carefully — a safetensors
+    family on D: or E: is in the library and is NOT runnable here, and no amount of wanting it into
+    the runnable column makes llama.cpp load it. Marking one available would be a rendered control
+    that is not a performable action (S-19), so the refusal is the row.
+    """
+    options: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in rows or []:
+        slug = str(row.get("model_slug") or "").strip()
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        reason = row.get("reason") or "not runnable on the supervised llama.cpp endpoint"
+        options.append({
+            "provider": _LIBRARY_PROVIDER,
+            "adapter": _LIBRARY_PROVIDER,
+            "locality": "local",
+            "subscription_backed": False,
+            "label": row.get("label") or slug,
+            "model_slug": slug,
+            "verified": True,
+            "is_fallback": False,
+            "roles": ["reasoning"],
+            "registered": False,
+            "conductor_capable": False,
+            "residency": UNKNOWN,
+            "available": False,
+            "unavailable_reason": reason,
+            "note": f"{row.get('source') or 'local model library'}; {reason}",
+            **{key: row[key] for key in
+               ("path", "disk", "format", "size_bytes", "capabilities", "family") if key in row},
+        })
+    return sorted(options, key=lambda o: o["label"])
+
+
+#: Substrings that mark a local model as CODE-ORIENTED. The enumeration uses them to decide which
+#: models to OFFER the coding pane, alongside the harness's own preference list
+#: (`adapters.coding.opencode.harness.OPENCODE_CODER_MODELS`) and the catalog's `code` labels. It is
+#: a menu-shape heuristic, not a capability claim, and it gates nothing — `worker_pane_spawn` never
+#: consults it, and a caller that passes an explicit model list is not re-filtered here.
 _CODING_MODEL_MARKERS = ("coder", "code", "devstral", "starcoder", "codestral", "codellama")
 
 
-def _opencode_options(ollama_models: list[str], residency: dict[str, str] | None,
+def _opencode_options(model_names: list[str], residency: dict[str, str] | None,
                       unavailable_reason: str | None = None,
                       ceiling_reasons: dict[str, str] | None = None,
-                      *, opencode_present: bool = False) -> list[dict[str, Any]]:
-    """One OpenCode option per code-oriented local model (EPC-04 W-2).
+                      *, opencode_present: bool = False,
+                      code_filter: bool = False) -> list[dict[str, Any]]:
+    """One OpenCode option per model the caller offers it (EPC-04 W-2).
 
     The operator asked for "open code, the harness, an available slot to be picked in one of the
     terminals, and then I'll load a model into it" — so OpenCode is offered AS a selection, with
     the model chosen at the same time, which is the shape every other option in this picker has.
+    A pane, not a model: the harness is the thing being opened, and the model is what it loads.
+
+    `model_names` are ids the llama.cpp router advertises, ALREADY SELECTED by the caller. Which
+    local models a coding harness should be offered is model policy and lives with the harness
+    (`adapters.coding.opencode.harness.OPENCODE_CODER_MODELS`) and the catalog's `code` labels;
+    this module renders that list. It used to re-filter the list by name here, which put a second
+    copy of that policy in the control plane and quietly dropped the operator's named tiers
+    (`qwen3-14b` is a reasoner, not a "coder") out of the pane that was supposed to load it.
+
+    It is no longer gated on Ollama either: an OpenCode pane reaches the same supervised loopback
+    endpoint every other local pane does, so a dead daemon on 11434 says nothing about whether
+    this pane can open.
 
     ABSENT MEANS GREYED, NEVER HIDDEN. When the `opencode` CLI is not installed the options are
     still listed, carrying the reason. That is this module's stated contract (S-19, ENTRY 017:
@@ -610,15 +688,14 @@ def _opencode_options(ollama_models: list[str], residency: dict[str, str] | None
     ceiling_reasons = ceiling_reasons or {}
     options: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for name in ollama_models:
+    for name in model_names:
         if not isinstance(name, str) or not name.strip() or name in seen:
             continue
         seen.add(name)
-        if not any(marker in name.lower() for marker in _CODING_MODEL_MARKERS):
-            continue
-        # The host-wide VRAM refusal and the operator's ceiling apply to an OpenCode pane exactly
-        # as they do to a bare local pane: it is the same weights on the same card. Whichever
-        # reason already greys the model is kept, and only then is OpenCode's own absence added.
+        # The host-wide endpoint refusal and the operator's ceiling apply to an OpenCode pane
+        # exactly as they do to a bare reasoning pane: it is the same weights on the same card.
+        # Whichever reason already greys the model is kept, and only then is OpenCode's own
+        # absence added.
         reason = unavailable_reason or ceiling_reasons.get(name) or absent
         options.append({
             "provider": _OPENCODE_PROVIDER,
@@ -637,8 +714,9 @@ def _opencode_options(ollama_models: list[str], residency: dict[str, str] | None
             "residency": UNKNOWN if residency is None else residency.get(name, NOT_LOADED),
             "available": reason is None,
             "unavailable_reason": reason,
-            "note": ("OpenCode harness pane — runs in its own git worktree, pinned to a local "
-                     "`ollama/*` model, no credential and no subscription (§2.3, invariant 23)"),
+            "note": ("OpenCode harness pane — runs in its own git worktree and talks to the "
+                     "supervised loopback llama.cpp endpoint (no Ollama, no credential, no "
+                     "subscription) (§2.3, invariant 23)"),
         })
     return sorted(options, key=lambda o: o["label"])
 
@@ -656,7 +734,11 @@ def build_pane_picker(
     local_ceiling_reasons: dict[str, str] | None = None,
     llamacpp_unavailable_reason: str | None = None,
     llamacpp_runtime_present: bool = False,
+    llamacpp_catalog: dict[str, dict[str, Any]] | None = None,
+    in_library_models: list[dict[str, Any]] | None = None,
+    opencode_endpoint_reason: str | None = None,
     opencode_present: bool | None = None,
+    opencode_models: list[str] | None = None,
     grok: ProviderCliInventory | None = None,
     antigravity: ProviderCliInventory | None = None,
 ) -> dict[str, Any]:
@@ -677,6 +759,16 @@ def build_pane_picker(
     `local_unavailable_reason` — when the VRAM budget this host's local admission gate needs could
                            not be established, every local option is greyed with THIS reason (the
                            authorization would refuse it — spec-audit MAJOR-2). None ⇒ offered.
+                           It gates the Ollama group ONLY: `llamacpp_local` and `opencode_local`
+                           attach to the supervised router and are gated by
+                           `llamacpp_unavailable_reason` instead.
+    `llamacpp_catalog`   — `{model_slug: row}` from `adapters.local.library_catalog`, used to put
+                           the drive, path, format and size on an option the router already proved
+                           runnable. Enrichment only: an id missing from it is still offered.
+    `in_library_models`  — the catalog rows llama.cpp CANNOT serve (D:/E: safetensors families,
+                           cloud pointers, unregistered GGUF files). They render in their own
+                           greyed group with their original absolute paths; nothing is copied and
+                           nothing here is ever marked runnable.
     `grok` / `antigravity` — the OP-12 provider inventories from a real host probe
                            (`ProviderCliInventory`). None ⇒ that provider is offered with ZERO
                            options and the reason says the CLI was not detected — never a
@@ -705,24 +797,37 @@ def build_pane_picker(
                                                if not LOCAL_ONLY_MODE else ([], None))
     local = _local_options(ollama_models, residency, local_unavailable_reason,
                            local_ceiling_reasons)
+    # OpenCode is gated on the endpoint it actually uses, not on Ollama. It reaches the model over
+    # the same supervised loopback router as every other local pane, so the daemon on 11434 being
+    # down is not a fact about whether this pane can open — and using it as one greyed the whole
+    # group out on a host whose llama.cpp router was answering 69 models.
     opencode = _opencode_options(
-        ollama_models, residency, local_unavailable_reason, local_ceiling_reasons,
+        (opencode_models if opencode_models is not None else ollama_models), residency,
+        (llamacpp_unavailable_reason if opencode_models is not None
+         else local_unavailable_reason),
+        local_ceiling_reasons,
+        code_filter=opencode_models is None,
         # None ⇒ probe the real host; the suite injects a value so the option set does not
         # depend on what happens to be installed on the machine running it.
         opencode_present=(_detect_opencode() if opencode_present is None else opencode_present))
     llamacpp = _llamacpp_options(llamacpp_models or [], residency,
                                  unavailable_reason=llamacpp_unavailable_reason,
-                                 runtime_present=llamacpp_runtime_present)
+                                 runtime_present=llamacpp_runtime_present,
+                                 catalog=llamacpp_catalog)
+    in_library = _library_options(in_library_models)
 
     # Groups come from the ONE provider table, so `registered_providers()` cannot claim a provider
     # this list does not render (or vice versa).
     by_provider = {_ANTHROPIC: anthropic, _OPENAI: openai, GROK_ADAPTER: grok_options,
                    ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local,
-                   _OPENCODE_PROVIDER: opencode, _LLAMACPP_PROVIDER: llamacpp}
+                   _OPENCODE_PROVIDER: opencode, _LLAMACPP_PROVIDER: llamacpp,
+                   _LIBRARY_PROVIDER: in_library}
     reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason,
                _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason),
                _LLAMACPP_PROVIDER: (llamacpp_unavailable_reason or
-                                    (None if llamacpp else "no models enumerated from the llama.cpp server"))}
+                                    (None if llamacpp else "no models enumerated from the llama.cpp server")),
+               _LIBRARY_PROVIDER: (None if in_library else
+                                   "no in-library models found in the configured local model roots")}
     providers = [{"provider": p, "display": display, "options": by_provider[p],
                   "status": _group_status(by_provider[p], reasons.get(p))}
                  for p, display, _locality in _PROVIDER_TABLE]

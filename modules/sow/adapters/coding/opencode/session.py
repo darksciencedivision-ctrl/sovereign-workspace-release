@@ -21,16 +21,23 @@ exists at all is a fact about the installed binary and not something to assume (
 So the TUI is the DEFAULT command and takes the project directory positionally. That is exactly a
 ConPTY pane, and it is why this is a command builder rather than a redesign.
 
-WHAT IS INHERITED, NOT REBUILT. `_require_local_model` and `build_env` are imported from
-`harness.py` and applied unchanged. They are the reason an OpenCode pane spends nothing: the model
-is pinned to `ollama/*`, every provider credential is stripped from the child environment, and a
-non-loopback `OLLAMA_HOST` is dropped so a "local" model cannot be routed off-box. Re-implementing
-either here would be a second copy of the spend wall, and the two would drift.
+WHAT IS INHERITED, NOT REBUILT. `_require_local_model` and the credential scrub are applied
+unchanged from `harness.py`. They are the reason an OpenCode pane spends nothing: the model is
+pinned to the workspace's own loopback llama.cpp provider, every cloud provider credential is
+stripped from the child environment, and any endpoint that is not loopback is dropped so a "local"
+model cannot be routed off-box. Re-implementing either here would be a second copy of the spend
+wall, and the two would drift.
 
 WHAT THIS DOES NOT DO. It builds argv. The ConPTY spawn, the worktree, the residency reservation
 and the supervised admission all stay with the caller — the same division `ollama_session.py`
 keeps, and for the same reason: a command builder that could also spawn is a command builder that
 can bypass the gates.
+
+MEASURED on this host against the supervised router (opencode 1.18.x, `--format json`): a ref of
+`sovereign-llamacpp/<router id>` returns text with `"cost":0`, and it does so for a router id the
+provider config never listed — the openai-compatible provider passes the id through. That is why
+the coding pane can be offered the whole runnable catalog rather than the handful of models
+somebody happened to write into a config file by hand.
 """
 from __future__ import annotations
 
@@ -100,10 +107,10 @@ def build_interactive_opencode_command(
     name = (model or "").strip()
     if not name:
         raise ValueError("an interactive OpenCode session needs a model — fail closed")
-    if "/" in name and not name.startswith("ollama/"):
+    if "/" in name and not name.startswith("sovereign-llamacpp/"):
         raise ModelNotLocal(
             f"model {name!r} names a non-local provider — an OpenCode pane is pinned to "
-            f"`ollama/*` so it can spend nothing (§2.3, fail closed). Pass a local model tag.")
+            f"`sovereign-llamacpp/*` so it can spend nothing (§2.3, fail closed). Pass a local model tag.")
 
     ref = local_model_ref(name)
     _require_local_model(ref)          # the §2.3 spend wall, restated at the build site

@@ -911,10 +911,11 @@ def _authorize_local_coding(
     containment", and that sentence is still true — so the worktree is obtained BEFORE the pane is
     authorized, and its absence refuses rather than downgrading to an uncontained session.
 
-    Everything a local pane already obeys is obeyed here unchanged, through the SAME helper the
-    reasoning pane uses: the invariant-22 reservation (a coding model occupies the card exactly
-    like any other), no subscription (invariant 19), no credential, and the `ollama/*` model pin
-    that is why an OpenCode pane can spend nothing.
+    Everything a local pane already obeys is obeyed here unchanged: no subscription (invariant 19),
+    no credential, and the loopback llama.cpp model pin that is why an OpenCode pane can spend
+    nothing. What is NOT inherited from `_authorize_local` is the Ollama residency planner — this
+    pane has no Ollama in its path, and `residency_planner`/`residency_budget` are accepted and left
+    alone on purpose so the caller's one signature keeps working for every local adapter.
 
     `cwd` is the WORKTREE, not the workspace — that is the containment: the process starts inside
     the only tree it may modify, and `--pure` keeps unmeasured plugins out of it.
@@ -924,23 +925,25 @@ def _authorize_local_coding(
     if not model:
         raise SpawnRefused("local coding selection has no model_slug — fail closed")
 
-    # NO `ollama` CLI GATE HERE, and that is a decision rather than an omission. `_authorize_local`
-    # refuses when the ollama EXECUTABLE is missing because it launches `ollama run` in the pane.
-    # OpenCode does not: it reaches the model over the daemon's HTTP API, so the CLI being absent
-    # does not stop it. That refusal's own wording is the warrant — "the picker's enumeration comes
-    # from the daemon, which can be reachable without the CLI being launchable". Copying the gate
-    # across would refuse working panes for a binary this path never runs.
+    # NO `ollama` CLI GATE HERE, and none is needed for the router either: OpenCode reaches its
+    # model over the workspace's loopback llama.cpp endpoint, so the Ollama CLI and the Ollama
+    # daemon are both absent from this path's list of dependencies. What IS load-bearing is the
+    # router answering, because a coding pane whose endpoint is down is a model with write hands
+    # and nothing behind it. That is measured, not assumed, in step (2).
     #
-    # The daemon being genuinely unreachable is still caught, and caught by the thing that measures
-    # it: the residency reservation below refuses when no VRAM budget could be established.
+    # THE RESIDENCY AUTHORITY IS THE ROUTER, NOT THE OLLAMA PLANNER — the same call
+    # `_authorize_llamacpp_local` already made for the reasoning pane. The planner is a bookkeeping
+    # mirror of a daemon this workspace does not use; routing a coding pane through it meant every
+    # OpenCode option was refused with "this host's VRAM admission budget could not be established
+    # — ollama daemon unreachable — no planner" on a host whose llama.cpp router was answering 69
+    # models. The router admits one model at a time (`models-max 1`) and owns the swap; a planner
+    # that claimed to pre-commit that swap would be recording an authority it does not hold.
 
     # (1) THE OPENCODE BINARY, RESOLVED HERE — deliberately not the caller's `executable`.
     #
-    # `authorize_worker_pane` receives ONE executable, resolved for the option's own adapter. A
-    # local coding option is an `ollama_local` option (the picker lists one local model with both
-    # roles), so the executable reaching this function is OLLAMA'S. Launching it with OpenCode's
-    # argv would run the wrong program with a worktree path as its first argument. The parameter
-    # is not threaded in for exactly that reason.
+    # `authorize_worker_pane` receives ONE executable, resolved for the option's own adapter, which
+    # is the shell's Python. Launching that with OpenCode's argv would run the wrong program with a
+    # worktree path as its first argument. The parameter is not threaded in for exactly that reason.
     #
     # `.executable` is `shutil.which("opencode")` — a real path, or None when it is not installed.
     # None is a PRESENCE fact, and gets its own gate: "install opencode" is a different operator
@@ -953,7 +956,16 @@ def _authorize_local_coding(
             gate=GATE_OPENCODE_ABSENT)
     exe = _resolved_binary(resolved, OPENCODE_LOCAL_ADAPTER)
 
-    # (2) the worktree. No manager, no worktree, no pane.
+    # (2) THE ENDPOINT. Absent, refused — with no fallback to fall through to.
+    from adapters import detect  # noqa: PLC0415 — this module's convention for host detection
+
+    if not detect.llamacpp_available():
+        raise WorkerPaneRefused(
+            "the supervised local llama.cpp endpoint is not answering — cannot open an OpenCode "
+            "coding pane against it (fail closed; there is no Ollama and no cloud fallback)",
+            gate=GATE_RUNTIME_ABSENT)
+
+    # (3) the worktree. No manager, no worktree, no pane.
     if worktree_manager is None:
         raise WorkerPaneRefused(
             "a local CODING pane requires a worktree manager and none was supplied — refused "
@@ -971,9 +983,18 @@ def _authorize_local_coding(
             f"could not provision an isolated worktree for {selection.node_id!r}: {exc} — "
             f"refused rather than run uncontained", gate=GATE_WORKTREE_UNAVAILABLE) from exc
 
-    argv, decision, budget = _reserve_local_vram(
-        residency_planner, residency_budget, model,
-        lambda: build_interactive_opencode_command(exe, worktree=worktree.path, model=model))
+    # Side-effect-free, and ordered before anything mutates: `build_interactive_opencode_command`
+    # is where the §2.3 pin is re-asserted at the build site, so a non-local model is refused here
+    # rather than after a worktree has been adopted.
+    argv = build_interactive_opencode_command(exe, worktree=worktree.path, model=model)
+    decision = ResidencyDecision(
+        model=model, scheduled=True, status=UNKNOWN,
+        reason="residency is managed by the supervised llama.cpp router (models-max=1)")
+    budget = {
+        "established": True,
+        "budget_source": "supervised llama.cpp router admission",
+        "runtime_managed": True,
+    }
 
     chrome = WorkerPaneChrome(
         provider=opt.get("provider", OPENCODE_LOCAL_ADAPTER), adapter=OPENCODE_LOCAL_ADAPTER,
@@ -986,9 +1007,9 @@ def _authorize_local_coding(
     launch = _launch(
         argv, executable=exe, cwd=str(worktree.path), shell_env_names=shell_env_names,
         note=("interactive OpenCode coding pane confined to its own git worktree; the model is "
-              "pinned to `ollama/*` and the child environment is credential-scrubbed, so no "
-              "subscription and no credential is involved — VRAM residency (invariant 22) and the "
-              "worktree are what govern it"))
+              "pinned to the supervised loopback llama.cpp endpoint and the child environment is "
+              "credential-scrubbed, so no subscription and no cloud credential is involved — the "
+              "router's own residency and the worktree are what govern it"))
     return WorkerPaneSession(
         chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
         residency_decision=decision.as_dict(), residency_budget=dict(budget),
