@@ -68,6 +68,8 @@ from adapters.frontier.claude_model_probe import (  # noqa: E402
 from adapters.frontier.antigravity import ANTIGRAVITY_ADAPTER  # noqa: E402
 from adapters.frontier.codex import CODEX_ADAPTER  # noqa: E402
 from adapters.frontier.grok_build import GROK_ADAPTER  # noqa: E402
+from adapters import detect  # noqa: E402
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER  # noqa: E402
 from control_plane.profiles.live_authorization import (  # noqa: E402
     LiveAuthorization,
     LiveAuthorizationError,
@@ -744,16 +746,24 @@ def build_worker_launch_ticket(
                 registrar, session, session_id=str(session_id or ""), lease_id=lease.lease_id,
                 adapter_id=adapter_id)
         else:
-            if residency_planner is not None:
-                planner, budget = residency_planner, residency_budget
+            if adapter_id == LLAMACPP_LOCAL_ADAPTER:
+                # llama.cpp's supervisor/router owns its child model process and one-model
+                # residency limit.  An Ollama-derived planner cannot observe that runtime.
+                planner, budget = None, None
+                gates["local_runtime_present"] = detect.llamacpp_available()
             else:
-                planner, budget = _host_planner()
-            gates["local_runtime_present"] = _detect_local_runtime(ollama_present)
+                if residency_planner is not None:
+                    planner, budget = residency_planner, residency_budget
+                else:
+                    planner, budget = _host_planner()
+                gates["local_runtime_present"] = _detect_local_runtime(ollama_present)
             session = authorize_worker_pane(
                 pane_selection, live_auth=auth, governor=gov, profile_loader=loader,
                 operator_terms_confirmed=operator_terms_confirmed, workspace=workspace,
                 residency_planner=planner, residency_budget=budget,
                 ollama_present=gates["local_runtime_present"], shell_env_names=shell_env_names,
+                llamacpp_present=(gates["local_runtime_present"]
+                                  if adapter_id == LLAMACPP_LOCAL_ADAPTER else None),
                 # EPC-04 / W-3. A coding pane is refused without this; a REASONING pane never
                 # reaches for it. Resolving it unconditionally keeps the branch free of a
                 # role test that would have to agree with the one inside the authorizer.

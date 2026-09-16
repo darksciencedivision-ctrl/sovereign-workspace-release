@@ -149,7 +149,7 @@ _COMMANDS: dict[str, ConductorProviderCommands] = {
     ),
     LLAMACPP_LOCAL_ADAPTER: ConductorProviderCommands(
         adapter_id=LLAMACPP_LOCAL_ADAPTER,
-        executable_name="llama-cli",
+        executable_name="python (workspace llama.cpp endpoint client)",
         resolve_executable=detect.llamacpp_executable,
         capability=capability_for_llamacpp_local,
         resolve_model=lambda model: ((model, f"local llama.cpp model {model!r}")

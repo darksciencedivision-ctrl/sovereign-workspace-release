@@ -110,6 +110,8 @@ from adapters.coding.opencode.session import (
 from scheduler.residency_planner.residency_planner import (
     LOADING,
     RESIDENT,
+    UNKNOWN,
+    ResidencyDecision,
     ResidencyError,
     ResidencyPlanner,
 )
@@ -848,7 +850,7 @@ def _authorize_llamacpp_local(
     executable: str | None,
     shell_env_names: list[str] | None = None,
 ) -> WorkerPaneSession:
-    """Authorize a reasoning pane backed by a locally installed llama.cpp CLI."""
+    """Authorize a reasoning pane backed by the supervised llama.cpp router."""
     if selection.role != "reasoning":
         raise WorkerPaneRefused("llama.cpp interactive panes currently support reasoning only",
                                 gate=GATE_WORKER_ROLE)
@@ -857,15 +859,28 @@ def _authorize_llamacpp_local(
         raise SpawnRefused("llama.cpp selection has no model_slug — fail closed")
     from adapters import detect
     resolved = executable or detect.llamacpp_executable()
-    present = bool(resolved) if llamacpp_present is None else bool(llamacpp_present)
+    server_ready = detect.llamacpp_available()
+    present = (bool(resolved) and server_ready if llamacpp_present is None
+               else bool(resolved) and bool(llamacpp_present))
     if not present:
         raise WorkerPaneRefused(
-            "the local llama.cpp CLI is not configured or not on PATH — set "
-            "SOVEREIGN_LLAMACPP_CLI or install llama-cli (fail closed)", gate=GATE_RUNTIME_ABSENT)
+            "the supervised local llama.cpp endpoint is unavailable or the workspace endpoint "
+            "client cannot be resolved (fail closed; no Ollama/cloud fallback)",
+            gate=GATE_RUNTIME_ABSENT)
     exe = _resolved_binary(resolved, LLAMACPP_LOCAL_ADAPTER)
-    argv, decision, budget = _reserve_local_vram(
-        residency_planner, residency_budget, model,
-        lambda: build_interactive_llamacpp_command(exe, model=model))
+    argv = build_interactive_llamacpp_command(exe, model=model)
+    # This adapter attaches to the single-instance router. The router supervisor owns model
+    # loading and its one-model residency limit; the Ollama-specific planner has no truthful view
+    # of those child processes. Record that authority explicitly instead of fabricating an Ollama
+    # footprint or refusing a healthy llama.cpp endpoint because Ollama is absent.
+    decision = ResidencyDecision(
+        model=model, scheduled=True, status=UNKNOWN,
+        reason="residency is managed by the supervised llama.cpp router (models-max=1)")
+    budget = {
+        "established": True,
+        "budget_source": "supervised llama.cpp router admission",
+        "runtime_managed": True,
+    }
     chrome = WorkerPaneChrome(
         provider=LLAMACPP_LOCAL_ADAPTER, adapter=LLAMACPP_LOCAL_ADAPTER, locality="local",
         model_label=selection.option.get("label", model), model_slug=model,
@@ -873,8 +888,8 @@ def _authorize_llamacpp_local(
         role=selection.role, mode=selection.mode, node_id=selection.node_id,
         node_state=_AUTHORIZED_NOT_STARTED, subscription=None, residency=decision.status)
     launch = _launch(argv, executable=exe, cwd=str(workspace), shell_env_names=shell_env_names,
-                     note=("interactive llama.cpp local worker session; no subscription, credential, "
-                           "or cloud fallback is involved — VRAM residency governs it"))
+                     note=("interactive workspace client attached to the supervised loopback "
+                           "llama.cpp router; no subscription or cloud fallback is involved"))
     return WorkerPaneSession(
         chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
         residency_decision=decision.as_dict(), residency_budget=dict(budget),

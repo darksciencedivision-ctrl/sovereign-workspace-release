@@ -1,4 +1,4 @@
-"""Local multi-model debate table orchestrator for Ollama."""
+"""Local multi-model debate table orchestrator."""
 
 from __future__ import annotations
 
@@ -311,12 +311,29 @@ def load_config(path: Path) -> dict:
 
 try:
     CONFIG = load_config(CONFIG_PATH)
-    OLLAMA, OLLAMA_ENDPOINT_CLASS = resolve_ollama_base(
-        CONFIG["ollama_url"],
-        os.environ.get("OLLAMA_URL"),
-        CONFIG["allow_remote_ollama"],
-        CONFIG_PATH,
-    )
+    INFERENCE_BACKEND = os.environ.get("SOVEREIGN_INFERENCE_BACKEND", "ollama").strip().lower()
+    LLAMACPP_ACTIVE = INFERENCE_BACKEND in {"llama.cpp", "llamacpp", "llama_cpp"}
+    if LLAMACPP_ACTIVE:
+        OLLAMA, OLLAMA_ENDPOINT_CLASS = resolve_ollama_base(
+            os.environ.get("SOVEREIGN_LLAMACPP_HOST")
+            or os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL")
+            or "http://127.0.0.1:18080",
+            None,
+            False,
+            CONFIG_PATH,
+        )
+        # The shared router exposes one admitted 8B model.  Keep the seat
+        # personas distinct while using a model ID that actually exists.
+        for seat in CONFIG["seats"]:
+            seat["model"] = "qwen3-8b"
+        CONFIG["extractor_model"] = "qwen3-8b"
+    else:
+        OLLAMA, OLLAMA_ENDPOINT_CLASS = resolve_ollama_base(
+            CONFIG["ollama_url"],
+            os.environ.get("OLLAMA_URL"),
+            CONFIG["allow_remote_ollama"],
+            CONFIG_PATH,
+        )
 except ConfigurationError as exc:
     log_event("startup_config_fatal", error=type(exc).__name__)
     print(f"FATAL: {exc}", file=sys.stderr)
@@ -343,6 +360,13 @@ GEN_OPTIONS = {
     "temperature": CONFIG["temperature"],
     "top_p": CONFIG["top_p"],
 }
+
+
+def _inference_headers() -> dict[str, str]:
+    if not LLAMACPP_ACTIVE:
+        return {}
+    key = os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY", "").strip()
+    return {"Authorization": f"Bearer {key}"} if key else {}
 
 argument_memory_tracker = argument_memory.ArgumentMemory(
     [seat["name"] for seat in SEATS]
@@ -881,12 +905,22 @@ async def ollama_chat(
         "stream": on_public is not None,
         "options": GEN_OPTIONS,
     }
+    if LLAMACPP_ACTIVE:
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": on_public is not None,
+            "max_tokens": GEN_OPTIONS["num_predict"],
+            "temperature": GEN_OPTIONS["temperature"],
+            "top_p": GEN_OPTIONS["top_p"],
+        }
+    chat_url = f"{OLLAMA}/v1/chat/completions" if LLAMACPP_ACTIVE else f"{OLLAMA}/api/chat"
     async with _acquire_client(CHAT_HTTP_TIMEOUT, transport) as client:
         if on_public is None:
             if interruptible and state.interrupt_generation.is_set():
                 raise TurnInterrupted
             send_task = _tracked(
-                asyncio.create_task(client.post(f"{OLLAMA}/api/chat", json=payload))
+                asyncio.create_task(client.post(chat_url, json=payload, headers=_inference_headers()))
             )
             if interruptible:
                 interrupt_wait = _tracked(
@@ -906,13 +940,17 @@ async def ollama_chat(
                 await asyncio.wait({send_task})
             response = send_task.result()
             response.raise_for_status()
+            if LLAMACPP_ACTIVE:
+                choices = response.json().get("choices") or []
+                message = choices[0].get("message", {}) if choices else {}
+                return clean(message.get("content", ""))
             return clean(response.json().get("message", {}).get("content", ""))
 
         public_parts = []
         filter_ = PublicStreamFilter()
         done_seen = False
         async with client.stream(
-            "POST", f"{OLLAMA}/api/chat", json=payload
+            "POST", chat_url, json=payload, headers=_inference_headers()
         ) as response:
             response.raise_for_status()
             lines_iter = response.aiter_lines().__aiter__()
@@ -953,6 +991,18 @@ async def ollama_chat(
                     break
                 if not line.strip():
                     continue
+                if LLAMACPP_ACTIVE:
+                    if not line.startswith("data:"):
+                        continue
+                    encoded = line[5:].strip()
+                    if encoded == "[DONE]":
+                        done_seen = True
+                        tail = filter_.feed("", final=True)
+                        if tail:
+                            public_parts.append(tail)
+                            await on_public(tail)
+                        break
+                    line = encoded
                 try:
                     data = json.loads(line)
                 except json.JSONDecodeError as exc:
@@ -960,9 +1010,18 @@ async def ollama_chat(
                     raise StreamProtocolError(
                         f"malformed NDJSON at offset {exc.colno}: {snippet!r}"
                     ) from exc
-                message = data.get("message", {})
-                raw = message.get("content", "")
-                thinking = message.get("thinking", "")
+                if LLAMACPP_ACTIVE:
+                    choices = data.get("choices") or []
+                    choice = choices[0] if choices else {}
+                    message = choice.get("delta", {})
+                    raw = message.get("content", "") or ""
+                    thinking = ""
+                    if choice.get("finish_reason") is not None:
+                        done_seen = True
+                else:
+                    message = data.get("message", {})
+                    raw = message.get("content", "")
+                    thinking = message.get("thinking", "")
                 if metrics is not None:
                     if metrics["first_raw_seconds"] is None and (raw or thinking):
                         metrics["first_raw_seconds"] = time.perf_counter() - started_at
@@ -980,14 +1039,20 @@ async def ollama_chat(
                         metrics["first_public_seconds"] = time.perf_counter() - started_at
                     public_parts.append(public)
                     await on_public(public)
-                if data.get("done"):
+                if (not LLAMACPP_ACTIVE and data.get("done")) or (
+                    LLAMACPP_ACTIVE and done_seen
+                ):
                     done_seen = True
                     if metrics is not None:
-                        metrics["budget_exhausted"] = (
-                            data.get("done_reason") == "length"
-                        )
-                        metrics["eval_count"] = data.get("eval_count")
-                        metrics["prompt_eval_count"] = data.get("prompt_eval_count")
+                        if LLAMACPP_ACTIVE:
+                            usage = data.get("usage") or {}
+                            metrics["budget_exhausted"] = choice.get("finish_reason") == "length"
+                            metrics["eval_count"] = usage.get("completion_tokens")
+                            metrics["prompt_eval_count"] = usage.get("prompt_tokens")
+                        else:
+                            metrics["budget_exhausted"] = data.get("done_reason") == "length"
+                            metrics["eval_count"] = data.get("eval_count")
+                            metrics["prompt_eval_count"] = data.get("prompt_eval_count")
                     tail = filter_.feed("", final=True)
                     if tail:
                         if (
@@ -1067,10 +1132,24 @@ def ceiling_verdict(record: dict) -> dict:
 
 
 async def installed_model_records() -> dict[str, dict]:
-    """`{model name: /api/tags row}` - the rows carry the parameter counts the ceiling needs."""
+    """Return registered local models in the Debate ceiling's record shape."""
     async with _acquire_client(MODELS_HTTP_TIMEOUT) as client:
-        response = await client.get(f"{OLLAMA}/api/tags")
+        url = f"{OLLAMA}/v1/models" if LLAMACPP_ACTIVE else f"{OLLAMA}/api/tags"
+        response = await client.get(url, headers=_inference_headers())
         response.raise_for_status()
+    if LLAMACPP_ACTIVE:
+        records: dict[str, dict] = {}
+        for item in response.json().get("data", []):
+            name = str(item.get("id", "")).strip()
+            if not name:
+                continue
+            match = re.search(r"(?:^|[-:.])(\d+(?:\.\d+)?)b(?:$|[-:.])", name, re.I)
+            parameter_size = f"{match.group(1)}B" if match else None
+            records[name] = {
+                "name": name,
+                "details": {"parameter_size": parameter_size},
+            }
+        return records
     return {
         item["name"]: item
         for item in response.json().get("models", [])
@@ -2095,7 +2174,8 @@ async def ws_endpoint(ws: WebSocket):
                 "status": state.status,
                 "insight_enabled": bool(insight_manager),
                 "diagnostics": {
-                    "ollama_endpoint_class": OLLAMA_ENDPOINT_CLASS,
+                    "inference_backend": "llama.cpp" if LLAMACPP_ACTIVE else "ollama",
+                    "inference_endpoint_class": OLLAMA_ENDPOINT_CLASS,
                     "move": state.last_move,
                     "move_reason": state.last_move_reason,
                     "turn": state.last_move_turn,
@@ -2192,7 +2272,9 @@ async def ready():
 
     payload = {
         "status": status,
-        "ollama": {
+        "model_service": {
+            "backend": "llama.cpp" if LLAMACPP_ACTIVE else "ollama",
+            "base_url": OLLAMA,
             "reachable": reachable,
             "endpoint_class": OLLAMA_ENDPOINT_CLASS,
             "error_type": error_type,

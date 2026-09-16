@@ -569,8 +569,8 @@ def _llamacpp_options(models: list[str], residency: dict[str, str] | None = None
     """Build local llama.cpp options from the server's own model listing."""
     reason = unavailable_reason
     if reason is None and not runtime_present:
-        reason = ("the local llama.cpp server is not reachable at its configured loopback endpoint; "
-                  "start llama-server or set SOVEREIGN_LLAMACPP_HOST")
+        reason = ("the supervised local llama.cpp router is not reachable at its configured "
+                  "loopback endpoint; start the workspace runtime")
     options = _local_options(
         models, residency, reason, {}, provider=_LLAMACPP_PROVIDER,
         runtime_note=("local model enumerated live from the llama.cpp /v1/models endpoint; "

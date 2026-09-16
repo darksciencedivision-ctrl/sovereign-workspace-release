@@ -8,15 +8,32 @@ import json
 import os
 import re
 import shutil
+import sys
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
 # llama.cpp's OpenAI-compatible server.  Both endpoints are loopback-only by default and can be
 # changed for a separately managed local instance without introducing a cloud fallback.
-LLAMACPP_HOST = os.environ.get("SOVEREIGN_LLAMACPP_HOST", "http://127.0.0.1:5183").rstrip("/")
+LLAMACPP_HOST = (
+    os.environ.get("SOVEREIGN_LLAMACPP_HOST")
+    or os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL")
+    or "http://127.0.0.1:18080"
+).rstrip("/")
 # F-016. Loopback Ollama only; force a direct connection past any configured proxy.
 _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _llamacpp_request(url: str) -> urllib.request.Request:
+    parsed = urlsplit(url)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("llama.cpp discovery is restricted to a loopback HTTP endpoint")
+    headers = {"Accept": "application/json"}
+    api_key = os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY", "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return urllib.request.Request(url, headers=headers)
 
 
 def ollama_available(timeout: float = 3.0) -> bool:
@@ -110,7 +127,8 @@ def llamacpp_model_records(timeout: float = 3.0) -> list[dict]:
     """
     for path in ("/v1/models", "/models"):
         try:
-            with _NO_PROXY_OPENER.open(f"{LLAMACPP_HOST}{path}", timeout=timeout) as r:
+            with _NO_PROXY_OPENER.open(_llamacpp_request(f"{LLAMACPP_HOST}{path}"),
+                                       timeout=timeout) as r:
                 data = json.loads(r.read().decode("utf-8"))
             entries = data.get("data", []) if isinstance(data, dict) else []
             if not entries and isinstance(data, dict):
@@ -143,16 +161,14 @@ def llamacpp_available(timeout: float = 3.0) -> bool:
 
 
 def llamacpp_executable() -> str | None:
-    """Resolve a locally installed llama.cpp interactive CLI, if configured or on PATH."""
-    import os
-    configured = os.environ.get("SOVEREIGN_LLAMACPP_CLI", "").strip()
-    if configured and shutil.which(configured):
-        return shutil.which(configured)
-    for name in ("llama-cli", "llama-cli.exe", "llama-cli.cmd"):
-        found = shutil.which(name)
-        if found:
-            return found
-    return None
+    """Return the Python executable for the workspace's server-backed local session client.
+
+    llama-cli is optional.  The primary runtime is the supervised llama-server endpoint, and the
+    interactive pane is a small workspace client that talks to that endpoint.  Returning the exact
+    interpreter path keeps the governed launch path resolved and avoids spawning a second runtime.
+    """
+    executable = os.path.abspath(sys.executable)
+    return executable if os.path.isfile(executable) else None
 
 
 def opencode_available() -> bool:

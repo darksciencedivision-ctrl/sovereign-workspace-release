@@ -3,11 +3,11 @@
   "display_name": "SOVEREIGN",
   "description": "Operator product service and UI (Flask, :5175)",
   "state_class": "runnable",
-  "root": "${install_root}/modules/sovereign",
+  "root": "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK",
   "runtime_writes": [
-    "${state_root}/runtime",
-    "${state_root}/published",
-    "${state_root}/library/queues",
+    "${root}/runtime",
+    "${root}/published",
+    "${root}/library/queues",
     "${state_root}/logs"
   ],
   "launch": {
@@ -32,12 +32,17 @@
       "TMP",
       "USERPROFILE",
       "LOCALAPPDATA",
-      "APPDATA"
+      "APPDATA",
+      "SOVEREIGN_INFERENCE_BACKEND",
+      "SOVEREIGN_LLAMACPP_HOST",
+      "SOVEREIGN_LLAMA_CPP_BASE_URL",
+      "SOVEREIGN_LLAMA_CPP_API_KEY",
+      "SOVEREIGN_LLAMA_SUPERVISOR_ROOT"
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
-      "SOVEREIGN_STATE_DIR": "${state_root}/runtime",
-      "SOVEREIGN_EVIDENCE_DIR": "${state_root}/runtime/evidence"
+      "SOVEREIGN_STATE_DIR": "${root}/runtime",
+      "SOVEREIGN_EVIDENCE_DIR": "${root}/runtime/evidence"
     }
   },
   "readiness": {

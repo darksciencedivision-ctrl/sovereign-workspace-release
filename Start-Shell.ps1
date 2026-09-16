@@ -64,6 +64,24 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $root
 
+# Workspace-wide local inference authority. These values are inherited by the
+# shell and every module process it owns, so picker enumeration, conductor
+# selection, and worker panes all attach to the same supervised loopback router.
+$llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
+    [IO.Path]::GetFullPath($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT)
+} else {
+    'D:\Sov 1\SOVEREIGN_PRODUCT_COMPLETION_WORK'
+}
+$llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
+$llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
+$env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
+$env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp'
+$env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080'
+$env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080'
+if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
+    $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $llamaApiKeyPath -Raw).Trim()
+}
+
 $blocking = New-Object System.Collections.Generic.List[string]
 $advisory = New-Object System.Collections.Generic.List[string]
 
@@ -176,7 +194,9 @@ if ($null -ne $busy) {
 else { Line "port $Port" 'free' Green }
 
 # --- module ports: ADVISORY --------------------------------------------------
-$modulePorts = [ordered]@{ 5175 = 'sovereign'; 5183 = 'llamacpp'; 5184 = 'distillery'; 8700 = 'debate'; 8765 = 'tokencenter' }
+# String keys are intentional: OrderedDictionary treats an integer index as a
+# positional lookup, which rendered the module label blank for a held port.
+$modulePorts = [ordered]@{ '5175' = 'sovereign'; '18080' = 'llamacpp'; '5184' = 'distillery'; '8700' = 'debate'; '8765' = 'tokencenter' }
 $held = @()
 foreach ($p in $modulePorts.Keys) {
     $conn = Get-NetTCPConnection -State Listen -LocalPort $p -ErrorAction SilentlyContinue
@@ -318,6 +338,14 @@ if ($CheckOnly) {
 if ($blocking.Count -gt 0) { exit 1 }
 
 # --- run ---------------------------------------------------------------------
+
+if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
+    throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
+}
+& $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
+if ($LASTEXITCODE -ne 0) {
+    throw "The local llama.cpp supervisor did not become ready."
+}
 
 # F-002/F-003. A deterministic exit code on every path. In Windows PowerShell 5.1 a
 # Start-Process -PassThru object reports $null for ExitCode unless its Handle was touched while

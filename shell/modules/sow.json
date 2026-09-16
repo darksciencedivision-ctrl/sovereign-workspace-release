@@ -26,7 +26,12 @@
       "LOCALAPPDATA",
       "APPDATA",
       "ProgramFiles",
-      "ProgramW6432"
+      "ProgramW6432",
+      "SOVEREIGN_INFERENCE_BACKEND",
+      "SOVEREIGN_LLAMACPP_HOST",
+      "SOVEREIGN_LLAMA_CPP_BASE_URL",
+      "SOVEREIGN_LLAMA_CPP_API_KEY",
+      "SOVEREIGN_LLAMA_SUPERVISOR_ROOT"
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",

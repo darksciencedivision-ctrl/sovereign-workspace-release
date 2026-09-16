@@ -117,7 +117,10 @@ const ADAPTER_EXECUTABLE = {
   // metacharacter hazard is refused Python-side by `adapters/cmd_shim.assert_cmd_shim_argv_safe`
   // (independent review N-03), which `build_interactive_opencode_command` calls before returning.
   opencode_local: "opencode",
-  llamacpp_local: "llama-cli",
+  // llama.cpp panes attach to the supervised server through the workspace's
+  // interactive Python client. llama-cli is optional and never starts a
+  // second model runtime behind the supervisor's back.
+  llamacpp_local: "python",
 };
 const FRONTIER_ADAPTERS = ["claude_code", "openai_codex_cli", "grok_build", "google_antigravity"];
 //: adapter -> the ONE subscription ref a frontier ticket for it may be counted against. Previously

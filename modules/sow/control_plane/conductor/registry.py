@@ -232,7 +232,7 @@ def _local_conductor_registrations(
     )
     # llama.cpp exposes ids through its local OpenAI-compatible endpoint.  Its model metadata is
     # runtime-owned, so it is admitted as a local conductor seat when the endpoint is reachable;
-    # the spawn path still requires a real llama-cli binary and VRAM admission.
+    # the spawn path still requires the supervised loopback router and its workspace client.
     try:
         from adapters import detect  # noqa: PLC0415
         llama_rows = tuple(ConductorModelRegistration(

@@ -437,15 +437,19 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
                                      else (op12_probes or _probe_op12_providers()))
     # the LAUNCHABLE runtime, not the reachable daemon — see `local_admission_reason`
     ollama_runtime = detect.ollama_executable() is not None
-    llamacpp_models = detect.llamacpp_models()
+    # Embedding endpoints are registered on the same router but cannot back an
+    # interactive chat pane.  Keep them in the product registry while excluding
+    # them from this chat-only picker.
+    llamacpp_models = [
+        model for model in detect.llamacpp_models()
+        if "embed" not in model.casefold()
+    ]
     llamacpp_runtime = bool(llamacpp_models)
-    llamacpp_cli = detect.llamacpp_executable() is not None
-    llamacpp_reason = None if llamacpp_runtime and llamacpp_cli and planner is not None else (
-        "the local llama.cpp server is unreachable or has no models; start llama-server"
+    llamacpp_client = detect.llamacpp_executable() is not None
+    llamacpp_reason = None if llamacpp_runtime and llamacpp_client else (
+        "the supervised local llama.cpp router is unreachable or has no registered models"
         if not llamacpp_runtime else
-        "llama.cpp is serving models, but no llama-cli executable is configured (set SOVEREIGN_LLAMACPP_CLI)"
-        if not llamacpp_cli else
-        "local VRAM admission could not be established — the Ollama residency planner is unavailable")
+        "the workspace Python executable for the llama.cpp endpoint client is unavailable")
     picker = build_pane_picker(
         live,
         ollama_models=ollama_models,
@@ -469,7 +473,7 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         antigravity=_op12_inventory(antigravity_probe),
         llamacpp_models=llamacpp_models,
         llamacpp_unavailable_reason=llamacpp_reason,
-        llamacpp_runtime_present=llamacpp_runtime and llamacpp_cli,
+        llamacpp_runtime_present=llamacpp_runtime and llamacpp_client,
     )
     meta = {
         "authorization": (local_only_authorization() if LOCAL_ONLY_MODE else live.as_dict()),
@@ -481,7 +485,9 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         ANTIGRAVITY_ADAPTER + "_probe": antigravity_probe.as_dict(),
         "ollama_enumerated": ollama_models,
         "llamacpp_enumerated": llamacpp_models,
-        "llamacpp_probe": {"server_reachable": llamacpp_runtime, "cli_configured": llamacpp_cli},
+        "llamacpp_probe": {"server_reachable": llamacpp_runtime,
+                           "endpoint_client_available": llamacpp_client,
+                           "llama_cli_required": False},
         "local_ceiling": {
             "nameplate_b": CEILING_NAMEPLATE_B,
             "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",
