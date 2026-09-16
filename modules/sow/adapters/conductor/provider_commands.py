@@ -23,6 +23,7 @@ from adapters.local.ollama_session import (
     OLLAMA_LOCAL_ADAPTER,
     build_interactive_ollama_command,
 )
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER, build_interactive_llamacpp_command
 from node_runtime.supervisor.codex_spawn import capability_for_codex
 from node_runtime.supervisor.frontier_spawn import capability_for_claude_code
 
@@ -87,6 +88,21 @@ def _resolve_local_model(requested: str | None) -> tuple[str | None, str]:
     return tag, f"local model {tag!r} (an `ollama list` tag on this host)"
 
 
+def _llamacpp_command(executable: str, model: str | None, _workspace: str) -> list[str]:
+    if not model:
+        raise ConductorProviderUnavailable("llama.cpp conductor needs a model id (fail closed)")
+    return build_interactive_llamacpp_command(executable, model=model)
+
+
+def capability_for_llamacpp_local() -> Any:
+    from adapters.base.contract import AdapterCapability  # noqa: PLC0415
+    return AdapterCapability(
+        adapter=LLAMACPP_LOCAL_ADAPTER, node_class="conductor", locality="local",
+        offline_profile_eligible=True, requires_network=False, local_runtime=True,
+        capabilities=("reasoning", "synthesis"), subscription_backed=False,
+    )
+
+
 def capability_for_ollama_local() -> Any:
     """The conductor-seat capability for a local model.
 
@@ -130,6 +146,15 @@ _COMMANDS: dict[str, ConductorProviderCommands] = {
         capability=capability_for_ollama_local,
         resolve_model=_resolve_local_model,
         build_command=_ollama_command,
+    ),
+    LLAMACPP_LOCAL_ADAPTER: ConductorProviderCommands(
+        adapter_id=LLAMACPP_LOCAL_ADAPTER,
+        executable_name="llama-cli",
+        resolve_executable=detect.llamacpp_executable,
+        capability=capability_for_llamacpp_local,
+        resolve_model=lambda model: ((model, f"local llama.cpp model {model!r}")
+                                     if model and model.strip() else (None, "no llama.cpp model id")),
+        build_command=_llamacpp_command,
     ),
 }
 

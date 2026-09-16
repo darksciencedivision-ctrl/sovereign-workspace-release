@@ -8,15 +8,9 @@ operator-run metric that captures those real inputs and prints the exact picker 
 selector would render — like `tools/spike_compositor` for the Phase-1 window, it is NOT part of
 pytest and makes no assertion; it records what the host actually reports.
 
-It performs NO frontier model call and touches NO credential (§2.2). Frontier availability is read
-from the enforced `LiveAuthorization` gate, the `codex` presence/auth probe, and — since 18B
-`.picker` — up to four bounded METADATA calls to the OP-12 CLIs (`grok --version`/`models`,
-`agy --version`/`models`). Those two are not purely local: `grok models` reaches grok.com to report
-the signed-in session (recorded in `_probe_op12_providers`). They are token-free, prompt-free and
-model-free, and they run whatever the live switch says, because the option set must be the CLI's
-own listing rather than a guess (D-P18-7). Local model footprints come from the Ollama daemon's own `/api/ps` (VRAM of
-running models) and `/api/tags` (on-disk size as a fallback estimate) — RECORDED as which, never
-fabricated. If the daemon is unreachable the local list is empty and that is reported honestly.
+In local-only mode it performs no frontier probe, model call, credential read, or network access to
+commercial providers. It enumerates Ollama over its loopback API and llama.cpp over its configured
+loopback OpenAI-compatible API, recording an empty list when either runtime is unreachable.
 
 Run (Windows host, operator):  py -3.12 tools/live/enumerate_pane_picker.py
   --emit-picker      the picker dict only (the shell's stable contract)
@@ -54,8 +48,10 @@ from adapters.local.model_ceiling import (
     classify_local_models,
     reasons_by_name,
 )
-from control_plane.nodes.pane_picker import ProviderCliInventory, build_pane_picker
+from control_plane.nodes.pane_picker import ProviderCliInventory, build_pane_picker, local_only_authorization
+from control_plane.local_only import LOCAL_ONLY_MODE, LOCAL_ONLY_REASON
 from control_plane.profiles.live_authorization import (
+    LiveAuthorization,
     LiveAuthorizationError,
     load_live_authorization,
 )
@@ -421,8 +417,11 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
     Returns `(picker, meta)` where `picker` is `build_pane_picker(...)` and `meta` carries the
     probe/enumeration provenance the full operator report prints.
     """
-    live = load_live_authorization()
-    codex = probe_codex()
+    # Local-only mode intentionally does not load the commercial authorization file or probe any
+    # cloud CLI.  This keeps the picker read-only and air-gapped even when those binaries happen to
+    # be installed on the host.
+    live = LiveAuthorization.denied(LOCAL_ONLY_REASON) if LOCAL_ONLY_MODE else load_live_authorization()
+    codex = None if LOCAL_ONLY_MODE else probe_codex()
     # ONE enumeration, classified ONCE (S-20). The records carry each model's parameter count,
     # capability list and on-disk size, which is what the operator's 8B ceiling needs to refuse a
     # model *and say why*. Every other local surface — the Conductor, Debate, SOVEREIGN — reads the
@@ -433,17 +432,27 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
     ceiling_reasons = reasons_by_name(ceiling_verdicts)
     planner, residency, prov = _host_residency()
     budget = _budget_from(prov)
-    claude_present = detect.claude_code_available()
-    grok_probe, antigravity_probe = op12_probes or _probe_op12_providers()
+    claude_present = False if LOCAL_ONLY_MODE else detect.claude_code_available()
+    grok_probe, antigravity_probe = ((no_op12_probes()) if LOCAL_ONLY_MODE
+                                     else (op12_probes or _probe_op12_providers()))
     # the LAUNCHABLE runtime, not the reachable daemon — see `local_admission_reason`
     ollama_runtime = detect.ollama_executable() is not None
+    llamacpp_models = detect.llamacpp_models()
+    llamacpp_runtime = bool(llamacpp_models)
+    llamacpp_cli = detect.llamacpp_executable() is not None
+    llamacpp_reason = None if llamacpp_runtime and llamacpp_cli and planner is not None else (
+        "the local llama.cpp server is unreachable or has no models; start llama-server"
+        if not llamacpp_runtime else
+        "llama.cpp is serving models, but no llama-cli executable is configured (set SOVEREIGN_LLAMACPP_CLI)"
+        if not llamacpp_cli else
+        "local VRAM admission could not be established — the Ollama residency planner is unavailable")
     picker = build_pane_picker(
         live,
         ollama_models=ollama_models,
         residency=residency,
         claude_available=claude_present,
-        codex_available=codex.present,
-        codex_authenticated=codex.authenticated,
+        codex_available=False if codex is None else codex.present,
+        codex_authenticated=False if codex is None else codex.authenticated,
         # What the operator is SHOWN must agree with what the admission gate will do (spec-audit
         # MAJOR-2 + validator MAJOR-A): with no established budget, or no launchable `ollama`
         # binary, every local pane is refused — so every local option is greyed with that reason
@@ -458,15 +467,21 @@ def build_host_picker(*, op12_probes: tuple[ProviderCliProbe, ProviderCliProbe] 
         # with the reason attached to the group (operator directive §8/§14).
         grok=_op12_inventory(grok_probe),
         antigravity=_op12_inventory(antigravity_probe),
+        llamacpp_models=llamacpp_models,
+        llamacpp_unavailable_reason=llamacpp_reason,
+        llamacpp_runtime_present=llamacpp_runtime and llamacpp_cli,
     )
     meta = {
-        "authorization": live.as_dict(),
+        "authorization": (local_only_authorization() if LOCAL_ONLY_MODE else live.as_dict()),
         "claude_probe": {"present": claude_present},
         "ollama_probe": {"runtime_on_path": ollama_runtime},
-        "codex_probe": {"present": codex.present, "authenticated": codex.authenticated},
+        "codex_probe": ({"skipped": LOCAL_ONLY_REASON} if LOCAL_ONLY_MODE else
+                        {"present": codex.present, "authenticated": codex.authenticated}),
         GROK_ADAPTER + "_probe": grok_probe.as_dict(),
         ANTIGRAVITY_ADAPTER + "_probe": antigravity_probe.as_dict(),
         "ollama_enumerated": ollama_models,
+        "llamacpp_enumerated": llamacpp_models,
+        "llamacpp_probe": {"server_reachable": llamacpp_runtime, "cli_configured": llamacpp_cli},
         "local_ceiling": {
             "nameplate_b": CEILING_NAMEPLATE_B,
             "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",

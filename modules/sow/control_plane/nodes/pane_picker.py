@@ -53,6 +53,7 @@ from adapters.frontier.codex import (
 )
 from adapters.frontier.grok_build import GROK_ADAPTER, GROK_DISPLAY, GrokCliBackend
 from control_plane.profiles.live_authorization import LiveAuthorization
+from control_plane.local_only import LOCAL_ONLY_MODE, LOCAL_ONLY_REASON
 from scheduler.residency_planner.residency_planner import NOT_LOADED, UNKNOWN
 
 # Frontier provider identities. For these two the id IS the frozen node.schema.json adapter enum
@@ -121,6 +122,7 @@ _LOCAL_PROVIDER = "ollama_local"
 #: table with the authorizer's real dispatch set, so an id that drifts out of the supervisor stops
 #: being reported as registered instead of quietly becoming unspawnable.
 _OPENCODE_PROVIDER = "opencode_local"
+_LLAMACPP_PROVIDER = "llamacpp_local"
 
 
 # THE picker's provider table: (provider id, display, locality). One declaration, from which the
@@ -128,14 +130,15 @@ _OPENCODE_PROVIDER = "opencode_local"
 # would let the next sub-step add a provider to one and not the other — and the failure mode that
 # hides is the bad one: a live, money-spending frontier terminal with no n/allowance counter in the
 # status bar (invariant 27). Adding a provider here is the ONE edit that wires it everywhere.
-_PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
+_FRONTIER_PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     (_ANTHROPIC, "Anthropic (claude CLI)", "frontier"),
     (_OPENAI, "OpenAI (codex CLI)", "frontier"),
-    # OP-12. The display strings are the operator directive's §14 SELECTABLE LABELS verbatim, taken
-    # from the adapter modules that publish them rather than re-typed here — §14 also forbids showing
-    # "Gemini CLI" for this path, and a second spelling is how that creeps back in.
     (GROK_ADAPTER, GROK_DISPLAY, "frontier"),
     (ANTIGRAVITY_ADAPTER, ANTIGRAVITY_DISPLAY, "frontier"),
+)
+_PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
+    _FRONTIER_PROVIDER_TABLE if not LOCAL_ONLY_MODE else ()
+    ) + (
     # EPC-04. Locality "local" is load-bearing, not cosmetic: it keeps these options out of
     # `registered_frontier_providers()`, and therefore out of the status bar's n/allowance
     # counters — an OpenCode pane holds no subscription terminal and counting one would advertise
@@ -149,7 +152,19 @@ _PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     # scrolling. A handful of coding options ahead of a 71-row list costs that list nothing.
     (_OPENCODE_PROVIDER, "OpenCode (local harness)", "local"),
     (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
-)
+    (_LLAMACPP_PROVIDER, "Local (llama.cpp)", "local"),
+    )
+
+
+def local_only_authorization() -> dict[str, Any]:
+    """Authorization provenance for the local-only deployment.
+
+    Local models do not require the commercial live-operation switch.  Returning an explicit local
+    policy record prevents an absent ``live_operation.json`` from being rendered as if local access
+    itself were denied.
+    """
+    return {"authorized": True, "mode": "local_only", "providers": [p for p, _d, _l in _PROVIDER_TABLE],
+            "frontier_disabled": True, "reason": LOCAL_ONLY_REASON}
 
 
 def registered_providers() -> frozenset[str]:
@@ -172,11 +187,13 @@ def registered_providers() -> frozenset[str]:
     registered."""
     from node_runtime.supervisor.worker_pane_spawn import (  # noqa: PLC0415 — import cycle
         FRONTIER_PANE_ADAPTERS,
+        LLAMACPP_LOCAL_ADAPTER,
         OLLAMA_LOCAL_ADAPTER,
         OPENCODE_LOCAL_ADAPTER,
     )
 
     dispatchable = frozenset(FRONTIER_PANE_ADAPTERS) | {OLLAMA_LOCAL_ADAPTER,
+                                                        LLAMACPP_LOCAL_ADAPTER,
                                                         OPENCODE_LOCAL_ADAPTER}
     return frozenset(p for p, _display, _locality in _PROVIDER_TABLE) & dispatchable
 
@@ -463,7 +480,10 @@ def _detect_opencode() -> bool:
 
 def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
                    unavailable_reason: str | None = None,
-                   ceiling_reasons: dict[str, str] | None = None) -> list[dict[str, Any]]:
+                   ceiling_reasons: dict[str, str] | None = None,
+                   *, provider: str = _LOCAL_PROVIDER,
+                   display_prefix: str = "",
+                   runtime_note: str = "local model enumerated live from the Ollama daemon (§2.4, no credential)") -> list[dict[str, Any]]:
     """One option per live-enumerated Ollama model, annotated with its residency state. Local
     models carry no credential (§2.4) so they are always OFFERED; an empty enumeration yields an
     empty list (recorded as count 0 — never a fabricated model).
@@ -499,11 +519,11 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
             continue
         seen.add(name)
         options.append({
-            "provider": _LOCAL_PROVIDER,
-            "adapter": _LOCAL_PROVIDER,
+            "provider": provider,
+            "adapter": provider,
             "locality": "local",
             "subscription_backed": False,
-            "label": name,
+            "label": f"{display_prefix}{name}",
             "model_slug": name,             # local model tag is the real, verified id
             "verified": True,
             "is_fallback": False,
@@ -538,9 +558,28 @@ def _local_options(ollama_models: list[str], residency: dict[str, str] | None,
             # "excluded from selection with a stated reason, not silently hidden").
             "available": reason_for(name) is None,
             "unavailable_reason": reason_for(name),
-            "note": "local model enumerated live from the Ollama daemon (§2.4, no credential)",
+            "note": runtime_note,
         })
     return sorted(options, key=lambda o: o["label"])
+
+
+def _llamacpp_options(models: list[str], residency: dict[str, str] | None = None, *,
+                      unavailable_reason: str | None = None,
+                      runtime_present: bool = False) -> list[dict[str, Any]]:
+    """Build local llama.cpp options from the server's own model listing."""
+    reason = unavailable_reason
+    if reason is None and not runtime_present:
+        reason = ("the local llama.cpp server is not reachable at its configured loopback endpoint; "
+                  "start llama-server or set SOVEREIGN_LLAMACPP_HOST")
+    options = _local_options(
+        models, residency, reason, {}, provider=_LLAMACPP_PROVIDER,
+        runtime_note=("local model enumerated live from the llama.cpp /v1/models endpoint; "
+                      "no credential or cloud fallback is available"),
+    )
+    for option in options:
+        option["roles"] = ["reasoning"]
+        option["conductor_capable"] = False
+    return options
 
 
 #: Substrings that mark a local model as CODE-ORIENTED. An OpenCode pane will technically start
@@ -608,12 +647,15 @@ def build_pane_picker(
     live: LiveAuthorization,
     *,
     ollama_models: list[str] | None = None,
+    llamacpp_models: list[str] | None = None,
     residency: dict[str, str] | None = None,
     claude_available: bool = False,
     codex_available: bool = False,
     codex_authenticated: bool = False,
     local_unavailable_reason: str | None = None,
     local_ceiling_reasons: dict[str, str] | None = None,
+    llamacpp_unavailable_reason: str | None = None,
+    llamacpp_runtime_present: bool = False,
     opencode_present: bool | None = None,
     grok: ProviderCliInventory | None = None,
     antigravity: ProviderCliInventory | None = None,
@@ -652,11 +694,15 @@ def build_pane_picker(
     # NOT `residency or {}`: `None` (no residency view) and `{}` (a planner that reports nothing
     # resident) are different facts and must render differently.
 
-    anthropic = _anthropic_options(live, claude_available=claude_available)
-    openai = _openai_options(live, codex_available=codex_available,
-                             codex_authenticated=codex_authenticated)
-    grok_options, grok_reason = _op12_options(GROK_ADAPTER, live, grok)
-    antigravity_options, antigravity_reason = _op12_options(ANTIGRAVITY_ADAPTER, live, antigravity)
+    anthropic = (_anthropic_options(live, claude_available=claude_available)
+                 if not LOCAL_ONLY_MODE else [])
+    openai = (_openai_options(live, codex_available=codex_available,
+                              codex_authenticated=codex_authenticated)
+              if not LOCAL_ONLY_MODE else [])
+    grok_options, grok_reason = ((_op12_options(GROK_ADAPTER, live, grok))
+                                 if not LOCAL_ONLY_MODE else ([], None))
+    antigravity_options, antigravity_reason = ((_op12_options(ANTIGRAVITY_ADAPTER, live, antigravity))
+                                               if not LOCAL_ONLY_MODE else ([], None))
     local = _local_options(ollama_models, residency, local_unavailable_reason,
                            local_ceiling_reasons)
     opencode = _opencode_options(
@@ -664,14 +710,19 @@ def build_pane_picker(
         # None ⇒ probe the real host; the suite injects a value so the option set does not
         # depend on what happens to be installed on the machine running it.
         opencode_present=(_detect_opencode() if opencode_present is None else opencode_present))
+    llamacpp = _llamacpp_options(llamacpp_models or [], residency,
+                                 unavailable_reason=llamacpp_unavailable_reason,
+                                 runtime_present=llamacpp_runtime_present)
 
     # Groups come from the ONE provider table, so `registered_providers()` cannot claim a provider
     # this list does not render (or vice versa).
     by_provider = {_ANTHROPIC: anthropic, _OPENAI: openai, GROK_ADAPTER: grok_options,
                    ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local,
-                   _OPENCODE_PROVIDER: opencode}
+                   _OPENCODE_PROVIDER: opencode, _LLAMACPP_PROVIDER: llamacpp}
     reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason,
-               _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason)}
+               _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason),
+               _LLAMACPP_PROVIDER: (llamacpp_unavailable_reason or
+                                    (None if llamacpp else "no models enumerated from the llama.cpp server"))}
     providers = [{"provider": p, "display": display, "options": by_provider[p],
                   "status": _group_status(by_provider[p], reasons.get(p))}
                  for p, display, _locality in _PROVIDER_TABLE]
@@ -692,7 +743,7 @@ def build_pane_picker(
     return {
         "providers": providers,
         "options": flat,
-        "authorization": live.as_dict(),
+        "authorization": (local_only_authorization() if LOCAL_ONLY_MODE else live.as_dict()),
         "counts": {
             "total": len(flat),
             "available": sum(1 for o in flat if o["available"]),

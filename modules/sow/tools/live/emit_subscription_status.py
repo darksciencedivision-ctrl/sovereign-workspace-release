@@ -66,6 +66,7 @@ from control_plane.profiles.live_authorization import (  # noqa: E402
     LiveAuthorizationError,
     load_live_authorization,
 )
+from control_plane.local_only import LOCAL_ONLY_MODE, LOCAL_ONLY_REASON  # noqa: E402
 from node_runtime.supervisor.subscription_governor import (  # noqa: E402
     SubscriptionGovernor,
     canonical_subscription_ref,
@@ -131,6 +132,17 @@ def build_subscription_status_feed(
     in tests exactly as a live spawn would `acquire()`; the shell contract passes no `held`, so
     `in_use` is a truthful 0 (no live frontier terminal is held by the non-interactive shell —
     live drive is operator-run / 16F). No model call, no credential (§2.2/§2.4)."""
+    if LOCAL_ONLY_MODE and live_auth is None:
+        return {
+            "schema": SUBSCRIPTION_STATUS_FEED_SCHEMA, "authorized": True, "providers": [],
+            "allowance": 0, "allowance_by_provider": {}, "register_row": None,
+            "source": "local_only_policy", "reason": LOCAL_ONLY_REASON, "status": {},
+            "durable_leases": {"seeded": {}, "error": None},
+            "live_session_tracking": {"owed": False, "issue": None,
+                                       "conductor_counted": False, "worker_counted": False,
+                                       "ledger_error": None,
+                                       "note": "commercial subscription accounting disabled by local-only policy"},
+        }
     if live_auth is not None:
         auth: LiveAuthorization | None = live_auth
         auth_err: str | None = None

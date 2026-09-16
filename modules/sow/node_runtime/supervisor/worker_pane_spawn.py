@@ -77,6 +77,11 @@ from adapters.local.ollama_session import (
     OLLAMA_LOCAL_ADAPTER,
     build_interactive_ollama_command,
 )
+from adapters.local.llamacpp import (
+    LLAMACPP_LOCAL_ADAPTER,
+    build_interactive_llamacpp_command,
+)
+from control_plane.local_only import frontier_disabled, LOCAL_ONLY_REASON
 from control_plane.profiles.live_authorization import LiveAuthorization
 from control_plane.profiles.loader import ProfileLoader
 from node_runtime.supervisor.codex_spawn import CodexCliUnavailable, capability_for_codex
@@ -186,6 +191,7 @@ GATE_VRAM_BUDGET_MISMATCH = "vram_budget_mismatch"
 GATE_UNKNOWN_ADAPTER = "unknown_adapter"  # outside the OP-6 + local scope
 #: the resolved binary disagreed with the gate that was told the CLI is present (fail-closed)
 GATE_BINARY_UNRESOLVED = "binary_unresolved"
+GATE_LOCAL_ONLY = "local_only_policy"
 
 
 class WorkerPaneRefused(Exception):
@@ -430,6 +436,7 @@ def authorize_worker_pane(
     model_available: bool | None = None,
     cli_present: bool | None = None,
     ollama_present: bool | None = None,
+    llamacpp_present: bool | None = None,
     executable: str | None = None,
     shell_env_names: list[str] | None = None,
 ) -> WorkerPaneSession:
@@ -448,6 +455,9 @@ def authorize_worker_pane(
     opt = selection.option
     adapter_id = opt.get("adapter")
     if adapter_id in FRONTIER_PANE_ADAPTERS:
+        if frontier_disabled(adapter_id):
+            raise WorkerPaneRefused(f"{LOCAL_ONLY_REASON}: {adapter_id!r} cannot be spawned",
+                                    gate=GATE_LOCAL_ONLY)
         return _authorize_frontier(
             selection, adapter_id=adapter_id, live_auth=live_auth, governor=governor,
             profile_loader=profile_loader, operator_terms_confirmed=operator_terms_confirmed,
@@ -466,10 +476,15 @@ def authorize_worker_pane(
             selection, workspace=workspace, residency_planner=residency_planner,
             residency_budget=residency_budget, ollama_present=ollama_present, executable=executable,
             shell_env_names=shell_env_names, worktree_manager=worktree_manager)
+    if adapter_id == LLAMACPP_LOCAL_ADAPTER:
+        return _authorize_llamacpp_local(
+            selection, workspace=workspace, residency_planner=residency_planner,
+            residency_budget=residency_budget, llamacpp_present=llamacpp_present,
+            executable=executable, shell_env_names=shell_env_names)
     raise WorkerPaneRefused(
         f"unknown adapter {adapter_id!r} in selection — this build authorizes live panes for "
         f"{'/'.join(sorted(FRONTIER_PANE_ADAPTERS))} (OP-6 + OP-12 scope) and "
-        f"{OLLAMA_LOCAL_ADAPTER}/{OPENCODE_LOCAL_ADAPTER} only (fail closed; a new provider "
+        f"{OLLAMA_LOCAL_ADAPTER}/{LLAMACPP_LOCAL_ADAPTER}/{OPENCODE_LOCAL_ADAPTER} only (fail closed; a new provider "
         f"needs a new operator "
         f"authorization)", gate=GATE_UNKNOWN_ADAPTER)
 
@@ -820,6 +835,49 @@ def _authorize_local(
         # fallback shape here was dead code that read as if an unestablished budget could reach an
         # authorized ticket — it cannot, and code that implies otherwise is a false disclosure.
         residency_budget=dict(budget),
+        subscription_governed=False, _release=None)
+
+
+def _authorize_llamacpp_local(
+    selection: PaneSelection,
+    *,
+    workspace: str,
+    residency_planner: ResidencyPlanner | None,
+    residency_budget: dict[str, Any] | None,
+    llamacpp_present: bool | None,
+    executable: str | None,
+    shell_env_names: list[str] | None = None,
+) -> WorkerPaneSession:
+    """Authorize a reasoning pane backed by a locally installed llama.cpp CLI."""
+    if selection.role != "reasoning":
+        raise WorkerPaneRefused("llama.cpp interactive panes currently support reasoning only",
+                                gate=GATE_WORKER_ROLE)
+    model = selection.option.get("model_slug")
+    if not model:
+        raise SpawnRefused("llama.cpp selection has no model_slug — fail closed")
+    from adapters import detect
+    resolved = executable or detect.llamacpp_executable()
+    present = bool(resolved) if llamacpp_present is None else bool(llamacpp_present)
+    if not present:
+        raise WorkerPaneRefused(
+            "the local llama.cpp CLI is not configured or not on PATH — set "
+            "SOVEREIGN_LLAMACPP_CLI or install llama-cli (fail closed)", gate=GATE_RUNTIME_ABSENT)
+    exe = _resolved_binary(resolved, LLAMACPP_LOCAL_ADAPTER)
+    argv, decision, budget = _reserve_local_vram(
+        residency_planner, residency_budget, model,
+        lambda: build_interactive_llamacpp_command(exe, model=model))
+    chrome = WorkerPaneChrome(
+        provider=LLAMACPP_LOCAL_ADAPTER, adapter=LLAMACPP_LOCAL_ADAPTER, locality="local",
+        model_label=selection.option.get("label", model), model_slug=model,
+        model_verified=bool(selection.option.get("verified", False)), is_fallback=False,
+        role=selection.role, mode=selection.mode, node_id=selection.node_id,
+        node_state=_AUTHORIZED_NOT_STARTED, subscription=None, residency=decision.status)
+    launch = _launch(argv, executable=exe, cwd=str(workspace), shell_env_names=shell_env_names,
+                     note=("interactive llama.cpp local worker session; no subscription, credential, "
+                           "or cloud fallback is involved — VRAM residency governs it"))
+    return WorkerPaneSession(
+        chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
+        residency_decision=decision.as_dict(), residency_budget=dict(budget),
         subscription_governed=False, _release=None)
 
 

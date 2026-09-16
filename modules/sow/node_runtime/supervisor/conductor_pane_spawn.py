@@ -57,6 +57,7 @@ from adapters.conductor.provider_commands import (
     scrubbed_environment,
 )
 from control_plane.conductor.registry import ConductorDescriptor, resolve_conductor_descriptor
+from control_plane.local_only import LOCAL_ONLY_REASON, frontier_disabled
 from control_plane.conductor.selection import (
     OPERATOR_SELECTED_CONDUCTOR,
     ConductorSelection,
@@ -312,6 +313,8 @@ def spawn_conductor_pane(
     if descriptor is not None and desc.permission_profile_id != permission_profile_id:
         raise ConductorPaneRefused("selection permission profile does not match launch identity")
     provider = desc.adapter_id
+    if frontier_disabled(provider) or desc.locality == "frontier":
+        raise ConductorPaneRefused(f"{LOCAL_ONLY_REASON}: commercial conductor panes are disabled")
     provider_commands = commands_for(provider)
 
     if not node_id:

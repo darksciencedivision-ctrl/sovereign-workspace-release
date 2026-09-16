@@ -5,12 +5,16 @@ mock stands in; the decision is recorded in evidence, never hidden.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import urllib.error
 import urllib.request
 
 OLLAMA_HOST = "http://127.0.0.1:11434"
+# llama.cpp's OpenAI-compatible server.  Both endpoints are loopback-only by default and can be
+# changed for a separately managed local instance without introducing a cloud fallback.
+LLAMACPP_HOST = os.environ.get("SOVEREIGN_LLAMACPP_HOST", "http://127.0.0.1:5183").rstrip("/")
 # F-016. Loopback Ollama only; force a direct connection past any configured proxy.
 _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -94,6 +98,61 @@ def ollama_models(timeout: float = 3.0) -> list[str]:
     argv. The separate "no argv builder validates a `--model` value" surface is W-51.
     """
     return [m["name"] for m in ollama_model_records(timeout=timeout)]
+
+
+def llamacpp_model_records(timeout: float = 3.0) -> list[dict]:
+    """Return model ids reported by a local llama.cpp server.
+
+    llama-server versions expose either the OpenAI ``/v1/models`` shape or the older ``/models``
+    shape.  Parse both, validate ids, and return an empty list on any transport or payload error.
+    This is detection only: it never downloads a model or contacts a non-loopback endpoint unless
+    the operator explicitly configured one with ``SOVEREIGN_LLAMACPP_HOST``.
+    """
+    for path in ("/v1/models", "/models"):
+        try:
+            with _NO_PROXY_OPENER.open(f"{LLAMACPP_HOST}{path}", timeout=timeout) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            entries = data.get("data", []) if isinstance(data, dict) else []
+            if not entries and isinstance(data, dict):
+                entries = data.get("models", [])
+            rows: list[dict] = []
+            for item in entries if isinstance(entries, list) else []:
+                if isinstance(item, str):
+                    model_id = item
+                    item = {"id": item}
+                elif isinstance(item, dict):
+                    model_id = item.get("id") or item.get("name")
+                else:
+                    continue
+                if isinstance(model_id, str) and model_id.strip() and not any(c.isspace() for c in model_id):
+                    rows.append({**item, "name": model_id})
+            if rows or path == "/models":
+                return rows
+        except (urllib.error.URLError, OSError, json.JSONDecodeError,
+                TypeError, AttributeError):
+            continue
+    return []
+
+
+def llamacpp_models(timeout: float = 3.0) -> list[str]:
+    return [row["name"] for row in llamacpp_model_records(timeout=timeout)]
+
+
+def llamacpp_available(timeout: float = 3.0) -> bool:
+    return bool(llamacpp_model_records(timeout=timeout))
+
+
+def llamacpp_executable() -> str | None:
+    """Resolve a locally installed llama.cpp interactive CLI, if configured or on PATH."""
+    import os
+    configured = os.environ.get("SOVEREIGN_LLAMACPP_CLI", "").strip()
+    if configured and shutil.which(configured):
+        return shutil.which(configured)
+    for name in ("llama-cli", "llama-cli.exe", "llama-cli.cmd"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
 
 
 def opencode_available() -> bool:

@@ -13,6 +13,8 @@ from typing import Any, Iterable, Mapping
 from adapters.frontier.claude_code import CLAUDE_CODE_ADAPTER
 from adapters.frontier.codex import CODEX_ADAPTER
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER
+from control_plane.local_only import LOCAL_ONLY_MODE, LOCAL_ONLY_REASON, frontier_disabled
 from node_runtime.supervisor.subscription_governor import canonical_subscription_ref
 
 CONDUCTOR_PERMISSION_PROFILE = "pp-conductor-pane"
@@ -216,7 +218,7 @@ def _local_conductor_registrations(
             verdicts = classify_local_models(detect.ollama_model_records())
         except Exception:
             verdicts = ()
-    return tuple(
+    ollama_rows = tuple(
         ConductorModelRegistration(
             provider_id=OLLAMA_LOCAL_ADAPTER,
             adapter_id=OLLAMA_LOCAL_ADAPTER,
@@ -228,6 +230,18 @@ def _local_conductor_registrations(
         )
         for v in verdicts if getattr(v, "admitted", False)
     )
+    # llama.cpp exposes ids through its local OpenAI-compatible endpoint.  Its model metadata is
+    # runtime-owned, so it is admitted as a local conductor seat when the endpoint is reachable;
+    # the spawn path still requires a real llama-cli binary and VRAM admission.
+    try:
+        from adapters import detect  # noqa: PLC0415
+        llama_rows = tuple(ConductorModelRegistration(
+            provider_id=LLAMACPP_LOCAL_ADAPTER, adapter_id=LLAMACPP_LOCAL_ADAPTER,
+            model_id=name, display_name=name, conductor_capable=True, worker_capable=True,
+            locality="local") for name in detect.llamacpp_models())
+    except Exception:
+        llama_rows = ()
+    return ollama_rows + llama_rows
 
 
 def registered_conductor_models(
@@ -240,7 +254,7 @@ def registered_conductor_models(
     LOCAL-01 this returned three rows, all frontier, so no local model could ever be a registered
     conductor-capable combination and `resolve_conductor_descriptor` failed closed on every one.
     """
-    frontier = tuple(m for m in CONDUCTOR_MODEL_REGISTRY if m.conductor_capable)
+    frontier = () if LOCAL_ONLY_MODE else tuple(m for m in CONDUCTOR_MODEL_REGISTRY if m.conductor_capable)
     return frontier + _local_conductor_registrations(local_verdicts)
 
 
@@ -254,6 +268,8 @@ def resolve_conductor_descriptor(
     workspace_refusal: str | None = None,
     local_verdicts: Iterable[Any] | None = None,
 ) -> ConductorDescriptor:
+    if frontier_disabled(provider_id):
+        raise ConductorRegistryError(f"{LOCAL_ONLY_REASON}: {provider_id!r} cannot be selected as conductor")
     match = next(
         (m for m in registered_conductor_models(local_verdicts)
          if m.provider_id == provider_id and m.model_id == model_id),
@@ -346,6 +362,8 @@ def load_runtime_conductor_descriptor(path: Path | str | None = None) -> Conduct
 
     resolved = Path(path) if path is not None else _LIVE_CONFIG
     if not resolved.exists():
+        if LOCAL_ONLY_MODE:
+            raise ConductorRegistryError(f"{LOCAL_ONLY_REASON}; select an enumerated local model")
         return resolve_conductor_descriptor(CLAUDE_CODE_ADAPTER, "fable-5",
                                             selection_source="recorded_default_selection")
     try:
@@ -354,6 +372,8 @@ def load_runtime_conductor_descriptor(path: Path | str | None = None) -> Conduct
         raise ConductorRegistryError(f"cannot read conductor preference from {resolved}: {exc}") from exc
     pref = raw.get("conductor") if isinstance(raw, dict) else None
     if pref is None:
+        if LOCAL_ONLY_MODE:
+            raise ConductorRegistryError(f"{LOCAL_ONLY_REASON}; select an enumerated local model")
         return resolve_conductor_descriptor(CLAUDE_CODE_ADAPTER, "fable-5",
                                             selection_source="recorded_default_selection")
     return descriptor_from_mapping(pref, selection_source="live_operation_preference")

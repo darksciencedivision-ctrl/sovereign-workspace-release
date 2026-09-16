@@ -1159,6 +1159,10 @@ const PickerChrome = window.PickerChrome; // pure picker/status-bar chrome (load
 function renderStatusBar(model) {
   lastStatusModel = model || null; // cached so a pane's frontier n/2 badge reads the same live count
   const bar = document.getElementById("statusbar");
+  if (model && (model.source === "local_only_policy" || model.local_only === true)) {
+    bar.innerHTML = `<span class="sb-label">local-only</span><span class="dim">commercial cloud subscriptions disabled</span>`;
+    return;
+  }
   const rows = (model && Array.isArray(model.rows)) ? model.rows : [];
   const chips = rows.map((r) => {
     const label = PickerChrome.providerLabel(r.provider);
@@ -1237,7 +1241,8 @@ function renderPicker(model) {
   // `picker.options` and each provider group's `options` are separately decoded objects. Object
   // identity therefore cannot join them; use the provider/model identity from the source contract.
   const idxOf = new Map(flat.map((o, i) => [PickerChrome.optionKey(o), i]));
-  const authLine = `<div class="pk-auth ${auth.authorized ? "ok" : "denied"}">${auth.authorized ? "live authorized" : "live DENIED (fail-closed)"} — ${esc(auth.reason || "")}</div>`;
+  const localOnly = auth.mode === "local_only";
+  const authLine = `<div class="pk-auth ${auth.authorized ? "ok" : "denied"}">${localOnly ? "LOCAL-ONLY (cloud disabled)" : (auth.authorized ? "live authorized" : "live DENIED (fail-closed)")} — ${esc(auth.reason || "")}</div>`;
   const target = pickerTarget ? `target pane: ${esc(pickerTarget)}` : "target: new pane";
   const groups = (picker.providers || []).filter((g) => !conductorTarget
     || (g.options || []).some((o) => idxOf.has(PickerChrome.optionKey(o)))).map((g) => {

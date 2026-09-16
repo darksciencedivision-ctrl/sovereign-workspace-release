@@ -52,6 +52,7 @@ from adapters.base.backend import Backend
 from adapters.coding.opencode.harness import CodingHarness, HarnessProbe
 from adapters.frontier.claude_code import CLAUDE_CODE_ADAPTER
 from adapters.frontier.codex import CODEX_ADAPTER
+from control_plane.local_only import frontier_disabled, LOCAL_ONLY_REASON
 from adapters.local.worker import LocalWorkerAdapter
 from control_plane.profiles.live_authorization import LiveAuthorization
 from control_plane.profiles.loader import ProfileLoader
@@ -234,6 +235,8 @@ def spawn_node_from_selection(
     assert_selection_spawnable(selection)   # the ONE shared fail-closed selection guard
     opt = selection.option
     adapter_id = opt.get("adapter")
+    if frontier_disabled(adapter_id):
+        raise SpawnRefused(f"{LOCAL_ONLY_REASON}: {adapter_id!r} cannot be spawned")
     if adapter_id in (CLAUDE_CODE_ADAPTER, CODEX_ADAPTER):
         return _spawn_frontier(
             selection, adapter_id=adapter_id, live=live, governor=governor,

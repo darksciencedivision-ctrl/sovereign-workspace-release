@@ -119,7 +119,8 @@ async function fetchStatusBarModelFromGovernor(opts = {}) {
     // U255's residue — the ceiling was supposed to be SOURCED from the feed (spec-audit Md-4).
     const model = buildStatusBarModel({ status: feed.status,             // status:null ⇒ unknown
       allowanceByProvider: feed.allowance_by_provider || null });
-    const out = { ...model, summary: summarizeStatusBar(model), source: "emitter", feedAuthorized: !!feed.authorized };
+    const out = { ...model, summary: summarizeStatusBar(model), source: "emitter",
+      local_only: feed.source === "local_only_policy", feedAuthorized: !!feed.authorized };
     if (!feed.authorized) out.error = feed.reason || "live operation not authorized (fail-closed)";
     return out;
   } catch (e) {
