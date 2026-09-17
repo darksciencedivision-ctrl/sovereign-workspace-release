@@ -353,6 +353,16 @@ function createWorkerPaneLauncher(deps = {}) {
     // redirect or inject into an npm-installed Node CLI, and the provider prefix/substring nets
     // catch a credential the ticket's author never thought to list.
     env = scrubCredentialEnv(env);
+    // OpenCode's sole local provider is the loopback llama.cpp router.  Its
+    // router key is not a cloud credential and is restored only for this
+    // exact local adapter after the general credential scrub.  No frontier
+    // pane receives it.
+    const localLlamaKeyName = "SOVEREIGN_LLAMA_CPP_API_KEY";
+    const isOpenCodeLocal = ticket?.chrome?.adapter === "opencode_local"
+      && ticket?.chrome?.locality === "local";
+    if (isOpenCodeLocal && baseEnv[localLlamaKeyName]) {
+      env[localLlamaKeyName] = baseEnv[localLlamaKeyName];
+    }
     // The shell mints this child's capabilities HERE — after both scrub stages, so the scrub cannot
     // delete what the launch just granted, and before stage 4, so the assertion sees the real env.
     env = augmentSpawnEnv(env, { ticket, paneId: pid, sessionId, identity });
@@ -361,7 +371,9 @@ function createWorkerPaneLauncher(deps = {}) {
     // review found missing elsewhere as "measured in the wrong process": it looks at `env` as it is
     // about to be spawned with, after the shell has minted this child's capabilities, so a
     // compromised or simply buggy `augmentSpawnEnv` cannot introduce a credential behind the scrub.
-    const classified = credentialNamesIn(env);
+    const classified = credentialNamesIn(
+      env, isOpenCodeLocal ? [localLlamaKeyName] : [],
+    );
     if (classified.length) {
       // NAMES only (§2.2) — never a value, not even in a refusal.
       const why = `${classified.length} credential-classified name(s) reached the child environment `

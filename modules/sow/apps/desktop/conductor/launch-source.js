@@ -556,10 +556,13 @@ const SHELL_MINTED_CAPABILITY_NAMES = Object.freeze([
  * 3 having run is not the same fact as the child being clean, and the review found that distinction
  * being lost ("measured in the wrong process").
  */
-function credentialNamesIn(env) {
+function credentialNamesIn(env, allowedNames = []) {
   const minted = new Set(SHELL_MINTED_CAPABILITY_NAMES.map((n) => n.toUpperCase()));
+  const allowed = new Set((allowedNames || []).map((n) => String(n).toUpperCase()));
   return Object.keys(env || {})
-    .filter((k) => isCredentialEnvName(k) && !minted.has(String(k).toUpperCase()));
+    .filter((k) => isCredentialEnvName(k)
+      && !minted.has(String(k).toUpperCase())
+      && !allowed.has(String(k).toUpperCase()));
 }
 
 /**
