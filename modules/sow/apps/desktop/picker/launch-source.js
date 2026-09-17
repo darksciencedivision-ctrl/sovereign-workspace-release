@@ -121,6 +121,7 @@ const ADAPTER_EXECUTABLE = {
   // interactive Python client. llama-cli is optional and never starts a
   // second model runtime behind the supervisor's back.
   llamacpp_local: "python",
+  powershell_local: ["pwsh", "powershell"],
 };
 const FRONTIER_ADAPTERS = ["claude_code", "openai_codex_cli", "grok_build", "google_antigravity"];
 //: adapter -> the ONE subscription ref a frontier ticket for it may be counted against. Previously
@@ -197,6 +198,7 @@ function frontierClaim(t) {
   const adapter = chrome.adapter;
   const expected = ADAPTER_EXECUTABLE[adapter];
   if (!expected) return null;                         // unknown/absent adapter — never assumed local
+  const allowed = Array.isArray(expected) ? expected : [expected];
   const argv = Array.isArray(launch.argv) ? launch.argv : [];
   // No argument may carry a shell metacharacter — see SHELL_METACHARACTERS.
   if (argv.some((a) => SHELL_METACHARACTERS.test(String(a)))) return null;
@@ -210,8 +212,8 @@ function frontierClaim(t) {
   // `executable` at `claude.exe` would run an uncounted frontier terminal), while `argv[0]` is what
   // the process sees as its own name. Each has its own test (`worker-launch-source.test.js`) —
   // deleting either line alone used to leave the suite green (validator MAJOR-1).
-  if (executableBasename(launch.executable) !== expected) return null;
-  if (executableBasename(argv[0]) !== expected) return null;
+  if (!allowed.includes(executableBasename(launch.executable))) return null;
+  if (!allowed.includes(executableBasename(argv[0]))) return null;
   const byAdapter = FRONTIER_ADAPTERS.includes(adapter);
   if ((chrome.locality === "frontier") !== byAdapter) return null;
   const ref = typeof id.subscription_ref === "string" ? id.subscription_ref.trim() : "";

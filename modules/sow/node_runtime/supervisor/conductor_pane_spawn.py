@@ -51,6 +51,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from adapters.frontier.claude_code import CLAUDE_CODE_ADAPTER
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER
 from adapters.conductor.provider_commands import (
     ConductorProviderUnavailable,
     commands_for,
@@ -225,13 +226,19 @@ def _spawn_local_conductor_pane(
         profile_loader.check_eligible(cap)
     resolved_executable = provider_commands.resolve_executable()
     present = bool(resolved_executable) if cli_present is None else cli_present
+    if desc.adapter_id == LLAMACPP_LOCAL_ADAPTER and cli_present is None:
+        from adapters import detect
+        present = bool(resolved_executable) and detect.llamacpp_available()
+    runtime_label = ("supervised llama.cpp loopback router"
+                     if desc.adapter_id == LLAMACPP_LOCAL_ADAPTER
+                     else "local `ollama` runtime")
     if not present:
         raise ConductorProviderUnavailable(
-            "the local `ollama` runtime is not on this host's PATH — cannot open a local conductor "
+            f"the {runtime_label} is not available — cannot open a local conductor "
             "pane (fail closed)")
     if launcher is None and not resolved_executable:
         raise ConductorProviderUnavailable(
-            "the local `ollama` runtime did not resolve to a real binary — refusing to hand a bare "
+            f"the {runtime_label} did not resolve to a real binary — refusing to hand a bare "
             "name to the ConPTY, which would decide what runs after the gate ran (fail closed)")
 
     requested = model if model is not None else desc.model_id
@@ -262,10 +269,15 @@ def _spawn_local_conductor_pane(
         "env_credential_scrubbed": True,
         "launched": launched,
         "subscription_governed": False,
-        "note": ("interactive `ollama run` session for the operator's live CONDUCTOR chat pane; no "
-                 "subscription and no credential is involved (invariant 19). VRAM residency "
-                 "admission is NOT applied to a conductor pane — the operator's 8B ceiling is what "
-                 "bounds this selection (LOCAL-01 N-33)."),
+        "note": (("interactive llama.cpp endpoint client against the supervised loopback router "
+                  "at http://127.0.0.1:18080/v1 for the operator's live CONDUCTOR chat pane; no "
+                  "subscription and no credential is involved (invariant 19). Router admission "
+                  "is models-max=1 — the picker lists many, spawn switches through the supervisor.")
+                 if desc.adapter_id == LLAMACPP_LOCAL_ADAPTER else
+                 ("interactive `ollama run` session for the operator's live CONDUCTOR chat pane; no "
+                  "subscription and no credential is involved (invariant 19). VRAM residency "
+                  "admission is NOT applied to a conductor pane — the operator's 8B ceiling is what "
+                  "bounds this selection (LOCAL-01 N-33).")),
     }
     return ConductorPaneSession(
         chrome=chrome, launch=launch, selection_record=binding.as_record(),

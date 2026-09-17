@@ -37,6 +37,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER  # noqa: E402
 from control_plane.conductor.registry import (  # noqa: E402
     LOCAL_CONDUCTOR_SELECTION_PATH,
     descriptor_from_mapping,
@@ -73,7 +74,8 @@ def select(raw: dict) -> dict:
         "workspace": descriptor.workspace,
     }
 
-    if descriptor.adapter_id == OLLAMA_LOCAL_ADAPTER:
+    if descriptor.locality == "local" or descriptor.adapter_id in (
+            OLLAMA_LOCAL_ADAPTER, LLAMACPP_LOCAL_ADAPTER):
         # No live gate: there is no spend to authorize. No `live_operation.json`: it stays absent.
         _atomic_write_json(LOCAL_CONDUCTOR_SELECTION_PATH,
                            {"schema": "local_conductor_selection@1.0", "conductor": record})

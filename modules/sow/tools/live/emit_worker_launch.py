@@ -115,6 +115,7 @@ from node_runtime.supervisor.terminal_lease import (  # noqa: E402
 from node_runtime.supervisor.coding_worktrees import coding_worktree_manager
 from node_runtime.supervisor.worker_pane_spawn import (  # noqa: E402
     FRONTIER_PANE_ADAPTERS,
+    POWERSHELL_LOCAL_ADAPTER,
     WorkerPaneRefused,
     authorize_worker_pane,
     worker_identity,
@@ -756,6 +757,9 @@ def build_worker_launch_ticket(
                 # below, and nothing else.
                 planner, budget = None, None
                 gates["local_runtime_present"] = detect.llamacpp_available()
+            elif adapter_id == POWERSHELL_LOCAL_ADAPTER:
+                planner, budget = None, None
+                gates["local_runtime_present"] = detect.powershell_executable() is not None
             else:
                 if residency_planner is not None:
                     planner, budget = residency_planner, residency_budget

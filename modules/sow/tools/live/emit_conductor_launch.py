@@ -74,6 +74,7 @@ from control_plane.conductor.registry import (  # noqa: E402
     load_runtime_conductor_descriptor,
 )
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
+from adapters.local.llamacpp import LLAMACPP_LOCAL_ADAPTER  # noqa: E402
 from adapters.frontier.claude_model_probe import (  # noqa: E402
     ModelProbeLedger,
     resolve_launch_model,
@@ -188,7 +189,7 @@ def _apply_permission_profile(provider: str, argv: list[str], permission_profile
     if provider == CLAUDE_CODE_ADAPTER:
         profile = build_conductor_permission_profile(permission_profile_id)
         return [*argv, "--settings", profile.settings_json], dict(profile.boundary)
-    if provider == OLLAMA_LOCAL_ADAPTER:
+    if provider in (OLLAMA_LOCAL_ADAPTER, LLAMACPP_LOCAL_ADAPTER):
         # A LOCAL session gets its OWN boundary, because the codex-shaped one below would be a
         # fabricated claim (LOCAL-01 F-3). `ollama run <tag>` is a chat REPL: it has no tool-call
         # protocol, no sandbox flag and no approval policy, so reporting `sandbox: "read-only",
@@ -196,10 +197,17 @@ def _apply_permission_profile(provider: str, argv: list[str], permission_profile
         # controls the runtime does not implement — the "enabled control that does nothing" S-19
         # forbids, in a security field where a false claim is worst.
         #
-        # The honest containment statement is stronger than a flag: the session has NO tool surface
-        # at all, so there is nothing to approve or restrict. What contains it is the shell's
-        # supervised spawn (workspace-bound cwd, credential-scrubbed env, SessionManager lifecycle),
-        # and the verifier re-derives the argv shape rather than trusting this text.
+        # llama.cpp is the same claim through a different argv: the workspace endpoint client
+        # talks to the supervised loopback router at 18080 and has no tool surface either.
+        note = ("`ollama run <tag>` is an interactive chat REPL with no tool-call protocol: "
+                "there is no sandbox flag to set and no approval policy to apply, because "
+                "there is nothing the model can invoke. Containment is the shell's supervised "
+                "spawn (workspace-bound cwd, scrubbed env, SessionManager lifecycle).")
+        if provider == LLAMACPP_LOCAL_ADAPTER:
+            note = ("interactive llama.cpp endpoint client against the supervised loopback "
+                    "router at http://127.0.0.1:18080/v1: no tool-call protocol, no sandbox "
+                    "flag. Containment is the shell's supervised spawn (workspace-bound cwd, "
+                    "scrubbed env, SessionManager lifecycle).")
         return list(argv), {
             "schema": LOCAL_BOUNDARY_SCHEMA,
             "provider": provider,
@@ -208,10 +216,7 @@ def _apply_permission_profile(provider: str, argv: list[str], permission_profile
             "tool_surface": "none",
             "automatic_approval": False,
             "unrestricted_tools": False,
-            "note": ("`ollama run <tag>` is an interactive chat REPL with no tool-call protocol: "
-                     "there is no sandbox flag to set and no approval policy to apply, because "
-                     "there is nothing the model can invoke. Containment is the shell's supervised "
-                     "spawn (workspace-bound cwd, scrubbed env, SessionManager lifecycle)."),
+            "note": note,
         }
     # Codex command construction already pins read-only + attended/untrusted approval.  Do not
     # fabricate Claude hooks for a provider that does not implement that hook protocol.
@@ -331,7 +336,8 @@ def build_conductor_launch_ticket(
     # unsatisfied - they are NOT APPLICABLE, and recording them as `False` would tell the
     # operator his local session was refused authorization it never needed. `None` is this
     # ticket's existing spelling for "no verdict", and `locality` says which chain ran.
-    is_local = provider == OLLAMA_LOCAL_ADAPTER
+    is_local = provider in (OLLAMA_LOCAL_ADAPTER, LLAMACPP_LOCAL_ADAPTER) or (
+        desc is not None and desc.locality == "local")
     gates = {"live_operation_authorized": None if is_local else auth.is_provider_live(provider),
              "operator_terms_confirmed": None if is_local else bool(operator_terms_confirmed),
              "cli_present": bool(resolved_executable) if cli_present is None else bool(cli_present),

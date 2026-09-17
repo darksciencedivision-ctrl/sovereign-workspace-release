@@ -197,6 +197,15 @@ def claude_code_available() -> bool:
     return claude_code_executable() is not None
 
 
+def powershell_executable() -> str | None:
+    """Resolved `pwsh` if present, else Windows PowerShell. ConPTY takes a file, not a PATH search."""
+    for name in ("pwsh", "pwsh.exe", "powershell", "powershell.exe"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
 def ollama_executable() -> str | None:
     """The RESOLVED absolute path of the local `ollama` runtime binary, or None.
 

@@ -123,6 +123,7 @@ _LOCAL_PROVIDER = "ollama_local"
 #: being reported as registered instead of quietly becoming unspawnable.
 _OPENCODE_PROVIDER = "opencode_local"
 _LLAMACPP_PROVIDER = "llamacpp_local"
+_POWERSHELL_PROVIDER = "powershell_local"
 
 #: The catalog group for models this host OWNS and cannot run on llama.cpp — a D:/E: safetensors
 #: family, an Ollama cloud pointer with no local weights, a GGUF file not yet registered on the
@@ -159,6 +160,7 @@ _PROVIDER_TABLE: tuple[tuple[str, str, str], ...] = (
     # picker, and reported the options were not there. They were, below a screen and a half of
     # scrolling. A handful of coding options ahead of a 71-row list costs that list nothing.
     (_OPENCODE_PROVIDER, "OpenCode (local coding pane)", "local"),
+    (_POWERSHELL_PROVIDER, "PowerShell (local terminal)", "local"),
     (_LOCAL_PROVIDER, "Local (Ollama)", "local"),
     (_LLAMACPP_PROVIDER, "Runnable now (local llama.cpp library)", "local"),
     (_LIBRARY_PROVIDER, "In library (not runnable on llama.cpp)", "local"),
@@ -199,11 +201,13 @@ def registered_providers() -> frozenset[str]:
         LLAMACPP_LOCAL_ADAPTER,
         OLLAMA_LOCAL_ADAPTER,
         OPENCODE_LOCAL_ADAPTER,
+        POWERSHELL_LOCAL_ADAPTER,
     )
 
     dispatchable = frozenset(FRONTIER_PANE_ADAPTERS) | {OLLAMA_LOCAL_ADAPTER,
                                                         LLAMACPP_LOCAL_ADAPTER,
-                                                        OPENCODE_LOCAL_ADAPTER}
+                                                        OPENCODE_LOCAL_ADAPTER,
+                                                        POWERSHELL_LOCAL_ADAPTER}
     return frozenset(p for p, _display, _locality in _PROVIDER_TABLE) & dispatchable
 
 
@@ -474,6 +478,10 @@ def _local_group_reason(ollama_models: list[str],
     return None
 
 
+def _detect_powershell() -> bool:
+    return any(shutil.which(n) for n in ("pwsh", "pwsh.exe", "powershell", "powershell.exe"))
+
+
 def _detect_opencode() -> bool:
     """Is the `opencode` CLI on this host's PATH?
 
@@ -594,8 +602,14 @@ def _llamacpp_options(models: list[str], residency: dict[str, str] | None = None
                       "no credential or cloud fallback is available"),
     )
     for option in options:
-        option["roles"] = ["reasoning"]
-        option["conductor_capable"] = False
+        # Pane-1 (conductor) filters on conductor_capable + the conductor role. Forcing both
+        # off here emptied the conductor picker while pane-2 still showed the 66-class llama.cpp
+        # library (75/84 available in the header). Chat models the conductor can drive through
+        # the supervised 18080 router are conductor-capable; OpenCode stays out of pane-1
+        # because a coding harness is not a conductor seat.
+        available = option.get("available") is True
+        option["roles"] = ["reasoning"] + (["conductor"] if available else [])
+        option["conductor_capable"] = available
         row = (catalog or {}).get(option["model_slug"])
         if row:
             option.update({key: row[key] for key in
@@ -644,6 +658,30 @@ def _library_options(rows: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
                ("path", "disk", "format", "size_bytes", "capabilities", "family") if key in row},
         })
     return sorted(options, key=lambda o: o["label"])
+
+
+def _powershell_options(*, present: bool = False) -> list[dict[str, Any]]:
+    """One spawnable local-shell option on the worker picker. Not a model pane."""
+    reason = None if present else (
+        "neither `pwsh` nor Windows PowerShell is on this host's PATH")
+    return [{
+        "provider": _POWERSHELL_PROVIDER,
+        "adapter": _POWERSHELL_PROVIDER,
+        "locality": "local",
+        "subscription_backed": False,
+        "label": "PowerShell (local terminal)",
+        "model_slug": "powershell",
+        "verified": True,
+        "is_fallback": False,
+        "roles": ["terminal"],
+        "registered": True,
+        "conductor_capable": False,
+        "residency": UNKNOWN,
+        "available": reason is None,
+        "unavailable_reason": reason,
+        "note": ("local ConPTY shell pane — no model pin, no llama.cpp API key, no cloud; "
+                 "cwd is the coding worktree parent, never this product tree"),
+    }]
 
 
 #: Substrings that mark a local model as CODE-ORIENTED. The enumeration uses them to decide which
@@ -739,6 +777,7 @@ def build_pane_picker(
     opencode_endpoint_reason: str | None = None,
     opencode_present: bool | None = None,
     opencode_models: list[str] | None = None,
+    powershell_present: bool | None = None,
     grok: ProviderCliInventory | None = None,
     antigravity: ProviderCliInventory | None = None,
 ) -> dict[str, Any]:
@@ -810,6 +849,8 @@ def build_pane_picker(
         # None ⇒ probe the real host; the suite injects a value so the option set does not
         # depend on what happens to be installed on the machine running it.
         opencode_present=(_detect_opencode() if opencode_present is None else opencode_present))
+    powershell = _powershell_options(
+        present=(_detect_powershell() if powershell_present is None else powershell_present))
     llamacpp = _llamacpp_options(llamacpp_models or [], residency,
                                  unavailable_reason=llamacpp_unavailable_reason,
                                  runtime_present=llamacpp_runtime_present,
@@ -820,8 +861,8 @@ def build_pane_picker(
     # this list does not render (or vice versa).
     by_provider = {_ANTHROPIC: anthropic, _OPENAI: openai, GROK_ADAPTER: grok_options,
                    ANTIGRAVITY_ADAPTER: antigravity_options, _LOCAL_PROVIDER: local,
-                   _OPENCODE_PROVIDER: opencode, _LLAMACPP_PROVIDER: llamacpp,
-                   _LIBRARY_PROVIDER: in_library}
+                   _OPENCODE_PROVIDER: opencode, _POWERSHELL_PROVIDER: powershell,
+                   _LLAMACPP_PROVIDER: llamacpp, _LIBRARY_PROVIDER: in_library}
     reasons = {GROK_ADAPTER: grok_reason, ANTIGRAVITY_ADAPTER: antigravity_reason,
                _LOCAL_PROVIDER: _local_group_reason(ollama_models, local_unavailable_reason),
                _LLAMACPP_PROVIDER: (llamacpp_unavailable_reason or

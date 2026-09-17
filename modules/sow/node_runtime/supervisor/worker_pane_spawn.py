@@ -81,6 +81,8 @@ from adapters.local.llamacpp import (
     LLAMACPP_LOCAL_ADAPTER,
     build_interactive_llamacpp_command,
 )
+POWERSHELL_LOCAL_ADAPTER = "powershell_local"
+POWERSHELL_PANE_CWD = r"D:\Git\sow-sovereign-workspace"
 from control_plane.local_only import frontier_disabled, LOCAL_ONLY_REASON
 from control_plane.profiles.live_authorization import LiveAuthorization
 from control_plane.profiles.loader import ProfileLoader
@@ -117,7 +119,7 @@ from scheduler.residency_planner.residency_planner import (
 )
 
 #: The worker roles a PANE can be born under. `conductor` is refused by the shared selection guard.
-WORKER_ROLES = ("reasoning", "coding")
+WORKER_ROLES = ("reasoning", "coding", "terminal")
 
 #: Every frontier adapter this module can authorize an INTERACTIVE pane for. One tuple, so the
 #: dispatch, the unknown-adapter refusal message and the per-provider tables below cannot disagree
@@ -483,10 +485,15 @@ def authorize_worker_pane(
             selection, workspace=workspace, residency_planner=residency_planner,
             residency_budget=residency_budget, llamacpp_present=llamacpp_present,
             executable=executable, shell_env_names=shell_env_names)
+    if adapter_id == POWERSHELL_LOCAL_ADAPTER:
+        return _authorize_powershell_local(
+            selection, workspace=workspace, worktree_manager=worktree_manager,
+            executable=executable, shell_env_names=shell_env_names)
     raise WorkerPaneRefused(
         f"unknown adapter {adapter_id!r} in selection — this build authorizes live panes for "
         f"{'/'.join(sorted(FRONTIER_PANE_ADAPTERS))} (OP-6 + OP-12 scope) and "
-        f"{OLLAMA_LOCAL_ADAPTER}/{LLAMACPP_LOCAL_ADAPTER}/{OPENCODE_LOCAL_ADAPTER} only (fail closed; a new provider "
+        f"{OLLAMA_LOCAL_ADAPTER}/{LLAMACPP_LOCAL_ADAPTER}/{OPENCODE_LOCAL_ADAPTER}/"
+        f"{POWERSHELL_LOCAL_ADAPTER} only (fail closed; a new provider "
         f"needs a new operator "
         f"authorization)", gate=GATE_UNKNOWN_ADAPTER)
 
@@ -890,6 +897,63 @@ def _authorize_llamacpp_local(
     launch = _launch(argv, executable=exe, cwd=str(workspace), shell_env_names=shell_env_names,
                      note=("interactive workspace client attached to the supervised loopback "
                            "llama.cpp router; no subscription or cloud fallback is involved"))
+    return WorkerPaneSession(
+        chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
+        residency_decision=decision.as_dict(), residency_budget=dict(budget),
+        subscription_governed=False, _release=None)
+
+
+def _authorize_powershell_local(
+    selection: PaneSelection,
+    *,
+    workspace: str,
+    worktree_manager: Any,
+    executable: str | None,
+    shell_env_names: list[str] | None = None,
+) -> WorkerPaneSession:
+    """Authorize a local ConPTY shell pane. No model pin, no llama.cpp key, no cloud."""
+    if selection.role != "terminal":
+        raise WorkerPaneRefused("PowerShell panes support the terminal role only",
+                                gate=GATE_WORKER_ROLE)
+    from adapters import detect
+    resolved = executable or detect.powershell_executable()
+    if not (resolved or "").strip():
+        raise WorkerPaneRefused(
+            "neither `pwsh` nor Windows PowerShell is on this host's PATH — cannot open a "
+            "local shell pane (fail closed)", gate=GATE_RUNTIME_ABSENT)
+    exe = _resolved_binary(resolved, POWERSHELL_LOCAL_ADAPTER)
+    cwd = POWERSHELL_PANE_CWD
+    if worktree_manager is not None:
+        try:
+            existing = worktree_manager.get(selection.node_id)
+            path = str(getattr(existing, "path", "") or "")
+            if path and os.path.isdir(path):
+                cwd = path
+        except Exception:
+            pass
+    if not os.path.isdir(cwd):
+        raise WorkerPaneRefused(
+            f"PowerShell pane cwd {cwd} is not a directory — refused rather than starting in "
+            f"the product tree (fail closed)", gate=GATE_RUNTIME_ABSENT)
+    argv = [exe, "-NoLogo", "-NoProfile"]
+    decision = ResidencyDecision(
+        model="powershell", scheduled=True, status=UNKNOWN,
+        reason="local shell pane — no model pin; residency is not applicable")
+    budget = {
+        "established": True,
+        "budget_source": "local shell pane (no VRAM reservation)",
+        "runtime_managed": False,
+    }
+    chrome = WorkerPaneChrome(
+        provider=POWERSHELL_LOCAL_ADAPTER, adapter=POWERSHELL_LOCAL_ADAPTER, locality="local",
+        model_label=selection.option.get("label", "PowerShell (local terminal)"),
+        model_slug=selection.option.get("model_slug") or "powershell",
+        model_verified=True, is_fallback=False, role=selection.role, mode=selection.mode,
+        node_id=selection.node_id, node_state=_AUTHORIZED_NOT_STARTED, subscription=None,
+        residency=decision.status)
+    launch = _launch(argv, executable=exe, cwd=str(cwd), shell_env_names=shell_env_names,
+                     note=("interactive local PowerShell ConPTY; no model pin, no llama.cpp "
+                           "API key, no cloud fallback"))
     return WorkerPaneSession(
         chrome=chrome, launch=launch, permission_profile_id=selection.permission_profile_id,
         residency_decision=decision.as_dict(), residency_budget=dict(budget),

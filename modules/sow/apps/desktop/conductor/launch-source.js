@@ -141,10 +141,23 @@ function isWellFormedLocalBoundary(t, launch, identity) {
       || b.automatic_approval !== false || b.unrestricted_tools !== false) return false;
   if (d.locality !== "local") return false;
   const args = launch.argv || [];
-  if (args.length !== 3) return false;
   if (args[0] !== launch.executable) return false;
-  if (args[1] !== "run" || args[2] !== d.model_id) return false;
-  return !args.some((a) => String(a).startsWith("-"));
+  if (d.adapter_id === "ollama_local") {
+    if (args.length !== 3) return false;
+    if (args[1] !== "run" || args[2] !== d.model_id) return false;
+    return !args.some((a) => String(a).startsWith("-"));
+  }
+  if (d.adapter_id === "llamacpp_local") {
+    const hostAt = args.indexOf("--host");
+    const modelAt = args.indexOf("--model");
+    const host = hostAt >= 0 ? String(args[hostAt + 1] || "") : "";
+    if (args[1] !== "-m" || args[2] !== "adapters.local.llamacpp") return false;
+    if (!args.includes("--interactive")) return false;
+    if (!/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\]):18080(?:\/v1)?\/?$/i.test(host)) return false;
+    if (modelAt < 0 || args[modelAt + 1] !== d.model_id) return false;
+    return true;
+  }
+  return false;
 }
 
 function isWellFormedFlagBoundary(t, launch, identity) {
