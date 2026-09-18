@@ -71,6 +71,7 @@ from adapters.conductor.provider_commands import (  # noqa: E402
 )
 from control_plane.conductor.registry import (  # noqa: E402
     ConductorDescriptor,
+    ConductorRegistryError,
     load_runtime_conductor_descriptor,
 )
 from adapters.local.ollama_session import OLLAMA_LOCAL_ADAPTER  # noqa: E402
@@ -609,9 +610,20 @@ def main(argv: list[str]) -> int:
                 "real sessions as one — I-X3 defeated). The shell chooses the key before asking, "
                 "so it can also hand the terminal back if this ticket never reaches it.\n")
             return 2
+        try:
+            descriptor = load_runtime_conductor_descriptor()
+        except ConductorRegistryError as exc:
+            # LOCAL-ONLY fail-closed (invariant 20): when no enumerated local conductor is available
+            # the registry refuses rather than fall back to a cloud default. That is a governed
+            # REFUSAL ticket the shell renders honestly (exit 0), never a traceback the shell source
+            # would read as "unavailable" and blank.
+            sys.stdout.write(json.dumps(_refusal_ticket(exc, gates={
+                "live_operation_authorized": None, "operator_terms_confirmed": None,
+                "cli_present": None, "ix3_counted": False}), default=str) + "\n")
+            return 0
         sys.stdout.write(json.dumps(
             build_conductor_launch_ticket(holder_pid=holder_pid, session_id=session_id,
-                                          descriptor=load_runtime_conductor_descriptor()),
+                                          descriptor=descriptor),
             default=str) + "\n")
         return 0
     if "--release-session" in argv:

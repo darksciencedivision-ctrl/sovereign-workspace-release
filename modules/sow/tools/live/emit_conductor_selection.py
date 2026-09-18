@@ -48,12 +48,32 @@ from adapters.frontier.claude_model_probe import (  # noqa: E402
 from node_runtime.supervisor.conductor_pane_spawn import conductor_succession_affordance  # noqa: E402
 from control_plane.conductor.registry import (  # noqa: E402
     ConductorDescriptor,
+    ConductorRegistryError,
     load_runtime_conductor_descriptor,
 )
 from adapters.frontier.claude_code import CLAUDE_CODE_ADAPTER  # noqa: E402
 
 #: Pinned so the shell source can validate the shape it parses (a drifted producer is refused).
 CONDUCTOR_SELECTION_FEED_SCHEMA = "conductor_selection_feed@1.0"
+
+
+def _unknown_selection_feed(exc: Exception) -> dict[str, Any]:
+    """LOCAL-ONLY fail-closed (invariant 20): when no enumerated local conductor is available the
+    registry refuses rather than fall back to a cloud default. The emitter still owes ONE JSON line
+    at exit 0 — the exact fail-closed shape the shell's own `unknownSelectionFeed()` renders as
+    "(unknown selection)" (source.js), with `succession: null` so Resume→Select shows unavailable and
+    no cloud model is ever fabricated. `refused`/`reason` carry the honest cause for observability."""
+    return {
+        "schema": CONDUCTOR_SELECTION_FEED_SCHEMA,
+        "selection_record": {
+            "selection": {"model": None},
+            "executing": {"model": None, "verified": False, "is_fallback": False},
+        },
+        "succession": None,
+        "refused": True,
+        "reason": f"{type(exc).__name__}: {exc}",
+        "conductor_descriptor": None,
+    }
 
 
 def build_conductor_selection_feed(
@@ -107,8 +127,13 @@ def main(argv: list[str]) -> int:
     invocation prints usage to stderr and exits 2 (fail-closed — the shell source treats a non-zero
     exit as "unavailable" and renders the honest unknown badge, never a fabricated selection)."""
     if "--emit-conductor-selection" in argv:
+        try:
+            descriptor = load_runtime_conductor_descriptor()
+        except ConductorRegistryError as exc:
+            sys.stdout.write(json.dumps(_unknown_selection_feed(exc)) + "\n")
+            return 0
         sys.stdout.write(json.dumps(build_conductor_selection_feed(
-            descriptor=load_runtime_conductor_descriptor())) + "\n")
+            descriptor=descriptor)) + "\n")
         return 0
     sys.stderr.write(
         "usage: emit_conductor_selection.py --emit-conductor-selection\n"

@@ -50,6 +50,7 @@ from adapters.frontier.claude_code import CLAUDE_CODE_ADAPTER  # noqa: E402
 from adapters.conductor.provider_commands import ConductorProviderUnavailable  # noqa: E402
 from control_plane.conductor.registry import (  # noqa: E402
     ConductorDescriptor,
+    ConductorRegistryError,
     load_runtime_conductor_descriptor,
 )
 from control_plane.conductor.selection import (  # noqa: E402
@@ -217,8 +218,16 @@ def main(argv: list[str]) -> int:
     prints usage to stderr and exits 2 — the shell source treats a non-zero exit as "unavailable" and
     renders the honest un-governed-live conductor placeholder, never a fabricated spawn."""
     if "--emit-conductor-spawn" in argv:
+        try:
+            descriptor = load_runtime_conductor_descriptor()
+        except ConductorRegistryError as exc:
+            # LOCAL-ONLY fail-closed (invariant 20): no enumerated local conductor is a governed
+            # REFUSAL feed the shell renders honestly (exit 0), never a traceback.
+            sys.stdout.write(json.dumps(_refusal_feed(
+                exc, live_authorized=False, cli_present=False), default=str) + "\n")
+            return 0
         sys.stdout.write(json.dumps(build_conductor_spawn_feed(
-            descriptor=load_runtime_conductor_descriptor()), default=str) + "\n")
+            descriptor=descriptor), default=str) + "\n")
         return 0
     sys.stderr.write(
         "usage: emit_conductor_spawn.py --emit-conductor-spawn\n"
