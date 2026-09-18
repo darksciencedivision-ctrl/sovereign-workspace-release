@@ -139,7 +139,15 @@ const PINS = {
   // commit and did not update this file or `system_pane_write_mutations.js`. That is why
   // `test:falsify` kept passing while these two silently stopped running — the drift was not
   // uniform neglect, it was one mutation harness re-pinned and two forgotten.
-  "apps/desktop/picker/worker-spawn.js": "F3B405126424D1A0B55CB3D95E03CCF5FC3CFCDF78218F7432EDED6238A90C55",
+  // Re-pinned for 348ec75 (local-only feature): worker-spawn.js restores the loopback llama.cpp
+  // router key (SOVEREIGN_LLAMA_CPP_API_KEY) for the opencode_local adapter ONLY, AFTER the general
+  // credential scrub, and allow-lists that one name in the stage-4 credentialNamesIn classifier. The
+  // inserted block sits BETWEEN the O19 scrub anchor and the O5 augmentSpawnEnv anchor and touches
+  // neither; all three worker-spawn anchors (scrubEnv/O18, scrubCredentialEnv/O19,
+  // augmentSpawnEnv/O5) were re-read and are each present exactly ONCE, and no mutation anchors on
+  // the changed credentialNamesIn line. Re-run below: every worker-spawn mutation still CAUGHT with a
+  // byte-identical restore. Previous pin: F3B40512...6238A90C55.
+  "apps/desktop/picker/worker-spawn.js": "F5A6180E9D40163B05A485E513E4A8290DBFF4CB7F308C6DD12B1E37C64CD345",
   // Added at 19.7 with O6–O11, which mutate them.
   // Re-pinned for ddcb87b (EPC-01), a THREE-LINE substitution and nothing else: the hardcoded
   // `"py"` executable and `["-3.12"]` argument list are now read from the shared
