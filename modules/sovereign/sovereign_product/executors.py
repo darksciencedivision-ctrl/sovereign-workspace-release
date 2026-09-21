@@ -147,69 +147,6 @@ def _execution_id(prefix: str) -> str:
     return f"{prefix}-{timestamp}-{uuid.uuid4().hex[:8]}"
 
 
-@dataclass(frozen=True)
-class _DeepExecutionPlan:
-    execution_dir: Path
-    topic_path: Path
-    command_path: Path
-    stdout_path: Path
-    stderr_path: Path
-    result_path: Path
-    command: tuple[str, ...]
-    artifacts: dict[str, str]
-
-
-def _prepare_legacy_deep_execution(
-    *,
-    root: Path,
-    artifact_root: Path,
-    python_executable: str,
-    runner_path: Path,
-    session_id: str,
-    topic: str,
-    timeout_seconds: float | None,
-) -> _DeepExecutionPlan:
-    session_id = _validate_session_id(session_id)
-    if not isinstance(topic, str) or not topic.strip():
-        raise ValueError("topic must be a non-empty string")
-    if timeout_seconds is not None and timeout_seconds <= 0:
-        raise ValueError("timeout_seconds must be positive")
-
-    execution_dir = artifact_root / "deep" / session_id / _execution_id("deep")
-    topic_path = execution_dir / "topic.txt"
-    command_path = execution_dir / "command.json"
-    stdout_path = execution_dir / "stdout.txt"
-    stderr_path = execution_dir / "stderr.txt"
-    result_path = execution_dir / "result.json"
-    command = (
-        python_executable,
-        str(runner_path),
-        "--root",
-        str(root),
-        "--topic",
-        topic,
-        "--once",
-        "--session-id",
-        session_id,
-    )
-    return _DeepExecutionPlan(
-        execution_dir=execution_dir,
-        topic_path=topic_path,
-        command_path=command_path,
-        stdout_path=stdout_path,
-        stderr_path=stderr_path,
-        result_path=result_path,
-        command=command,
-        artifacts={
-            "topic": _relative_artifact(topic_path, root),
-            "command": _relative_artifact(command_path, root),
-            "stdout": _relative_artifact(stdout_path, root),
-            "stderr": _relative_artifact(stderr_path, root),
-            "result": _relative_artifact(result_path, root),
-        },
-    )
-
-
 def _build_quick_prompt(prompt: str, evidence: EvidencePacket | None) -> str:
     # Grounding rules sit at the tail, after the evidence and the request: ahead
     # of a multi-kilobyte packet they were reliably ignored.
@@ -589,20 +526,8 @@ def _pipe_reader(
         output_queue.put((stream_name, None))
 
 
-LEGACY_DEEP_FLAG = "SOVEREIGN_ALLOW_LEGACY_DEEP"
-
-
-class UnsupportedLegacy(RuntimeError):
-    """DeepExecutor is quarantined from the product route (F-113)."""
-
-
 class DeepExecutor:
-    """Legacy subprocess adapter for cycle_runner_v3. Not on the product route.
-
-    Product DEEP traffic uses SemanticDeepExecutor. This class remains for
-    bounded drain tests (R34) and must not be wired as the default executor.
-    execute() refuses unless SOVEREIGN_ALLOW_LEGACY_DEEP=1.
-    """
+    """Tracked subprocess adapter for the canonical multi-model engine."""
 
     def __init__(
         self,
@@ -741,30 +666,40 @@ class DeepExecutor:
         cancel_requested: CancelCallback | None = None,
         timeout_seconds: float | None = None,
     ) -> ExecutionResult:
-        if os.environ.get(LEGACY_DEEP_FLAG) != "1":
-            raise UnsupportedLegacy(
-                "DeepExecutor is unsupported legacy; set SOVEREIGN_ALLOW_LEGACY_DEEP=1 "
-                "only for R34/legacy harnesses. Product DEEP uses SemanticDeepExecutor."
-            )
-        plan = _prepare_legacy_deep_execution(
-            root=self.root,
-            artifact_root=self.artifact_root,
-            python_executable=self.python_executable,
-            runner_path=self.runner_path,
-            session_id=session_id,
-            topic=topic,
-            timeout_seconds=timeout_seconds,
-        )
         session_id = _validate_session_id(session_id)
-        execution_dir = plan.execution_dir
-        topic_path = plan.topic_path
-        command_path = plan.command_path
-        stdout_path = plan.stdout_path
-        stderr_path = plan.stderr_path
-        result_path = plan.result_path
-        artifacts = plan.artifacts
+        if not isinstance(topic, str) or not topic.strip():
+            raise ValueError("topic must be a non-empty string")
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+
+        execution_dir = (
+            self.artifact_root / "deep" / session_id / _execution_id("deep")
+        )
+        topic_path = execution_dir / "topic.txt"
+        command_path = execution_dir / "command.json"
+        stdout_path = execution_dir / "stdout.txt"
+        stderr_path = execution_dir / "stderr.txt"
+        result_path = execution_dir / "result.json"
+        artifacts = {
+            "topic": _relative_artifact(topic_path, self.root),
+            "command": _relative_artifact(command_path, self.root),
+            "stdout": _relative_artifact(stdout_path, self.root),
+            "stderr": _relative_artifact(stderr_path, self.root),
+            "result": _relative_artifact(result_path, self.root),
+        }
         _atomic_write_text(topic_path, topic)
-        command = list(plan.command)
+
+        command = [
+            self.python_executable,
+            str(self.runner_path),
+            "--root",
+            str(self.root),
+            "--topic",
+            topic,
+            "--once",
+            "--session-id",
+            session_id,
+        ]
         _atomic_write_json(
             command_path,
             {
@@ -831,34 +766,8 @@ class DeepExecutor:
                 reader_threads.append(reader)
 
             open_streams = 2
-            # R34. A descendant can keep the inherited stdout/stderr open after the parent exits, so
-            # `open_streams` never reaches 0 and the drain waits for EOF forever -- past the
-            # configured timeout, because the tree terminator was guarded by `process.poll() is
-            # None` and so never fired once the parent had exited. Bound the post-exit drain: once
-            # the parent is gone, wait at most POST_EXIT_DRAIN_GRACE for its streams to close, then
-            # terminate the whole tree (releasing any descendant holding the handles) and stop.
-            POST_EXIT_DRAIN_GRACE = 5.0
-            exited_at: float | None = None
-            forced_after_exit = False
             while process.poll() is None or open_streams:
                 now_monotonic = self._monotonic()
-                if process.poll() is not None and exited_at is None:
-                    exited_at = now_monotonic
-                if (
-                    exited_at is not None
-                    and open_streams
-                    and not forced_after_exit
-                    and now_monotonic - exited_at > POST_EXIT_DRAIN_GRACE
-                ):
-                    # The process is gone but a descendant still holds the pipes: reclaim the tree
-                    # and abandon the drain rather than hang.
-                    forced_after_exit = True
-                    self._process_tree_terminator(process)
-                    if terminal_override is None:
-                        terminal_reason = (
-                            "DEEP output streams stayed open after the process exited; "
-                            "a descendant retained them and the drain was bounded")
-                    break
                 if now_monotonic >= next_artifact_probe:
                     next_artifact_probe = now_monotonic + 0.5
                     artifact_progress = _deep_artifact_progress(

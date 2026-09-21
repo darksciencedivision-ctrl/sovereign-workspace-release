@@ -11,7 +11,9 @@ from __future__ import annotations
 import http.client
 import ipaddress
 import json
+import os
 import re
+import socket
 from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
@@ -31,6 +33,10 @@ HttpGetter = Callable[[str, float], Any]
 SELF_STATE_SCHEMA = "sovereign.self_state.v1"
 DEFAULT_NETWORK_TIMEOUT = 0.75
 MAX_NETWORK_TIMEOUT = 1.99
+LLAMA_CPP_DEFAULT_BASE_URL = "http://127.0.0.1:18080"
+FREETOKEN_DEFAULT_BASE_URL = "http://127.0.0.1:1919"
+LLAMA_CPP_LABEL = "The llama.cpp router"
+OLLAMA_LABEL = "Ollama"
 _TERMINAL_CYCLE_STATUSES = {
     "completed": "completed",
     "rejected": "rejected",
@@ -154,125 +160,6 @@ def _model_names(payload: Mapping[str, Any]) -> list[str]:
     return sorted(names)
 
 
-#: The operator's LOCAL MODEL CEILING (OPERATOR-INSTRUCTIONS.log ENTRY 017), as the 8B NAMEPLATE
-#: class so `qwen3:8b` (true count 8.2B) is admitted.
-#:
-#: COUPLED VALUE (S-4). The same rule is implemented in `modules/sow/adapters/local/model_ceiling.py`
-#: and `modules/debate/app.py`. It is duplicated rather than imported because these are three
-#: separate products with separate install provenance and separate virtualenvs; a cross-module
-#: import would tie one product's startup to another's package tree. All THREE move together, and
-#: each names the others. That a policy the operator set now lives in three files is itself worth
-#: his attention - recorded as LOCAL-01 N-37.
-LOCAL_MODEL_CEILING_NAMEPLATE_B = 8
-
-#: Below this, an /api/tags row carries no weights on this disk: it is an Ollama Cloud pointer
-#: (a few hundred bytes) or a model whose blobs are absent. Selecting one sends inference OFF
-#: THIS HOST, which is provider spend and a mandatory STOP.
-#:
-#: This is checked BEFORE and INDEPENDENTLY OF the parameter ceiling, and the independence is
-#: the whole point. Before this, the two cloud entries in the operator's library were refused
-#: only because they report 756B and 1.65T parameters - so the moment the ceiling is widened
-#: for the operator, as EPC-02 B-2 did in SOW and as the operator asked for, they would have
-#: become selectable. A size ceiling is a performance rule; this is a spend rule; collapsing
-#: one into the other is how a widened ceiling turns into a bill.
-_MIN_LOCAL_WEIGHTS_BYTES = 64 * 1024 * 1024
-_CEILING_TRUE_PARAMS = 9.0e9
-_PARAM_SUFFIX = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12, "": 1.0}
-_PARAM_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMBT])?\s*$", re.I)
-
-
-def _parse_parameter_count(raw: Any) -> float | None:
-    """`"8.2B"` -> 8.2e9. None when unreadable - never 0, which would sail under the ceiling."""
-    if not isinstance(raw, str):
-        return None
-    match = _PARAM_RE.match(raw.strip())
-    if not match:
-        return None
-    value = float(match.group(1)) * _PARAM_SUFFIX[(match.group(2) or "").upper()]
-    return value if value > 0 else None
-
-
-def _model_parameter_sizes(payload: Mapping[str, Any]) -> dict[str, str]:
-    """`{model name: the daemon's own parameter-size string}` from an `/api/tags` payload.
-
-    `_model_names` deliberately discards everything but the name; the ceiling needs one more field,
-    and reading it from the SAME payload keeps this to one enumeration rather than a second probe
-    (directive F-5: "sourced from the same enumeration rather than a second one")."""
-    sizes: dict[str, str] = {}
-    raw_models = payload.get("models")
-    if not isinstance(raw_models, Sequence) or isinstance(raw_models, (str, bytes)):
-        return sizes
-    for item in raw_models:
-        if not isinstance(item, Mapping):
-            continue
-        name = item.get("name") or item.get("model")
-        details = item.get("details")
-        if isinstance(name, str) and name.strip() and isinstance(details, Mapping):
-            shown = details.get("parameter_size")
-            if isinstance(shown, str) and shown.strip():
-                sizes[name.strip()] = shown.strip()
-    return sizes
-
-
-def _model_disk_sizes(payload: Mapping[str, Any]) -> dict[str, int]:
-    """`{model name: bytes on disk}` from the SAME `/api/tags` payload the names came from.
-
-    One enumeration, not a second probe (directive F-5). The size is what separates a real
-    local model from a pointer to a remote one.
-    """
-    sizes: dict[str, int] = {}
-    raw_models = payload.get("models")
-    if not isinstance(raw_models, Sequence) or isinstance(raw_models, (str, bytes)):
-        return sizes
-    for item in raw_models:
-        if not isinstance(item, Mapping):
-            continue
-        name = item.get("name") or item.get("model")
-        if not isinstance(name, str) or not name.strip():
-            continue
-        try:
-            sizes[name.strip()] = int(item.get("size") or 0)
-        except (TypeError, ValueError):
-            continue
-    return sizes
-
-
-def _ceiling_state(name: str, parameter_size: str | None,
-                   size_bytes: int | None = None) -> dict[str, Any]:
-    """One model's ceiling verdict, with the sentence the operator reads when it is refused.
-
-    A model over the ceiling stays LISTED and is marked - ENTRY 017 requires it be "excluded from
-    selection with a stated reason, not silently hidden" (S-19)."""
-    # Check 0, before anything about size: does this row carry weights on this disk?
-    if size_bytes is not None and size_bytes < _MIN_LOCAL_WEIGHTS_BYTES:
-        return {"parameter_size": parameter_size, "within_ceiling": False,
-                "runs_remotely": True,
-                "ceiling_reason": f"{name} holds no model weights on this machine "
-                                  f"({size_bytes} bytes on disk). It is a pointer to a model "
-                                  f"that runs remotely, so selecting it would leave this host "
-                                  f"- that is provider spend, which the operator has not "
-                                  f"authorized. Never assignable, at any ceiling."}
-    if parameter_size is None:
-        return {"parameter_size": None, "within_ceiling": None, "ceiling_reason": None,
-                "runs_remotely": False}
-    params = _parse_parameter_count(parameter_size)
-    if params is None:
-        return {"parameter_size": parameter_size, "within_ceiling": False,
-                "runs_remotely": False,
-                "ceiling_reason": f"{name} reports an unreadable parameter count, so it cannot be "
-                                  f"shown to be within the operator's "
-                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (fail closed)"}
-    if params >= _CEILING_TRUE_PARAMS:
-        return {"parameter_size": parameter_size, "within_ceiling": False,
-                "runs_remotely": False,
-                "ceiling_reason": f"{name} has {parameter_size} parameters, above the operator's "
-                                  f"{LOCAL_MODEL_CEILING_NAMEPLATE_B}B ceiling (ENTRY 017). "
-                                  f"Installed and kept, but not assignable to a SOVEREIGN role in "
-                                  f"this build"}
-    return {"parameter_size": parameter_size, "within_ceiling": True,
-            "ceiling_reason": None, "runs_remotely": False}
-
-
 def _probe_ollama(
     base_url: str | None,
     *,
@@ -335,18 +222,10 @@ def _probe_ollama(
 
     getter = http_get or _default_http_get
 
-    parameter_sizes: dict[str, str] = {}
-    disk_sizes: dict[str, int] = {}
-
     def probe(path: str) -> tuple[list[str] | None, str | None]:
         try:
             response = getter(trusted_base + path, float(timeout))
-            payload = _coerce_http_json(response)
-            if path == "/api/tags":
-                # ONE enumeration, read twice from the same payload - never a second probe.
-                parameter_sizes.update(_model_parameter_sizes(payload))
-                disk_sizes.update(_model_disk_sizes(payload))
-            return _model_names(payload), None
+            return _model_names(_coerce_http_json(response)), None
         except Exception as exc:  # network and injected probe failures are state, not crashes
             return None, type(exc).__name__
 
@@ -363,20 +242,9 @@ def _probe_ollama(
             "loaded": None if loaded is None else model in loaded_set,
             # Ollama exposes residency through /api/ps, not request activity.
             "currently_running": None,
-            # The operator's 8B ceiling, per model (ENTRY 017 / S-19). Every installed model stays
-            # LISTED; one above the ceiling is marked and carries the reason, so the operator can
-            # see which of his models SOVEREIGN will not assign to a role, and why.
-            **_ceiling_state(model, parameter_sizes.get(model),
-                             disk_sizes.get(model)),
         }
         for model in all_names
     ]
-    over_ceiling = sorted(
-        state["name"] for state in model_states if state["within_ceiling"] is False)
-    configured_over_ceiling = sorted(
-        state["name"] for state in model_states
-        if state["within_ceiling"] is False and state["configured"]
-    )
     if installed is None and loaded is None:
         probe_status = "offline"
     elif installed is None or loaded is None:
@@ -397,21 +265,321 @@ def _probe_ollama(
         "loaded_models": loaded,
         "currently_running_models": None,
         "model_states": model_states,
-        "local_model_ceiling": {
-            "nameplate_b": LOCAL_MODEL_CEILING_NAMEPLATE_B,
-            "authority": "OPERATOR-INSTRUCTIONS.log ENTRY 017",
-            "over_ceiling_models": over_ceiling,
-            # A ROLE assigned to a model above the ceiling is the state that matters: SOVEREIGN
-            # would be configured to run something this host cannot serve within the operator's
-            # rule. Reported separately from the library-wide list so it cannot be lost in it.
-            "configured_over_ceiling": configured_over_ceiling,
-        },
         "activity_observable": False,
         "activity_note": (
             "/api/tags means installed; /api/ps means loaded/resident. "
             "Neither endpoint proves an active generation request."
         ),
     }
+
+
+def _unknown_model_states(configured: Sequence[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": model,
+            "configured": True,
+            "installed": None,
+            "loaded": None,
+            "currently_running": None,
+        }
+        for model in configured
+    ]
+
+
+def _parse_models_ini(path: Path) -> list[dict[str, str | None]] | None:
+    """Parse the llama.cpp router preset into [{id, alias, model}] entries."""
+
+    text, error = _read_text(path)
+    if error or text is None:
+        return None
+    entries: list[dict[str, str | None]] = []
+    current: dict[str, str | None] | None = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            name = stripped[1:-1].strip()
+            current = {"id": name or None, "alias": None, "model": None}
+            if name and name != "*":
+                entries.append(current)
+            else:
+                current = None
+            continue
+        if current is None:
+            continue
+        key, separator, value = stripped.partition("=")
+        if not separator:
+            continue
+        field = key.strip().lower()
+        if field == "alias":
+            current["alias"] = value.strip() or None
+        elif field == "model":
+            current["model"] = value.strip() or None
+    return entries
+
+
+def _resolve_introspection_backend(paths: ProductPaths) -> str:
+    """Effective local backend, resolved without importing runtime modules.
+
+    Mirrors runtime_contracts/backend_selection precedence: explicit
+    SOVEREIGN_INFERENCE_BACKEND env, then runtime/backend_selection.json,
+    then the factory default (llama.cpp).
+    """
+
+    def normalize(value: str) -> str:
+        selected = value.strip().lower()
+        if selected == "ollama":
+            return "ollama"
+        if selected in {"freetoken", "free-token", "free_token"}:
+            return "freetoken"
+        return "llama.cpp"
+
+    env = str(os.environ.get("SOVEREIGN_INFERENCE_BACKEND") or "").strip()
+    if env:
+        return normalize(env)
+    payload, _error = _read_json(paths.root / "runtime" / "backend_selection.json")
+    if isinstance(payload, dict):
+        selected = str(payload.get("default_backend") or "").strip()
+        if selected:
+            return normalize(selected)
+    return "llama.cpp"
+
+
+def _tcp_listening(host: str, port: int, timeout: float) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=min(max(float(timeout), 0.05), 2.0)):
+            return True
+    except OSError:
+        return False
+
+
+def _llama_models_http(base_url: str, api_key: str | None, timeout: float) -> tuple[list[Any] | None, str | None]:
+    """GET /models on the llama.cpp router with header auth (key never in URL)."""
+
+    parsed = urlsplit(base_url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 80
+    connection = http.client.HTTPConnection(host, port, timeout=min(max(float(timeout), 0.05), 2.0))
+    try:
+        headers = {"Accept": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        connection.request("GET", parsed.path or "/models", headers=headers)
+        response = connection.getresponse()
+        data = response.read(1_000_001)
+        if response.status != 200:
+            return None, f"http_status_{response.status}"
+        payload = json.loads(data.decode("utf-8"))
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            return [], None
+        return rows, None
+    except Exception as exc:  # network failures are state, not crashes
+        return None, type(exc).__name__
+    finally:
+        connection.close()
+
+
+def _probe_llama_cpp(
+    paths: ProductPaths,
+    *,
+    configured_models: Iterable[str],
+    timeout: float,
+) -> dict[str, Any]:
+    """Loopback probe of the llama.cpp supervisor router (backend-aware health).
+
+    Gated on supervisor artifacts: without <root>/runtime/llamacpp_supervisor
+    (models.ini preset or state.json) the probe reports not_configured and
+    performs no network I/O, so roots without the llama.cpp deployment keep
+    the historical Ollama-probe behavior.
+    """
+
+    configured = sorted({str(model).strip() for model in configured_models if str(model).strip()})
+    supervisor_dir = paths.root / "runtime" / "llamacpp_supervisor"
+    preset = _parse_models_ini(supervisor_dir / "models.ini")
+    state_payload, _state_error = _read_json(supervisor_dir / "state.json")
+    if preset is None and state_payload is None:
+        return {
+            "service": "llama.cpp",
+            "base_url": None,
+            "loopback_only": True,
+            "reachable": False,
+            "probe_status": "not_configured",
+            "configured_models": configured,
+            "installed_models": None,
+            "loaded_models": None,
+            "currently_running_models": None,
+            "model_states": _unknown_model_states(configured),
+            "activity_observable": False,
+            "activity_note": (
+                "No llama.cpp supervisor preset or state under runtime/llamacpp_supervisor."
+            ),
+        }
+
+    base_url = (
+        str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or "").strip()
+        or LLAMA_CPP_DEFAULT_BASE_URL
+    )
+    trusted_base, blocked_reason = _loopback_base_url(base_url)
+    if blocked_reason or trusted_base is None:
+        return {
+            "service": "llama.cpp",
+            "base_url": base_url,
+            "loopback_only": True,
+            "reachable": False,
+            "probe_status": blocked_reason,
+            "configured_models": configured,
+            "installed_models": None,
+            "loaded_models": None,
+            "currently_running_models": None,
+            "model_states": _unknown_model_states(configured),
+            "activity_observable": False,
+            "activity_note": "A non-loopback llama.cpp URL is never probed.",
+        }
+
+    parsed = urlsplit(trusted_base)
+    listening = _tcp_listening(parsed.hostname or "127.0.0.1", parsed.port or 80, timeout)
+
+    registered: set[str] = set()
+    installed: set[str] = set()
+    for entry in preset or []:
+        names = [name for name in (entry.get("id"), entry.get("alias")) if name]
+        registered.update(names)
+        model_file = str(entry.get("model") or "").strip()
+        if model_file and Path(model_file).is_file():
+            installed.update(names)
+
+    api_key_text, api_key_error = _read_text(supervisor_dir / "api_key")
+    api_key = api_key_text.strip() if api_key_error is None and api_key_text else None
+    loaded: list[str] | None = None
+    models_error: str | None = None
+    rows: list[Any] | None = None
+    if listening:
+        rows, models_error = _llama_models_http(trusted_base, api_key, timeout)
+        if rows is not None:
+            loaded = []
+            for row in rows:
+                if not isinstance(row, Mapping):
+                    continue
+                identity = str(row.get("id") or "").strip()
+                alias = str(row.get("alias") or "").strip()
+                if identity:
+                    installed.add(identity)
+                if alias:
+                    installed.add(alias)
+                status = row.get("status")
+                value = status.get("value") if isinstance(status, Mapping) else status
+                if identity and str(value or "").strip().lower() in {"loaded", "loading", "busy"}:
+                    loaded.append(identity)
+                    if alias:
+                        loaded.append(alias)
+            loaded = sorted(set(loaded))
+
+    if not listening and rows is None:
+        probe_status = "offline"
+    elif rows is None:
+        probe_status = "partial"
+    else:
+        probe_status = "online"
+    installed_models = sorted(installed) if (installed or registered) else None
+    if installed_models is None and preset:
+        installed_models = []
+    all_names = sorted(set(configured) | set(installed_models or []) | set(loaded or []))
+    installed_set = set(installed_models or ())
+    loaded_set = set(loaded or ())
+    return {
+        "service": "llama.cpp",
+        "base_url": trusted_base,
+        "loopback_only": True,
+        "reachable": bool(listening or rows is not None),
+        "listening": listening,
+        "probe_status": probe_status,
+        "models_endpoint_error_type": models_error,
+        "configured_models": configured,
+        "registered_models": sorted(registered),
+        "installed_models": installed_models,
+        "loaded_models": loaded,
+        "currently_running_models": None,
+        "supervisor_pid": (state_payload or {}).get("pid") if isinstance(state_payload, Mapping) else None,
+        "model_states": [
+            {
+                "name": model,
+                "configured": model in configured,
+                "installed": None if installed_models is None else model in installed_set,
+                "loaded": None if loaded is None else model in loaded_set,
+                "currently_running": None,
+            }
+            for model in all_names
+        ],
+        "activity_observable": False,
+        "activity_note": (
+            "Router /models proves registration and residency, not an active generation request."
+        ),
+    }
+
+
+def _probe_freetoken(paths: ProductPaths, *, timeout: float) -> dict[str, Any]:
+    """File/loopback state of the on-demand FreeToken supervisor (informational)."""
+
+    supervisor_dir = paths.root / "runtime" / "freetoken_supervisor"
+    state_payload, state_error = _read_json(supervisor_dir / "state.json")
+    autostart = (supervisor_dir / "AUTOSTART").is_file()
+    if state_payload is None:
+        return {
+            "service": "freetoken",
+            "configured": state_error is None and autostart,
+            "running": False,
+            "listening": False,
+            "pid": None,
+            "profile": None,
+            "base_url": None,
+            "autostart": autostart,
+            "state_error": state_error,
+            "activity_note": "No FreeToken supervisor state; on-demand runtime is not started.",
+        }
+    base_url = str(state_payload.get("base_url") or "").strip() or FREETOKEN_DEFAULT_BASE_URL
+    trusted_base, blocked_reason = _loopback_base_url(base_url)
+    listening = False
+    if blocked_reason is None and trusted_base is not None:
+        parsed = urlsplit(trusted_base)
+        listening = _tcp_listening(parsed.hostname or "127.0.0.1", parsed.port or 80, timeout)
+    return {
+        "service": "freetoken",
+        "configured": True,
+        "running": bool(listening),
+        "listening": listening,
+        "pid": state_payload.get("pid"),
+        "profile": state_payload.get("profile"),
+        "base_url": trusted_base,
+        "base_url_blocked_reason": blocked_reason,
+        "autostart": autostart,
+        "started_utc": state_payload.get("started_utc"),
+        "activity_note": (
+            "Listening proves the on-demand server socket, not model readiness or active work."
+        ),
+    }
+
+
+def model_service_authority(snapshot: Mapping[str, Any]) -> tuple[str, Mapping[str, Any]]:
+    """(label, probe) of the authoritative local model service in a snapshot.
+
+    Falls back to the Ollama probe for snapshots without backend-aware keys or
+    roots where the llama.cpp supervisor is not configured.
+    """
+
+    service = (
+        snapshot.get("model_service")
+        if isinstance(snapshot.get("model_service"), Mapping)
+        else {}
+    )
+    authority = str(service.get("authority") or "").strip().lower()
+    if authority == "llama.cpp":
+        probe = snapshot.get("llama_cpp")
+        if isinstance(probe, Mapping):
+            return LLAMA_CPP_LABEL, probe
+    ollama = snapshot.get("ollama")
+    return OLLAMA_LABEL, (ollama if isinstance(ollama, Mapping) else {})
 
 
 def _json_safe(value: Any, *, depth: int = 0) -> Any:
@@ -777,6 +945,8 @@ def _capability_state(
     ollama: Mapping[str, Any],
     publication: Mapping[str, Any],
     store: Mapping[str, Any],
+    *,
+    service_label: str = OLLAMA_LABEL,
 ) -> dict[str, Any]:
     engine = components["engine"]
     adapter = components["adapter"]
@@ -795,26 +965,29 @@ def _capability_state(
     all_models_installed = (
         isinstance(installed_raw, list) and configured.issubset(set(installed_raw))
     )
+    # Readiness requires a reachable loopback service, not only on-disk models:
+    # an installed inventory while the service is offline is not inference-ready.
+    service_ready = all_models_installed and bool(ollama.get("reachable"))
     engine_sources = list((engine.get("sources") or {}).values())
     return {
         "canonical_reasoning_cycle": _capability(
             supported=core_present,
-            ready=core_present and all_models_installed,
+            ready=core_present and service_ready,
             evidence=engine_sources,
             limitations=(
                 []
-                if all_models_installed
+                if service_ready
                 else ["Configured model readiness is not fully evidenced."]
             ),
         ),
         "local_model_inference": _capability(
             supported=bool(configured),
-            ready=all_models_installed if configured else False,
+            ready=service_ready if configured else False,
             evidence=[(engine.get("sources") or {}).get("manifest")],
             limitations=(
                 []
-                if all_models_installed
-                else ["Ollama is offline, partial, or missing configured models."]
+                if service_ready
+                else [f"{service_label} is offline, partial, or missing configured models."]
             ),
         ),
         "local_adapter_api": _capability(
@@ -902,25 +1075,37 @@ def collect_self_state(
     base_url = runtime.get("OLLAMA_BASE_URL") if isinstance(runtime, Mapping) else None
 
     store_state = _store_state(store)
-    # F-115: readiness must not require the EMBEDDING model. No sovereign_product route uses
-    # embeddings, yet including EMBEDDING_MODEL here made /v1/health report degraded and QUICK/DEEP
-    # "not ready" whenever nomic-embed-text was absent. Gate readiness on the roles the product
-    # actually calls; the embedding role is still reported in configured_models_by_role below.
-    readiness_models = [
-        model for role, model in configured_roles.items()
-        if "EMBED" not in str(role).upper()
-    ]
     ollama = _probe_ollama(
         str(base_url) if isinstance(base_url, str) else None,
-        configured_models=readiness_models,
+        configured_models=configured_roles.values(),
         http_get=http_get,
         timeout=timeout,
     )
+    backend = _resolve_introspection_backend(resolved_paths)
+    llama_cpp = _probe_llama_cpp(
+        resolved_paths,
+        configured_models=configured_roles.values(),
+        timeout=timeout,
+    )
+    freetoken = _probe_freetoken(resolved_paths, timeout=timeout)
+    # A missing llama.cpp deployment is an unavailable local runtime, not a
+    # reason to silently switch the product back to Ollama.  Ollama remains
+    # selectable only when an operator explicitly chooses that backend.
+    if backend == "ollama":
+        authority_name, authority_label, authority_probe = "ollama", OLLAMA_LABEL, ollama
+    else:
+        authority_name, authority_label, authority_probe = "llama.cpp", LLAMA_CPP_LABEL, llama_cpp
     components = _component_state(resolved_paths, manifest)
     constitution = _constitution_state(resolved_paths)
     publication = _publication_state(resolved_paths)
     cycles = _cycle_state(resolved_paths)
-    capabilities = _capability_state(components, ollama, publication, store_state)
+    capabilities = _capability_state(
+        components,
+        authority_probe,
+        publication,
+        store_state,
+        service_label=authority_label,
+    )
     running_jobs = store_state.get("running_jobs")
     currently_running = bool(running_jobs) if isinstance(running_jobs, int) else None
 
@@ -951,6 +1136,15 @@ def collect_self_state(
         "constitution": constitution,
         "publication": publication,
         "ollama": ollama,
+        "llama_cpp": llama_cpp,
+        "freetoken": freetoken,
+        "model_service": {
+            "backend": backend,
+            "authority": authority_name,
+            "authority_label": authority_label,
+            "base_url": authority_probe.get("base_url"),
+            "reachable": bool(authority_probe.get("reachable")),
+        },
         "store": store_state,
         "runtime": {
             "currently_running": currently_running,
@@ -1018,7 +1212,7 @@ def status_answer(
         if isinstance(snapshot.get("publication"), Mapping)
         else {}
     )
-    ollama = snapshot.get("ollama") if isinstance(snapshot.get("ollama"), Mapping) else {}
+    service_label, model_service = model_service_authority(snapshot)
     runtime = snapshot.get("runtime") if isinstance(snapshot.get("runtime"), Mapping) else {}
     cycles = snapshot.get("cycles") if isinstance(snapshot.get("cycles"), Mapping) else {}
 
@@ -1048,19 +1242,19 @@ def status_answer(
         ),
     ]
 
-    configured = ollama.get("configured_models") or []
-    installed = ollama.get("installed_models")
-    loaded = ollama.get("loaded_models")
-    if ollama.get("probe_status") in {"offline", "not_configured"} or not ollama.get("reachable"):
+    configured = model_service.get("configured_models") or []
+    installed = model_service.get("installed_models")
+    loaded = model_service.get("loaded_models")
+    if model_service.get("probe_status") in {"offline", "not_configured"} or not model_service.get("reachable"):
         sentences.append(
-            f"Ollama is not reachable/configured; {len(configured)} model(s) are configured, "
+            f"{service_label} is not reachable/configured; {len(configured)} model(s) are configured, "
             "but installed and loaded state are unknown."
         )
     else:
         installed_text = "unknown" if installed is None else str(len(installed))
         loaded_text = "unknown" if loaded is None else str(len(loaded))
         sentences.append(
-            f"Ollama reports {len(configured)} configured, {installed_text} installed, "
+            f"{service_label} reports {len(configured)} configured, {installed_text} installed, "
             f"and {loaded_text} loaded model(s). Loaded does not mean actively generating."
         )
 
@@ -1299,11 +1493,7 @@ def answer_self_query(
             if isinstance(snapshot.get("manifest"), Mapping)
             else {}
         )
-        ollama = (
-            snapshot.get("ollama")
-            if isinstance(snapshot.get("ollama"), Mapping)
-            else {}
-        )
+        service_label, model_service = model_service_authority(snapshot)
         runtime = (
             snapshot.get("runtime")
             if isinstance(snapshot.get("runtime"), Mapping)
@@ -1315,9 +1505,9 @@ def answer_self_query(
             if isinstance(roles, Mapping) and roles
             else "unknown"
         )
-        installed = ollama.get("installed_models")
-        loaded = ollama.get("loaded_models")
-        configured = set(ollama.get("configured_models") or [])
+        installed = model_service.get("installed_models")
+        loaded = model_service.get("loaded_models")
+        configured = set(model_service.get("configured_models") or [])
         installed_configured = (
             sorted(configured.intersection(str(item) for item in installed))
             if isinstance(installed, Sequence) and not isinstance(installed, (str, bytes))
@@ -1340,7 +1530,7 @@ def answer_self_query(
             "answer": answer,
             "sources": sources,
             "limitations": [
-                "Ollama inventory and residency do not identify an active request.",
+                f"{service_label} inventory and residency do not identify an active request.",
                 "Active SOVEREIGN work is reported only from the durable job store.",
             ],
         }
@@ -1464,13 +1654,14 @@ def answer_self_query(
             "limitations": list(store_state.get("errors") or []),
         }
     if asks_network:
-        ollama = snapshot.get("ollama") if isinstance(snapshot.get("ollama"), Mapping) else {}
-        loopback = ollama.get("loopback_only")
+        service_label, model_service = model_service_authority(snapshot)
+        loopback = model_service.get("loopback_only")
         return {
             "route": "STATUS",
             "kind": "containment",
             "answer": (
-                f"The configured model service is {ollama.get('base_url') or 'unknown'}; "
+                f"The configured model service is {service_label.removeprefix('The ')} at "
+                f"{model_service.get('base_url') or 'unknown'}; "
                 f"loopback-only is {loopback if loopback is not None else 'unknown'}. "
                 "No external web-research capability or unrestricted network authority is evidenced."
             ),

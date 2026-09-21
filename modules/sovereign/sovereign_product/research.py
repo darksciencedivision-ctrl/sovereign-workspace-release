@@ -25,14 +25,12 @@ import json
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
-import sys
-import threading
 import time
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from urllib.parse import urlsplit
 import uuid
 
-from .paths import STATE_POINTER_PREFIX, ProductPaths, UnsafeArtifactPointer
+from .paths import ProductPaths, UnsafeArtifactPointer
 from .model_client import OLLAMA_GENERATION_TIMEOUT_SECONDS
 
 
@@ -88,13 +86,6 @@ class ResearchPhase(str, Enum):
     DECISION = "reject_revise_or_retain"
     ITERATION_CHECKPOINT = "iteration_checkpoint"
     FINAL_SYNTHESIS = "final_synthesis"
-    # R38. A durable, model-free finalization phase. Final synthesis and finalization used to be
-    # one indivisible step: after the synthesis output was checkpointed, the SAME loop turn marked
-    # the run completed and wrote the final artifacts. A crash in that window left `final_synthesis`
-    # persisted but the run not completed, and resume raised "non-completed state has no next
-    # phase". Finalization is now its own phase: it publishes artifacts and marks completion
-    # idempotently, calls no model, and is where the loop resumes to after synthesis.
-    FINALIZE = "finalize"
 
 
 class ResearchStatus(str, Enum):
@@ -110,22 +101,16 @@ class ResearchStatus(str, Enum):
 class ResearchLimits:
     """Frozen lower targets and hard upper resource bounds.
 
-    F-116. The defaults are PRODUCT defaults, not the eight-hour proof configuration they used to
-    be. That configuration forced every RESEARCH run through a minimum of eight iterations and a
-    disposition quota -- it could not be considered successful until it had both rejected AND
-    revised a hypothesis -- and gave it up to eight hours. For an operator asking one question that
-    is far too much: it manufactured iterations, and a run that answered in one substantive pass
-    was held incomplete. A caller running a deliberate long investigation still passes an explicit
-    ``ResearchLimits`` with larger bounds; the defaults now suit an ordinary request.
-
-    A successful run must still meet the minimums it is given; the hard maxima remain containment
-    limits, not success criteria.
+    A successful run must meet *both* minimums.  Hard maxima are containment
+    limits, not success criteria.  In an eight-hour proof, callers should use a
+    positive ``minimum_duration_seconds`` and enough iteration/model-call headroom
+    to keep the investigation substantive for that duration.
     """
 
-    minimum_iterations: int = 1
+    minimum_iterations: int = 8
     maximum_iterations: int = 64
     minimum_duration_seconds: float = 0.0
-    maximum_duration_seconds: float = 30 * 60
+    maximum_duration_seconds: float = 8 * 60 * 60
     maximum_model_calls: int = 260
     model_call_timeout_seconds: float = OLLAMA_GENERATION_TIMEOUT_SECONDS
     maximum_prompt_bytes: int = 65_536
@@ -134,11 +119,8 @@ class ResearchLimits:
     maximum_source_bytes: int = 16_384
     maximum_sources: int = 64
     maximum_tokens_per_call: int = 32_768
-    # F-116. The disposition quota is dropped: a run is no longer required to have rejected or
-    # revised a hypothesis before it can complete. A caller who wants that discipline can still set
-    # these True explicitly.
-    require_rejected_hypothesis: bool = False
-    require_revised_hypothesis: bool = False
+    require_rejected_hypothesis: bool = True
+    require_revised_hypothesis: bool = True
 
     def __post_init__(self) -> None:
         integer_bounds = (
@@ -473,29 +455,8 @@ class _ResearchLock:
 
     @staticmethod
     def _pid_alive(pid: int) -> bool:
-        # F-118. On Windows, signal 0 is CTRL_C_EVENT, so os.kill(pid, 0) does NOT test liveness --
-        # it delivers a console control event (and returned True both for a live process and after
-        # the process was killed), so a lock left by a crashed run was never reclaimed and a real
-        # Ctrl+C could be sent to a reused pid. Use OpenProcess + GetExitCodeProcess instead: a
-        # process is alive only while its exit code is STILL_ACTIVE.
         if pid <= 0:
             return False
-        if sys.platform == "win32":
-            import ctypes
-            from ctypes import wintypes
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-            STILL_ACTIVE = 259
-            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
-            if not handle:
-                return False  # no such process (or access denied on a foreign owner: treat as gone)
-            try:
-                code = wintypes.DWORD()
-                if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
-                    return False
-                return code.value == STILL_ACTIVE
-            finally:
-                kernel32.CloseHandle(handle)
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
@@ -581,14 +542,6 @@ class ResearchExecutor:
         self._interrupt: StopCallback = lambda: False
         self._active_base = 0.0
         self._active_started = 0.0
-        # R37. This executor is a SHARED instance and carries per-run state on itself -- the cancel
-        # and interrupt callbacks, the active-time base and start, and the progress callback. Two
-        # runs executing on it at once would clobber one another: run B's cancel callback would
-        # replace run A's, B's timing would reset A's, and B would steal A's progress events. Until
-        # that state is carried in a per-run context object, admission is single-run: run() takes
-        # this lock for the whole run and a concurrent second run is refused rather than allowed to
-        # corrupt the first. (A cross-process file lock, ResearchLock, is a separate concern.)
-        self._run_admission = threading.Lock()
 
         if not self.root.is_dir():
             raise ResearchContainmentError(f"product root does not exist: {self.root}")
@@ -732,45 +685,6 @@ class ResearchExecutor:
     ) -> ResearchResult:
         """Start or, when explicitly allowed, resume one research id."""
 
-        # R37. Single-run admission: refuse a concurrent run rather than let it overwrite the
-        # in-flight run's callbacks, timing and progress on this shared instance.
-        if not self._run_admission.acquire(blocking=False):
-            raise ResearchAlreadyRunning(
-                "another research run is in progress on this executor; "
-                "concurrent runs are not permitted"
-            )
-        try:
-            return self._run_admitted(
-                research_id,
-                objective,
-                model=model,
-                limits=limits,
-                local_sources=local_sources,
-                execution_evidence=execution_evidence,
-                model_options=model_options,
-                resume_existing=resume_existing,
-                progress_callback=progress_callback,
-                cancel_requested=cancel_requested,
-                interrupt_requested=interrupt_requested,
-            )
-        finally:
-            self._run_admission.release()
-
-    def _run_admitted(
-        self,
-        research_id: str,
-        objective: str,
-        *,
-        model: str,
-        limits: ResearchLimits | None = None,
-        local_sources: Iterable[str | Path] = (),
-        execution_evidence: Iterable[Mapping[str, Any]] = (),
-        model_options: Mapping[str, Any] | None = None,
-        resume_existing: bool = True,
-        progress_callback: ProgressCallback | None = None,
-        cancel_requested: StopCallback | None = None,
-        interrupt_requested: StopCallback | None = None,
-    ) -> ResearchResult:
         research_id = _safe_id(research_id)
         if self._checkpoint_files(research_id):
             if not resume_existing:
@@ -2741,9 +2655,7 @@ class ResearchExecutor:
                     iteration=state["completed_iterations"],
                     source="final_synthesis",
                 )
-            # R38. Hand off to the durable finalization phase rather than marking completion in the
-            # same turn, so a crash after this checkpoint resumes straight into FINALIZE.
-            state["next_phase"] = ResearchPhase.FINALIZE.value
+            state["next_phase"] = None
         else:
             raise ResearchPhaseError(f"cannot complete model phase {phase.value}")
         state["inflight"] = None
@@ -2793,11 +2705,6 @@ class ResearchExecutor:
         state: Mapping[str, Any],
         phase: ResearchPhase,
     ) -> str | None:
-        # R38. Finalization is model-free and must always complete a synthesized run; a budget
-        # that was exhausted during the run must never divert it to a partial finish after the
-        # answer has already been synthesized.
-        if phase is ResearchPhase.FINALIZE:
-            return None
         limits = ResearchLimits.from_dict(state["limits"])
         if float(state["resources"]["active_seconds"]) >= limits.maximum_duration_seconds:
             return "maximum active-duration budget reached"
@@ -2829,11 +2736,6 @@ class ResearchExecutor:
                 if state.get("next_phase") is None:
                     if state["status"] == ResearchStatus.COMPLETED.value:
                         return self._result(state)
-                    # R38. A state whose synthesis was persisted but whose completion was not (a
-                    # crash in the old single-turn window, or any legacy checkpoint written with
-                    # next_phase=None) is finalized on resume rather than declared unrecoverable.
-                    if state.get("final_synthesis") is not None:
-                        return self._finalize(state)
                     raise ResearchCheckpointError(
                         "non-completed state has no next phase"
                     )
@@ -2846,15 +2748,18 @@ class ResearchExecutor:
                     self._complete_iteration(state)
                     continue
 
-                if phase is ResearchPhase.FINALIZE:
-                    # R38. Durable, model-free finalization. Reached both directly after synthesis
-                    # and on resume after a crash in the finalization window.
-                    return self._finalize(state)
-
                 inflight = self._begin_model_phase(state, phase)
                 text = self._obtain_model_output(state, phase, inflight)
                 parsed = self._parse_phase_output(state, phase, text)
                 self._complete_model_phase(state, phase, parsed)
+
+                if phase is ResearchPhase.FINAL_SYNTHESIS:
+                    state["status"] = ResearchStatus.COMPLETED.value
+                    state["completed_at"] = self._now()
+                    state["reason"] = None
+                    self._write_final_artifacts(state, completed=True)
+                    self._checkpoint(state, "research-completed")
+                    return self._result(state)
         except KeyboardInterrupt:
             return self._stop(
                 state,
@@ -2925,25 +2830,6 @@ class ResearchExecutor:
                 f"research failed ({reason}) and failure checkpoint also failed: "
                 f"{checkpoint_exc}"
             ) from checkpoint_exc
-        return self._result(state)
-
-    def _finalize(self, state: dict[str, Any]) -> ResearchResult:
-        """R38. Durably and idempotently finalize a synthesized run.
-
-        Reached after final synthesis and on resume after a crash in the finalization window. It
-        calls no model (final synthesis is already persisted in `state["final_synthesis"]`), marks
-        completion once, republishes the final artifacts (atomic writes, so re-running is a no-op),
-        clears `next_phase`, checkpoints, and returns the result. Running it twice yields the same
-        completed state, so a crash between any two of its steps still resumes to completion without
-        a duplicate synthesis call."""
-        if state.get("status") != ResearchStatus.COMPLETED.value:
-            state["status"] = ResearchStatus.COMPLETED.value
-            if not state.get("completed_at"):
-                state["completed_at"] = self._now()
-            state["reason"] = None
-        self._write_final_artifacts(state, completed=True)
-        state["next_phase"] = None
-        self._checkpoint(state, "research-completed")
         return self._result(state)
 
     def _finish_partial(
@@ -3124,24 +3010,15 @@ class ResearchExecutor:
         }
 
     def _artifact_reference(self, path: Path, approved_root: Path) -> str:
-        """F-119. Emit a resolvable pointer through the one shared path contract.
-
-        The evidence tree lives under the STATE root (P4-4), so the install-root-only
-        `paths.pointer()` raised and this fell back to `approved-evidence://<relative>` -- a scheme
-        nothing can resolve, so a completed RESEARCH run's report pointed at artifacts that could
-        not be opened and was REJECTED downstream. `make_pointer` chooses the correct scheme
-        (`sovereign-state://` for the evidence tree) and round-trip-validates it, so the reference
-        is one the resolver can actually open."""
         resolved = path.resolve(strict=False)
-        make_pointer = getattr(self.paths, "make_pointer", None)
-        if callable(make_pointer):
-            return str(make_pointer(resolved))
-        # Legacy paths object without the shared contract: fall back to the install-root pointer.
+        relative = resolved.relative_to(approved_root.resolve(strict=False)).as_posix()
         pointer_method = getattr(self.paths, "pointer", None)
         if callable(pointer_method):
-            return str(pointer_method(resolved))
-        relative = resolved.relative_to(approved_root.resolve(strict=False)).as_posix()
-        return f"{STATE_POINTER_PREFIX}{relative}"
+            try:
+                return str(pointer_method(resolved))
+            except (UnsafeArtifactPointer, ValueError):
+                pass
+        return f"approved-evidence://{relative}"
 
     def _result(self, state: Mapping[str, Any]) -> ResearchResult:
         return ResearchResult(

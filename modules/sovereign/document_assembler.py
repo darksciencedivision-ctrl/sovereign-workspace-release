@@ -1,8 +1,4 @@
-from __future__ import annotations
-
-# F-125 - QUARANTINE / SUPPORT DISPOSITION: legacy Phase-9 engine, NOT on the shipped product
-# route (product DEEP traffic uses sovereign_product/semantic_deep). Retained unsupported; do not
-# add a product caller. See cycle_runner_v3.py for the full disposition.
+﻿from __future__ import annotations
 
 r"""
 document_assembler.py - SOVEREIGN Phase 9
@@ -306,11 +302,6 @@ def _praxis_query(
     if not script.exists():
         return None, f"praxis_query.py not found at {script}"
 
-    try:
-        result_file.unlink(missing_ok=True)
-    except OSError:
-        pass
-
     payload = json.dumps({"query": query, "n_results": n_results, "include_claims": True, "include_unresolved": True, "include_contested": True}, ensure_ascii=False)
     try:
         query_file.write_text(payload, encoding="utf-8")
@@ -369,14 +360,11 @@ def _ollama_generate(prompt: str, session_id: str, ollama_base: str, assembly_mo
     }
 
     try:
-        # F-125(f) / F-016: loopback Ollama must never be routed through an ambient HTTP(S)_PROXY.
-        with req.Session() as session:
-            session.trust_env = False
-            resp = session.post(
-                f"{ollama_base.rstrip('/')}/api/generate",
-                json=payload,
-                timeout=OLLAMA_TIMEOUT,
-            )
+        resp = req.post(
+            f"{ollama_base.rstrip('/')}/api/generate",
+            json=payload,
+            timeout=OLLAMA_TIMEOUT,
+        )
         resp.raise_for_status()
         data = resp.json()
     except req.exceptions.Timeout:

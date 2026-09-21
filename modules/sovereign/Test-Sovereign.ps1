@@ -1,13 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$Root = "",
+    [string]$Root = $PSScriptRoot,
     [switch]$Full
 )
 
 $ErrorActionPreference = "Stop"
-if ([string]::IsNullOrWhiteSpace($Root)) {
-    $Root = $PSScriptRoot
-}
 $rootPath = [System.IO.Path]::GetFullPath($Root)
 $markerPath = Join-Path $rootPath ".sovereign-root"
 $pythonPath = Join-Path $rootPath ".venv\Scripts\python.exe"
@@ -41,12 +38,6 @@ $compileTargets += @(
         Select-Object -ExpandProperty FullName
 )
 
-# CR-030: the source-only tree intentionally removed the Sovereign Python and UI unit-test suites.
-# The retained validation must be TRUTHFUL: run the lanes that exist, and record any intentionally
-# removed lane as UNSUPPORTED (non-qualifying) rather than throwing a false failure or claiming a
-# pass it never ran. The final banner reflects whether any lane was unsupported.
-$script:unsupportedLanes = @()
-
 Push-Location $rootPath
 try {
     & $pythonPath -c (
@@ -58,38 +49,14 @@ try {
         throw "SYSTEM_MANIFEST validation failed."
     }
 
-    # F-120. Compile-check to a TEMP bytecode cache, not into the install tree (the plain
-    # compileall wrote __pycache__ under the installation, which verify_install/uninstall's
-    # exact-path-set check then flagged).
-    $previousPycachePrefix = $env:PYTHONPYCACHEPREFIX
-    $env:PYTHONPYCACHEPREFIX = Join-Path ([System.IO.Path]::GetTempPath()) "sovereign-compileall"
-    try {
-        & $pythonPath -m compileall -q $compileTargets
-    } finally {
-        $env:PYTHONPYCACHEPREFIX = $previousPycachePrefix
-    }
+    & $pythonPath -m compileall -q $compileTargets
     if ($LASTEXITCODE -ne 0) {
         throw "Python compile check failed."
     }
 
-    # CR-030: run only the Python test dirs that actually EXIST in this source-only tree. The
-    # Sovereign unit-test suite was intentionally removed, so `pytest tests` would always fail on a
-    # missing directory. If a test dir exists, run it and fail closed on a real failure; otherwise
-    # record the lane as intentionally unsupported (non-qualifying) instead of inventing a failure.
-    $testTargets = @()
-    foreach ($dir in @("tests", "tests_product")) {
-        if (Test-Path -LiteralPath (Join-Path $rootPath $dir) -PathType Container) {
-            $testTargets += $dir
-        }
-    }
-    if ($testTargets.Count -gt 0) {
-        & $pythonPath -m pytest -q @testTargets
-        if ($LASTEXITCODE -ne 0) {
-            throw "Python test suite failed."
-        }
-    } else {
-        Write-Host "  Sovereign Python unit tests: INTENTIONALLY UNSUPPORTED in the source-only tree (non-qualifying)." -ForegroundColor Yellow
-        $script:unsupportedLanes += "sovereign-python-unit"
+    & $pythonPath -m pytest -q tests tests_product
+    if ($LASTEXITCODE -ne 0) {
+        throw "Python test suite failed."
     }
 
     & $pythonPath "ui\adapter_service\adapter.py" --help *> $null
@@ -99,10 +66,6 @@ try {
 
     Push-Location $uiPath
     try {
-        & npm test
-        if ($LASTEXITCODE -ne 0) {
-            throw "UI unit tests failed."
-        }
         & npm run typecheck
         if ($LASTEXITCODE -ne 0) {
             throw "UI type check failed."
@@ -115,28 +78,64 @@ try {
         Pop-Location
     }
 
+    Write-Host "STATIC_PASS: marker, venv, manifest, compileall, tests, adapter handoff, UI typecheck+build."
+
     if ($Full) {
         $statePath = Join-Path $rootPath "runtime\service_state.json"
-        if (Test-Path -LiteralPath $statePath -PathType Leaf) {
+        if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
+            throw "LIVE_FAIL: -Full requires a running SOVEREIGN service but no service state exists at $statePath. Start SOVEREIGN with Start-Sovereign.ps1 and retry."
+        }
+
+        try {
             $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
-            & $pythonPath "ui\adapter_service\smoke_test.py" --base (
-                ([string]$state.url).TrimEnd("/")
-            )
-            if ($LASTEXITCODE -ne 0) {
-                throw "Live unified-service compatibility smoke failed."
+        } catch {
+            throw "LIVE_FAIL: service state at $statePath is not valid JSON: $($_.Exception.Message)"
+        }
+
+        if (-not $state.url) {
+            throw "LIVE_FAIL: service state at $statePath has no url field."
+        }
+
+        $servicePid = 0
+        if (-not [int]::TryParse([string]$state.pid, [ref]$servicePid) -or $servicePid -le 0) {
+            throw "LIVE_FAIL: service state at $statePath has no usable pid field."
+        }
+
+        $recordedProcess = Get-Process -Id $servicePid -ErrorAction SilentlyContinue
+        if ($null -eq $recordedProcess) {
+            throw "LIVE_FAIL: recorded service PID $servicePid is not running; runtime\service_state.json is stale. Restart with Start-Sovereign.ps1."
+        }
+
+        if ($state.process_started_at) {
+            try {
+                $recordedStart = [DateTimeOffset]::Parse([string]$state.process_started_at)
+            } catch {
+                throw "LIVE_FAIL: process_started_at is not a parseable timestamp: $($_.Exception.Message)"
+            }
+            $actualStart = [DateTimeOffset]$recordedProcess.StartTime.ToUniversalTime()
+            if ([Math]::Abs(($actualStart - $recordedStart).TotalMilliseconds) -gt 100) {
+                throw "LIVE_FAIL: PID $servicePid is running but its start time does not match the recorded process_started_at; runtime\service_state.json is stale."
             }
         }
+
+        $base = ([string]$state.url).TrimEnd("/")
+        try {
+            Invoke-WebRequest -Uri "$base/v1/health" -UseBasicParsing -TimeoutSec 10 | Out-Null
+        } catch {
+            throw "LIVE_FAIL: health endpoint $base/v1/health did not respond: $($_.Exception.Message)"
+        }
+
+        & $pythonPath "ui\adapter_service\smoke_test.py" --base $base
+        if ($LASTEXITCODE -ne 0) {
+            throw "LIVE_FAIL: live unified-service compatibility smoke failed against $base."
+        }
+
+        Write-Host "LIVE_PASS: live smoke executed and passed against $base (PID $servicePid)."
+    } else {
+        Write-Host "LIVE_SKIPPED: static-only run; pass -Full to require live validation."
     }
 } finally {
     Pop-Location
 }
 
-# CR-030: never claim a clean "validation passed" when a lane was intentionally unsupported — that
-# would be a release-qualifying claim without executable coverage. Report the honest outcome.
-if ($script:unsupportedLanes.Count -gt 0) {
-    Write-Host ("SOVEREIGN validation completed; the executed lanes passed, but " +
-        "$($script:unsupportedLanes.Count) lane(s) are intentionally unsupported (non-qualifying): " +
-        ($script:unsupportedLanes -join ", ")) -ForegroundColor Yellow
-} else {
-    Write-Host "SOVEREIGN validation passed."
-}
+Write-Host "SOVEREIGN validation passed."

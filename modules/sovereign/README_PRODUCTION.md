@@ -6,9 +6,21 @@ This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It
 
 - Compatible Windows host with PowerShell and loopback networking.
 - Python 3.10 or newer.
-- A local Ollama service reachable at `http://127.0.0.1:11434`, as currently configured in `SYSTEM_MANIFEST.json`.
+- A local inference backend. SOVEREIGN is **backend-agnostic and runs on either engine**:
+  - **llama.cpp** (the default) via the bundled local supervisor on `http://127.0.0.1:18080`. Start/manage it with the `*-LlamaCppSupervisor.ps1` scripts in this directory, or let the Sovereign Workspace shell start the `llamacpp` module.
+  - **Ollama** on `http://127.0.0.1:11434`.
 - The pinned Python packages in `requirements.txt`: Flask 3.1.3, requests 2.34.2, ChromaDB 1.5.9, NumPy 2.5.1, and Pydantic 2.13.4.
 - Node.js is not required for normal operation because the production UI bundle is included under `ui/ui_shell/dist`.
+
+### Selecting the inference backend
+
+The effective backend is resolved in this precedence order (see `sovereign_product/backend_selection.py`):
+
+1. the `SOVEREIGN_INFERENCE_BACKEND` environment variable (`llama.cpp` or `ollama`), if set;
+2. the `default_backend` field in `runtime/backend_selection.json`, if present;
+3. the factory default, **llama.cpp**.
+
+Model-role assignments are never remapped by backend selection; production roles stay on the selected engine unless an operator explicitly designates otherwise. Whichever backend is selected must be running and must have the assigned model tags installed before startup.
 
 ## Current default model assignments
 

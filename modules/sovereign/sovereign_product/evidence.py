@@ -178,64 +178,17 @@ _HUMANIZED_PRODUCT_LOCATOR_ALIASES = {
     "constitution state": "constitution/constitution_state.json",
     "model hierarchy": "synthesis/model_hierarchy.json",
 }
-# SYSTEM_MANIFEST MODELS keys, humanized. Multi-word role names are this
-# product's vocabulary (like "praxis"): a query naming them is asking about
-# configured models even without saying "sovereign" or "the product".
-# Single-word roles ("critic", "synthesizer") require a model-configuration
-# frame so ordinary English does not retrieve product files.
-_PRODUCT_MODEL_ROLE_KEYS = (
-    "PRIMARY_REASONER",
-    "ADVERSARIAL_CHALLENGER",
-    "CRITIC",
-    "SYNTHESIZER",
-    "EMBEDDING_MODEL",
-)
-_STATE_LOCATION_QUERY_RE = re.compile(
-    r"\bwhere\s+(?:(?:is|are|does)\s+)?"
-    r"(?:(?:the\s+)?(?:mutable\s+|operator\s+|product\s+)?"
-    r"(?:runtime\s+)?state|(?:the\s+)?runtime)\s+"
-    r"(?:(?:is\s+)?(?:kept|stored|located|saved)|live[sd]?|"
-    r"kept|stored|located)\b"
-    r"|"
-    r"\b(?:runtime\s+state)\s+(?:is\s+)?(?:kept|stored|located|saved)\b"
-)
-#: EPC-02. The constitution's own vocabulary, taken from its headings and defined terms -
-#: not a general keyword list. A query using one of these words is asking about governance,
-#: and the constitution is the only file that can answer it.
-_CONSTITUTIONAL_QUERY_WORDS = frozenset(
-    {
-        "constitution",
-        "constitutional",
-        "praxis",
-        "canonical",
-        "boundaries",
-        "boundary",
-        "governance",
-        "governs",
-        "promotion",
-        "promote",
-        "upgrade",
-        "authority",
-        "synthesis",
-    }
-)
-
 _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
     "system_manifest.json": frozenset(
         {"version", "runtime", "models", "configuration", "capabilities"}
     ),
-    # F-112: SYSTEM_MANIFEST.json is the SOLE authority for the model roster / configuration /
-    # capabilities. The model picker rewrites SYSTEM_MANIFEST.json but NOT README_PRODUCTION.md or
-    # the legacy synthesis/model_hierarchy.json, so offering those as evidence for "which model"
-    # questions produced a packet with contradictory rosters where a correctly-cited answer could
-    # still be wrong. README keeps only what it documents durably (version, runtime); the legacy
-    # hierarchy file serves no model-authority intent.
-    "readme_production.md": frozenset({"version", "runtime"}),
     "sovereign_version.py": frozenset({"version"}),
     "constitution/constitution_state.json": frozenset(
         {"mode", "status", "configuration"}
     ),
-    "synthesis/model_hierarchy.json": frozenset(),
+    "synthesis/model_hierarchy.json": frozenset(
+        {"models", "configuration", "capabilities"}
+    ),
     "runtime_profile.json": frozenset(
         {
             "version",
@@ -244,31 +197,6 @@ _KNOWN_PRODUCT_FILE_INTENTS: dict[str, frozenset[str]] = {
             "failure",
             "configuration",
             "capabilities",
-        }
-    ),
-    # EPC-02, operator-authorized. The constitution is PROSE, not product state, and the
-    # content classifier that handles unlisted files derives intents from words like
-    # "version" and "runtime" - which this document does not use in that sense. Left to the
-    # classifier it would be admitted for the wrong questions and refused for its own.
-    #
-    # These are the subjects it genuinely covers, taken from its own headings: canonical
-    # boundaries, the Praxis Answer as the sole synthesis channel, Sovereign Voice being
-    # explicitly non-canonical, and the rules governing a controlled upgrade.
-    "constitution/constitution_v1.md": frozenset(
-        {
-            "constitution",
-            "governance",
-            "boundaries",
-            "canonical",
-            "praxis",
-            "voice",
-            "synthesis",
-            "promotion",
-            "upgrade",
-            "policy",
-            "authority",
-            "mode",
-            "status",
         }
     ),
 }
@@ -378,21 +306,11 @@ def _fit_text(
     byte_limit: int,
     token_limit: int,
     token_counter: TokenCounter,
-    query: str = "",
 ) -> str:
     if byte_limit <= 0 or token_limit <= 0 or not text:
         return ""
     if len(text.encode("utf-8")) <= byte_limit and token_counter(text) <= token_limit:
         return text
-    window = _query_relevant_excerpt(
-        text,
-        query=query,
-        byte_limit=byte_limit,
-        token_limit=token_limit,
-        token_counter=token_counter,
-    )
-    if window:
-        return window
     low = 0
     high = len(text)
     while low < high:
@@ -406,55 +324,6 @@ def _fit_text(
         else:
             high = midpoint - 1
     return text[:low]
-
-
-def _query_relevant_excerpt(
-    text: str,
-    *,
-    query: str,
-    byte_limit: int,
-    token_limit: int,
-    token_counter: TokenCounter,
-) -> str:
-    """Keep query-matching paragraphs when a file must be truncated."""
-
-    normalized_query = EvidenceBuilder._normalized_relevance_text(query)
-    terms = {
-        token
-        for token in normalized_query.split()
-        if token and token not in _RELEVANCE_STOPWORDS
-    }
-    if not terms:
-        return ""
-    paragraphs = [part for part in re.split(r"\n\s*\n", text) if part.strip()]
-    if not paragraphs:
-        return ""
-    scored: list[tuple[int, int]] = []
-    for index, paragraph in enumerate(paragraphs):
-        words = set(EvidenceBuilder._normalized_relevance_text(paragraph).split())
-        overlap = len(terms & words)
-        if overlap:
-            scored.append((overlap, index))
-    if not scored:
-        return ""
-    selected: set[int] = set()
-    for _overlap, index in sorted(scored, key=lambda item: (-item[0], item[1])):
-        trial = selected | {index}
-        excerpt = "\n\n".join(paragraphs[i] for i in sorted(trial))
-        if (
-            len(excerpt.encode("utf-8")) <= byte_limit
-            and token_counter(excerpt) <= token_limit
-        ):
-            selected.add(index)
-    if not selected:
-        best = paragraphs[max(scored, key=lambda item: (item[0], -item[1]))[1]]
-        return _fit_text(
-            best,
-            byte_limit=byte_limit,
-            token_limit=token_limit,
-            token_counter=token_counter,
-        )
-    return "\n\n".join(paragraphs[i] for i in sorted(selected))
 
 
 class EvidenceBuilder:
@@ -684,19 +553,6 @@ class EvidenceBuilder:
                     }
                 )
                 continue
-            # F-110. The assistant's OWN prior answers are not authoritative citeable evidence.
-            # Admitting them (only down-weighted to 0.25) let a fabricated answer accepted once
-            # become "evidence" the next turn, and a citation back to it satisfied the attribution
-            # check -- a self-reinforcing loop. Only operator/system turns are offered as sources an
-            # answer may cite for a project fact.
-            if str(metadata.get("role", "")).casefold() in ("sovereign", "assistant"):
-                omissions.append(
-                    {
-                        "source": f"session:{session_id}/{source_id}",
-                        "reason": "assistant-authored turns are not citeable evidence (F-110)",
-                    }
-                )
-                continue
             prepared.append((index, source_id, content, metadata))
 
         if not self.query_relevance or not query.strip():
@@ -756,16 +612,14 @@ class EvidenceBuilder:
             raise EvidenceError("approved evidence source is not a regular file")
         digest = hashlib.sha256()
         prefix = bytearray()
-        # Read enough to select a query-relevant window, not only the file prefix.
-        read_cap = max(self.max_source_bytes, 65_536)
         with path.open("rb") as handle:
             while True:
                 chunk = handle.read(65_536)
                 if not chunk:
                     break
                 digest.update(chunk)
-                if len(prefix) < read_cap:
-                    needed = read_cap - len(prefix)
+                if len(prefix) < self.max_source_bytes:
+                    needed = self.max_source_bytes - len(prefix)
                     prefix.extend(chunk[:needed])
         after = path.stat()
         if (
@@ -857,23 +711,6 @@ class EvidenceBuilder:
             )
         ):
             intents.add("models")
-        for key in _PRODUCT_MODEL_ROLE_KEYS:
-            phrase = key.replace("_", " ").casefold()
-            escaped = re.escape(phrase).replace(r"\ ", r"\s+")
-            if " " in phrase:
-                if re.search(rf"\b{escaped}\b", normalized):
-                    intents.add("models")
-                    break
-            elif re.search(
-                rf"\b(?:which|what)\s+model\s+(?:is|are)\s+"
-                rf"(?:configured|assigned|selected)\s+as\s+(?:the\s+)?{escaped}\b"
-                rf"|\b(?:the\s+)?{escaped}\s+model\b",
-                normalized,
-            ):
-                intents.add("models")
-                break
-        if _STATE_LOCATION_QUERY_RE.search(normalized):
-            intents.add("runtime")
 
         if "mode" in words and (
             has_product_reference
@@ -928,20 +765,6 @@ class EvidenceBuilder:
             or bool(_GENERIC_CONFIGURATION_QUERY_RE.fullmatch(normalized))
         ):
             intents.add("configuration")
-
-        # EPC-02, operator-authorized. Adding constitution_v1.md to the retriever's candidate
-        # set was inert on its own: this classifier recognized only eight product-state
-        # concepts, so "What is the Praxis Answer?" produced NO intent, and a query with no
-        # intent omits every file. The constitution was a candidate that nothing could ever
-        # reach.
-        #
-        # This intent stays deliberately narrow, and narrow in a specific way: it fires on
-        # the document's OWN vocabulary rather than on a general relaxation of the rule. The
-        # surrounding design is fail-closed - a query it does not recognize retrieves nothing
-        # rather than everything - and that property is preserved. A question about the
-        # weather still matches no intent and still cites no evidence.
-        if words & _CONSTITUTIONAL_QUERY_WORDS:
-            intents.add("constitution")
 
         return intents
 
@@ -1164,7 +987,6 @@ class EvidenceBuilder:
                 byte_limit=snippet_byte_limit,
                 token_limit=snippet_token_limit,
                 token_counter=self.token_counter,
-                query=query,
             )
             # A custom token counter is not necessarily additive. Tighten the
             # candidate against the complete rendered packet, not an estimate.

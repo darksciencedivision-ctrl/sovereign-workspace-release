@@ -25,16 +25,6 @@ ROOT_MARKER = ".sovereign-root"
 ROOT_MARKER_CONTENT = "SOVEREIGN_ROOT_MARKER=1"
 POINTER_PREFIX = "sovereign://"
 
-#: EPC-02 B-1. A path expressed relative to the per-module STATE root rather than the install
-#: root. EPC-01 P4-4 moved runtime state out of the install tree so an installation can be
-#: verified against its manifest and replaced cleanly; the database and the evidence tree went
-#: with it, and neither can be named by the install-root scheme.
-#:
-#: The scheme is DELIBERATELY distinct rather than an extension of `sovereign://`. A consumer
-#: that can only resolve install-root pointers must be able to tell it has been handed
-#: something else, instead of resolving it against the wrong base and reading the wrong file.
-STATE_POINTER_PREFIX = "sovereign-state://"
-
 
 class PathResolutionError(RuntimeError):
     """A trusted product path could not be resolved."""
@@ -246,71 +236,7 @@ class ProductPaths:
         return artifact_pointer(path, root=self.root)
 
     def resolve_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
-        """Resolve either scheme against the base it names.
-
-        The containment discipline is identical for both: the resolved path must sit inside
-        the base the scheme names, checked after resolution so a `..` or a symlink cannot walk
-        out. Only the base differs.
-        """
-        if isinstance(pointer, str) and pointer.startswith(STATE_POINTER_PREFIX):
-            return _resolve_under(
-                pointer[len(STATE_POINTER_PREFIX):],
-                base=Path(self.state_dir),
-                must_exist=must_exist,
-                label="state",
-            )
         return resolve_artifact_pointer(pointer, root=self.root, must_exist=must_exist)
-
-    def make_pointer(self, path: str | os.PathLike[str] | Path) -> str:
-        """Produce a typed, round-trip-validated pointer for a path under either trusted root.
-
-        The one producer-side contract shared by every runtime pointer site (R35/F-119). A path
-        inside the install root becomes a ``sovereign://`` pointer; a path inside the state root
-        (where P4-4 put the database and the evidence tree) becomes a ``sovereign-state://``
-        pointer. The install root is preferred when a path is inside both (the legacy layout, where
-        state is ``<root>/runtime``), matching the descriptor behaviour the rest of the product
-        already relies on. The result is validated by resolving it back through
-        :meth:`resolve_pointer`, so an un-resolvable pointer is never emitted -- a producer that
-        cannot express its artifact fails loudly here instead of publishing a dead reference (the
-        ``approved-evidence://`` class of defect). A path under neither root raises
-        :class:`UnsafeArtifactPointer`."""
-        resolved = _resolved(path)
-        root_base = _resolved(self.root)
-        if _is_within(resolved, root_base):
-            return artifact_pointer(resolved, root=root_base)
-        state_base = _resolved(self.state_dir)
-        if _is_within(resolved, state_base):
-            relative = resolved.relative_to(state_base)
-            if not relative.parts:
-                raise UnsafeArtifactPointer("the state root itself is not an artifact")
-            payload = quote(PurePosixPath(*relative.parts).as_posix(), safe="/-._~")
-            pointer = STATE_POINTER_PREFIX + payload
-            # Round-trip: the pointer must resolve back to the path it names (this also catches a
-            # symlink escape, since resolve_pointer re-checks containment after resolution).
-            if self.resolve_pointer(pointer).resolve(strict=False) != resolved:
-                raise UnsafeArtifactPointer(
-                    f"state pointer does not round-trip to its source: {pointer}")
-            return pointer
-        raise UnsafeArtifactPointer(
-            f"path is under neither the install root nor the state root: {resolved}")
-
-    def resolve_evidence_pointer(self, pointer: str, *, must_exist: bool = False) -> Path:
-        """Resolve a pointer for the ``/v1/evidence`` endpoint and refuse anything that lands
-        outside the evidence directory (R31/F-102).
-
-        The general resolver accepts both the install-root (``sovereign://``) and state-root
-        (``sovereign-state://``) schemes, each contained to its own base. That is correct for
-        internal resolution, but the evidence endpoint serves ONE thing -- evidence artifacts --
-        and must not become a reader for the rest of either tree. A well-formed
-        ``sovereign-state://sovereign.db`` or ``sovereign://.venv/...`` resolves inside its base
-        yet has no business being downloaded, so the resolved path is re-checked for containment
-        in ``evidence_dir`` after resolution (so a symlink cannot walk out either)."""
-        resolved = self.resolve_pointer(pointer, must_exist=must_exist)
-        evidence_base = Path(self.evidence_dir).resolve(strict=False)
-        if not _is_within(resolved, evidence_base):
-            raise UnsafeArtifactPointer(
-                "evidence pointer resolves outside the evidence directory")
-        return resolved
 
 
 def resolve_product_paths(
@@ -325,26 +251,6 @@ def resolve_product_paths(
     create: bool = False,
 ) -> ProductPaths:
     product_root = resolve_root(root, start=start, env=env)
-
-    # EPC-01 P4-4. The workspace state root the SHELL declares is a caller-approved root,
-    # because the shell IS the caller.
-    #
-    # `SOVEREIGN_STATE_DIR` alone was never sufficient: `_resolve_override` refuses any state
-    # directory outside the install root and the caller's approved roots, and `approved_roots`
-    # is a Python parameter that a spawned process cannot be passed. So pointing the env var
-    # at %LOCALAPPDATA% produced "Runtime state directory is outside the install root and
-    # caller-approved roots" and the server would not start — which is the check doing exactly
-    # what it should, given it had not been told about the new root.
-    #
-    # The containment property is unchanged: state must still sit inside the install root or
-    # inside a root the caller named. What changes is that the caller can now name one across
-    # a process boundary. `SOVEREIGN_WORKSPACE_STATE` is set by the shell for every module it
-    # launches; nothing else sets it.
-    environment = os.environ if env is None else env
-    workspace_state = str(environment.get("SOVEREIGN_WORKSPACE_STATE", "")).strip()
-    if workspace_state:
-        approved_roots = [*approved_roots, workspace_state]
-
     state = resolve_state_dir(
         product_root,
         override=state_dir,
@@ -390,23 +296,6 @@ def _pointer_parts(pointer: str) -> tuple[str, ...]:
     if PureWindowsPath(decoded).drive:
         raise UnsafeArtifactPointer("Drive-qualified artifact pointers are not portable")
     return tuple(raw_parts)
-
-
-def _resolve_under(payload: str, *, base: Path, must_exist: bool, label: str) -> Path:
-    """Resolve a pointer payload under `base`, refusing anything that escapes it.
-
-    Shares the payload validation of `_pointer_parts` (no NUL, no URL metadata, no backslash,
-    no absolute or parent segments) and then re-checks containment AFTER resolution, so a
-    symlink cannot be used to walk out of the base the scheme named.
-    """
-    parts = _pointer_parts(POINTER_PREFIX + payload)
-    resolved = base.joinpath(*parts).resolve(strict=False)
-    if not _is_within(resolved, Path(base).resolve(strict=False)):
-        raise UnsafeArtifactPointer(
-            f"Artifact pointer escapes the SOVEREIGN {label} root")
-    if must_exist and not resolved.exists():
-        raise UnsafeArtifactPointer(f"Artifact does not exist: {resolved.name}")
-    return resolved
 
 
 def resolve_artifact_pointer(

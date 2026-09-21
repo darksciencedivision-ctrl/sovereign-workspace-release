@@ -8,17 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $rootPath = [System.IO.Path]::GetFullPath($Root)
 $markerPath = Join-Path $rootPath ".sovereign-root"
-# F-120. Read service_state.json from the same per-user state root Start-Sovereign now writes to
-# (shell layout), not the install tree.
-$stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
-if ([string]::IsNullOrWhiteSpace($stateRoot)) {
-    $localAppData = $env:LOCALAPPDATA
-    if ([string]::IsNullOrWhiteSpace($localAppData)) {
-        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
-    }
-    $stateRoot = Join-Path $localAppData "SovereignWorkspace\sovereign"
-}
-$statePath = Join-Path $stateRoot "runtime\service_state.json"
+$statePath = Join-Path $rootPath "runtime\service_state.json"
 
 if (
     -not (Test-Path -LiteralPath $markerPath -PathType Leaf) -or
@@ -63,9 +53,7 @@ if ($null -eq $process) {
         if ($null -ne $staleLauncher) {
             $staleLauncherMatches = $false
             if ($state.launcher_started_at) {
-                $recordedLauncherStart = [DateTimeOffset]::Parse(
-                    [string]$state.launcher_started_at
-                )
+                $recordedLauncherStart = [DateTimeOffset]$state.launcher_started_at
                 $actualLauncherStart = (
                     [DateTimeOffset]$staleLauncher.StartTime.ToUniversalTime()
                 )
@@ -138,7 +126,7 @@ $commandMatches = (
 if (-not $commandMatches) {
     throw "PID $servicePid is not the recorded SOVEREIGN service for this root; refusing to stop it."
 }
-$recordedStart = [DateTimeOffset]::Parse([string]$state.process_started_at)
+$recordedStart = [DateTimeOffset]$state.process_started_at
 $actualStart = [DateTimeOffset]$process.StartTime.ToUniversalTime()
 if ([Math]::Abs(($actualStart - $recordedStart).TotalMilliseconds) -gt 100) {
     throw "PID $servicePid start time does not match the process record; refusing to stop a reused PID."
@@ -215,9 +203,7 @@ if ($state.launcher_pid -and [int]$state.launcher_pid -ne $servicePid) {
     if ($null -ne $launcher) {
         $launcherIdentityMatches = $false
         if ($state.launcher_started_at) {
-            $recordedLauncherStart = [DateTimeOffset]::Parse(
-                [string]$state.launcher_started_at
-            )
+            $recordedLauncherStart = [DateTimeOffset]$state.launcher_started_at
             $actualLauncherStart = [DateTimeOffset]$launcher.StartTime.ToUniversalTime()
             $launcherIdentityMatches = (
                 [Math]::Abs(

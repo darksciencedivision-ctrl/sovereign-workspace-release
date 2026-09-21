@@ -2,7 +2,7 @@
   "modules": {
     "debate": "v1.2.1-hardening",
     "distillery": "1.1.0rc3",
-    "sovereign": "SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520",
+    "sovereign": "3.1.2-backend-agnostic (dev-tree@39229c2, WS-0.3 resync 2026-09-21; supersedes sealed 20260813_142520)",
     "sow": "0.1.0",
     "tokencenter": "record-dated 2026-08-26"
   },

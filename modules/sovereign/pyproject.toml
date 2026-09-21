@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sovereign"
+dynamic = ["version"]
+description = "SOVEREIGN local multi-model adversarial reasoning engine and operator board"
+readme = "README_RUN.md"
+requires-python = ">=3.10"
+dependencies = [
+  "flask>=3.0,<4",
+  "requests>=2.31,<3",
+  "chromadb>=0.5,<2",
+  "numpy>=1.26,<3",
+  "pydantic>=2.5,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<9",
+  "pytest-cov",
+  "ruff",
+  "mypy",
+]
+
+# Explicit discovery for this flat layout: top-level scripts are py-modules; the
+# remaining first-party packages (regular and namespace) are discovered under the root.
+[tool.setuptools]
+py-modules = [
+  "artifact_integrity",
+  "claim_arbitrator",
+  "concurrence_ledger",
+  "cycle_runner_v3",
+  "document_assembler",
+  "domain_checker",
+  "embedding_client",
+  "format_alignmentforum",
+  "format_arxiv",
+  "publication_gate",
+  "quality_gate",
+  "semantic_claim_matching",
+  "sovereign_version",
+  "system_manifest",
+  "topic_extractor",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "arbitration*",
+  "clu*",
+  "ecology*",
+  "evaluation*",
+  "knowledge_base*",
+  "library*",
+  "praxis*",
+  "research*",
+  "runtime_integrity*",
+  "sandbox_agi*",
+  "schemas*",
+  "sovereign_product*",
+  "synthesis*",
+  "tools*",
+]
+namespaces = true
+
+[tool.setuptools.dynamic]
+version = {attr = "sovereign_version.PEP440_VERSION"}
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+pythonpath = [
+  ".",
+  "sandbox_agi",
+]

@@ -12,15 +12,6 @@ The service is intentionally boring at its trust boundaries:
 The module has no import-time server or database side effects.  ``main`` is the
 canonical executable entry point and ``create_app`` is the test/embedding
 surface.
-
-F-105 - SECURITY SCOPE (documented limitation). The loopback bind and the Host/Origin checks stop
-REMOTE and cross-ORIGIN access; they are NOT a same-USER boundary. Any local process, and on a
-multi-user Windows host any other logged-in user who can reach 127.0.0.1, can call these endpoints
-- read every session and message (GET /v1/sessions), download the store, and rewrite model
-assignments. This is acceptable ONLY within the product's stated single-operator scope: one
-trusted user on the machine. A deployment that must isolate co-located users needs a per-install
-secret held in a user-ACL'd file and required on every request; that is deliberately out of scope
-for this build and recorded here so the boundary is not mistaken for multi-user authentication.
 """
 
 from __future__ import annotations
@@ -36,7 +27,7 @@ import logging
 import math
 import mimetypes
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import queue
 import threading
 from typing import Any, Callable, Mapping
@@ -49,7 +40,12 @@ from sovereign_version import PRODUCT_VERSION
 
 from .evidence import EvidenceBuilder
 from .executors import ExecutionStatus, QuickExecutor
-from .introspection import answer_self_query, collect_self_state, status_answer
+from .introspection import (
+    answer_self_query,
+    collect_self_state,
+    model_service_authority,
+    status_answer,
+)
 from .model_client import (
     OLLAMA_CONNECT_TIMEOUT_SECONDS,
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
@@ -57,11 +53,9 @@ from .model_client import (
 )
 from .paths import (
     PathResolutionError,
-    POINTER_PREFIX,
     ProductPaths,
     UnsafeArtifactPointer,
     artifact_pointer,
-    STATE_POINTER_PREFIX,
     resolve_product_paths,
 )
 from .quality import (
@@ -71,7 +65,7 @@ from .quality import (
 )
 from .router import Route, RoutingDecision, route_query
 from .semantic_deep import SemanticDeepExecutor
-from .store import ActiveJobExists, InvalidTransition, NotFound, SovereignStore
+from .store import InvalidTransition, NotFound, SovereignStore
 from system_manifest import (
     ManifestConfigError,
     load_system_manifest,
@@ -82,25 +76,10 @@ from system_manifest import (
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
-#: F-108 / F-114. Product-appropriate route budgets. OLLAMA_GENERATION_TIMEOUT_SECONDS (24h) was
-#: used as the QUICK overall timeout and, via a None DEEP timeout, left DEEP with no overall bound
-#: and a 24h-per-call ceiling -- one hung Ollama call blocked the single worker for up to a day.
-#: With R22 enforcing an absolute per-call deadline, these are the actual budgets a job may take:
-#: QUICK/CONTINUITY answer in one model pass; DEEP runs a handful of sequential passes under one
-#: overall ceiling. A caller may still pass larger values explicitly for a deliberate long run.
-QUICK_TIMEOUT_SECONDS = 600.0            # 10 minutes for a single QUICK/CONTINUITY generation
-DEEP_PER_CALL_TIMEOUT_SECONDS = 1800.0   # 30 minutes for any one DEEP model call
-DEEP_OVERALL_TIMEOUT_SECONDS = 3600.0    # 60 minutes across the whole DEEP pipeline
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
 SETTINGS_META_KEY = "product.settings.v1"
-#: F-101. Operator model-role overrides live in the STATE root (the store's `meta` table in
-#: `<state>/sovereign.db`), layered over the shipped `SYSTEM_MANIFEST.json` at read time -- never
-#: written back into the tracked manifest. Writing the manifest made a model selection mutate a
-#: committed, hash-verified install artifact (breaking `verify_install`/F-060) and failed outright
-#: on a read-only install. State is writable, per-install, and outside the verified tree.
-MODEL_ASSIGNMENTS_META_KEY = "product.model_assignments.v1"
 CONFIGURABLE_MODEL_ROLES = (
     "PRIMARY_REASONER",
     "ADVERSARIAL_CHALLENGER",
@@ -130,10 +109,6 @@ FIXED_PRODUCT_POLICIES: dict[str, Any] = {
 
 _MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _ACTIVE_STATES = {"queued", "running"}
-#: R27. How many of the most recent messages the full-session view renders in one page. Older
-#: messages are reachable through the returned cursor; the true total and a truncation flag are
-#: always surfaced so nothing is silently dropped.
-SESSION_MESSAGE_PAGE = 2_000
 LOGGER = logging.getLogger(__name__)
 
 
@@ -334,11 +309,6 @@ def _terminal_status(engine_status: str, *, has_answer: bool) -> str:
     normalized = str(engine_status or "").strip().lower()
     if normalized in {"accepted", "completed"}:
         return "completed" if has_answer else "rejected"
-    if normalized == "budget_exhausted":
-        # F-116. A budget-exhausted RESEARCH run that produced a partial report is surfaced as a
-        # completed answer (the report is the operator's useful output); the partial nature is
-        # preserved in engine_status/metadata. With no report at all it is a rejection.
-        return "completed" if has_answer else "rejected"
     if normalized in {"empty", "rejected", "concurrence_not_reached"}:
         return "rejected"
     if normalized == "cancelled":
@@ -384,7 +354,7 @@ def _safe_progress(value: Any, *, fallback_stage: str) -> dict[str, Any]:
     if "stage" not in progress:
         progress["stage"] = fallback_stage
     raw_percent = progress.get("percent")
-    if not isinstance(raw_percent, (int, float)) or isinstance(raw_percent, bool):
+    if not isinstance(raw_percent, (int, float)):
         current = progress.get("current")
         total = progress.get("total")
         if (
@@ -398,14 +368,8 @@ def _safe_progress(value: Any, *, fallback_stage: str) -> dict[str, Any]:
         ):
             raw_percent = current / total * 100
         else:
-            # F-117. No percent and none derivable (RESEARCH events carry stage/detail but no
-            # percent). Defaulting to 0 made the store reject the event as a regression below the
-            # job's initial 1% (InvalidTransition, swallowed), so RESEARCH sat at "running 1%" for
-            # its whole duration. Omit percent instead: update_job_progress keeps the prior percent
-            # and the stage/detail still advance.
-            progress.pop("percent", None)
-            return progress
-    if not math.isfinite(float(raw_percent)):
+            raw_percent = 0
+    if isinstance(raw_percent, bool) or not math.isfinite(float(raw_percent)):
         raise ValueError("progress percent must be finite")
     progress["percent"] = max(
         0,
@@ -527,8 +491,8 @@ class ProductService:
         start_workers: bool = True,
         introspection_http_get: Callable[[str, float], Any] | None = None,
         introspection_timeout: float = 0.6,
-        quick_timeout: float = QUICK_TIMEOUT_SECONDS,
-        deep_timeout: float | None = DEEP_OVERALL_TIMEOUT_SECONDS,
+        quick_timeout: float = OLLAMA_GENERATION_TIMEOUT_SECONDS,
+        deep_timeout: float | None = None,
     ) -> None:
         self.paths = paths or resolve_product_paths(root, create=True)
         self.root = self.paths.root
@@ -546,7 +510,7 @@ class ProductService:
             message_source=self.store,
             max_bytes=8_192,
             max_tokens=4_096,
-            max_source_bytes=4_096,
+            max_source_bytes=2_048,
             query_relevance=True,
         )
         self.deep_executor = deep_executor or self._default_deep_executor()
@@ -571,7 +535,6 @@ class ProductService:
         self._enqueued: set[str] = set()
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
-        self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after close()
         recovery = self.store.recover_incomplete_jobs()
         for job_id in recovery["queued"]:
             self._enqueue(job_id)
@@ -580,59 +543,72 @@ class ProductService:
 
     def _manifest(self) -> dict[str, Any]:
         try:
-            manifest = load_system_manifest(
+            return load_system_manifest(
                 manifest_path=self.root / "SYSTEM_MANIFEST.json"
             )
         except ManifestConfigError as exc:
             raise ServiceConfigurationError(
                 f"invalid SYSTEM_MANIFEST configuration: {exc}"
             ) from exc
-        # F-101. Layer any operator model-role overrides (stored in the state root) over the
-        # shipped manifest. The result is re-validated so a stored override can never widen what
-        # a manifest is allowed to contain. `store` is not yet set during the constructor's first
-        # validation call, so overlay is skipped until it exists.
-        overrides = self._stored_model_overrides()
-        if not overrides:
-            return manifest
-        overlaid = dict(manifest)
-        models = overlaid.get("MODELS")
-        overlaid_models = dict(models) if isinstance(models, Mapping) else {}
-        overlaid_models.update(overrides)
-        overlaid["MODELS"] = overlaid_models
-        try:
-            return validate_system_manifest(
-                overlaid, self.root / "SYSTEM_MANIFEST.json"
-            )
-        except ManifestConfigError as exc:
-            raise ServiceConfigurationError(
-                f"invalid model-assignment override: {exc}"
-            ) from exc
 
-    def _stored_model_overrides(self) -> dict[str, str]:
-        """Operator model-role overrides from the state root, filtered to the roles the product
-        allows to be reassigned. Anything else stored (a stale role name, a non-string value) is
-        ignored rather than trusted, so the overlay can only ever set a known role to a string."""
-        store = getattr(self, "store", None)
-        if store is None:
-            return {}
-        try:
-            raw = store.get_meta(MODEL_ASSIGNMENTS_META_KEY, {})
-        except Exception:
-            return {}
-        if not isinstance(raw, Mapping):
-            return {}
-        overrides: dict[str, str] = {}
-        for role, model in raw.items():
-            if role in CONFIGURABLE_MODEL_ROLES and isinstance(model, str) and model.strip():
-                overrides[str(role)] = model.strip()
-        return overrides
+    def _default_model_client(self) -> Any:
+        from .backend_selection import resolve_backend, resolve_freetoken_profile
+        from .runtime_contracts import (
+            BACKEND_FREETOKEN,
+            BACKEND_OLLAMA,
+            DEFAULT_LLAMA_CPP_BASE_URL,
+            load_default_llama_cpp_api_key,
+        )
 
-    def _default_model_client(self) -> OllamaClient:
+        # Precedence: explicit SOVEREIGN_INFERENCE_BACKEND env choice, then the
+        # persistent runtime/backend_selection.json designation, then llama.cpp.
+        backend = resolve_backend(self.root)
         manifest = self._manifest()
         runtime = manifest["RUNTIME"]
-        base_url = runtime["OLLAMA_BASE_URL"]
-        return OllamaClient(
-            str(base_url),
+        if backend == BACKEND_OLLAMA:
+            return OllamaClient(
+                str(runtime["OLLAMA_BASE_URL"]),
+                connect_timeout=OLLAMA_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
+                overall_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
+            )
+        from .llama_cpp_client import LlamaCppClient
+
+        if backend == BACKEND_FREETOKEN:
+            ft_url = str(os.environ.get("SOVEREIGN_FREETOKEN_BASE_URL") or "").strip()
+            if not ft_url:
+                # Designated FreeToken workload: the supervisor is started
+                # on demand with its configured profile (GPU ownership
+                # transition included); no manual launch or shell variables.
+                from .freetoken_service import ensure_runtime
+
+                ft_url = str(
+                    ensure_runtime(
+                        self.root,
+                        profile=resolve_freetoken_profile(self.root),
+                    )["base_url"]
+                )
+            return LlamaCppClient(
+                ft_url,
+                api_key=os.environ.get("SOVEREIGN_FREETOKEN_API_KEY") or None,
+                connect_timeout=OLLAMA_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
+                overall_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
+            )
+        llama_url = (
+            str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or "").strip()
+            or DEFAULT_LLAMA_CPP_BASE_URL
+        )
+        llama_key = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
+        if not llama_key:
+            key_file = self.root / "runtime" / "llamacpp_supervisor" / "api_key"
+            if key_file.is_file():
+                llama_key = key_file.read_text(encoding="utf-8").strip()
+        if not llama_key:
+            llama_key = load_default_llama_cpp_api_key() or ""
+        return LlamaCppClient(
+            llama_url,
+            api_key=llama_key or None,
             connect_timeout=OLLAMA_CONNECT_TIMEOUT_SECONDS,
             read_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
             overall_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
@@ -676,9 +652,29 @@ class ProductService:
                 "SYSTEM_MANIFEST RUNTIME.MAX_OUTPUT_TOKENS must be a positive "
                 "integer below CONTEXT_WINDOW"
             )
+        from .runtime_registry import PRODUCTION_ROLES, context_resolution
+
+        models = manifest.get("MODELS")
+        primary = PRODUCTION_ROLES["PRIMARY_REASONER"]
+        if isinstance(models, Mapping):
+            configured_primary = models.get("PRIMARY_REASONER")
+            if isinstance(configured_primary, str) and configured_primary.strip():
+                primary = configured_primary.strip()
+        resolution = context_resolution(primary)
+        effective = resolution.get("effective_cap") or resolution.get("configured")
+        if not isinstance(effective, int) or effective < 4_096:
+            raise ServiceConfigurationError(
+                f"no enforceable context cap for {primary}; declared "
+                f"{context_window} is not treated as supported"
+            )
+        if context_window > effective:
+            num_ctx = effective
+        else:
+            num_ctx = context_window
+        num_predict = maximum_output if maximum_output < num_ctx else num_ctx - 1
         return {
-            "num_ctx": context_window,
-            "num_predict": maximum_output,
+            "num_ctx": num_ctx,
+            "num_predict": num_predict,
         }
 
     def _deep_executor_from_manifest(
@@ -708,84 +704,49 @@ class ProductService:
             synthesizer_model=synthesizer,
             verifier_model=verifier,
             artifact_root=self.paths.evidence_dir / "semantic_deep",
-            # EPC-01 P4-4. The state directory is a trusted root: `resolve_state_dir` and
-            # `resolve_evidence_dir` already validated it against the product root and the
-            # caller's approved roots, so the executor is told about it rather than re-deriving
-            # a narrower answer from the product root alone.
-            trusted_roots=(self.paths.state_dir,),
             evidence_builder=self.evidence_builder,
             base_options=self._runtime_model_options(manifest),
-            # F-114. A product-scale per-call ceiling; the overall DEEP budget is enforced
-            # separately via deep_timeout -> context.timeout_seconds.
-            per_call_timeout_seconds=DEEP_PER_CALL_TIMEOUT_SECONDS,
-            # R35. Emit typed, round-trip-validated artifact pointers at the producer, resolved
-            # through the one shared contract that knows the state root.
-            pointer_factory=self.paths.make_pointer,
         )
 
-    def _store_model_overrides(self, updates: Mapping[str, str]) -> None:
-        """F-101. Persist operator model-role overrides to the STATE root, merged over whatever
-        is already stored, and validate the resulting overlaid manifest before committing so a
-        selection can never leave the manifest in an invalid state. The tracked
-        `SYSTEM_MANIFEST.json` is never written -- a read-only install still accepts a selection,
-        and the install stays byte-identical to its verified manifest."""
-        merged = dict(self._stored_model_overrides())
-        for role, model in updates.items():
-            merged[str(role)] = str(model)
-        # Prove the overlay is valid against the shipped manifest before persisting it.
-        manifest = load_system_manifest(manifest_path=self.root / "SYSTEM_MANIFEST.json")
-        overlaid = dict(manifest)
-        models = overlaid.get("MODELS")
-        overlaid_models = dict(models) if isinstance(models, Mapping) else {}
-        overlaid_models.update(merged)
-        overlaid["MODELS"] = overlaid_models
+    def _write_manifest(self, manifest: Mapping[str, Any]) -> None:
+        path = self.root / "SYSTEM_MANIFEST.json"
         try:
-            validate_system_manifest(overlaid, self.root / "SYSTEM_MANIFEST.json")
+            validated = validate_system_manifest(dict(manifest), path)
         except ManifestConfigError as exc:
             raise ServiceConfigurationError(
-                f"invalid model-assignment override: {exc}"
+                f"invalid SYSTEM_MANIFEST update: {exc}"
             ) from exc
-        self.store.set_meta(MODEL_ASSIGNMENTS_META_KEY, merged)
+        temporary = path.with_name(
+            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        encoded = json.dumps(
+            validated,
+            ensure_ascii=False,
+            sort_keys=False,
+            indent=2,
+        ) + "\n"
+        try:
+            with temporary.open("w", encoding="utf-8-sig", newline="\n") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+            load_system_manifest(manifest_path=path)
+        finally:
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
 
     def _approved_evidence_paths(self) -> tuple[str, ...]:
-        """The files the retriever may cite as evidence. Existence-checked, never guessed.
-
-        EPC-02, operator-authorized. This list decides what SOVEREIGN is permitted to treat
-        as fact, so it is widened only on an explicit instruction and only by naming files.
-
-        Measured before the change: the list held five entries, all structured state, and
-        `constitution/constitution_v1.md` was absent. The CONSTITUTION ITSELF - 1,956 bytes
-        stating "The Praxis Answer is the only canonical synthesis channel" - was never
-        offered to the retriever, only the small state JSON beside it. Asked "What is the
-        Praxis Answer?", the system answered "cannot be verified from the available
-        evidence", because for it that was true.
-
-        The consequence reached further than one question. Every evidence packet came back
-        `sources: []`, `total_bytes: 0`. Out-of-scope questions were declined; in-scope ones
-        were REJECTED downstream - "project or continuity facts were asserted without
-        evidence", answer discarded - because the model answered from its own knowledge and
-        the honesty guard correctly refused it. The guard was the only part of the chain
-        working.
-
-        `corpus/domain.txt` is deliberately included and is EMPTY on this host (0 bytes). It
-        is listed because it is the intended home for domain evidence and the existence check
-        below skips it while it is absent rather than failing; an empty file is not silently
-        treated as a populated one.
-        """
         candidates = (
             "SYSTEM_MANIFEST.json",
-            "README_PRODUCTION.md",
             "sovereign_version.py",
             "constitution/constitution_state.json",
-            "constitution/constitution_v1.md",
             "synthesis/model_hierarchy.json",
             "runtime_profile.json",
-            "corpus/domain.txt",
         )
-        return tuple(
-            item for item in candidates
-            if (self.root / item).is_file() and (self.root / item).stat().st_size > 0
-        )
+        return tuple(item for item in candidates if (self.root / item).is_file())
 
     def _discover_research_executor(self) -> Any | None:
         """Load a research executor only through an explicit local factory/class."""
@@ -863,36 +824,16 @@ class ProductService:
             thread.start()
             self._workers.append(thread)
 
-    def close(self) -> dict:
-        """Shut the worker pool down under a bounded drain.
-
-        CR-026: the old close() joined each worker for two seconds and then cleared the worker list
-        REGARDLESS of liveness — a worker still running was silently forgotten while shutdown
-        claimed success and went on to close the store. Now workers that survive the bounded drain
-        are RETAINED and REPORTED (self._shutdown_survivors / the returned record), so a caller can
-        fail shutdown health/exit instead of pretending the service is quiescent. Also signals every
-        in-flight job's cancel event so cancellation-aware work can wind down within the drain.
-        """
+    def close(self) -> None:
         if self._closed.is_set():
-            return {"already_closed": True, "survivors": list(self._shutdown_survivors),
-                    "clean": not self._shutdown_survivors}
+            return
         self._closed.set()
-        # Ask any in-flight jobs to cancel so cancellation-aware work can exit within the drain.
-        for cancel_event in list(self._active_cancel.values()):
-            try:
-                cancel_event.set()
-            except Exception:
-                pass
         for _thread in self._workers:
             self._queue.put(None)
         for thread in self._workers:
             thread.join(timeout=2.0)
-        survivors = [t for t in self._workers if t.is_alive()]
-        # Keep survivors tracked rather than clearing them; only forget the workers that truly exited.
-        self._workers = list(survivors)
-        self._shutdown_survivors = [t.name for t in survivors]
+        self._workers.clear()
         self.store.close()
-        return {"survivors": list(self._shutdown_survivors), "clean": not survivors}
 
     def _enqueue(self, job_id: str) -> None:
         with self._queue_lock:
@@ -969,29 +910,12 @@ class ProductService:
                     if isinstance(recovery_artifact, str) and recovery_artifact:
                         if not execution_id:
                             return
-                        # F-117. The producer emits a TYPED pointer (sovereign-state:// under the
-                        # external-state layout, or sovereign://), resolved through the one shared
-                        # contract that knows the state root. Joining it to the INSTALL root raised
-                        # FileNotFoundError, and because that raised inside this callback the WHOLE
-                        # progress event -- percent included -- was silently dropped, so DEEP sat at
-                        # "running 1%". A bare relative/absolute path is still accepted for
-                        # compatibility.
-                        try:
-                            if recovery_artifact.startswith(
-                                (POINTER_PREFIX, STATE_POINTER_PREFIX)
-                            ):
-                                candidate = self.paths.resolve_pointer(
-                                    recovery_artifact, must_exist=True)
-                            else:
-                                raw = Path(recovery_artifact)
-                                candidate = (
-                                    raw if raw.is_absolute() else self.root / raw
-                                ).resolve(strict=True)
-                        except (PathResolutionError, UnsafeArtifactPointer, OSError):
-                            return
+                        raw = Path(recovery_artifact)
+                        candidate = (
+                            raw if raw.is_absolute() else self.root / raw
+                        ).resolve(strict=True)
                         if not candidate.is_file():
                             return
-                        candidate = candidate.resolve()
                         expected_request = (
                             self.paths.evidence_dir
                             / "semantic_deep"
@@ -1008,7 +932,10 @@ class ProductService:
                             execution_id=execution_id,
                         ):
                             return
-                        safe["evidence_pointer"] = self._runtime_pointer(candidate)
+                        safe["evidence_pointer"] = artifact_pointer(
+                            candidate,
+                            root=self.root,
+                        )
                     elif execution_id and bound_execution_id is None:
                         # The first semantic progress event must bind its exact
                         # request artifact before any recovery identity is
@@ -1186,11 +1113,7 @@ class ProductService:
             if not isinstance(value, (str, os.PathLike)) or not str(value):
                 continue
             text = str(value)
-            if text.startswith(POINTER_PREFIX) or text.startswith(STATE_POINTER_PREFIX):
-                # R35. A producer that emitted a typed pointer is resolved through the ONE shared
-                # contract, which knows both the install root and the state root (where the
-                # evidence tree lives). A state pointer is no longer mistaken for a filesystem
-                # path and silently dropped.
+            if text.startswith("sovereign://"):
                 try:
                     self.paths.resolve_pointer(text, must_exist=True)
                 except (PathResolutionError, UnsafeArtifactPointer):
@@ -1211,7 +1134,10 @@ class ProductService:
                     resolved = candidate.resolve(strict=True)
                     if not resolved.is_file():
                         continue
-                    converted[str(key)] = self._runtime_pointer(resolved)
+                    converted[str(key)] = artifact_pointer(
+                        resolved,
+                        root=self.root,
+                    )
                     break
                 except (
                     OSError,
@@ -1252,14 +1178,9 @@ class ProductService:
         fields: Mapping[str, Any],
         pointers: Mapping[str, str],
     ) -> str:
-        """Read the report emitted by ResearchExecutor.
+        """Read only the exact completed report emitted by ResearchExecutor."""
 
-        F-116. A run that exhausted its budget still wrote a real partial report; surface it rather
-        than discarding the whole run as empty. Both a completed run and a budget-exhausted partial
-        have a final_report artifact; only a run that produced no report at all returns empty.
-        """
-
-        if str(fields.get("status") or "").lower() not in ("completed", "budget_exhausted"):
+        if str(fields.get("status") or "").lower() != "completed":
             return ""
         pointer = pointers.get("final_report")
         if not pointer:
@@ -1325,32 +1246,11 @@ class ProductService:
                     str(fields.get("status") or ""),
                     has_answer=bool(answer_text),
                 )
-            # R35. Refuse to publish a completed answer whose evidence cannot resolve. If the run
-            # declared artifacts but not one of them resolved through the shared pointer contract
-            # (the class of failure seen under the external-state layout), the answer would be
-            # attached to unreachable evidence; reject it instead of presenting it as grounded.
-            evidence_resolution_reason: str | None = None
-            declared_artifacts = fields.get("artifacts")
-            if (
-                terminal == "completed"
-                and isinstance(declared_artifacts, Mapping)
-                and declared_artifacts
-                and not pointers
-            ):
-                terminal = "rejected"
-                answer_text = ""
-                evidence_resolution_reason = (
-                    "completed answer rejected: none of its declared evidence pointers resolve"
-                )
             evidence_pointer = self._select_evidence_pointer(
                 pointers,
                 terminal_status=terminal,
             )
-            reason = (
-                evidence_resolution_reason
-                or fields.get("reason")
-                or fields.get("error")
-            )
+            reason = fields.get("reason") or fields.get("error")
             metadata = {
                 "engine_status": str(fields.get("status") or "unknown"),
                 "model": fields.get("model"),
@@ -1365,18 +1265,30 @@ class ProductService:
                 "escalation_reason": fields.get("escalation_reason"),
             }
             if terminal == "completed":
-                # R07. One transaction: re-check cancel, write the accepted answer, bump progress
-                # to 100 and transition running->completed together, so an accepted message can
-                # never be attached to a job that is not completed, and a late cancel wins.
-                self.store.complete_job_with_answer(
-                    job_id,
-                    content=answer_text,
+                message = self.store.append_message(
+                    str(job["session_id"]),
+                    "sovereign",
+                    answer_text,
+                    status="accepted",
+                    route=str(job["route"]),
+                    job_id=job_id,
                     evidence_pointer=evidence_pointer,
-                    message_metadata={
+                    metadata={
                         "engine_status": fields.get("status"),
                         "model": fields.get("model"),
                     },
-                    job_metadata=metadata,
+                )
+                self.store.update_job_progress(
+                    job_id,
+                    {"percent": 100, "stage": "completed"},
+                )
+                self.store.transition_job(
+                    job_id,
+                    "completed",
+                    expected_status="running",
+                    evidence_pointer=evidence_pointer,
+                    output_message_id=message["message_id"],
+                    metadata=metadata,
                 )
             else:
                 self.store.transition_job(
@@ -1452,26 +1364,30 @@ class ProductService:
             )
         self.store.get_session(session_id, include_messages=False)
         decision = self.route(text, route_override)
-        # R05/F-104. One transaction admits the turn: the active-job check, the user message and
-        # the job are created together, so two concurrent submissions cannot both be admitted.
-        try:
-            admitted = self.store.admit_job(
-                session_id,
-                route=decision.route.value,
-                input_text=decision.normalized_query or text.strip(),
-                user_content=text.strip(),
-                user_metadata={"routing": decision.as_dict()},
-                job_metadata={"routing": decision.as_dict()},
-            )
-        except ActiveJobExists as exc:
-            active = exc.active_job
+        active = self.active_job(session_id)
+        if active is not None:
             return {
                 "ok": False,
                 "error": "this session already has an active job",
                 "job": self.public_job(active),
                 **self.public_job(active),
             }, 409
-        job = admitted["job"]
+
+        user_message = self.store.append_message(
+            session_id,
+            "user",
+            text.strip(),
+            status="accepted",
+            route=decision.route.value,
+            metadata={"routing": decision.as_dict()},
+        )
+        job = self.store.create_job(
+            session_id,
+            decision.route.value,
+            decision.normalized_query or text.strip(),
+            input_message_id=user_message["message_id"],
+            metadata={"routing": decision.as_dict()},
+        )
         self.store.update_job_progress(
             job["job_id"],
             {"percent": 0, "stage": "queued"},
@@ -1497,42 +1413,11 @@ class ProductService:
         if isinstance(store_state, dict):
             summary = store_state.get("summary")
             if isinstance(summary, dict) and "database" in summary:
-                summary["database"] = self._database_descriptor()
+                summary["database"] = artifact_pointer(
+                    self.paths.db_path,
+                    root=self.root,
+                )
         return state
-
-    def _database_descriptor(self) -> str:
-        """A non-leaking descriptor for the store's database file."""
-        return self._runtime_pointer(self.paths.db_path)
-
-    def _runtime_pointer(self, path: "Path | str") -> str:
-        """A non-leaking pointer for ANY runtime path, wherever P4-4 put it.
-
-        EPC-01 P4-4 moved runtime state OUT of the install root, to
-        `%LOCALAPPDATA%/SovereignWorkspace/<module>`, so that an installation can be verified
-        against its manifest, upgraded and uninstalled cleanly. The database went with it.
-
-        This site still asked `artifact_pointer` to express that path relative to the INSTALL
-        root, which it cannot do - and raised `UnsafeArtifactPointer` rather than returning
-        anything. The exception propagated out of `_self_state()`, which is the foundation of
-        `/v1/models`, `/v1/self-state` and the model picker: the operator saw four empty role
-        slots because the endpoint feeding them was returning an error, not a list.
-
-        The pointer's job here is to keep an absolute host path out of the state summary. That
-        purpose is served for either location, so both are expressed relative to a NAMED base
-        and neither leaks a machine path. A path under neither root is reported as such rather
-        than guessed at or silently dropped.
-        """
-        # R30. Emit through the one shared, URL-ENCODING, round-trip-validated contract. The old
-        # inline branch concatenated raw POSIX text (STATE_POINTER_PREFIX + relative.as_posix()),
-        # so a valid state file named e.g. `name#1.json` produced a pointer that resolve_pointer
-        # then rejected as URL metadata, and percent signs could change the resolved filename.
-        # make_pointer chooses the scheme (install vs state) and quotes the payload exactly as the
-        # install-root artifact_pointer does.
-        try:
-            return self.paths.make_pointer(path)
-        except (PathResolutionError, UnsafeArtifactPointer):
-            # A path under neither trusted root: name it without leaking a host path.
-            return STATE_POINTER_PREFIX + "(outside both the install root and the state root)"
 
     def _self_answer(self, query: str) -> tuple[dict[str, Any], dict[str, Any]]:
         try:
@@ -1594,7 +1479,7 @@ class ProductService:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
-        return self._runtime_pointer(target)
+        return artifact_pointer(target, root=self.root)
 
     def _run_status_job(self, job_id: str, query: str) -> dict[str, Any]:
         job = self.store.transition_job(
@@ -1755,20 +1640,10 @@ class ProductService:
 
     def public_session(self, session: Mapping[str, Any]) -> dict[str, Any]:
         session_id = str(session["session_id"])
-        # R27. Page the most recent messages and JOIN job attribution to exactly that page, so a
-        # completed answer whose job is older than any fixed job cap is never silently dropped, and
-        # a session with more messages than the page surfaces truncation and a cursor rather than
-        # quietly truncating.
-        page = self.store.page_recent_messages(session_id, limit=SESSION_MESSAGE_PAGE)
-        page_messages = page["messages"]
-        job_ids = [
-            str(message.get("job_id"))
-            for message in page_messages
-            if str(message.get("role")) == "sovereign" and message.get("job_id")
-        ]
-        jobs_by_id = self.store.get_jobs_by_ids(job_ids)
+        jobs = self.store.list_jobs(session_id=session_id, limit=500)
+        jobs_by_id = {str(job["job_id"]): job for job in jobs}
         messages: list[dict[str, Any]] = []
-        for message in page_messages:
+        for message in self.store.list_messages(session_id):
             role = str(message.get("role"))
             if role == "user":
                 messages.append(self.public_message(message))
@@ -1789,10 +1664,11 @@ class ProductService:
                     job=linked,
                 )
             )
-        # active/last are recent by definition; the one-active-job invariant (R05) bounds `active`.
-        active = self.active_job(session_id)
-        recent_jobs = self.store.list_jobs(session_id=session_id, limit=1)
-        last = recent_jobs[0] if recent_jobs else None
+        active = next(
+            (job for job in jobs if job["status"] in _ACTIVE_STATES),
+            None,
+        )
+        last = jobs[0] if jobs else None
         result: dict[str, Any] = {
             "session_id": session_id,
             "title": str(session["title"]),
@@ -1801,9 +1677,6 @@ class ProductService:
             "active_model_profile": str(session["active_model_profile"]),
             "orchestration_mode": str(session["orchestration_mode"]),
             "messages": messages,
-            "total_messages": page["total"],
-            "messages_truncated": page["has_more_older"],
-            "older_messages_cursor": page["older_cursor"],
         }
         if active is not None:
             result["active_job_id"] = str(active["job_id"])
@@ -1838,8 +1711,7 @@ class ProductService:
 
     def models(self) -> list[dict[str, Any]]:
         state = self._self_state()
-        ollama = state.get("ollama")
-        ollama = ollama if isinstance(ollama, Mapping) else {}
+        _service_label, model_service = model_service_authority(state)
         configured_roles = (
             state.get("manifest", {}).get("configured_models_by_role", {})
             if isinstance(state.get("manifest"), Mapping)
@@ -1848,8 +1720,8 @@ class ProductService:
         configured_roles = (
             configured_roles if isinstance(configured_roles, Mapping) else {}
         )
-        installed_raw = ollama.get("installed_models")
-        loaded_raw = ollama.get("loaded_models")
+        installed_raw = model_service.get("installed_models")
+        loaded_raw = model_service.get("loaded_models")
         installed = (
             {str(item) for item in installed_raw}
             if isinstance(installed_raw, list)
@@ -1901,18 +1773,10 @@ class ProductService:
                 for role, model in sorted(models.items())
                 if isinstance(model, str)
             ]
-        # F-101. The effective assignments above already reflect any state-stored overrides
-        # (`_manifest()` overlays them). Name the source honestly so an operator can tell a
-        # customized install from a pristine one.
-        overridden = bool(self._stored_model_overrides())
         return {
-            "name": "state-override" if overridden else "manifest-default",
+            "name": "manifest-default",
             "assignments": assignments,
-            "source": (
-                "sovereign-state://model-assignments"
-                if overridden
-                else "sovereign://SYSTEM_MANIFEST.json"
-            ),
+            "source": "sovereign://SYSTEM_MANIFEST.json",
             "mutable": True,
             "editableRoles": list(CONFIGURABLE_MODEL_ROLES),
             "restartRequired": False,
@@ -1961,12 +1825,8 @@ class ProductService:
             updates[str(role)] = model_id.strip()
 
         state = self._self_state()
-        ollama = state.get("ollama")
-        installed_raw = (
-            ollama.get("installed_models")
-            if isinstance(ollama, Mapping)
-            else None
-        )
+        _service_label, model_service = model_service_authority(state)
+        installed_raw = model_service.get("installed_models")
         if not isinstance(installed_raw, list):
             raise ValueError(
                 "local model inventory is unavailable; assignments were not changed"
@@ -1977,35 +1837,6 @@ class ProductService:
             raise ValueError(
                 "model assignment rejected; model is not installed: "
                 + ", ".join(missing)
-            )
-
-        # EPC-02 dyno. "Installed" is not the same as "runs here". The operator's library
-        # holds Ollama Cloud POINTERS - rows that appear in `ollama list`, pass the check
-        # above, and execute on someone else's hardware. Selecting one leaves this host, which
-        # is provider spend and a mandatory STOP.
-        #
-        # Measured before this guard existed: glm-5.2:cloud was accepted into the CRITIC slot
-        # while the very state read below already marked it within_ceiling: False. The verdict
-        # was computed and then ignored.
-        #
-        # This refusal is deliberately NOT the ceiling check. A model over the size ceiling is
-        # slow and is the operator's call; a model that runs remotely is a bill, and stays
-        # refused however wide the ceiling is set.
-        model_states = ollama.get("model_states") if isinstance(ollama, Mapping) else None
-        remote = {}
-        if isinstance(model_states, list):
-            for entry in model_states:
-                if not isinstance(entry, Mapping) or not entry.get("runs_remotely"):
-                    continue
-                name = str(entry.get("name") or "")
-                if name:
-                    remote[name] = str(entry.get("ceiling_reason") or
-                                       "holds no local weights; runs remotely")
-        offending = sorted(set(updates.values()) & set(remote))
-        if offending:
-            raise ValueError(
-                "model assignment rejected; these models do not run on this machine: "
-                + "; ".join(f"{name} - {remote[name]}" for name in offending)
             )
 
         with self._configuration_lock:
@@ -2022,8 +1853,7 @@ class ProductService:
                 if self._injected_deep_executor is not None
                 else self._deep_executor_from_manifest(updated_manifest)
             )
-            # F-101: persist to the state root, not the tracked manifest.
-            self._store_model_overrides(updates)
+            self._write_manifest(updated_manifest)
             if replacement_deep is not None:
                 self.deep_executor = replacement_deep
         return self.profile()
@@ -2181,16 +2011,12 @@ def create_app(
             detail.append("durable job workers are not ready")
         try:
             state = owned_service._self_state()
-            ollama = (
-                state.get("ollama")
-                if isinstance(state.get("ollama"), Mapping)
-                else {}
-            )
-            model_service_ok = bool(ollama.get("reachable"))
+            _service_label, model_service = model_service_authority(state)
+            model_service_ok = bool(model_service.get("reachable"))
             configured = {
-                str(item) for item in (ollama.get("configured_models") or [])
+                str(item) for item in (model_service.get("configured_models") or [])
             }
-            installed_raw = ollama.get("installed_models")
+            installed_raw = model_service.get("installed_models")
             installed = (
                 {str(item) for item in installed_raw}
                 if isinstance(installed_raw, list)
@@ -2427,9 +2253,7 @@ def create_app(
         if not pointer:
             raise ValueError("pointer is required")
         try:
-            # R31/F-102. Scope to the evidence directory: the DB, the .venv and product source are
-            # never reachable through this endpoint even with a well-formed pointer.
-            path = owned_service.paths.resolve_evidence_pointer(
+            path = owned_service.paths.resolve_pointer(
                 pointer,
                 must_exist=True,
             )
@@ -2439,23 +2263,17 @@ def create_app(
             return _json_error(str(exc), 404)
         if not path.is_file():
             return _json_error("evidence pointer is not a file", 404)
-        # R31/F-102. Serve evidence inertly. An evidence file may contain attacker-influenced
-        # HTML/SVG/JS; served inline in the app's origin it would execute (stored XSS). Force a
-        # download with an inert content type, forbid content-type sniffing, and sandbox the
-        # response so even a client that renders it cannot run script or load anything.
+        mime, _encoding = mimetypes.guess_type(path.name)
         response = send_file(
             path,
-            mimetype="text/plain",
-            as_attachment=True,
+            mimetype=mime or "application/octet-stream",
+            as_attachment=False,
             conditional=True,
             download_name=path.name,
         )
-        response.headers["Content-Type"] = "text/plain; charset=utf-8"
         response.headers["Content-Disposition"] = (
-            f"attachment; filename*=UTF-8''{quote(path.name)}"
+            f"inline; filename*=UTF-8''{quote(path.name)}"
         )
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
         return response
 
     @app.get("/")
@@ -2510,50 +2328,6 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _install_shutdown_watcher(on_shutdown) -> None:
-    """F-011: shut down cleanly when the shell signals the graceful-shutdown Event.
-
-    The shell spawns this module with CREATE_NO_WINDOW, so its CTRL_BREAK never reaches us and Stop
-    used to hard-kill the process — risking a torn write to the hash-chained SQLite event log. It
-    now signals a per-module named Event (name in SWS_SHUTDOWN_EVENT); watching it lets us close the
-    store cleanly before the supervisor's terminate fallback. Werkzeug's `app.run` dev server cannot
-    be stopped cleanly from another thread, so `on_shutdown` closes the service (flushing/closing the
-    database) and then exits — the database integrity is the point, not a drained HTTP socket.
-
-    Mirrors the canonical shell/src/graceful.install_shutdown_watcher (a module cannot import the
-    shell package); pinned to it by shell/tests/test_graceful_shutdown_adoption.py. No-op off Windows
-    or when not launched by the shell."""
-    import sys
-    if sys.platform != "win32":
-        return
-    name = (os.environ.get("SWS_SHUTDOWN_EVENT") or "").strip()
-    if not name:
-        return
-    import ctypes
-    from ctypes import wintypes
-    k = ctypes.WinDLL("kernel32", use_last_error=True)
-    k.OpenEventW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
-    k.OpenEventW.restype = wintypes.HANDLE
-    k.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-    k.WaitForSingleObject.restype = wintypes.DWORD
-    k.CloseHandle.argtypes = [wintypes.HANDLE]
-    handle = k.OpenEventW(0x00100000, False, name)   # SYNCHRONIZE
-    if not handle:
-        return
-
-    def _wait() -> None:
-        try:
-            if k.WaitForSingleObject(handle, 0xFFFFFFFF) == 0:   # WAIT_OBJECT_0
-                try:
-                    on_shutdown()
-                except Exception:
-                    pass
-        finally:
-            k.CloseHandle(handle)
-
-    threading.Thread(target=_wait, name="sws-shutdown-watcher", daemon=True).start()
-
-
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     host = _validate_bind_host(args.host)
@@ -2564,18 +2338,6 @@ def main(argv: list[str] | None = None) -> int:
         worker_count=args.workers,
     )
     app = create_app(service=service)
-
-    def _graceful_shutdown() -> None:
-        # Close the store (flush the WAL, release the connection) THEN exit. app.run cannot be
-        # stopped cleanly cross-thread, so a prompt exit after a clean close is the safe outcome;
-        # the supervisor's terminate fallback still covers a hang. service.close is idempotent with
-        # the finally below (only one of them runs — os._exit skips the finally).
-        try:
-            service.close()
-        finally:
-            os._exit(0)
-
-    _install_shutdown_watcher(_graceful_shutdown)
     try:
         app.run(
             host=host,

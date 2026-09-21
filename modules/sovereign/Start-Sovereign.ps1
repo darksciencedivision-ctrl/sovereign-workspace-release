@@ -14,23 +14,8 @@ $markerPath = Join-Path $rootPath ".sovereign-root"
 $manifestPath = Join-Path $rootPath "SYSTEM_MANIFEST.json"
 $uiIndexPath = Join-Path $rootPath "ui\ui_shell\dist\index.html"
 $pythonPath = Join-Path $rootPath ".venv\Scripts\python.exe"
-# F-120. State lives in the shell's per-user state root, NEVER the install tree. Writing under
-# <install>\modules\sovereign\runtime put sovereign.db, evidence, logs and service_state.json
-# outside the backup scope, made them an "extra" path uninstall refuses over, and failed on a
-# read-only per-machine install. Match the shell's layout and EXPORT the same env the shell sets,
-# so a standalone launch and a shell launch share one state root and the product writes there too.
-$stateRoot = $env:SOVEREIGN_WORKSPACE_STATE
-if ([string]::IsNullOrWhiteSpace($stateRoot)) {
-    $localAppData = $env:LOCALAPPDATA
-    if ([string]::IsNullOrWhiteSpace($localAppData)) {
-        $localAppData = Join-Path $env:USERPROFILE "AppData\Local"
-    }
-    $stateRoot = Join-Path $localAppData "SovereignWorkspace\sovereign"
-}
-$stateDirectory = Join-Path $stateRoot "runtime"
-$env:SOVEREIGN_WORKSPACE_STATE = $stateRoot
-$env:SOVEREIGN_STATE_DIR = $stateDirectory
-$env:SOVEREIGN_EVIDENCE_DIR = (Join-Path $stateDirectory "evidence")
+$env:PYTHONPATH = $rootPath + [IO.Path]::PathSeparator + [string]$env:PYTHONPATH
+$stateDirectory = Join-Path $rootPath "runtime"
 $statePath = Join-Path $stateDirectory "service_state.json"
 $logDirectory = Join-Path $stateDirectory "logs"
 $stdoutPath = Join-Path $logDirectory "product.stdout.log"
@@ -144,6 +129,30 @@ if ($LASTEXITCODE -ne 0) {
 $manifest = $manifestJson | ConvertFrom-Json
 $ollamaBaseUrl = [string]$manifest.RUNTIME.OLLAMA_BASE_URL
 $ollamaTagsUrl = $ollamaBaseUrl.TrimEnd("/") + "/api/tags"
+$consumerEnvPath = Join-Path $stateDirectory "llamacpp_supervisor\consumer.env"
+if (Test-Path -LiteralPath $consumerEnvPath -PathType Leaf) {
+    Get-Content -LiteralPath $consumerEnvPath | ForEach-Object {
+        if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+            Set-Item -Path ("Env:" + $Matches[1]) -Value $Matches[2]
+        }
+    }
+}
+$inferenceBackend = [string]$env:SOVEREIGN_INFERENCE_BACKEND
+if ([string]::IsNullOrWhiteSpace($inferenceBackend)) {
+    $inferenceBackend = "llama.cpp"
+    $env:SOVEREIGN_INFERENCE_BACKEND = "llama.cpp"
+}
+if ($inferenceBackend -eq "llama.cpp") {
+    if ([string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_LLAMA_CPP_BASE_URL)) {
+        $env:SOVEREIGN_LLAMA_CPP_BASE_URL = "http://127.0.0.1:18080"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_LLAMA_CPP_API_KEY)) {
+        $keyPath = Join-Path $stateDirectory "llamacpp_supervisor\api_key"
+        if (Test-Path -LiteralPath $keyPath -PathType Leaf) {
+            $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $keyPath -Raw).Trim()
+        }
+    }
+}
 
 New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -177,9 +186,9 @@ if (Test-Path -LiteralPath $statePath -PathType Leaf) {
             [int]$existing.schema_version -eq 3 -and
             $existing.process_started_at
         ) {
-            $recordedExistingStart = [DateTimeOffset]::Parse(
-                [string]$existing.process_started_at
-            )
+            # PowerShell 7 converts ISO JSON timestamps to DateTime objects;
+            # casting that object preserves its UTC kind and fractional ticks.
+            $recordedExistingStart = [DateTimeOffset]$existing.process_started_at
             $actualExistingStart = (
                 [DateTimeOffset]$existingProcess.StartTime.ToUniversalTime()
             )
@@ -190,7 +199,25 @@ if (Test-Path -LiteralPath $statePath -PathType Leaf) {
             )
         }
         if ($sameService -and $sameIdentity) {
-            throw "SOVEREIGN is already running as PID $existingPid at $($existing.url)."
+            try {
+                $existingHealth = Invoke-RestMethod `
+                    -Uri ([string]$existing.health_url) `
+                    -Method Get `
+                    -TimeoutSec 3
+            } catch {
+                throw (
+                    "SOVEREIGN PID $existingPid matches this root but is not healthy. " +
+                    "Run Stop-Sovereign.ps1 before restarting it."
+                )
+            }
+            if ($existingHealth.status -ne "ok") {
+                throw "SOVEREIGN PID $existingPid returned a non-ready health response."
+            }
+            Write-Host "SOVEREIGN is already ready at $($existing.url) (PID $existingPid)."
+            if (-not $NoBrowser) {
+                Start-Process ([string]$existing.url)
+            }
+            return
         }
         if ($sameService) {
             throw (
@@ -217,33 +244,71 @@ if ($listeners.Count -gt 0) {
     throw "Port $Port is already in use by PID(s): $($owners -join ', ')."
 }
 
-try {
-    $tags = Invoke-RestMethod `
-        -Uri $ollamaTagsUrl `
-        -Method Get `
-        -TimeoutSec 5
-} catch {
-    throw "Local Ollama is not reachable on the manifest endpoint $ollamaBaseUrl."
-}
-
-$installed = @(
-    $tags.models | ForEach-Object {
-        if ($_.name) { [string]$_.name }
-        elseif ($_.model) { [string]$_.model }
+if ($inferenceBackend -eq "llama.cpp") {
+    $llamaBaseUrl = [string]$env:SOVEREIGN_LLAMA_CPP_BASE_URL
+    if ([string]::IsNullOrWhiteSpace($llamaBaseUrl)) {
+        $llamaBaseUrl = "http://127.0.0.1:18080"
+        $env:SOVEREIGN_LLAMA_CPP_BASE_URL = $llamaBaseUrl
     }
-)
-$requiredModels = @(
-    $manifest.MODELS.PRIMARY_REASONER,
-    $manifest.MODELS.ADVERSARIAL_CHALLENGER,
-    $manifest.MODELS.CRITIC,
-    $manifest.MODELS.SYNTHESIZER,
-    $manifest.MODELS.EMBEDDING_MODEL
-) | Where-Object { $_ } | Sort-Object -Unique
-$missingModels = @(
-    $requiredModels | Where-Object { $_ -notin $installed }
-)
-if ($missingModels.Count -gt 0) {
-    throw "Required local Ollama model(s) are missing: $($missingModels -join ', ')"
+    $llamaHeaders = @{}
+    if (-not [string]::IsNullOrWhiteSpace($env:SOVEREIGN_LLAMA_CPP_API_KEY)) {
+        $llamaHeaders["Authorization"] = "Bearer $($env:SOVEREIGN_LLAMA_CPP_API_KEY)"
+    }
+    $llamaModelsUri = $llamaBaseUrl.TrimEnd("/") + "/models"
+    try {
+        Invoke-RestMethod `
+            -Uri $llamaModelsUri `
+            -Method Get `
+            -Headers $llamaHeaders `
+            -TimeoutSec 5 | Out-Null
+    } catch {
+        $ensurePort = 18080
+        if ($llamaBaseUrl -match ':(\d+)') {
+            $ensurePort = [int]$Matches[1]
+        }
+        & $pythonPath -m sovereign_product.supervisor_service `
+            --root $rootPath `
+            --port $ensurePort `
+            ensure | Out-Null
+        try {
+            Invoke-RestMethod `
+                -Uri $llamaModelsUri `
+                -Method Get `
+                -Headers $llamaHeaders `
+                -TimeoutSec 15 | Out-Null
+        } catch {
+            throw "Local llama.cpp supervisor is not reachable on $llamaBaseUrl."
+        }
+    }
+} else {
+    try {
+        $tags = Invoke-RestMethod `
+            -Uri $ollamaTagsUrl `
+            -Method Get `
+            -TimeoutSec 5
+    } catch {
+        throw "Local Ollama is not reachable on the manifest endpoint $ollamaBaseUrl."
+    }
+
+    $installed = @(
+        $tags.models | ForEach-Object {
+            if ($_.name) { [string]$_.name }
+            elseif ($_.model) { [string]$_.model }
+        }
+    )
+    $requiredModels = @(
+        $manifest.MODELS.PRIMARY_REASONER,
+        $manifest.MODELS.ADVERSARIAL_CHALLENGER,
+        $manifest.MODELS.CRITIC,
+        $manifest.MODELS.SYNTHESIZER,
+        $manifest.MODELS.EMBEDDING_MODEL
+    ) | Where-Object { $_ } | Sort-Object -Unique
+    $missingModels = @(
+        $requiredModels | Where-Object { $_ -notin $installed }
+    )
+    if ($missingModels.Count -gt 0) {
+        throw "Required local Ollama model(s) are missing: $($missingModels -join ', ')"
+    }
 }
 
 $quotedRoot = '"' + $rootPath.Replace('"', '\"') + '"'
