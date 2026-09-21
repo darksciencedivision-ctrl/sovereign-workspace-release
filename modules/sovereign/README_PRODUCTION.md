@@ -5,7 +5,7 @@ This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It
 ## Current runtime environment
 
 - Compatible Windows host with PowerShell and loopback networking.
-- Python 3.10 or newer.
+- Python 3.12 — the workspace-pinned interpreter. The Sovereign Workspace shell requires `py -3.12` (a source floor of 3.10 remains in `pyproject.toml`, but the workspace runs and tests on 3.12).
 - A local inference backend. SOVEREIGN is **backend-agnostic and runs on either engine**:
   - **llama.cpp** (the default) via the bundled local supervisor on `http://127.0.0.1:18080`. Start/manage it with the `*-LlamaCppSupervisor.ps1` scripts in this directory, or let the Sovereign Workspace shell start the `llamacpp` module.
   - **Ollama** on `http://127.0.0.1:11434`.

@@ -7,7 +7,7 @@ It is not a truth-scoring system, claim ledger, autonomous tool agent, audience-
 ## Requirements
 
 - Windows
-- Python 3.10 or newer
+- Python 3.14 — Debate is built and verified on 3.14.6, and `scripts\bootstrap.ps1` checks for it; the Sovereign Workspace preflight looks for `py -3.14`. (Debate is the one module on 3.14; the rest of the workspace is pinned to 3.12.)
 - Ollama running locally
 - Two or more installed chat-capable Ollama models
 - Enough RAM and VRAM for the selected models

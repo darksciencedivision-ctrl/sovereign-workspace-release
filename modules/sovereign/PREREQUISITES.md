@@ -7,7 +7,7 @@ Ollama server, and the model set below.
 
 ## 1. Python
 
-- **Python 3.10 or newer.**
+- **Python 3.12** — the workspace-pinned interpreter (`py -3.12`). The `pyproject.toml` source floor is 3.10, but the workspace runs and tests on 3.12.
 - Install runtime dependencies with `pip install -r requirements.txt`
   (flask, requests, chromadb, numpy, pydantic).
 

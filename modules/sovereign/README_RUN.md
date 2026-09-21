@@ -21,7 +21,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Python 3.10 or newer is required.
+Python 3.12 is the workspace-pinned interpreter (`py -3.12`); the source floor in `pyproject.toml` is 3.10, but the workspace runs and tests on 3.12.
 
 ## 2. Start the product
 
