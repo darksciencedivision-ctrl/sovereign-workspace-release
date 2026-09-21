@@ -29,11 +29,38 @@ TASK_WATCH = "SOVEREIGN_LlamaCppSupervisor_Watch"
 TASK_ENSURE = "SOVEREIGN_LlamaCppSupervisor_Ensure"
 RUN_VALUE_NAME = "SOVEREIGN_LlamaCppSupervisor"
 STARTUP_VBS_NAME = "SOVEREIGN_LlamaCppSupervisor.vbs"
-DEFAULT_EXE = Path(
+# WS-0.4: the llama.cpp server binary is locatable without editing code. Precedence:
+#   1. SOVEREIGN_LLAMACPP_SERVER_EXE (explicit path to llama-server.exe),
+#   2. <SOVEREIGN_LLAMA_SUPERVISOR_ROOT>/runtime/llama.cpp/current/llama-server.exe,
+#   3. the historical build-host path (last-resort default, portable only on the build host).
+# The supply-chain hash pin is preserved. An operator who supplies their own vetted binary may
+# override its expected hashes TOGETHER with it via SOVEREIGN_LLAMACPP_SERVER_SHA256 /
+# SOVEREIGN_LLAMACPP_IMPL_SHA256; otherwise the built-in vetted hashes still apply, so a swapped
+# binary that does not match is still rejected.
+_FALLBACK_EXE = Path(
     r"D:\Product Software\Production Workspace\runtime\llama.cpp\current\llama-server.exe"
 )
-EXE_HASH = "E25313077D8ED57A838C475CE2F3D31422881212CAF2DDAC2C18385E5E49AE69"
-IMPL_HASH = "8AFC4644F8A8FB6E143B64FFB43542EF4796358D240296FD8E2109CD5C421251"
+
+
+def _resolve_default_exe() -> Path:
+    explicit = os.environ.get("SOVEREIGN_LLAMACPP_SERVER_EXE")
+    if explicit:
+        return Path(explicit)
+    base = os.environ.get("SOVEREIGN_LLAMA_SUPERVISOR_ROOT")
+    if base:
+        return Path(base) / "runtime" / "llama.cpp" / "current" / "llama-server.exe"
+    return _FALLBACK_EXE
+
+
+DEFAULT_EXE = _resolve_default_exe()
+EXE_HASH = os.environ.get(
+    "SOVEREIGN_LLAMACPP_SERVER_SHA256",
+    "E25313077D8ED57A838C475CE2F3D31422881212CAF2DDAC2C18385E5E49AE69",
+)
+IMPL_HASH = os.environ.get(
+    "SOVEREIGN_LLAMACPP_IMPL_SHA256",
+    "8AFC4644F8A8FB6E143B64FFB43542EF4796358D240296FD8E2109CD5C421251",
+)
 CREATE_NO_WINDOW = 0x08000000
 CREATE_NEW_PROCESS_GROUP = 0x00000200
 DETACHED_PROCESS = 0x00000008

@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import os
 from pathlib import Path
 import re
 from typing import Any, Iterable, Mapping
 
 from .runtime_contracts import CAPABILITY_STATES, CAPABILITY_UNKNOWN
+
+# WS-0.4: FreeToken executable default resolves from SOVEREIGN_FREETOKEN_EXE, matching
+# freetoken_service, with the historical build-host path as a last-resort default.
+_DEFAULT_FREETOKEN_EXE = os.environ.get(
+    "SOVEREIGN_FREETOKEN_EXE"
+) or r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\freetoken_env_rebuild\Scripts\ft.exe"
 
 
 SCHEMA_ID = "sovereign.runtime-registry.v1"
@@ -365,7 +372,7 @@ def context_resolution(model_id: str) -> dict[str, Any]:
 
 def freetoken_installation(
     *,
-    executable: str | Path = r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\freetoken_env_rebuild\Scripts\ft.exe",
+    executable: str | Path = _DEFAULT_FREETOKEN_EXE,
     version: str = "0.1.3",
 ) -> RuntimeInstallation:
     return RuntimeInstallation(

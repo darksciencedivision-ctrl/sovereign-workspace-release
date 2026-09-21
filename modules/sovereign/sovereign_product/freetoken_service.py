@@ -17,16 +17,27 @@ from .runtime_registry import freetoken_installation
 
 SCHEMA_VERSION = 1
 DEFAULT_PORT = 1919
-DEFAULT_ENV = Path(
+# WS-0.4: FreeToken runtime env, executable, CUDA home and model locations are resolvable from
+# the environment, with the historical build-host paths demoted to last-resort defaults. The
+# executable and CUDA home derive from the env root unless overridden individually.
+_FALLBACK_ENV = Path(
     r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\freetoken_env_rebuild"
 )
-DEFAULT_EXE = DEFAULT_ENV / "Scripts" / "ft.exe"
-DEFAULT_CUDA_HOME = DEFAULT_ENV / "Lib" / "site-packages" / "nvidia" / "cu13"
+DEFAULT_ENV = Path(os.environ.get("SOVEREIGN_FREETOKEN_ENV") or _FALLBACK_ENV)
+DEFAULT_EXE = Path(
+    os.environ.get("SOVEREIGN_FREETOKEN_EXE") or (DEFAULT_ENV / "Scripts" / "ft.exe")
+)
+DEFAULT_CUDA_HOME = Path(
+    os.environ.get("SOVEREIGN_FREETOKEN_CUDA_HOME")
+    or (DEFAULT_ENV / "Lib" / "site-packages" / "nvidia" / "cu13")
+)
 DEFAULT_MODEL = Path(
-    r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\models\Qwen3-0.6B"
+    os.environ.get("SOVEREIGN_FREETOKEN_MODEL")
+    or r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\models\Qwen3-0.6B"
 )
 MOE_MODEL = Path(
-    r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\models\gpt-oss-20b"
+    os.environ.get("SOVEREIGN_FREETOKEN_MOE_MODEL")
+    or r"D:\SOVEREIGN_SYSTEM\migration_evidence\opencode_grok46_20260910\models\gpt-oss-20b"
 )
 
 
