@@ -176,6 +176,16 @@ def _utc_now() -> str:
 
 
 def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervisor:
+    # WS-0.4: fail with a clear, actionable message when the server binary is not present, rather
+    # than an opaque launch failure. The binary is provisioned per machine (not shipped): point the
+    # operator at the resolution knobs and the provisioning script.
+    if not DEFAULT_EXE.is_file():
+        raise RuntimeControlError(
+            "llama.cpp server binary not found at "
+            f"{DEFAULT_EXE}. It is provisioned per machine, not shipped. Run "
+            "Provision-Workspace.ps1, or set SOVEREIGN_LLAMACPP_SERVER_EXE (or "
+            "SOVEREIGN_LLAMA_SUPERVISOR_ROOT) in workspace.env to your llama-server.exe."
+        )
     runtime = llama_cpp_installation(
         executable=DEFAULT_EXE,
         hashes={"llama-server.exe": EXE_HASH, "llama-server-impl.dll": IMPL_HASH},

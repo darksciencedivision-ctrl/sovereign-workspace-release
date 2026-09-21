@@ -64,13 +64,37 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $root
 
+# Local provisioning values. `workspace.env` (created by Provision-Workspace.ps1; gitignored, never
+# shipped) carries THIS machine's paths — the llama.cpp server binary, its models, the SOW coding
+# repo — so the sealed product stays free of any one machine's absolute paths. KEY=VALUE lines;
+# blank lines and lines starting with `#` are ignored; an already-set environment variable is never
+# overwritten, so an operator's own environment still wins.
+$envFile = Join-Path $root 'workspace.env'
+if (Test-Path -LiteralPath $envFile -PathType Leaf) {
+    foreach ($line in Get-Content -LiteralPath $envFile) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        $eq = $t.IndexOf('=')
+        if ($eq -lt 1) { continue }
+        $name = $t.Substring(0, $eq).Trim()
+        $value = $t.Substring($eq + 1).Trim()
+        if ($name -and -not [Environment]::GetEnvironmentVariable($name, 'Process')) {
+            Set-Item -Path ("Env:" + $name) -Value $value
+        }
+    }
+}
+
 # Workspace-wide local inference authority. These values are inherited by the
 # shell and every module process it owns, so picker enumeration, conductor
 # selection, and worker panes all attach to the same supervised loopback router.
 $llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
     [IO.Path]::GetFullPath($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT)
 } else {
-    'D:\Sov 1\SOVEREIGN_PRODUCT_COMPLETION_WORK'
+    # Default into the bundled Sovereign module, not a build-host path. The supervisor resolves its
+    # server binary under <root>\runtime\llama.cpp\current\ (or SOVEREIGN_LLAMACPP_SERVER_EXE from
+    # workspace.env). Provision-Workspace.ps1 sets these; the default keeps everything inside the
+    # distribution so it is correct on any machine.
+    Join-Path $root 'modules\sovereign'
 }
 $llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
 $llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
@@ -88,9 +112,10 @@ if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
 # refusal is where the orphan `worktrees/worker-pane-2` records came from). No containment means no
 # coding pane, so an unset value here is a `worktree_unavailable` refusal, not a silent fallback.
 # An operator-set value wins: this launcher only defaults it when nothing else already has.
-if (-not $env:SOW_CODING_BASE_REPO) {
-    $env:SOW_CODING_BASE_REPO = 'D:\Git\sow-sovereign-workspace'
-}
+# SOW_CODING_BASE_REPO is deliberately NOT defaulted to any machine's path. If workspace.env or the
+# operator's own environment set it, that value is used; otherwise it stays unset and the coding
+# pane reports `worktree_unavailable` (a clean refusal, per the note above) rather than pointing at
+# a repository that exists on no other machine.
 
 $blocking = New-Object System.Collections.Generic.List[string]
 $advisory = New-Object System.Collections.Generic.List[string]

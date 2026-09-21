@@ -1,7 +1,12 @@
 # SOVEREIGN — Prerequisites
 
-SOVEREIGN runs entirely on your machine. You need three things: Python, a running
-Ollama server, and the model set below.
+SOVEREIGN runs entirely on your machine. You need Python, a **local inference backend**
+(either llama.cpp or Ollama — it runs on both), and model weights.
+
+**Fastest path:** run `Provision-Workspace.ps1` from the workspace root. It creates the Python
+virtual environments and installs dependencies, sets up the SOW desktop app, locates your
+llama.cpp binary, checks Ollama, and writes `workspace.env` (loaded at startup). It prints exactly
+what is ready and what still needs a model. The rest of this page is the manual detail behind it.
 
 ---
 
@@ -11,12 +16,21 @@ Ollama server, and the model set below.
 - Install runtime dependencies with `pip install -r requirements.txt`
   (flask, requests, chromadb, numpy, pydantic).
 
-## 2. Ollama
+## 2. Inference backend (pick either — SOVEREIGN runs on both)
 
-- Install Ollama and make sure it is running and reachable at:
-  **`http://127.0.0.1:11434`**  (the default).
-- This URL is configured in `SYSTEM_MANIFEST.json` under `RUNTIME.OLLAMA_BASE_URL`.
-  If your Ollama runs elsewhere, update that value.
+Default resolution: `SOVEREIGN_INFERENCE_BACKEND` → `runtime/backend_selection.json` → **llama.cpp**.
+
+**Option A — llama.cpp (default), on `http://127.0.0.1:18080`.**
+- The `llama-server.exe` binary is provisioned per machine, not shipped. Point the workspace at it
+  by running `Provision-Workspace.ps1 -LlamaCppExe <path>`, or set `SOVEREIGN_LLAMACPP_SERVER_EXE`
+  (or `SOVEREIGN_LLAMA_SUPERVISOR_ROOT`) in `workspace.env`. If it is missing, the supervisor stops
+  with a clear message telling you exactly what to set.
+- Place your GGUF model files and select them through the supervisor.
+
+**Option B — Ollama, on `http://127.0.0.1:11434`.**
+- Install Ollama, make sure it is running, and set `SOVEREIGN_INFERENCE_BACKEND=ollama`.
+- The URL is configured in `SYSTEM_MANIFEST.json` under `RUNTIME.OLLAMA_BASE_URL`; update it if your
+  Ollama runs elsewhere.
 
 ## 3. Models to pull
 
