@@ -3,18 +3,18 @@
   "display_name": "llama.cpp (local supervisor)",
   "description": "The workspace-wide local inference router on loopback port 18080. The outer workspace launcher starts the existing user-level supervisor; every module and picker attaches to this endpoint without an Ollama or cloud fallback.",
   "state_class": "runnable",
-  "root": "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK",
+  "root": "${install_root}/modules/sovereign",
   "runtime_writes": [
     "${state_root}/logs"
   ],
   "launch": {
     "cwd": "${root}",
     "argv": [
-      "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK/.venv/Scripts/python.exe",
+      "${root}/.venv/Scripts/python.exe",
       "-m",
       "sovereign_product.supervisor_service",
       "--root",
-      "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK",
+      "${root}",
       "--port",
       "18080",
       "watch"
