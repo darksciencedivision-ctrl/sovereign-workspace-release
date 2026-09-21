@@ -65,6 +65,10 @@ evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
 *.pre-add08 export-ignore
 *.pre-add08.json export-ignore
 
+# WS-0.2 clean-room boot gate — version-controlled tooling, not part of the shipped artifact.
+tools/cleanroom export-ignore
+tools/cleanroom/** export-ignore
+
 # X-4 (OD-35) — THE DEVELOPMENT RECORD DOES NOT SHIP. Operator decision,
 # 2026-08-30, taken on the STATE-OF-SYSTEM/PUNCH-LIST V6 measurements of
 # ENTRY 020. The root evidence/ and dev/ trees are 1931 tracked files at the
