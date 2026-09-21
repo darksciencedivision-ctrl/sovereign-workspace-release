@@ -26,6 +26,17 @@
       "minLength": 1,
       "maxLength": 256
     },
+    "maturity": {
+      "type": "string",
+      "description": "Honest release maturity of the module, surfaced on its workspace tile so a pre-functional module is not presented as a finished peer product. Optional; absent is treated as 'unspecified'.",
+      "enum": [
+        "stable",
+        "beta",
+        "preview",
+        "alpha",
+        "unspecified"
+      ]
+    },
     "state_class": {
       "type": "string",
       "enum": [

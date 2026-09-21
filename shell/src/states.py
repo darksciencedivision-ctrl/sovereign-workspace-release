@@ -678,6 +678,7 @@ class ModuleRunner:
             "id": self.id,
             "display_name": self.adapter.get("display_name", self.id),
             "description": self.adapter.get("description", ""),
+            "maturity": self.adapter.get("maturity", "unspecified"),
             "state_class": self.adapter.get("state_class", "runnable"),
             "state": self.state,
             "reason": self.reason,

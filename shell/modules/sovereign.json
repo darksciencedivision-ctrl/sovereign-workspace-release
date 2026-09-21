@@ -2,6 +2,7 @@
   "id": "sovereign",
   "display_name": "SOVEREIGN",
   "description": "Operator product service and UI (Flask, :5175)",
+  "maturity": "preview",
   "state_class": "runnable",
   "root": "${install_root}/modules/sovereign",
   "runtime_writes": [

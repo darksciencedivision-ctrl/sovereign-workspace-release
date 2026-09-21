@@ -2,6 +2,7 @@
   "id": "sow",
   "display_name": "Multi-Model Terminal",
   "description": "Sovereign Orchestration Workspace (Electron + xterm.js)",
+  "maturity": "alpha",
   "state_class": "runnable",
   "root": "${install_root}/modules/sow",
   "runtime_writes": [

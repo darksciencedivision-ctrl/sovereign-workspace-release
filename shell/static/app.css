@@ -326,6 +326,26 @@ body {
 .badge-muted { color: var(--text-muted); }
 .badge-external { color: var(--warning); }
 
+/* Maturity pill — inline with the module name, sourced from the manifest via /api/state, so a
+   pre-functional module is not presented as a finished peer product. */
+.maturity {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: var(--text-muted);
+}
+.maturity-stable  { color: var(--ok); }
+.maturity-beta    { color: var(--accent); }
+.maturity-preview { color: var(--warning); }
+.maturity-alpha   { color: var(--danger); }
+
 /* ---------- module grid & cards ---------- */
 
 .module-grid {

@@ -2,6 +2,7 @@
   "id": "distillery",
   "display_name": "Sovereign Distillery",
   "description": "Distillery runtime console — health only, no compute on open",
+  "maturity": "preview",
   "state_class": "runnable",
   "root": "${install_root}/modules/distillery",
   "runtime_writes": [

@@ -2,6 +2,7 @@
   "id": "debate",
   "display_name": "Debate Table",
   "description": "Multi-model debate table (FastAPI, :8700)",
+  "maturity": "beta",
   "state_class": "runnable",
   "root": "${install_root}/modules/debate",
   "runtime_writes": [
