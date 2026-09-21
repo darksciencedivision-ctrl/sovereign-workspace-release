@@ -99,9 +99,15 @@ $llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
 $llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
 $llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
 $env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
-$env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp'
-$env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080'
-$env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080'
+# Audit B3: the workspace is backend-AGNOSTIC. Default to llama.cpp only when the operator has not
+# already chosen a backend (via workspace.env or their own environment); an explicit
+# SOVEREIGN_INFERENCE_BACKEND=ollama must survive the launcher, or "runs both, selectable" is false
+# through the one supported entry point. The llama.cpp endpoint variables are the router's address;
+# they are harmless when Ollama is selected (the product's backend_selection ignores them), so they
+# are only defaulted when they, too, are unset.
+if (-not $env:SOVEREIGN_INFERENCE_BACKEND) { $env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp' }
+if (-not $env:SOVEREIGN_LLAMACPP_HOST) { $env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080' }
+if (-not $env:SOVEREIGN_LLAMA_CPP_BASE_URL) { $env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080' }
 if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
     $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $llamaApiKeyPath -Raw).Trim()
 }

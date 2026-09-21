@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -175,6 +176,43 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _verify_binary(exe: Path) -> None:
+    """WS-0.4 (audit B1): actually ENFORCE the hash pin before launch, not merely record it.
+
+    The expected hashes come from EXE_HASH / IMPL_HASH, which resolve from
+    SOVEREIGN_LLAMACPP_SERVER_SHA256 / SOVEREIGN_LLAMACPP_IMPL_SHA256 when set (so an operator
+    running their own binary pins ITS hash — Provision-Workspace.ps1 does this automatically) and
+    otherwise fall back to the built-in vetted values. Either way a binary whose bytes do not match
+    the expected digest is refused before any process starts. The sibling implementation DLL is
+    checked only when it is present, so builds that do not ship it are not falsely blocked.
+    """
+    actual = _sha256_file(exe).lower()
+    if actual != EXE_HASH.strip().lower():
+        raise RuntimeControlError(
+            f"llama.cpp server binary at {exe} failed hash verification "
+            f"(expected {EXE_HASH.strip().lower()}, got {actual}). Refusing to launch. If this is "
+            "intentionally your own build, set SOVEREIGN_LLAMACPP_SERVER_SHA256 to its digest "
+            "(Provision-Workspace.ps1 -LlamaCppExe pins it for you)."
+        )
+    impl = exe.with_name("llama-server-impl.dll")
+    if impl.is_file():
+        actual_impl = _sha256_file(impl).lower()
+        if actual_impl != IMPL_HASH.strip().lower():
+            raise RuntimeControlError(
+                f"llama.cpp implementation DLL at {impl} failed hash verification "
+                f"(expected {IMPL_HASH.strip().lower()}, got {actual_impl}). Refusing to launch. "
+                "Set SOVEREIGN_LLAMACPP_IMPL_SHA256 to its digest if this build is intentional."
+            )
+
+
 def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervisor:
     # WS-0.4: fail with a clear, actionable message when the server binary is not present, rather
     # than an opaque launch failure. The binary is provisioned per machine (not shipped): point the
@@ -186,6 +224,8 @@ def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervis
             "Provision-Workspace.ps1, or set SOVEREIGN_LLAMACPP_SERVER_EXE (or "
             "SOVEREIGN_LLAMA_SUPERVISOR_ROOT) in workspace.env to your llama-server.exe."
         )
+    # WS-0.4 (audit B1): enforce the hash pin at the launch path, before the process is built.
+    _verify_binary(DEFAULT_EXE)
     runtime = llama_cpp_installation(
         executable=DEFAULT_EXE,
         hashes={"llama-server.exe": EXE_HASH, "llama-server-impl.dll": IMPL_HASH},

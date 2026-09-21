@@ -155,28 +155,33 @@ function Find-LlamaExe {
     return $null
 }
 $llamaExe = Find-LlamaExe
-$envLines = New-Object System.Collections.Generic.List[string]
-$envLines.Add("# workspace.env - per-machine provisioning, written by Provision-Workspace.ps1.")
-$envLines.Add("# Loaded by Start-Shell.ps1. Gitignored; never shipped. An already-set env var wins.")
+# Only the keys we actually resolve this run; merged into workspace.env below (existing keys and
+# operator additions are preserved).
+$generated = [ordered]@{}
 if ($llamaExe -and (Test-Path -LiteralPath $llamaExe)) {
     Ok "llama-server.exe: $llamaExe"
-    $envLines.Add("SOVEREIGN_LLAMACPP_SERVER_EXE=$llamaExe")
-    $report['llama.cpp binary'] = 'found'
+    $generated['SOVEREIGN_LLAMACPP_SERVER_EXE'] = $llamaExe
+    # Trust-on-first-use: pin THIS binary's hash so the supervisor accepts your own build and rejects
+    # a later silent swap (the launch path enforces it). Delete the pin to fall back to the vetted hash.
+    try {
+        $generated['SOVEREIGN_LLAMACPP_SERVER_SHA256'] = (Get-FileHash -LiteralPath $llamaExe -Algorithm SHA256).Hash.ToLower()
+        Info "pinned server hash $($generated['SOVEREIGN_LLAMACPP_SERVER_SHA256'])"
+        $impl = Join-Path (Split-Path -Parent $llamaExe) 'llama-server-impl.dll'
+        if (Test-Path -LiteralPath $impl) { $generated['SOVEREIGN_LLAMACPP_IMPL_SHA256'] = (Get-FileHash -LiteralPath $impl -Algorithm SHA256).Hash.ToLower() }
+    } catch { Warn "could not hash the binary: $_" }
+    $report['llama.cpp binary'] = 'found + hash-pinned'
 } else {
     Miss "llama-server.exe not found. Install/build llama.cpp, then re-run with -LlamaCppExe <path> (or set SOVEREIGN_LLAMACPP_SERVER_EXE)."
-    $envLines.Add("# SOVEREIGN_LLAMACPP_SERVER_EXE=C:\path\to\llama-server.exe")
     $report['llama.cpp binary'] = 'NOT FOUND (set -LlamaCppExe)'
 }
 if ($LlamaModelsDir) {
-    if (Test-Path -LiteralPath $LlamaModelsDir) { Ok "models dir: $LlamaModelsDir"; $envLines.Add("SOVEREIGN_LLAMACPP_MODELS_DIR=$LlamaModelsDir"); $report['llama.cpp models'] = 'set' }
+    if (Test-Path -LiteralPath $LlamaModelsDir) { Ok "models dir recorded (informational): $LlamaModelsDir"; $generated['SOVEREIGN_LLAMACPP_MODELS_DIR'] = $LlamaModelsDir; $report['llama.cpp models'] = 'recorded (informational)' }
     else { Warn "models dir not found: $LlamaModelsDir"; $report['llama.cpp models'] = 'path missing' }
 } else {
-    Info "no -LlamaModelsDir given; place GGUF models yourself and (optionally) set SOVEREIGN_LLAMACPP_MODELS_DIR."
-    $envLines.Add("# SOVEREIGN_LLAMACPP_MODELS_DIR=D:\models")
+    Info "no -LlamaModelsDir given; place your GGUF models and select them through the supervisor."
     $report['llama.cpp models'] = 'operator-supplied'
 }
-if ($SowCodingRepo) { $envLines.Add("SOW_CODING_BASE_REPO=$SowCodingRepo"); Ok "SOW coding repo: $SowCodingRepo" }
-else { $envLines.Add("# SOW_CODING_BASE_REPO=D:\path\to\your\coding\repo   (optional; enables the SOW coding pane)") }
+if ($SowCodingRepo) { $generated['SOW_CODING_BASE_REPO'] = $SowCodingRepo; Ok "SOW coding repo: $SowCodingRepo" }
 
 # --- 4. Ollama (the other backend) --------------------------------------------------------------
 Head "Ollama backend"
@@ -190,17 +195,31 @@ try {
     $report['ollama'] = 'not running'
 }
 
-# --- write workspace.env ------------------------------------------------------------------------
+# --- write workspace.env (MERGE, do not clobber operator settings) ------------------------------
 $envPath = Join-Path $worktree 'workspace.env'
-if ($ReportOnly) { Info "would write $envPath" }
+if ($ReportOnly) { Info "would merge $($generated.Count) generated key(s) into $envPath" }
 else {
+    # Start from the existing file so operator-added keys and previously-provisioned values survive;
+    # only the keys resolved THIS run are updated. (Audit N2: a rerun must not drop prior settings.)
+    $merged = [ordered]@{}
     if (Test-Path -LiteralPath $envPath) {
-        # Preserve any operator-added lines the operator set that we did not generate this run.
+        foreach ($line in Get-Content -LiteralPath $envPath) {
+            $t = $line.Trim()
+            if (-not $t -or $t.StartsWith('#')) { continue }
+            $eq = $t.IndexOf('='); if ($eq -lt 1) { continue }
+            $merged[$t.Substring(0, $eq).Trim()] = $t.Substring($eq + 1).Trim()
+        }
         Copy-Item -LiteralPath $envPath -Destination "$envPath.bak" -Force
-        Info "existing workspace.env backed up to workspace.env.bak"
+        Info "existing workspace.env backed up to workspace.env.bak, then merged"
     }
-    Set-Content -LiteralPath $envPath -Value $envLines -Encoding utf8
-    Ok "wrote $envPath"
+    foreach ($k in $generated.Keys) { $merged[$k] = $generated[$k] }
+    $out = New-Object System.Collections.Generic.List[string]
+    $out.Add("# workspace.env - per-machine provisioning, written by Provision-Workspace.ps1.")
+    $out.Add("# Loaded by Start-Shell.ps1. Gitignored; never shipped. An already-set env var wins.")
+    $out.Add("# Rerun-safe: regenerated keys update; every other key you add here is preserved.")
+    foreach ($k in $merged.Keys) { $out.Add("$k=$($merged[$k])") }
+    Set-Content -LiteralPath $envPath -Value $out -Encoding utf8
+    Ok "wrote $envPath ($($merged.Count) key(s))"
 }
 
 # --- 5. readiness report ------------------------------------------------------------------------
@@ -211,5 +230,7 @@ Write-Host "Next:" -ForegroundColor Cyan
 Write-Host '  1. Install model weights for whichever backend you use:' -ForegroundColor Gray
 Write-Host '       Ollama:    ollama pull <tag>        llama.cpp: place GGUF files, point the supervisor at them' -ForegroundColor DarkGray
 Write-Host ('  2. Start the workspace:  ' + (Join-Path $worktree 'Start-Shell.ps1') + '   (or Start-Sovereign.ps1 beside the folder)') -ForegroundColor Gray
-Write-Host ('  3. Verify a clean boot:  ' + (Join-Path $worktree 'tools\cleanroom\Test-CleanRoomBoot.ps1')) -ForegroundColor Gray
+Write-Host ('  3. Check readiness:      ' + (Join-Path $worktree 'Start-Shell.ps1') + ' -CheckOnly') -ForegroundColor Gray
+$gate = Join-Path $worktree 'tools\cleanroom\Test-CleanRoomBoot.ps1'
+if (Test-Path -LiteralPath $gate) { Write-Host ('     (source checkout also has the clean-room gate: ' + $gate + ')') -ForegroundColor DarkGray }
 Write-Host ""

@@ -176,9 +176,10 @@ def _selftest() -> int:
     """Prove the checker's core logic FAILS on a missing `-m` entry and PASSES on a present one."""
     here = os.path.dirname(os.path.abspath(__file__))
     # present: this very package (tools/cleanroom has no __init__, so use a known file)
-    ok_kind, ok_path = _module_entry(here, ["python.exe", "-m", "cleanroom_resolve_check"])
+    # cwd is irrelevant for a `-m module` entry (it resolves under root); pass `here`.
+    ok_kind, ok_path = _module_entry(here, ["python.exe", "-m", "cleanroom_resolve_check"], here)
     present = _entry_exists(ok_kind, ok_path)
-    bad_kind, bad_path = _module_entry(here, ["python.exe", "-m", "does_not_exist_pkg.nope"])
+    bad_kind, bad_path = _module_entry(here, ["python.exe", "-m", "does_not_exist_pkg.nope"], here)
     missing = _entry_exists(bad_kind, bad_path)
     print(f"selftest: present-entry detected present = {present} (expect True)")
     print(f"selftest: missing-entry detected present = {missing} (expect False)")
