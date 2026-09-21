@@ -69,6 +69,18 @@ evidence/cpm1/before-b/modules/sow/tools/spike_compositor/** export-ignore
 tools/cleanroom export-ignore
 tools/cleanroom/** export-ignore
 
+# WS-2.3 — build-control / dev-evidence artifacts DO NOT SHIP. Heavy, non-runtime records used
+# to govern the autonomous build; kept tracked and in history, excluded from `git archive`.
+# Verified not loaded by any runtime code (only referenced in a source comment).
+modules/sow/docs/registers export-ignore
+modules/sow/docs/registers/** export-ignore
+modules/sow/docs/loop export-ignore
+modules/sow/docs/loop/** export-ignore
+modules/sow/tools/soak/results export-ignore
+modules/sow/tools/soak/results/** export-ignore
+modules/distillery/runs/export export-ignore
+modules/distillery/runs/export/** export-ignore
+
 # X-4 (OD-35) — THE DEVELOPMENT RECORD DOES NOT SHIP. Operator decision,
 # 2026-08-30, taken on the STATE-OF-SYSTEM/PUNCH-LIST V6 measurements of
 # ENTRY 020. The root evidence/ and dev/ trees are 1931 tracked files at the
