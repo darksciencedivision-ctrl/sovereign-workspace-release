@@ -30,6 +30,7 @@ import os
 from pathlib import Path
 import queue
 import threading
+import time
 from typing import Any, Callable, Mapping
 from urllib.parse import quote, urlsplit
 
@@ -535,6 +536,7 @@ class ProductService:
         self._enqueued: set[str] = set()
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
+        self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after a bounded drain
         recovery = self.store.recover_incomplete_jobs()
         for job_id in recovery["queued"]:
             self._enqueue(job_id)
@@ -824,16 +826,33 @@ class ProductService:
             thread.start()
             self._workers.append(thread)
 
-    def close(self) -> None:
+    def close(self) -> dict[str, Any]:
+        """CR-026: shut down without silently forgetting workers that outlive the bounded drain.
+
+        In-flight, cancellation-aware jobs are asked to stop; the queue is poison-pilled; workers are
+        joined under ONE shared deadline (not an unbounded per-worker wait). Workers still alive after
+        the drain are SURVIVORS: retained in `_workers`, recorded in `_shutdown_survivors`, and
+        reported in the returned record, so shutdown never claims success while jobs keep running.
+        Storage (per-thread connections) is still closed, and the record says whether it was clean.
+        """
         if self._closed.is_set():
-            return
+            survivors = [t for t in self._workers if t.is_alive()]
+            return {"clean": not survivors, "survivors": [t.name for t in survivors]}
         self._closed.set()
+        for event in list(self._active_cancel.values()):
+            event.set()
         for _thread in self._workers:
             self._queue.put(None)
+        deadline = time.monotonic() + 2.0
         for thread in self._workers:
-            thread.join(timeout=2.0)
-        self._workers.clear()
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                thread.join(timeout=remaining)
+        survivors = [t for t in self._workers if t.is_alive()]
+        self._workers[:] = survivors  # forget finished workers; keep the survivors tracked
+        self._shutdown_survivors.extend(t.name for t in survivors)
         self.store.close()
+        return {"clean": not survivors, "survivors": [t.name for t in survivors]}
 
     def _enqueue(self, job_id: str) -> None:
         with self._queue_lock:

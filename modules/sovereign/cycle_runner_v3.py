@@ -24,7 +24,6 @@ from artifact_integrity import (
     persist_artifact_integrity_report,
 )
 from claim_arbitrator import build_praxis_entries, persist_arbitration_stub
-from research.scripts.theorem_safe_runtime import validate_safe_theorem_manifest
 from sovereign_version import PRODUCT_VERSION
 
 try:
@@ -301,6 +300,17 @@ def load_safe_theorem_manifest(path_text: str, expected_runtime_root: Path) -> D
     manifest_path_text = str(path_text or "").strip()
     if not manifest_path_text:
         raise ValueError("safe theorem mode requires --safe-theorem-manifest")
+    # SW-14: import lazily. research/scripts/theorem_safe_runtime.py is deliberately NOT part of the
+    # shipped module (safe-theorem mode is an optional add-on), so a module-top import broke
+    # `import cycle_runner_v3` and blocked pytest collection for the whole suite. Defer it to the one
+    # place it is used, with a clear error when the optional module is absent.
+    try:
+        from research.scripts.theorem_safe_runtime import validate_safe_theorem_manifest
+    except ImportError as exc:
+        raise ValueError(
+            "safe theorem mode requires research/scripts/theorem_safe_runtime.py, which is not part "
+            "of this module; install it to use --safe-theorem-manifest"
+        ) from exc
     manifest_path = Path(manifest_path_text).expanduser().resolve()
     manifest = load_required_json_object(manifest_path, "safe theorem manifest")
     errors = validate_safe_theorem_manifest(manifest, expected_runtime_root)
