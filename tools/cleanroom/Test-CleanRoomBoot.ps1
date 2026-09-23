@@ -70,11 +70,27 @@ Write-Host "`n=== WS-0.2 Clean-Room Boot Gate ===" -ForegroundColor Cyan
 Write-Host "repo: $repo"
 Write-Host "python: $pyExe $($pyArgs -join ' ')  ($(& $pyExe @pyArgs --version 2>&1))"
 
+# --- SW-16: never recursively delete a caller-supplied path. Guard the parent against the
+# catastrophic cases, then confine ALL writes and the ONLY recursive delete to a freshly created,
+# uniquely named directory this tool owns under it. An unrelated folder passed as -DistParent is
+# never touched beyond the child we create. -----------------------------------------------------
+$DistParent = [IO.Path]::GetFullPath($DistParent)
+$repoFull = [IO.Path]::GetFullPath($repo)
+function Test-Ancestor([string]$ancestor, [string]$descendant) {
+    $a = $ancestor.TrimEnd('\', '/') + '\'
+    $d = $descendant.TrimEnd('\', '/') + '\'
+    return $d.StartsWith($a, [StringComparison]::OrdinalIgnoreCase)
+}
+if ($DistParent -eq [IO.Path]::GetPathRoot($DistParent) -or
+    $DistParent -ieq $repoFull -or (Test-Ancestor $DistParent $repoFull)) {
+    throw "Refusing '$DistParent' as the clean-room parent: it is a drive root or contains the repository. Pass a dedicated -DistParent."
+}
+
 # --- 1. extract the shipped artifact into a spaced, relocated path -------------------------------
-$dist = Join-Path $DistParent 'dist'
-if (Test-Path $DistParent) { Remove-Item -Recurse -Force $DistParent }
+$work = Join-Path $DistParent ("cleanroom-" + [guid]::NewGuid().ToString('N'))
+$dist = Join-Path $work 'dist'
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
-$tar = Join-Path $DistParent 'artifact.tar'
+$tar = Join-Path $work 'artifact.tar'
 Info "extracting git archive HEAD -> `"$dist`""
 & git -C $repo archive --format=tar -o $tar HEAD
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
@@ -88,16 +104,28 @@ else { Fail 'extract' "shell\src\adapter.py missing from extract"; }
 # --- 2. Start-Shell.ps1 -CheckOnly --------------------------------------------------------------
 $startShell = Join-Path $dist 'Start-Shell.ps1'
 if (Test-Path $startShell) {
-    Info "running Start-Shell.ps1 -CheckOnly"
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $startShell -CheckOnly *> (Join-Path $DistParent 'checkonly.log')
+    # The source-only distribution ships no llama.cpp binary, and SW-01 now makes CheckOnly block a
+    # missing SELECTED runtime. Select Ollama (needs no shipped binary) so this exercises a valid
+    # preflight; a dedicated negative case (llama selected, binary absent) is asserted below.
+    Info "running Start-Shell.ps1 -CheckOnly (backend=ollama)"
+    $prevBackend = $env:SOVEREIGN_INFERENCE_BACKEND
+    $env:SOVEREIGN_INFERENCE_BACKEND = 'ollama'
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $startShell -CheckOnly *> (Join-Path $work 'checkonly.log')
     $checkExit = $LASTEXITCODE
+    # SW-01 negative case: with llama.cpp selected and no provisioned binary, CheckOnly must BLOCK.
+    $env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp'
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $startShell -CheckOnly *> (Join-Path $work 'checkonly-llama.log')
+    $checkLlamaExit = $LASTEXITCODE
+    $env:SOVEREIGN_INFERENCE_BACKEND = $prevBackend
+    if ($checkLlamaExit -ne 0) { Ok 'checkonly-negative' "llama.cpp selected + no binary correctly BLOCKED preflight" }
+    else { Fail 'checkonly-negative' "llama.cpp selected + no binary but preflight passed (SW-01 regression)" }
     if ($checkExit -eq 0) { Ok 'checkonly' "preflight exit 0" }
     else { Fail 'checkonly' "preflight exit $checkExit (see checkonly.log)" }
 } else { Fail 'checkonly' "Start-Shell.ps1 not found in distribution" }
 
 # --- 3. adapter resolution check ----------------------------------------------------------------
 Info "running adapter resolution check"
-$reportJson = Join-Path $DistParent 'resolution-report.json'
+$reportJson = Join-Path $work 'resolution-report.json'
 & $pyExe @pyArgs $resolver --dist $dist --json $reportJson
 $resolveExit = $LASTEXITCODE
 if ($resolveExit -eq 0) { Ok 'resolution' "every module entry resolves inside the distribution" }
@@ -108,8 +136,8 @@ if (-not $SkipLiveShell) {
     Info "booting stdlib shell on 127.0.0.1:$Port"
     $proc = Start-Process -FilePath $pyExe -ArgumentList (@($pyArgs) + @('-m','shell.src','--port',"$Port")) `
         -WorkingDirectory $dist -PassThru -WindowStyle Hidden `
-        -RedirectStandardOutput (Join-Path $DistParent 'shell.out.log') `
-        -RedirectStandardError (Join-Path $DistParent 'shell.err.log')
+        -RedirectStandardOutput (Join-Path $work 'shell.out.log') `
+        -RedirectStandardError (Join-Path $work 'shell.err.log')
     try {
         $state = $null
         for ($i = 0; $i -lt 40; $i++) {
@@ -136,7 +164,7 @@ if (-not $SkipLiveShell) {
 # --- summary ------------------------------------------------------------------------------------
 $failCount = $script:Failures.Count
 Write-Host "`n--- WS-0.2 result ---" -ForegroundColor Cyan
-if (-not $KeepDist) { Remove-Item -Recurse -Force $DistParent -ErrorAction SilentlyContinue }
+if (-not $KeepDist) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }
 else { Write-Host "dist kept at: $dist" }
 if ($failCount -eq 0) {
     Write-Host "PASS - distribution boots from a clean, relocated, spaced path." -ForegroundColor Green

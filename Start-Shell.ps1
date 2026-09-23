@@ -99,13 +99,28 @@ $llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
 $llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
 $llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
 $env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
-# Audit B3: the workspace is backend-AGNOSTIC. Default to llama.cpp only when the operator has not
-# already chosen a backend (via workspace.env or their own environment); an explicit
-# SOVEREIGN_INFERENCE_BACKEND=ollama must survive the launcher, or "runs both, selectable" is false
-# through the one supported entry point. The llama.cpp endpoint variables are the router's address;
-# they are harmless when Ollama is selected (the product's backend_selection ignores them), so they
-# are only defaulted when they, too, are unset.
-if (-not $env:SOVEREIGN_INFERENCE_BACKEND) { $env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp' }
+# Audit SW-02: do NOT inject a default SOVEREIGN_INFERENCE_BACKEND. The product ranks an env value
+# ABOVE its saved runtime/backend_selection.json, so a launcher default of llama.cpp would silently
+# override a saved Ollama choice. Instead, RESOLVE the effective backend read-only with the SAME
+# precedence the product uses (explicit env > saved selection file > llama.cpp) purely to decide
+# which local services THIS launcher must start (SW-01). The env is left untouched, so the product
+# does its own resolution and the saved selection wins when no env is set.
+function Resolve-EffectiveBackend {
+    if ($env:SOVEREIGN_INFERENCE_BACKEND) { return ([string]$env:SOVEREIGN_INFERENCE_BACKEND).Trim().ToLower() }
+    $sel = Join-Path $llamaSupervisorRoot 'runtime\backend_selection.json'
+    if (Test-Path -LiteralPath $sel -PathType Leaf) {
+        try {
+            $doc = Get-Content -LiteralPath $sel -Raw | ConvertFrom-Json
+            if ($doc.default_backend) { return ([string]$doc.default_backend).Trim().ToLower() }
+        } catch {}
+    }
+    return 'llama.cpp'
+}
+$effectiveBackend = Resolve-EffectiveBackend
+if ($effectiveBackend -in @('llamacpp', 'llama_cpp', 'llama-cpp')) { $effectiveBackend = 'llama.cpp' }
+$usesLlama = $effectiveBackend -in @('llama.cpp', 'freetoken')
+# The llama.cpp endpoint variables are the router's address; harmless when Ollama is selected (the
+# product's backend_selection ignores them), so they are only defaulted when unset.
 if (-not $env:SOVEREIGN_LLAMACPP_HOST) { $env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080' }
 if (-not $env:SOVEREIGN_LLAMA_CPP_BASE_URL) { $env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080' }
 if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
@@ -125,6 +140,21 @@ if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
 
 $blocking = New-Object System.Collections.Generic.List[string]
 $advisory = New-Object System.Collections.Generic.List[string]
+
+# Audit SW-01: validate the SELECTED backend's prerequisites in preflight, so -CheckOnly rejects a
+# missing selected runtime rather than giving false reassurance. An Ollama-only operator is never
+# blocked by a missing llama.cpp binary; a llama.cpp operator is never given a green preflight
+# without one.
+if ($usesLlama) {
+    $llamaExe = if ($env:SOVEREIGN_LLAMACPP_SERVER_EXE) { $env:SOVEREIGN_LLAMACPP_SERVER_EXE }
+    else { Join-Path $llamaSupervisorRoot 'runtime\llama.cpp\current\llama-server.exe' }
+    if (-not (Test-Path -LiteralPath $llamaExe -PathType Leaf)) {
+        $blocking.Add("inference backend '$effectiveBackend' is selected but its server binary is missing: $llamaExe. Run Provision-Workspace.ps1 -LlamaCppExe <path>, or select the Ollama backend.") | Out-Null
+    }
+}
+else {
+    $advisory.Add("inference backend '$effectiveBackend' selected; the llama.cpp supervisor will not be started") | Out-Null
+}
 
 function Line($label, $value, $color = 'Gray') {
     Write-Host ("  {0,-22}" -f $label) -NoNewline -ForegroundColor DarkGray
@@ -380,12 +410,20 @@ if ($blocking.Count -gt 0) { exit 1 }
 
 # --- run ---------------------------------------------------------------------
 
-if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
-    throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
+# Audit SW-01: start the llama.cpp supervisor ONLY when llama.cpp/FreeToken is the selected backend.
+# When Ollama is selected the workspace attaches to Ollama on :11434 and this local service is not
+# needed, so requiring it would make "runs both, selectable" false through the supported launcher.
+if ($usesLlama) {
+    if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
+        throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
+    }
+    & $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
+    if ($LASTEXITCODE -ne 0) {
+        throw "The local llama.cpp supervisor did not become ready."
+    }
 }
-& $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
-if ($LASTEXITCODE -ne 0) {
-    throw "The local llama.cpp supervisor did not become ready."
+else {
+    Write-Host "  Inference backend '$effectiveBackend' selected; llama.cpp supervisor not started." -ForegroundColor DarkGray
 }
 
 # F-002/F-003. A deterministic exit code on every path. In Windows PowerShell 5.1 a

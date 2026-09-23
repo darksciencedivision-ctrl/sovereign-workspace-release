@@ -283,10 +283,13 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_static(self, path: str):
-        safe = path.replace("\\", "/").lstrip("/")
-        # F-032: decide traversal by canonical containment (like the docs route), not a `".." in`
-        # substring test that both false-rejects innocent names and can be bypassed by encodings.
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        # SW-19: strip the /static/ mount prefix and resolve STRICTLY beneath the static asset root.
+        # The base was shell/ (dirname/..), so /static/../src/server.py escaped into the shell tree
+        # while still passing containment. Anchor to shell/static/ so only assets are served.
+        # F-032: traversal is still decided by canonical containment, not a `".." in` substring test.
+        rel = path[len("/static/"):] if path.startswith("/static/") else ""
+        safe = rel.replace("\\", "/").lstrip("/")
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
         file_path = os.path.abspath(os.path.join(base, safe))
         if not is_contained(base, file_path):
             self._send_error("Forbidden", 403)
