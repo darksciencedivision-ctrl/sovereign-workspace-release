@@ -29,9 +29,10 @@ The operator UI and `/v1` API are served by one local process and one origin.
 The service owns durable sessions, jobs, settings, evidence, cancellation, and
 restart recovery. It binds **loopback only**.
 
-**Prerequisite:** Node.js + npm are required only to *build* the SPA (see
-`PREREQUISITES.md`). A prebuilt `ui/ui_shell/dist/` ships in the package, so an operator
-without Node can skip the build and serve the prebuilt bundle directly.
+**Prerequisite:** Node.js + npm are required to *build* the SPA (see `PREREQUISITES.md`).
+The built `ui/ui_shell/dist/` is **not** shipped in the source distribution;
+`Provision-Workspace.ps1` builds it and validates its assets. Until it is built, the
+product serves HTTP 503 at `/` while the API on `/v1/*` stays available.
 
 From PowerShell in this folder:
 

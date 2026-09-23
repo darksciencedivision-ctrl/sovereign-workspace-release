@@ -1,18 +1,23 @@
 <#
 .SYNOPSIS
-    Sovereign Workspace — one-command local provisioning (SWS-PUNCHLIST-DIRECTIVE-20260921 WS-3.1).
+    Sovereign Workspace - one-command local provisioning (SWS-PUNCHLIST-DIRECTIVE-20260921 WS-3.1).
 
 .DESCRIPTION
     Sets up THIS machine to run the workspace from the folder, without bundling any machine-specific
     binaries or multi-GB model weights into the sealed product. It:
 
-      1. Creates the per-module Python virtual environments the shell launches by path and installs
-         their locked dependencies:
-             - modules\sovereign\.venv   on Python 3.12  (hash-locked requirements.lock.txt)
-             - modules\debate\.venv      on Python 3.14  (Debate is verified on 3.14.6)
+      1. Provisions a per-module Python virtual environment for every module with a Python runtime
+         and installs its declared dependencies deterministically. An existing .venv is verified
+         against the declared lock (not assumed current): drift is reported, and reconciled by a
+         deterministic reinstall.
+             - modules\sovereign\.venv on 3.12  (hash-locked requirements.lock.txt)
+             - modules\debate\.venv    on 3.14  (hash-locked requirements.lock.txt; Debate is on 3.14)
+             - modules\sow\.venv       on 3.12  (requirements.txt)
       2. Runs `npm install` for the SOW desktop app (Electron), so the Multi-Model Terminal can open.
-      3. Locates the llama.cpp server binary and records it — with its models and the optional SOW
-         coding repo — in `release-worktree\workspace.env`, which Start-Shell.ps1 loads at startup.
+      2b. Builds the Sovereign operator UI (`npm ci && npm run build` in ui\ui_shell) and validates
+         its assets; the built dist is not shipped, so without this the product serves 503 at `/`.
+      3. Locates the llama.cpp server binary and records it - with its models and the optional SOW
+         coding repo - in `release-worktree\workspace.env`, which Start-Shell.ps1 loads at startup.
          Nothing large is copied into the tree; the sealed product stays free of any one machine's
          absolute paths.
       4. Checks Ollama (the other supported backend) and reports how many models are installed.
@@ -97,26 +102,77 @@ function Resolve-Py([string] $ver) {
 
 # --- 1. Python venvs ----------------------------------------------------------------------------
 Head "Python virtual environments"
+# SW-03: every module with a Python runtime gets its OWN provisioned interpreter (including SOW), and
+# an existing .venv is NEVER assumed current - its installed distributions are compared against the
+# declared lock and drift is reported (ReportOnly) or reconciled (a deterministic reinstall).
 $venvTargets = @(
-    @{ id = 'sovereign'; dir = (Join-Path $worktree 'modules\sovereign'); ver = '3.12'; lock = 'requirements.lock.txt' },
-    @{ id = 'debate';    dir = (Join-Path $worktree 'modules\debate');    ver = '3.14'; lock = 'requirements.lock.txt' }
+    @{ id = 'sovereign'; dir = (Join-Path $worktree 'modules\sovereign'); ver = '3.12'; lock = 'requirements.lock.txt'; hashed = $true },
+    @{ id = 'debate';    dir = (Join-Path $worktree 'modules\debate');    ver = '3.14'; lock = 'requirements.lock.txt'; hashed = $true },
+    @{ id = 'sow';       dir = (Join-Path $worktree 'modules\sow');        ver = '3.12'; lock = 'requirements.txt';      hashed = $false }
 )
+
+function Get-DeclaredPins([string] $lockPath) {
+    $pins = @{}
+    foreach ($line in Get-Content -LiteralPath $lockPath) {
+        $m = [regex]::Match($line.Trim(), '^([A-Za-z0-9_.-]+)==([^\s\\;]+)')
+        if ($m.Success) { $pins[$m.Groups[1].Value.ToLower().Replace('_', '-')] = $m.Groups[2].Value }
+    }
+    return $pins
+}
+
+function Get-VenvDrift([string] $venvPy, [string] $lockPath) {
+    # Declared pins whose installed version differs or is missing. Empty = the venv matches the lock.
+    $declared = Get-DeclaredPins $lockPath
+    if ($declared.Count -eq 0) { return @() }
+    $installed = @{}
+    $listing = & $venvPy -m pip list --format=json 2>$null
+    try {
+        foreach ($p in ($listing | ConvertFrom-Json)) {
+            $installed[$p.name.ToLower().Replace('_', '-')] = $p.version
+        }
+    } catch {}
+    $drift = @()
+    foreach ($name in $declared.Keys) {
+        $have = $installed[$name]
+        if ($have -ne $declared[$name]) {
+            $shown = 'MISSING'
+            if ($have) { $shown = $have }
+            $drift += ("{0} want {1} have {2}" -f $name, $declared[$name], $shown)
+        }
+    }
+    return $drift
+}
+
 foreach ($t in $venvTargets) {
     $venvPy = Join-Path $t.dir '.venv\Scripts\python.exe'
-    if (Test-Path -LiteralPath $venvPy) { Ok "$($t.id): .venv already present"; $report[$t.id + ' venv'] = 'present'; continue }
-    if ($SkipVenvs) { Miss "$($t.id): .venv missing (skipped: -SkipVenvs)"; $report[$t.id + ' venv'] = 'skipped'; continue }
-    $py = Resolve-Py $t.ver
-    if (-not $py) { Miss "$($t.id): Python $($t.ver) not found (install it, then re-run)"; $report[$t.id + ' venv'] = "needs py -$($t.ver)"; continue }
-    if ($ReportOnly) { Miss "$($t.id): would create .venv on $($py -join ' ') and install $($t.lock)"; $report[$t.id + ' venv'] = 'would create'; continue }
-    Info "$($t.id): creating .venv on $($py -join ' ')"
-    & $py[0] $py[1] -m venv (Join-Path $t.dir '.venv')
     $lockPath = Join-Path $t.dir $t.lock
-    if (Test-Path -LiteralPath $lockPath) {
-        Info "$($t.id): installing $($t.lock) (hash-locked)"
-        & $venvPy -m pip install --require-hashes -r $lockPath
-        if ($LASTEXITCODE -ne 0) { Warn "$($t.id): pip install reported errors (see output above)"; $report[$t.id + ' venv'] = 'venv created, deps FAILED' }
-        else { Ok "$($t.id): venv + deps installed"; $report[$t.id + ' venv'] = 'installed' }
-    } else { Warn "$($t.id): no $($t.lock) found; venv created empty"; $report[$t.id + ' venv'] = 'venv only' }
+    $exists = Test-Path -LiteralPath $venvPy
+    if ($SkipVenvs) { Miss "$($t.id): venv provisioning skipped (-SkipVenvs)"; $report[$t.id + ' venv'] = 'skipped'; continue }
+    if (-not (Test-Path -LiteralPath $lockPath)) { Warn "$($t.id): no $($t.lock); cannot provision deterministically"; $report[$t.id + ' venv'] = 'no lock'; continue }
+
+    if (-not $exists) {
+        $py = Resolve-Py $t.ver
+        if (-not $py) { Miss "$($t.id): Python $($t.ver) not found (install it, then re-run)"; $report[$t.id + ' venv'] = "needs py -$($t.ver)"; continue }
+        if ($ReportOnly) { Miss "$($t.id): .venv MISSING - would create on py -$($t.ver) and install $($t.lock)"; $report[$t.id + ' venv'] = 'would create'; continue }
+        Info "$($t.id): creating .venv on $($py -join ' ')"
+        & $py[0] $py[1] -m venv (Join-Path $t.dir '.venv')
+    }
+
+    if (Test-Path -LiteralPath $venvPy) { $drift = Get-VenvDrift $venvPy $lockPath } else { $drift = @('venv interpreter not present') }
+    if ($exists -and $drift.Count -eq 0) { Ok "$($t.id): venv present and matches $($t.lock)"; $report[$t.id + ' venv'] = 'present + matches lock'; continue }
+    if ($ReportOnly) {
+        $sample = [string]::Join('; ', ($drift | Select-Object -First 4))
+        Miss "$($t.id): $($drift.Count) dependency drift(s) vs $($t.lock): $sample"
+        $report[$t.id + ' venv'] = "$($drift.Count) drift(s)"
+        continue
+    }
+    Info "$($t.id): installing $($t.lock) to reconcile $($drift.Count) drift(s)"
+    if ($t.hashed) { & $venvPy -m pip install --require-hashes -r $lockPath }
+    else { & $venvPy -m pip install -r $lockPath }
+    if ($LASTEXITCODE -ne 0) { Warn "$($t.id): pip install reported errors (see output above)"; $report[$t.id + ' venv'] = 'deps FAILED'; continue }
+    $after = Get-VenvDrift $venvPy $lockPath
+    if ($after.Count -eq 0) { Ok "$($t.id): venv reconciled to $($t.lock)"; $report[$t.id + ' venv'] = 'installed + matches lock' }
+    else { Warn "$($t.id): $($after.Count) drift(s) remain after install"; $report[$t.id + ' venv'] = "$($after.Count) drift(s) remain" }
 }
 
 # --- 2. SOW Electron ----------------------------------------------------------------------------
@@ -136,6 +192,38 @@ else {
         try { & npm install } finally { Pop-Location }
         if (Test-Path -LiteralPath $electronExe) { Ok "Electron installed"; $report['sow electron'] = 'installed' }
         else { Warn "npm install ran but electron.exe not found"; $report['sow electron'] = 'install incomplete' }
+    }
+}
+
+# --- 2b. Sovereign operator UI (SW-04) ----------------------------------------------------------
+# The built UI (ui_shell/dist) is gitignored, so a fresh archive has none and the product serves
+# 503 at `/`. Build it here and validate its assets before the module is considered usable.
+Head "Sovereign operator UI"
+$uiDir = Join-Path $worktree 'modules\sovereign\ui\ui_shell'
+$uiDist = Join-Path $uiDir 'dist'
+$uiIndex = Join-Path $uiDist 'index.html'
+$uiAssets = Join-Path $uiDist 'assets'
+if (-not (Test-Path -LiteralPath (Join-Path $uiDir 'package.json'))) {
+    Warn "no ui_shell\package.json; cannot build the Sovereign UI"; $report['sovereign ui'] = 'no package.json'
+}
+elseif ((Test-Path -LiteralPath $uiIndex) -and (Test-Path -LiteralPath $uiAssets)) {
+    Ok "Sovereign UI already built (dist\index.html + assets)"; $report['sovereign ui'] = 'built'
+}
+else {
+    $npm = try { (Get-Command npm -ErrorAction Stop).Source } catch { $null }
+    if (-not $npm) { Miss "npm not found (install Node.js, then re-run) - the Sovereign UI cannot be built"; $report['sovereign ui'] = 'needs npm' }
+    elseif ($ReportOnly) { Miss "Sovereign UI not built; would run npm ci + npm run build in ui_shell"; $report['sovereign ui'] = 'would build' }
+    else {
+        Info "building Sovereign UI (npm ci + npm run build) - this can take a few minutes"
+        Push-Location -LiteralPath $uiDir
+        try {
+            if (Test-Path -LiteralPath (Join-Path $uiDir 'package-lock.json')) { & npm ci } else { & npm install }
+            if ($LASTEXITCODE -eq 0) { & npm run build }
+        } finally { Pop-Location }
+        if ((Test-Path -LiteralPath $uiIndex) -and (Test-Path -LiteralPath $uiAssets)) {
+            Ok "Sovereign UI built (dist\index.html + assets)"; $report['sovereign ui'] = 'built'
+        }
+        else { Warn "UI build ran but dist\index.html or assets not found"; $report['sovereign ui'] = 'build incomplete' }
     }
 }
 

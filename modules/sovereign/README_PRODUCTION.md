@@ -1,6 +1,6 @@
 # SOVEREIGN production distribution
 
-This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It contains the current application, lifecycle scripts, runtime configuration, and prebuilt operator UI. It does not contain an installer, a Python virtual environment, operator conversations or history, runtime logs, model weights, or model caches.
+This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It contains the current application, lifecycle scripts, runtime configuration, and the operator UI source. It does not contain an installer, a Python virtual environment, the built UI bundle (`ui/ui_shell/dist`, produced by provisioning), operator conversations or history, runtime logs, model weights, or model caches.
 
 ## Current runtime environment
 
@@ -10,7 +10,7 @@ This ZIP is a clean, run-from-folder Windows distribution of SOVEREIGN 3.1.2. It
   - **llama.cpp** (the default) via the bundled local supervisor on `http://127.0.0.1:18080`. Start/manage it with the `*-LlamaCppSupervisor.ps1` scripts in this directory, or let the Sovereign Workspace shell start the `llamacpp` module.
   - **Ollama** on `http://127.0.0.1:11434`.
 - The pinned Python packages in `requirements.txt`: Flask 3.1.3, requests 2.34.2, ChromaDB 1.5.9, NumPy 2.5.1, and Pydantic 2.13.4.
-- Node.js is not required for normal operation because the production UI bundle is included under `ui/ui_shell/dist`.
+- Node.js is required to build the operator UI. The build (`ui/ui_shell/dist`) is not shipped in the source distribution; `Provision-Workspace.ps1` builds it (`npm ci && npm run build`) and validates its assets. Until it is built, the product serves HTTP 503 at `/` (the API on `/v1/*` is unaffected).
 
 ### Selecting the inference backend
 
