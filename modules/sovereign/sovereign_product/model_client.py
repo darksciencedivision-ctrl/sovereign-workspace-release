@@ -147,6 +147,44 @@ def validate_loopback_ollama_url(base_url: str) -> str:
     return f"http://{authority}"
 
 
+def _validate_json_schema_value(value: Any) -> None:
+    """Reject any value a response_format schema may not contain. Pure, recursive."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("response_format schema must contain finite JSON values")
+        return
+    if isinstance(value, list):
+        for item in value:
+            _validate_json_schema_value(item)
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ValueError("response_format schema keys must be strings")
+            _validate_json_schema_value(item)
+        return
+    raise ValueError("response_format schema must contain only JSON-compatible values")
+
+
+def _normalize_response_format(response_format):
+    """CR-038: validate + normalize a generation response_format to 'json', a copied JSON-compatible
+    schema mapping, or None. Pure; raises ValueError/TypeError on an invalid shape. Extracted from
+    generate() so the contract is independently testable and generate() is smaller."""
+    if response_format is None:
+        return None
+    if isinstance(response_format, str):
+        if response_format != "json":
+            raise ValueError("response_format text must be exactly 'json'")
+        return response_format
+    if isinstance(response_format, Mapping):
+        normalized = dict(response_format)
+        _validate_json_schema_value(normalized)
+        return normalized
+    raise TypeError("response_format must be 'json', a JSON schema mapping, or None")
+
+
 class OllamaClient:
     """Streaming client for a loopback Ollama server."""
 
@@ -425,46 +463,8 @@ class OllamaClient:
             raise GenerationCancelled("generation cancelled before request")
 
         request_options = dict(options or {})
-        requested_format: str | dict[str, Any] | None
-        if response_format is None:
-            requested_format = None
-        elif isinstance(response_format, str):
-            if response_format != "json":
-                raise ValueError("response_format text must be exactly 'json'")
-            requested_format = response_format
-        elif isinstance(response_format, Mapping):
-            requested_format = dict(response_format)
-
-            def validate_json_value(value: Any) -> None:
-                if value is None or isinstance(value, (str, bool, int)):
-                    return
-                if isinstance(value, float):
-                    if not math.isfinite(value):
-                        raise ValueError(
-                            "response_format schema must contain finite JSON values"
-                        )
-                    return
-                if isinstance(value, list):
-                    for item in value:
-                        validate_json_value(item)
-                    return
-                if isinstance(value, dict):
-                    for key, item in value.items():
-                        if not isinstance(key, str):
-                            raise ValueError(
-                                "response_format schema keys must be strings"
-                            )
-                        validate_json_value(item)
-                    return
-                raise ValueError(
-                    "response_format schema must contain only JSON-compatible values"
-                )
-
-            validate_json_value(requested_format)
-        else:
-            raise TypeError(
-                "response_format must be 'json', a JSON schema mapping, or None"
-            )
+        # CR-038: response_format validation is the extracted, independently tested pure phase.
+        requested_format = _normalize_response_format(response_format)
         # CR-024/CR-025: ONE absolute deadline spans the whole call (metadata AND streaming) and a
         # single cancellation watcher runs across both, so a stop during a stalled /api/show is
         # observed promptly and no request outlives its budget with a restored full transport timeout.
