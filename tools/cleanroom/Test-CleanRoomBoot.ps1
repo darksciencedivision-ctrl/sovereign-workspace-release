@@ -7,14 +7,25 @@
     host. It:
 
       1. Extracts the exact shipped artifact (`git archive HEAD`, honouring export-ignore) into a
-         temp directory whose path CONTAINS A SPACE and differs from the build tree — so spaced-path
+         temp directory whose path CONTAINS A SPACE and differs from the build tree - so spaced-path
          quoting is exercised too.
       2. Runs the distribution's own `Start-Shell.ps1 -CheckOnly` preflight and asserts exit 0.
       3. Runs the adapter RESOLUTION check (cleanroom_resolve_check.py): every module's resolved
          root / cwd / launch entry must exist INSIDE the extracted distribution, with no build-host
          path leaked. This is the WS-0.1 / WS-0.3 / WS-0.4-class gate.
       4. Unless -SkipLiveShell: boots the stdlib-only shell from the extracted copy (no venv needed)
-         and asserts GET /api/state lists every module with no CONFIG_ERROR.
+         and asserts GET /api/state lists every module with no CONFIG_ERROR. This is the FAST,
+         resolution-only live check - it launches `python -m shell.src` directly, so it proves the
+         package boots but NOT the supported operator entry point.
+      5. Only with -Live (SW-17): boots the SUPPORTED entry point - the shipped `Start-Shell.ps1`
+         itself - in a clean env, and proves RESPONSE OWNERSHIP via the launcher nonce, not merely
+         that something answers the port. `Start-Shell.ps1` exits non-zero on a nonce/identity
+         mismatch (F-006) and only stays alive after `/api/shell-info` echoes ITS OWN launch nonce,
+         so: launcher still running + `/api/shell-info` returning a stable pid+nonce + that pid a
+         live process together prove the launcher accepted THIS shell as the process it started and
+         owns. The lane then asserts per-module `/api/state` outcomes through that same shell and
+         verifies teardown (the shell stops and its port is released). Kept behind -Live because it
+         drives a real launcher (timing/teardown sensitive) and the standing gate must stay steady.
 
     Per-MODULE service readiness (starting sovereign/debate/llamacpp/etc. and probing their health
     endpoints) requires a provisioned venv + models + Electron and is reported PROVISION-PENDING
@@ -32,6 +43,11 @@
     Do only the static gates (extract + CheckOnly + resolution). Use where no Python is available
     to bind a socket.
 
+.PARAMETER Live
+    SW-17: additionally run the supported-entry-point lane - boot the shipped Start-Shell.ps1 and
+    prove response ownership via the launcher nonce, per-module /api/state outcomes, and teardown.
+    Off by default so the standing gate stays fast and steady; the fast checks (1-4) still run.
+
 .PARAMETER KeepDist
     Do not delete the extracted distribution afterwards (for inspection).
 #>
@@ -40,6 +56,7 @@ param(
     [string] $DistParent = (Join-Path $env:TEMP 'sws clean room'),
     [int]    $Port = 5199,
     [switch] $SkipLiveShell,
+    [switch] $Live,
     [switch] $KeepDist
 )
 
@@ -131,9 +148,9 @@ $resolveExit = $LASTEXITCODE
 if ($resolveExit -eq 0) { Ok 'resolution' "every module entry resolves inside the distribution" }
 else { Fail 'resolution' "one or more modules failed resolution (see resolution-report.json)" }
 
-# --- 4. live stdlib-shell boot + /api/state -----------------------------------------------------
+# --- 4. FAST live stdlib-shell boot + /api/state (resolution-only; NOT the supported entry) -----
 if (-not $SkipLiveShell) {
-    Info "booting stdlib shell on 127.0.0.1:$Port"
+    Info "booting stdlib shell on 127.0.0.1:$Port (fast check: python -m shell.src)"
     $proc = Start-Process -FilePath $pyExe -ArgumentList (@($pyArgs) + @('-m','shell.src','--port',"$Port")) `
         -WorkingDirectory $dist -PassThru -WindowStyle Hidden `
         -RedirectStandardOutput (Join-Path $work 'shell.out.log') `
@@ -160,6 +177,102 @@ if (-not $SkipLiveShell) {
         if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     }
 } else { Info "live shell boot skipped (-SkipLiveShell)" }
+
+# --- 5. SW-17: supported-entry-point boot via Start-Shell.ps1 (ownership + teardown) ------------
+# Only with -Live. This is the lane that proves the path an operator actually invokes, not the fast
+# `python -m shell.src` boot above. Ownership is proven WITHOUT guessing the launcher's private
+# nonce: Start-Shell.ps1 exits non-zero on a nonce/identity mismatch and only stays alive (blocked
+# waiting on the shell) after /api/shell-info echoed its own launch nonce - so a launcher that is
+# still running while /api/shell-info returns a stable pid+nonce, whose pid is a live process, has
+# already confirmed this shell is the one it started and owns.
+if ($Live -and -not $SkipLiveShell) {
+    $livePort = $Port + 1
+    Info "SW-17: booting SUPPORTED entry Start-Shell.ps1 on 127.0.0.1:$livePort (backend=ollama)"
+    if (-not (Test-Path $startShell)) {
+        Fail 'live-supported' "Start-Shell.ps1 not found in distribution"
+    } else {
+        $prevBackendLive = $env:SOVEREIGN_INFERENCE_BACKEND
+        $env:SOVEREIGN_INFERENCE_BACKEND = 'ollama'
+        $liveOut = Join-Path $work 'live-shell.out.log'
+        $liveErr = Join-Path $work 'live-shell.err.log'
+        # Run the launcher in its own hidden powershell so the whole tree is ours to observe/stop.
+        # The dist path (hence $startShell) contains a space; Start-Process -ArgumentList does NOT
+        # auto-quote array elements in PS 5.1, so -File must carry the quoted path itself - the same
+        # ('"{0}"' -f ...) form Start-Shell.ps1 uses for its own script argument.
+        $launcher = Start-Process -FilePath 'powershell' `
+            -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"{0}"' -f $startShell), '-Port', "$livePort", '-NoBrowser') `
+            -WorkingDirectory $dist -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $liveOut -RedirectStandardError $liveErr
+        # F-002-style: cache the Handle while alive so ExitCode is populated on exit (PS 5.1 reports
+        # $null otherwise), making a startup-failure diagnostic show the real code.
+        $null = $launcher.Handle
+        $shellInfo = $null
+        try {
+            $liveHost = @{ Host = "127.0.0.1:$livePort" }
+            for ($i = 0; $i -lt 60; $i++) {
+                Start-Sleep -Milliseconds 500
+                if ($launcher.HasExited) { break }
+                try {
+                    $shellInfo = Invoke-RestMethod -Uri "http://127.0.0.1:$livePort/api/shell-info" -TimeoutSec 2 -Headers $liveHost
+                    if ($shellInfo -and $shellInfo.pid -and $shellInfo.nonce) { break }
+                } catch { $shellInfo = $null }
+            }
+            if ($launcher.HasExited) {
+                Fail 'live-supported' "Start-Shell.ps1 exited during startup (code $($launcher.ExitCode)); see live-shell.out.log"
+            } elseif (-not $shellInfo -or -not $shellInfo.nonce -or -not $shellInfo.pid) {
+                Fail 'live-supported' "Start-Shell.ps1 did not bring up /api/shell-info with a pid+nonce"
+            } else {
+                # Give the launcher a beat to run its own nonce check against the same endpoint; a
+                # mismatch would make it exit 1 here rather than stay blocked on the shell.
+                Start-Sleep -Milliseconds 750
+                $info2 = $null
+                try { $info2 = Invoke-RestMethod -Uri "http://127.0.0.1:$livePort/api/shell-info" -TimeoutSec 2 -Headers $liveHost } catch {}
+                $pidLive = $null; try { $pidLive = Get-Process -Id ([int]$shellInfo.pid) -ErrorAction Stop } catch {}
+                if ($launcher.HasExited) {
+                    Fail 'live-supported' "launcher exited after shell answered (code $($launcher.ExitCode)) - nonce/identity ownership NOT confirmed"
+                } elseif (-not $info2 -or [string]$info2.nonce -ne [string]$shellInfo.nonce -or [string]$info2.pid -ne [string]$shellInfo.pid) {
+                    Fail 'live-supported' "shell identity not stable across probes (pid/nonce changed) - a flapping/foreign responder"
+                } elseif (-not $pidLive) {
+                    Fail 'live-supported' "/api/shell-info pid $($shellInfo.pid) is not a live process"
+                } else {
+                    Ok 'live-supported' "Start-Shell.ps1 owns shell pid $($shellInfo.pid) (launcher alive + stable nonce = nonce ownership confirmed)"
+                    # Per-module outcomes through the SAME supported-path shell.
+                    try {
+                        $liveState = Invoke-RestMethod -Uri "http://127.0.0.1:$livePort/api/state" -TimeoutSec 2 -Headers $liveHost
+                        $liveMods = $liveState.modules.PSObject.Properties.Name
+                        $liveErrs = @()
+                        foreach ($m in $liveMods) { if ($liveState.modules.$m.state -eq 'FAILED' -or $liveState.modules.$m.error) { $liveErrs += $m } }
+                        if ($liveErrs.Count -gt 0) { Fail 'live-supported-modules' "modules reporting error at load: $($liveErrs -join ', ')" }
+                        elseif ($liveMods.Count -lt 5) { Fail 'live-supported-modules' "expected the full module set, got $($liveMods.Count)" }
+                        else { Ok 'live-supported-modules' "/api/state lists $($liveMods.Count) modules through the supported path, no load errors" }
+                    } catch { Fail 'live-supported-modules' "GET /api/state failed on the supported-path shell" }
+                }
+            }
+        } finally {
+            # Teardown: stop the shell the launcher started; its Wait-Process then returns and the
+            # launcher exits. Then confirm the port is released and the pid is gone.
+            if ($shellInfo -and $shellInfo.pid) { Stop-Process -Id ([int]$shellInfo.pid) -Force -ErrorAction SilentlyContinue }
+            if ($launcher -and -not $launcher.HasExited) {
+                if (-not $launcher.WaitForExit(15000)) { Stop-Process -Id $launcher.Id -Force -ErrorAction SilentlyContinue }
+            }
+            $env:SOVEREIGN_INFERENCE_BACKEND = $prevBackendLive
+            # Only assert teardown when WE actually brought a shell up. If startup failed (no
+            # shell-info pid), there is nothing of ours to tear down - the failure is already
+            # recorded by live-supported, and a port held by a foreign/occupying process is not
+            # our teardown to prove.
+            if ($shellInfo -and $shellInfo.pid) {
+                Start-Sleep -Milliseconds 750
+                $stillListening = Get-NetTCPConnection -LocalPort $livePort -State Listen -ErrorAction SilentlyContinue
+                $pidGone = $true
+                try { Get-Process -Id ([int]$shellInfo.pid) -ErrorAction Stop | Out-Null; $pidGone = $false } catch {}
+                if ($stillListening -or -not $pidGone) { Fail 'live-teardown' "supported-path shell did not fully stop (port held or pid alive)" }
+                else { Ok 'live-teardown' "supported-path shell and its port $livePort released after teardown" }
+            }
+        }
+    }
+} elseif ($Live -and $SkipLiveShell) {
+    Info "SW-17 supported-path lane skipped (-SkipLiveShell overrides -Live)"
+}
 
 # --- summary ------------------------------------------------------------------------------------
 $failCount = $script:Failures.Count
