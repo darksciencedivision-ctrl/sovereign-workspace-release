@@ -294,15 +294,30 @@ class ModuleRunner:
 
     # -- probes -------------------------------------------------------------
     def _readiness(self, cfg: dict, ph, since: float):
-        """Return (ready: bool, latency: float, error: str)."""
+        """Return (ready: bool, latency: float, error: str, live: bool).
+
+        SW-13: `live` separates "the endpoint answered as itself" from "the endpoint reports
+        it can serve". For an http readiness that declares `require_json`, a 200 whose body
+        fails the functional requirement is live-but-not-ready (-> DEGRADED, process kept),
+        distinct from a dead/absent endpoint (-> FAILED, process stopped). Every other probe
+        kind has no degraded-but-live notion, so `live` mirrors `ready`.
+        """
         kind = cfg.get("kind")
         if kind == "http":
-            return probe_mod.http_probe(
+            require_json = cfg.get("require_json")
+            if require_json:
+                live, ready, lat, detail = probe_mod.http_functional_probe(
+                    cfg["url"], cfg.get("expect_status", 200), require_json,
+                    cfg["timeout_s"], cfg["poll_ms"])
+                return ready, lat, detail, live
+            ready, lat, err = probe_mod.http_probe(
                 cfg["url"], cfg.get("expect_status", 200), cfg["timeout_s"], cfg["poll_ms"])
+            return ready, lat, err, ready
         if kind == "receipt_file":
-            return probe_mod.receipt_file_probe(
+            ready, lat, err = probe_mod.receipt_file_probe(
                 cfg.get("path", ""), cfg["timeout_s"], cfg["poll_ms"],
                 require=cfg.get("require") or {"ok": True}, newer_than=since)
+            return ready, lat, err, ready
         if kind == "process_window":
             t0 = time.time()
             deadline = t0 + cfg["timeout_s"]
@@ -311,12 +326,12 @@ class ModuleRunner:
             time.sleep(min(cfg["poll_ms"] / 1000.0, cfg["timeout_s"]))
             while time.time() < deadline:
                 if ph is not None and ph.is_alive():
-                    return True, time.time() - t0, ""
+                    return True, time.time() - t0, "", True
                 if ph is not None and not ph.is_alive():
-                    return False, time.time() - t0, "Process exited"
+                    return False, time.time() - t0, "Process exited", False
                 time.sleep(cfg["poll_ms"] / 1000.0)
-            return False, time.time() - t0, "process_window timeout"
-        return False, 0.0, f"Unknown readiness kind: {kind}"
+            return False, time.time() - t0, "process_window timeout", False
+        return False, 0.0, f"Unknown readiness kind: {kind}", False
 
     def _identity(self, cfg: dict, ph):
         """Return (ok: bool, error: str)."""
@@ -461,7 +476,7 @@ class ModuleRunner:
             return self.display, "start superseded during spawn"
 
         cfg = readiness_override or self.adapter["readiness"]
-        ready, _lat, err = self._readiness(cfg, ph, since)
+        ready, _lat, err, live = self._readiness(cfg, ph, since)
 
         # The readiness probe is the long wait, and the window the recorded L3 reproduction
         # lands in. Nothing measured across it may be published if the operation is no longer
@@ -470,7 +485,8 @@ class ModuleRunner:
             self._stop_owned(ph, grace)
             return self.display, "start superseded during readiness"
 
-        if not ready:
+        if not ready and not live:
+            # The endpoint never answered as itself: a dead process or the wrong responder.
             alive = ph.is_alive()
             self._stop_owned(ph, grace)
             self._publish(op, FAILED,
@@ -478,6 +494,8 @@ class ModuleRunner:
                            if alive else "PROCESS_START_FAILED: exited before ready"))
             return self.display, err
 
+        # The endpoint answered - fully READY, or SW-13 live-but-degraded. Either way confirm
+        # identity before we trust it, so a foreign 200 responder is never shown as our module.
         ok, ierr = self._identity(self.adapter["identity"], ph)
         if not self._checkpoint(op, "post_identity"):
             self._stop_owned(ph, grace)
@@ -486,6 +504,17 @@ class ModuleRunner:
             self._stop_owned(ph, grace)
             self._publish(op, FAILED, "IDENTITY_MISMATCH: " + ierr)
             return self.display, ierr
+
+        if not ready:
+            # SW-13: the product is up and correctly identified but reports it cannot serve
+            # (e.g. no model selected/installed -> /v1/health ok=false, status=degraded). This
+            # is DEGRADED, never READY: the tile must not present it as a finished, usable peer.
+            # The process is LEFT RUNNING - poll() flips it to READY the moment the backend
+            # recovers, with no shell restart, and the operator can still open it to fix config.
+            if not self._publish(op, DEGRADED, err or "degraded"):
+                self._stop_owned(ph, grace)
+                return self.display, "start superseded before publication"
+            return self.display, err
 
         if not self._publish(op, READY):
             # Superseded between the identity check and here.
@@ -552,9 +581,9 @@ class ModuleRunner:
             if ph is None or not ph.is_alive():
                 self._observe_set(gen, ph, FAILED, "EXIT")
                 return self.display
-            alive_ok = self._periodic_readiness_ok(ph)
+            alive_ok, why = self._periodic_readiness_ok(ph)
             if state0 == READY and not alive_ok:
-                self._observe_set(gen, ph, DEGRADED, "readiness lost")
+                self._observe_set(gen, ph, DEGRADED, why or "readiness lost")
             elif state0 == DEGRADED and alive_ok:
                 self._observe_set(gen, ph, READY)
             else:
@@ -566,17 +595,27 @@ class ModuleRunner:
             return self._probe_external()
         return self.display
 
-    def _periodic_readiness_ok(self, ph) -> bool:
+    def _periodic_readiness_ok(self, ph) -> tuple:
+        """Return (ok: bool, reason: str) for the periodic READY<->DEGRADED poll.
+
+        SW-13: an http readiness that declares `require_json` is re-checked functionally here,
+        so a product that loses (or regains) its backend flips READY<->DEGRADED on the poll
+        loop without a shell restart, carrying the product's own reason onto the tile.
+        """
         cfg = self.adapter.get("readiness", {})
         kind = cfg.get("kind")
         if kind == "http":
-            ready, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 1000)
-            return ready
-        if kind == "process_window":
-            return ph.is_alive()
-        if kind == "receipt_file":
-            return ph.is_alive()
-        return False
+            require_json = cfg.get("require_json")
+            if require_json:
+                _live, ready, _, detail = probe_mod.http_functional_probe(
+                    cfg["url"], cfg.get("expect_status", 200), require_json, 5, 1000)
+                return ready, ("" if ready else (detail or "degraded"))
+            ready, _, err = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 1000)
+            return ready, ("" if ready else (err or "readiness lost"))
+        if kind in ("process_window", "receipt_file"):
+            alive = ph.is_alive()
+            return alive, ("" if alive else "process exited")
+        return False, "unknown readiness kind"
 
     def _probe_external(self):
         """(any, no managed process) -> EXTERNAL | FAILED(PORT_OCCUPIED_UNRECOGNIZED) | STOPPED.
@@ -659,19 +698,24 @@ class ModuleRunner:
         return (self.adapter.get("open") or {}).get("kind", "none")
 
     def can_open(self) -> bool:
-        """Open is enabled in READY and EXTERNAL (§7.3 item 2) AND only where the module declares
-        an open action the shell can perform.
+        """Open is enabled in READY, EXTERNAL and DEGRADED (§7.3 item 2) AND only where the module
+        declares an open action the shell can perform.
 
         N-23: this used to test state alone, so `sow.json` - which declared `open.kind: none` -
         reported can_open true the moment it reached READY, and the operator got an enabled button
         wired to an empty URL. A rendered control must be a performable action (S-17), so
         enablement now follows capability as well as readiness.
+
+        SW-13: DEGRADED is included. A degraded product is live and correctly identified - it just
+        cannot serve yet (e.g. no model selected). Its own UI is the operator's remediation path,
+        and the tile now labels it DEGRADED rather than READY, so an enabled Open is honest, not
+        the "ready/openable module whose inference is unavailable" the finding objected to.
         """
         if self.open_kind() == "none":
             return False
         if self.open_kind() == "browser" and not (self.adapter.get("open") or {}).get("url"):
             return False
-        return self.state in (READY, EXTERNAL)
+        return self.state in (READY, EXTERNAL, DEGRADED)
 
     def to_dict(self) -> dict:
         return {

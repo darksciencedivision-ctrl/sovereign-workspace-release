@@ -152,6 +152,14 @@
         "require": {
           "type": "object",
           "description": "F-130: required key/value pairs the receipt JSON must satisfy (receipt_file readiness); defaults to {\"ok\": true} when absent."
+        },
+        "require_json": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          },
+          "description": "SW-13: functional-readiness contract for an http health endpoint. Key/value pairs the health JSON body must satisfy for the module to count as READY; a 200 whose body fails any pair is LIVE but DEGRADED (the tile shows degraded + the payload's reason, and the process is kept so poll can flip it to READY when the backend recovers). Only valid when kind is http; values are JSON scalars the product emits (e.g. {\"ok\": true})."
         }
       }
     },

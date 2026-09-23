@@ -73,6 +73,61 @@ def http_probe(url: str, expect_status: int, timeout_s: int, poll_ms: int) -> tu
     return False, time.time() - start, last_error
 
 
+def http_functional_probe(url: str, expect_status: int, require_json: dict,
+                           timeout_s: int, poll_ms: int) -> tuple[bool, bool, float, str]:
+    """Poll an HTTP JSON health endpoint, separating LIVENESS from functional READINESS.
+
+    SW-13: an endpoint that answers `expect_status` but reports itself not ready - e.g.
+    SOVEREIGN's /v1/health returns HTTP 200 with `{"ok": false, "status": "degraded",
+    "configured_models_ready": false}` when no model is available - is LIVE but not
+    functionally READY. `http_probe` cannot see that difference (it only matches the status
+    code), so the shell reached READY for a product that could serve nothing. `require_json`
+    maps health-payload keys to the values a functionally-ready product must emit
+    (e.g. {"ok": true}); a live answer that fails any pair is degraded, not ready.
+
+    Returns (live, ready, latency, detail):
+      - live   : the endpoint answered `expect_status` at least once during the window
+      - ready  : a live answer satisfied every require_json pair
+      - detail : the payload's own `detail`/reason from the last live-but-degraded answer,
+                 else the last transport error - so the tile can say WHY it is degraded.
+    Returns as soon as a ready answer is seen; otherwise polls until timeout so a product
+    still loading its model has the whole readiness budget to come up.
+    """
+    deadline = time.time() + timeout_s
+    start = time.time()
+    live = False
+    detail = ""
+    last_error = ""
+    while time.time() < deadline:
+        try:
+            req = urllib.request.Request(url, method="GET")
+            with _open_direct(req, timeout=_request_timeout(deadline)) as resp:
+                status = resp.status
+                body = resp.read()
+            if status == expect_status:
+                live = True
+                try:
+                    data = json.loads(body.decode("utf-8", errors="replace"))
+                except ValueError:
+                    data = None
+                if isinstance(data, dict):
+                    unmet = [k for k, v in require_json.items() if data.get(k) != v]
+                    if not unmet:
+                        return True, True, time.time() - start, ""
+                    detail = str(data.get("detail") or "").strip() or (
+                        "health requirement not met: " + ", ".join(sorted(unmet)))
+                else:
+                    detail = "health response is not a JSON object"
+            else:
+                last_error = f"HTTP {status}"
+        except urllib.error.HTTPError as e:
+            last_error = f"HTTP {e.code}"
+        except Exception as e:
+            last_error = str(e)
+        time.sleep(poll_ms / 1000)
+    return live, False, time.time() - start, (detail or last_error)
+
+
 def http_json_identity(url: str, required_keys: list[str],
                        require: dict | None = None) -> tuple[bool, str]:
     """GET url and verify JSON response has required_keys and optional require values.

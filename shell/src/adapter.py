@@ -194,6 +194,22 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
             raise AdapterError("readiness.timeout_s must be a number 5-120")
         if not _is_number(readiness.get("poll_ms")) or not (250 <= readiness["poll_ms"] <= 5000):
             raise AdapterError("readiness.poll_ms must be a number 250-5000")
+        # SW-13: `require_json` declares the functional-readiness contract for an http health
+        # endpoint - the key/value pairs a body must satisfy to count as READY rather than merely
+        # live (a 200 that reports degraded). Only meaningful for http readiness; values are JSON
+        # scalars (the fields a product emits, e.g. {"ok": true}).
+        if "require_json" in readiness:
+            if readiness["kind"] != "http":
+                raise AdapterError("readiness.require_json is only valid for http readiness")
+            rj = readiness["require_json"]
+            if not isinstance(rj, dict) or not rj:
+                raise AdapterError("readiness.require_json must be a non-empty object")
+            for rk, rv in rj.items():
+                if not isinstance(rk, str):
+                    raise AdapterError("readiness.require_json keys must be strings")
+                if rv is not None and not isinstance(rv, (str, int, float, bool)):
+                    raise AdapterError(
+                        f"readiness.require_json['{rk}'] must be a JSON scalar")
 
         # Validate identity. process_path/path_prefix is gone: H-5 forbids prefix-string
         # comparison, and ADR-004 requires canonical-image equality instead (R3-11).

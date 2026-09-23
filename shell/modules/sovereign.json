@@ -59,6 +59,9 @@
     "kind": "http",
     "url": "http://127.0.0.1:5175/v1/health",
     "expect_status": 200,
+    "require_json": {
+      "ok": true
+    },
     "timeout_s": 45,
     "poll_ms": 500
   },
