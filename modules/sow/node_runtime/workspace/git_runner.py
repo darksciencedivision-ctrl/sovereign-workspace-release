@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import os
 import subprocess
+import threading
 from pathlib import Path
 
 DEFAULT_GIT_TIMEOUT_S = 120.0
 _MAX_GIT_OUTPUT_BYTES = 8 * 1024 * 1024  # 8 MiB per stream ceiling
+_READ_CHUNK_BYTES = 65536
 
 # A git call must never block on interactive credential/askpass prompts.
 _NONINTERACTIVE_ENV = {
@@ -52,32 +54,69 @@ def _kill_tree(proc: subprocess.Popen) -> None:
             pass
 
 
-def _truncate(value, text: bool):
-    if value is None:
-        return "" if text else b""
-    if len(value) > _MAX_GIT_OUTPUT_BYTES:
-        return value[-_MAX_GIT_OUTPUT_BYTES:]
-    return value
+def _drain(stream, sink: dict) -> None:
+    """SW-20: read a pipe in chunks, retaining only the last _MAX_GIT_OUTPUT_BYTES — so a huge diff,
+    log or noisy hook is bounded to the ceiling as it is produced, never buffered whole in memory.
+    Records whether truncation occurred so the ceiling is an honest bound, not a silent drop."""
+    buf = bytearray()
+    truncated = False
+    try:
+        while True:
+            chunk = stream.read(_READ_CHUNK_BYTES)
+            if not chunk:
+                break
+            buf += chunk
+            if len(buf) > _MAX_GIT_OUTPUT_BYTES:
+                del buf[:len(buf) - _MAX_GIT_OUTPUT_BYTES]
+                truncated = True
+    except (OSError, ValueError):
+        pass
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
+        sink["buf"] = bytes(buf)
+        sink["truncated"] = truncated
 
 
 def run_git(repo: Path, *args: str, timeout: float = DEFAULT_GIT_TIMEOUT_S, text: bool = True):
     """Run `git -C <repo> <args...>` bounded and non-interactively.
 
-    Returns (returncode, stdout, stderr) (str when text=True, else bytes). Raises GitTimeout on
-    deadline, after killing the whole process tree.
+    Returns (returncode, stdout, stderr) (str when text=True, else bytes). Output is drained
+    incrementally into a bounded tail (SW-20), so peak memory stays near the per-stream ceiling even
+    when git emits far more. Raises GitTimeout on deadline, after killing the whole process tree.
     """
     argv = ["git", "-C", str(repo), *args]
     env = {**os.environ, **_NONINTERACTIVE_ENV}
     creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    # Binary pipes so the byte ceiling is exact regardless of `text`; the bounded tail is decoded
+    # once at the end (cheap: at most the ceiling).
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            text=text, env=env, creationflags=creationflags)
+                            env=env, creationflags=creationflags)
+    out_sink: dict = {}
+    err_sink: dict = {}
+    t_out = threading.Thread(target=_drain, args=(proc.stdout, out_sink), daemon=True)
+    t_err = threading.Thread(target=_drain, args=(proc.stderr, err_sink), daemon=True)
+    t_out.start()
+    t_err.start()
     try:
-        out, err = proc.communicate(timeout=timeout)
+        proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         _kill_tree(proc)
         try:
-            proc.communicate(timeout=10)
+            proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             pass
+        t_out.join(timeout=5)
+        t_err.join(timeout=5)
         raise GitTimeout(tuple(args), timeout) from exc
-    return proc.returncode, _truncate(out, text), _truncate(err, text)
+    # The child has exited; the drain threads see EOF and finish promptly.
+    t_out.join(timeout=10)
+    t_err.join(timeout=10)
+    out = out_sink.get("buf", b"")
+    err = err_sink.get("buf", b"")
+    if text:
+        out = out.decode("utf-8", errors="replace")
+        err = err.decode("utf-8", errors="replace")
+    return proc.returncode, out, err

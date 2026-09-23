@@ -7,6 +7,7 @@ returned alongside the exact streamed text.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 import ipaddress
 import json
@@ -24,6 +25,15 @@ CONTEXT_TEMPLATE_MARGIN_TOKENS = 512
 OLLAMA_CONNECT_TIMEOUT_SECONDS = 30.0
 OLLAMA_GENERATION_TIMEOUT_SECONDS = 86_400.0
 _CANCELLATION_POLL_SECONDS = 0.05
+
+# SW-21: bound what one streamed generation may accumulate in memory. A legitimate response is bounded
+# by num_predict/context and stays far under these; a runaway or faulty local server (endless events,
+# oversized bytes) is refused with a distinct over-limit outcome instead of growing memory without
+# limit. raw_lines/raw_events are retained only as a bounded diagnostic TAIL — the generated text is
+# the actual output and is bounded by the byte ceiling.
+_MAX_RESPONSE_TEXT_BYTES = 16 * 1024 * 1024
+_MAX_STREAM_EVENTS = 200_000
+_STREAM_DIAGNOSTIC_TAIL = 1000
 
 
 class ModelClientError(RuntimeError):
@@ -48,6 +58,10 @@ class GenerationTimeout(ModelClientError, TimeoutError):
 
 class OllamaProtocolError(ModelClientError):
     """Raised for malformed or incomplete Ollama responses."""
+
+
+class GenerationOverLimit(ModelClientError):
+    """SW-21: a stream exceeded the response byte or event ceiling (a runaway / faulty server)."""
 
 
 class ModelCapabilityError(ModelClientError):
@@ -471,9 +485,13 @@ class OllamaClient:
         started = self._monotonic()
         deadline = started + timeout_limit
         response: requests.Response | Any | None = None
-        raw_events: list[dict[str, Any]] = []
-        raw_lines: list[str] = []
+        # SW-21: raw_lines/raw_events are a BOUNDED diagnostic tail; text_parts holds the actual
+        # output (bounded by the byte ceiling below). text_bytes/event_count are the true totals.
+        raw_events: deque[dict[str, Any]] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
+        raw_lines: deque[str] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
         text_parts: list[str] = []
+        text_bytes = 0
+        event_count = 0
         saw_done = False
         abort_observed = threading.Event()
         abort_watcher_stop = threading.Event()
@@ -600,6 +618,10 @@ class OllamaClient:
                     if not line.strip():
                         continue
                     raw_lines.append(line)
+                    event_count += 1
+                    if event_count > _MAX_STREAM_EVENTS:
+                        raise GenerationOverLimit(
+                            f"stream exceeded {_MAX_STREAM_EVENTS} events; aborting a runaway response")
                     try:
                         event = json.loads(line)
                     except json.JSONDecodeError as exc:
@@ -613,12 +635,16 @@ class OllamaClient:
                     if not isinstance(chunk, str):
                         raise OllamaProtocolError("Ollama response chunk must be text")
                     try:
-                        chunk.encode("utf-8", errors="strict")
+                        encoded_chunk = chunk.encode("utf-8", errors="strict")
                     except UnicodeEncodeError as exc:
                         raise OllamaProtocolError(
                             "Ollama response chunk contains invalid Unicode"
                         ) from exc
                     text_parts.append(chunk)
+                    text_bytes += len(encoded_chunk)
+                    if text_bytes > _MAX_RESPONSE_TEXT_BYTES:
+                        raise GenerationOverLimit(
+                            f"response exceeded {_MAX_RESPONSE_TEXT_BYTES} bytes; aborting a runaway response")
                     if event.get("done") is True:
                         saw_done = True
                         break
@@ -690,7 +716,7 @@ class OllamaClient:
                 {
                     "done": terminal.get("done"),
                     "done_reason": terminal.get("done_reason"),
-                    "event_count": len(raw_events),
+                    "event_count": event_count,  # SW-21: true total, not the bounded tail
                     "requested_model": model,
                     "requested_think": think,
                     "requested_response_format": requested_format,
@@ -718,7 +744,7 @@ class OllamaClient:
             partial_telemetry = {
                 "done": terminal.get("done"),
                 "done_reason": terminal.get("done_reason"),
-                "event_count": len(raw_events),
+                "event_count": event_count,  # SW-21: true total, not the bounded tail
                 "requested_model": model,
                 "reported_model": terminal.get("model"),
                 "requested_think": think,
