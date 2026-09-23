@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import hashlib
 import os
 from pathlib import Path
+import threading
 import re
 from typing import Any, Iterable, Mapping
 
@@ -439,6 +441,43 @@ def llama_cpp_installation(
     )
 
 
+# SW-09: verified-digest cache keyed by (path, size, mtime_ns), so a multi-GB blob is hashed once and
+# not re-hashed on every registry build; any size/mtime change invalidates the entry and forces a
+# re-hash. Result is the actual sha256, compared against the declared digest by the caller.
+_DIGEST_CACHE: dict[str, tuple[int, int, str]] = {}
+_DIGEST_CACHE_LOCK = threading.Lock()
+
+
+def _file_sha256(path: Path) -> str | None:
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except OSError:
+        return None
+
+
+def _verify_blob_digest(path: Path, expected: str) -> bool:
+    """SW-09: True ONLY when the file's bytes hash to `expected` — never mere existence."""
+    try:
+        st = path.stat()
+    except OSError:
+        return False
+    key = str(path)
+    with _DIGEST_CACHE_LOCK:
+        cached = _DIGEST_CACHE.get(key)
+    if cached is not None and cached[0] == st.st_size and cached[1] == st.st_mtime_ns:
+        return cached[2] == expected
+    actual = _file_sha256(path)
+    if actual is None:
+        return False
+    with _DIGEST_CACHE_LOCK:
+        _DIGEST_CACHE[key] = (st.st_size, st.st_mtime_ns, actual)
+    return actual == expected
+
+
 def build_production_registry(
     *,
     extra_paths: Mapping[str, Iterable[str]] | None = None,
@@ -453,35 +492,29 @@ def build_production_registry(
         for path in paths:
             item = Path(path)
             sizes.append(item.stat().st_size if item.is_file() else None)
-        integrity = "missing" if sizes[0] is None else "unverified"
-        if model_id == "nomic-embed-text:latest" and digest == PRODUCTION_WEIGHTS[model_id]:
-            if sizes[0] is not None:
-                integrity = "verified"
+        # SW-09: verification means the primary blob's BYTES hash to the declared digest — never mere
+        # existence. present / declared / verified are distinct: a present file whose digest does not
+        # match is "failed", not "verified", and never receives a verified_hash.
+        if sizes[0] is None:
+            integrity = "missing"
+            verified = None
+        elif _verify_blob_digest(Path(paths[0]), digest):
+            integrity = "verified"
+            verified = digest
+        else:
+            integrity = "failed"
+            verified = None
         artifact = Artifact(
             identity=f"sha256:{digest}",
             paths=paths,
             sizes=tuple(sizes),
             format="gguf",
             declared_hash=digest,
-            verified_hash=digest if integrity == "verified" else None,
+            verified_hash=verified,
             provenance="ollama-blob-index-in-place",
             retention_owner="ollama-store",
-            integrity=integrity if model_id != "qwen3:8b" else (
-                "verified" if any(size is not None for size in sizes) else "missing"
-            ),
+            integrity=integrity,
         )
-        if model_id == "qwen3:8b" and artifact.integrity == "verified":
-            artifact = Artifact(
-                identity=artifact.identity,
-                paths=artifact.paths,
-                sizes=artifact.sizes,
-                format=artifact.format,
-                declared_hash=artifact.declared_hash,
-                verified_hash=digest,
-                provenance=artifact.provenance,
-                retention_owner=artifact.retention_owner,
-                integrity="verified",
-            )
         registry.add_artifact(artifact)
         embeddings = model_id == "nomic-embed-text:latest"
         slot = SERVING_SLOTS[model_id]

@@ -167,6 +167,44 @@ def pid_alive(pid: int) -> bool:
         return False
 
 
+def pid_create_filetime(pid: int) -> int | None:
+    """SW-08: the OS process-creation time as a stable identity token. Unique per (pid, spawn), so a
+    reused PID has a different value. Returns None when it cannot be read (no handle / non-Windows),
+    in which case callers must treat ownership as UNPROVEN rather than assume a match."""
+    if pid <= 0 or sys.platform != "win32":
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    k32 = ctypes.windll.kernel32
+    handle = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return None
+    try:
+        creation = wintypes.FILETIME()
+        dummy = wintypes.FILETIME()
+        ok = k32.GetProcessTimes(
+            handle, ctypes.byref(creation), ctypes.byref(dummy),
+            ctypes.byref(dummy), ctypes.byref(dummy))
+        if not ok:
+            return None
+        return (int(creation.dwHighDateTime) << 32) | int(creation.dwLowDateTime)
+    finally:
+        k32.CloseHandle(handle)
+
+
+def pid_matches_recorded(pid: int, state: dict[str, Any]) -> bool:
+    """SW-08: True only when the live PID is provably the process we recorded — its creation FILETIME
+    equals the one stored at start. If either value is missing/unreadable, ownership is UNPROVEN and
+    this returns False, so a stale/reused PID is never adopted as ours or terminated as ours."""
+    recorded = state.get("pid_create_filetime")
+    if not isinstance(recorded, int):
+        return False
+    actual = pid_create_filetime(pid)
+    return actual is not None and actual == recorded
+
+
 def port_open(host: str, port: int) -> bool:
     with socket.socket() as sock:
         return sock.connect_ex((host, port)) == 0
@@ -255,10 +293,14 @@ def cmd_status(root: Path) -> dict[str, Any]:
     port = int(state.get("port") or DEFAULT_PORT)
     alive = pid_alive(pid)
     listening = port_open(host, port)
+    # SW-08: "running" requires the live PID to be PROVABLY the process we recorded, not merely a
+    # live PID plus an open port (a reused PID and any listener would otherwise read as running).
+    owned = alive and pid_matches_recorded(pid, state)
     return {
-        "running": bool(alive and listening),
+        "running": bool(owned and listening),
         "pid": pid,
         "pid_alive": alive,
+        "pid_owned": owned,
         "port_open": listening,
         "base_url": state.get("base_url"),
         "started_at": state.get("process_started_at"),
@@ -277,29 +319,40 @@ def cmd_start(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
     api_key = load_or_create_key(root)
     from .gpu_occupancy import claim_gpu, release_gpu
 
+    # SW-07: the GPU claim, supervisor construction, startup AND publication share ONE rollback
+    # scope. Any failure — a missing/mismatched binary in build_supervisor, a start failure, or a
+    # failed state/env/cutover write — releases the claim owned by this attempt and tears down a
+    # child that did start, so no orphan process or stale GPU claim survives a failed start.
     claim = claim_gpu(root, "llama.cpp")
-    supervisor = build_supervisor(root, port=port, api_key=api_key)
+    supervisor: LlamaCppSupervisor | None = None
     try:
+        supervisor = build_supervisor(root, port=port, api_key=api_key)
         supervisor.start()
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "pid": supervisor.pid,
+            "pid_create_filetime": pid_create_filetime(supervisor.pid),  # SW-08 identity token
+            "process_started_at": _utc_now(),
+            "host": "127.0.0.1",
+            "port": port,
+            "base_url": supervisor.base_url,
+            "executable": str(DEFAULT_EXE),
+            "work_dir": str(service_dir(root)),
+            "detach": True,
+        }
+        write_state(root, payload)
+        write_consumer_env(root, supervisor.base_url, api_key)
+        cutover_path(root).write_text("llama.cpp\n", encoding="utf-8")
+        _enable_autostart(root)
+        watch = _spawn_watch(root, port=port)
     except Exception:
+        if supervisor is not None:
+            try:
+                supervisor.stop()
+            except Exception:
+                pass
         release_gpu(root, "llama.cpp")
         raise
-    payload = {
-        "schema_version": SCHEMA_VERSION,
-        "pid": supervisor.pid,
-        "process_started_at": _utc_now(),
-        "host": "127.0.0.1",
-        "port": port,
-        "base_url": supervisor.base_url,
-        "executable": str(DEFAULT_EXE),
-        "work_dir": str(service_dir(root)),
-        "detach": True,
-    }
-    write_state(root, payload)
-    write_consumer_env(root, supervisor.base_url, api_key)
-    cutover_path(root).write_text("llama.cpp\n", encoding="utf-8")
-    _enable_autostart(root)
-    watch = _spawn_watch(root, port=port)
     return {"started": True, **payload, "ready": True, "watch": watch, "gpu": claim}
 
 
@@ -311,27 +364,51 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
             _disable_autostart(root)
         return {"stopped": False, "reason": "no state file"}
     pid = int(state.get("pid") or 0)
-    api_key = load_or_create_key(root)
-    supervisor = build_supervisor(root, port=int(state.get("port") or DEFAULT_PORT), api_key=api_key)
-    supervisor.pid = pid
-    supervisor.process = _LiveProcess(pid)
-    try:
-        supervisor.unload("qwen3:8b")
-    except Exception:
-        pass
-    supervisor.stop()
+    port = int(state.get("port") or DEFAULT_PORT)
+    from .gpu_occupancy import release_gpu
+
+    alive = pid_alive(pid)
+    owned = alive and pid_matches_recorded(pid, state)
+    if alive and not owned:
+        # SW-08: the recorded PID is alive but is NOT provably our supervisor (a reused PID, or stale
+        # state). Refuse to terminate an unrelated process; drop our stale state and release the claim.
+        path = state_path(root)
+        if path.is_file():
+            path.unlink()
+        if disable_autostart:
+            _disable_autostart(root)
+        release_gpu(root, "llama.cpp")
+        return {
+            "stopped": False,
+            "reason": "recorded PID is not this runtime (process-identity mismatch); refusing to terminate",
+            "pid": pid, "pid_alive": True, "pid_owned": False,
+        }
+    if owned:
+        # Provably ours and alive: terminate it. Guard the binary-dependent build so a stop still
+        # tears down state/claim even if the server binary was removed after start.
+        try:
+            api_key = load_or_create_key(root)
+            supervisor = build_supervisor(root, port=port, api_key=api_key)
+            supervisor.pid = pid
+            supervisor.process = _LiveProcess(pid)
+            try:
+                supervisor.unload("qwen3:8b")
+            except Exception:
+                pass
+            supervisor.stop()
+        except Exception:
+            pass
     path = state_path(root)
     if path.is_file():
         path.unlink()
     if disable_autostart:
         _disable_autostart(root)
-    from .gpu_occupancy import release_gpu
-
     release_gpu(root, "llama.cpp")
     return {
         "stopped": True,
         "pid": pid,
-        "port_open": port_open("127.0.0.1", int(state.get("port") or DEFAULT_PORT)),
+        "pid_owned": owned,
+        "port_open": port_open("127.0.0.1", port),
         "pid_alive": pid_alive(pid),
     }
 

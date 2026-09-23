@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import threading
 import time
+import uuid
 from typing import Any, Iterator
 
 import requests
@@ -19,8 +20,10 @@ DEFAULT_LLAMA_ORIGIN = "http://127.0.0.1:18080"
 DEFAULT_FREETOKEN_ORIGIN = "http://127.0.0.1:1919"
 OWNERS = frozenset({"llama.cpp", "freetoken"})
 
-# In-process re-entrancy bookkeeping for transition_lock.
-_HELD_LOCKS: dict[str, int] = {}
+# In-process re-entrancy bookkeeping for transition_lock: key -> (owner_thread_id, depth).
+# SW-05: reentrancy is per THREAD. A different thread must never inherit another thread's depth and
+# skip the cross-process file lock; it is serialized by the file lock like any other contender.
+_HELD_LOCKS: dict[str, tuple[int, int]] = {}
 _HELD_LOCKS_GUARD = threading.Lock()
 
 # Bounded drain windows: wait this long for owned active work to finish before a
@@ -103,19 +106,33 @@ def transition_lock(root: Path, owner: str) -> Iterator[None]:
 
     path = lock_path(root)
     key = str(path)
+    tid = threading.get_ident()
+    # SW-05: reentrant ONLY for the thread that already holds this lock. A different thread falls
+    # through to the cross-process file lock below and is serialized there.
     with _HELD_LOCKS_GUARD:
-        depth = _HELD_LOCKS.get(key, 0)
-        _HELD_LOCKS[key] = depth + 1
-    if depth > 0:
+        held = _HELD_LOCKS.get(key)
+        reentrant = held is not None and held[0] == tid
+        if reentrant:
+            _HELD_LOCKS[key] = (tid, held[1] + 1)
+    if reentrant:
         try:
             yield
         finally:
             with _HELD_LOCKS_GUARD:
-                _HELD_LOCKS[key] -= 1
+                cur = _HELD_LOCKS.get(key)
+                if cur is not None and cur[0] == tid:
+                    if cur[1] <= 1:
+                        _HELD_LOCKS.pop(key, None)
+                    else:
+                        _HELD_LOCKS[key] = (tid, cur[1] - 1)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    # SW-06: an unguessable ownership token so we only ever delete the lock file WE created — never a
+    # foreign holder's lock (e.g. after our own acquisition timed out, or after a stale-takeover).
+    token = f"{os.getpid()}:{tid}:{uuid.uuid4().hex}"
     fd: int | None = None
+    acquired = False
     try:
         while True:
             try:
@@ -139,9 +156,14 @@ def transition_lock(root: Path, owner: str) -> Iterator[None]:
                         "GPU transition lock held too long; another ownership transition is in progress"
                     )
                 time.sleep(0.25)
-        os.write(fd, json.dumps({"owner": owner, "pid": os.getpid(), "utc": _utc_now()}).encode("utf-8"))
+        os.write(fd, json.dumps(
+            {"owner": owner, "pid": os.getpid(), "tid": tid, "token": token, "utc": _utc_now()}
+        ).encode("utf-8"))
         os.close(fd)
         fd = None
+        acquired = True
+        with _HELD_LOCKS_GUARD:
+            _HELD_LOCKS[key] = (tid, 1)
         yield
     finally:
         if fd is not None:
@@ -149,12 +171,24 @@ def transition_lock(root: Path, owner: str) -> Iterator[None]:
                 os.close(fd)
             except OSError:
                 pass
-        try:
-            path.unlink()
-        except OSError:
-            pass
-        with _HELD_LOCKS_GUARD:
-            _HELD_LOCKS[key] -= 1
+        if acquired:
+            with _HELD_LOCKS_GUARD:
+                cur = _HELD_LOCKS.get(key)
+                if cur is not None and cur[0] == tid:
+                    _HELD_LOCKS.pop(key, None)
+            # SW-06: delete the lock file ONLY if it is still the exact one we wrote. If a
+            # stale-takeover replaced it (different token), or it is gone, leave it be — never
+            # clobber another holder's lock.
+            try:
+                current = json.loads(path.read_text(encoding="utf-8"))
+                same = isinstance(current, dict) and current.get("token") == token
+            except (OSError, json.JSONDecodeError, UnicodeError):
+                same = False
+            if same:
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
 
 
 def _session() -> requests.Session:

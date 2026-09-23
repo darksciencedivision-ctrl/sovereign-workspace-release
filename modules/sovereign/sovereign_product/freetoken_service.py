@@ -205,27 +205,35 @@ def cmd_start(root: Path, *, port: int = DEFAULT_PORT, profile: str = "qwen3-0.6
         raise RuntimeControlError(f"loopback port {port} is occupied")
     from .gpu_occupancy import claim_gpu, release_gpu
 
+    # SW-07: claim, construction, startup and publication share ONE rollback scope, so a failure at
+    # any step releases the GPU claim owned by this attempt and tears down a child that did start.
     claim = claim_gpu(root, "freetoken")
-    supervisor = build_supervisor(root, port=port, profile=profile)
+    supervisor: FreeTokenSupervisor | None = None
     try:
+        supervisor = build_supervisor(root, port=port, profile=profile)
         supervisor.start()
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "pid": supervisor.pid,
+            "process_started_at": _utc_now(),
+            "host": "127.0.0.1",
+            "port": port,
+            "base_url": supervisor.base_url,
+            "executable": supervisor.config.executable,
+            "model_path": supervisor.config.model_path,
+            "profile": profile,
+            "work_dir": str(service_dir(root)),
+        }
+        write_state(root, payload)
+        write_consumer_env(root, supervisor.base_url)
     except Exception:
+        if supervisor is not None:
+            try:
+                supervisor.stop()
+            except Exception:
+                pass
         release_gpu(root, "freetoken")
         raise
-    payload = {
-        "schema_version": SCHEMA_VERSION,
-        "pid": supervisor.pid,
-        "process_started_at": _utc_now(),
-        "host": "127.0.0.1",
-        "port": port,
-        "base_url": supervisor.base_url,
-        "executable": supervisor.config.executable,
-        "model_path": supervisor.config.model_path,
-        "profile": profile,
-        "work_dir": str(service_dir(root)),
-    }
-    write_state(root, payload)
-    write_consumer_env(root, supervisor.base_url)
     return {"started": True, **payload, "ready": True, "gpu": claim}
 
 
