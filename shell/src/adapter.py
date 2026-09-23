@@ -160,9 +160,37 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
     if adapter.get("state_class") not in ("runnable", "not_started"):
         raise AdapterError(f"Invalid state_class: {adapter.get('state_class')}")
 
-    # Check id
-    if not _ID_PATTERN.match(adapter.get("id", "")):
-        raise AdapterError(f"Invalid id: {adapter.get('id')}")
+    # Check id. SW-26/R18: a non-string id reached re.match() and raised a raw TypeError, which
+    # load_all_adapters (catching only AdapterError) let escape and stop the whole shell. Type
+    # before operation: a wrongly-typed id is one module's CONFIG_ERROR, not a shell crash.
+    _id = adapter.get("id", "")
+    if not isinstance(_id, str):
+        raise AdapterError(f"id must be a string, got {type(_id).__name__}")
+    if not _ID_PATTERN.match(_id):
+        raise AdapterError(f"Invalid id: {_id}")
+
+    # SW-26: runtime_writes item structure. compile_adapter resolves each entry as a path, so a
+    # numeric or malformed entry reached _resolve_path and raised a raw TypeError instead of a
+    # field-scoped CONFIG_ERROR. Enforce the supported shape here with explicit type checks and a
+    # precise path: a plain string, or {"path": <non-empty str>, "kind": "dir"|"file"}.
+    rw = adapter.get("runtime_writes")
+    if rw is not None:
+        if not isinstance(rw, list):
+            raise AdapterError("runtime_writes must be an array")
+        for i, w in enumerate(rw):
+            if isinstance(w, str):
+                continue
+            if not isinstance(w, dict):
+                raise AdapterError(
+                    f"runtime_writes[{i}] must be a string or object, got {type(w).__name__}")
+            if not isinstance(w.get("path"), str) or not w.get("path"):
+                raise AdapterError(f"runtime_writes[{i}].path must be a non-empty string")
+            if w.get("kind") not in ("dir", "file"):
+                raise AdapterError(f"runtime_writes[{i}].kind must be 'dir' or 'file'")
+            extra = set(w) - {"path", "kind"}
+            if extra:
+                raise AdapterError(
+                    f"runtime_writes[{i}] has unknown field(s): {', '.join(sorted(extra))}")
 
     if adapter.get("state_class") == "runnable":
         # Must have launch, readiness, identity, open, stop
@@ -178,10 +206,20 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
 
         # Validate launch
         launch = adapter["launch"]
+        # SW-26: cwd is resolved as a path at compile time; a non-string reached _resolve_path and
+        # raised a raw TypeError. Type-check it here with a field-scoped AdapterError.
+        if not isinstance(launch.get("cwd"), str) or not launch["cwd"]:
+            raise AdapterError("launch.cwd must be a non-empty string")
         if not isinstance(launch["argv"], list) or len(launch["argv"]) < 1 or len(launch["argv"]) > 32:
             raise AdapterError("launch.argv must be 1-32 items")
         for i, arg in enumerate(launch["argv"]):
-            if len(str(arg)) > 1024:
+            # SW-26: len(str(arg)) silently coerced a number, so argv:[8080] passed validation and
+            # was later resolved to the string "8080" (or raised deeper). Each entry must be a
+            # string, rejected at load with its exact index.
+            if not isinstance(arg, str):
+                raise AdapterError(
+                    f"launch.argv[{i}] must be a string, got {type(arg).__name__}")
+            if len(arg) > 1024:
                 raise AdapterError(f"launch.argv[{i}] exceeds 1024 chars")
 
         # Validate readiness
@@ -263,10 +301,15 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
                     raise AdapterError("startup_test.readiness.path is required")
                 if not isinstance(r.get("require", {}), dict):
                     raise AdapterError("startup_test.readiness.require must be an object")
-                if not (5 <= r.get("timeout_s", 0) <= 120):
-                    raise AdapterError("startup_test.readiness.timeout_s must be 5-120")
-                if not (250 <= r.get("poll_ms", 0) <= 5000):
-                    raise AdapterError("startup_test.readiness.poll_ms must be 250-5000")
+                # SW-26/R18: a string timeout_s/poll_ms reached `5 <= "x"` and raised a raw
+                # TypeError. Guard the type before the range comparison, as the module-level
+                # readiness and stop.grace_s checks already do.
+                st_timeout = r.get("timeout_s", 0)
+                if not _is_number(st_timeout) or not (5 <= st_timeout <= 120):
+                    raise AdapterError("startup_test.readiness.timeout_s must be a number 5-120")
+                st_poll = r.get("poll_ms", 0)
+                if not _is_number(st_poll) or not (250 <= st_poll <= 5000):
+                    raise AdapterError("startup_test.readiness.poll_ms must be a number 250-5000")
 
 
 def _is_number(value) -> bool:
@@ -457,8 +500,11 @@ def compile_adapter(adapter: dict) -> dict:
     """Compile an adapter: resolve all paths, validate, return compiled config."""
     _check_placeholder_literals(adapter, "adapter")
 
-    # Validate id
-    if not _ID_PATTERN.match(adapter.get("id", "")):
+    # Validate id. SW-26: guarded for direct compile_adapter callers (the startup test, the
+    # deterministic suite) that do not go through _validate_against_schema first - a non-string id
+    # must raise AdapterError here too, never a raw TypeError from re.match().
+    _id = adapter.get("id", "")
+    if not isinstance(_id, str) or not _ID_PATTERN.match(_id):
         raise AdapterError(f"Invalid id: {adapter.get('id')}")
 
     root = _resolve_var(adapter["root"], root=None)
