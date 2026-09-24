@@ -8,7 +8,8 @@ param(
 $ErrorActionPreference = "Stop"
 $rootPath = [System.IO.Path]::GetFullPath($Root)
 $markerPath = Join-Path $rootPath ".sovereign-root"
-$statePath = Join-Path $rootPath "runtime\service_state.json"
+. (Join-Path $PSScriptRoot "SovereignStatePaths.ps1")  # SW-25: state lives outside the install tree
+$statePath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "service_state.json"
 
 if (
     -not (Test-Path -LiteralPath $markerPath -PathType Leaf) -or

@@ -1,0 +1,5 @@
+{
+  "schema": 1,
+  "state": "external",
+  "note": "SW-25: mutable state lives outside this install tree, in %LOCALAPPDATA%/SovereignWorkspace/sovereign (or SOVEREIGN_STATE_HOME / SOVEREIGN_WORKSPACE_STATE). Resolved by sovereign_product/paths.py and SovereignStatePaths.ps1."
+}

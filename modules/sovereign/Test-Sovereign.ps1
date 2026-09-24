@@ -116,7 +116,8 @@ try {
     }
 
     if ($Full) {
-        $statePath = Join-Path $rootPath "runtime\service_state.json"
+        . (Join-Path $PSScriptRoot "SovereignStatePaths.ps1")  # SW-25: state lives outside the install tree
+        $statePath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "service_state.json"
         if (Test-Path -LiteralPath $statePath -PathType Leaf) {
             $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
             & $pythonPath "ui\adapter_service\smoke_test.py" --base (

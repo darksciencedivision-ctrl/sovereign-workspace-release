@@ -41,7 +41,8 @@
       "SOVEREIGN_FREETOKEN_MOE_MODEL"
     ],
     "env_set": {
-      "PYTHONDONTWRITEBYTECODE": "1"
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SOVEREIGN_STATE_HOME": "${workspace_state_root}/sovereign"
     }
   },
   "readiness": {

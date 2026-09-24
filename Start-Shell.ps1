@@ -97,8 +97,19 @@ $llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
     Join-Path $root 'modules\sovereign'
 }
 $llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
-$llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
 $env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
+# SW-25: SOVEREIGN's mutable state (backend selection, supervisor state + api_key, DB, evidence)
+# lives in an external per-user state home, not the install tree. Resolve it the same way the
+# product does and hand it to the supervisor this launcher starts, so the launcher, the detached
+# supervisor and the shell-launched product all read and write ONE state location.
+$sovereignStatePathsScript = Join-Path $root 'modules\sovereign\SovereignStatePaths.ps1'
+if (-not (Test-Path -LiteralPath $sovereignStatePathsScript -PathType Leaf)) {
+    throw "The SOVEREIGN state-path resolver is missing: $sovereignStatePathsScript"
+}
+. $sovereignStatePathsScript
+$sovereignStateHome = Get-SovereignStateHome -Root $llamaSupervisorRoot
+if (-not $env:SOVEREIGN_STATE_HOME) { $env:SOVEREIGN_STATE_HOME = $sovereignStateHome }
+$llamaApiKeyPath = Resolve-SovereignRuntimeFile -Root $llamaSupervisorRoot -RelativePath 'llamacpp_supervisor\api_key'
 # Audit SW-02: do NOT inject a default SOVEREIGN_INFERENCE_BACKEND. The product ranks an env value
 # ABOVE its saved runtime/backend_selection.json, so a launcher default of llama.cpp would silently
 # override a saved Ollama choice. Instead, RESOLVE the effective backend read-only with the SAME
@@ -107,7 +118,7 @@ $env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
 # does its own resolution and the saved selection wins when no env is set.
 function Resolve-EffectiveBackend {
     if ($env:SOVEREIGN_INFERENCE_BACKEND) { return ([string]$env:SOVEREIGN_INFERENCE_BACKEND).Trim().ToLower() }
-    $sel = Join-Path $llamaSupervisorRoot 'runtime\backend_selection.json'
+    $sel = Resolve-SovereignRuntimeFile -Root $llamaSupervisorRoot -RelativePath 'backend_selection.json'
     if (Test-Path -LiteralPath $sel -PathType Leaf) {
         try {
             $doc = Get-Content -LiteralPath $sel -Raw | ConvertFrom-Json

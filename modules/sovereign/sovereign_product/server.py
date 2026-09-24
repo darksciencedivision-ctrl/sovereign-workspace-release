@@ -58,6 +58,7 @@ from .paths import (
     ProductPaths,
     UnsafeArtifactPointer,
     resolve_product_paths,
+    resolve_root,
 )
 from .quality import (
     build_quick_prompt,
@@ -66,6 +67,7 @@ from .quality import (
 )
 from .router import Route, RoutingDecision, route_query
 from .semantic_deep import SemanticDeepExecutor
+from .state_migration import ensure_state_home
 from .store import InvalidTransition, NotFound, SovereignStore
 from system_manifest import (
     ManifestConfigError,
@@ -495,6 +497,10 @@ class ProductService:
         quick_timeout: float = OLLAMA_GENERATION_TIMEOUT_SECONDS,
         deep_timeout: float | None = None,
     ) -> None:
+        if paths is None:
+            # SW-25: bring legacy install-tree state across (copy-only, once) before
+            # anything opens the store or evidence dirs in the external state home.
+            ensure_state_home(resolve_root(root))
         self.paths = paths or resolve_product_paths(root, create=True)
         self.root = self.paths.root
         # ProductService always validates its explicit root manifest, including

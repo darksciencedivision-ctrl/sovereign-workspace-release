@@ -17,6 +17,7 @@ from typing import Any
 from system_manifest import find_sovereign_root
 
 from .paths import resolve_runtime_dir
+from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import (
     build_operational_registry,
@@ -990,6 +991,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     root = find_sovereign_root(args.root)
+    ensure_state_home(root)  # SW-25: copy legacy install-tree state across once
     commands = {
         "start": lambda: cmd_start(root, port=args.port),
         "stop": lambda: cmd_stop(root),

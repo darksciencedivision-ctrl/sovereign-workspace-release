@@ -6,9 +6,9 @@
   "state_class": "runnable",
   "root": "${install_root}/modules/sovereign",
   "runtime_writes": [
-    "${root}/runtime",
-    "${root}/published",
-    "${root}/library/queues",
+    { "path": "${state_root}/runtime", "kind": "dir" },
+    { "path": "${state_root}/published", "kind": "dir" },
+    { "path": "${state_root}/library/queues", "kind": "dir" },
     "${state_root}/logs"
   ],
   "launch": {
@@ -51,8 +51,9 @@
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
-      "SOVEREIGN_STATE_DIR": "${root}/runtime",
-      "SOVEREIGN_EVIDENCE_DIR": "${root}/runtime/evidence"
+      "SOVEREIGN_STATE_HOME": "${state_root}",
+      "SOVEREIGN_STATE_DIR": "${state_root}/runtime",
+      "SOVEREIGN_EVIDENCE_DIR": "${state_root}/runtime/evidence"
     }
   },
   "readiness": {

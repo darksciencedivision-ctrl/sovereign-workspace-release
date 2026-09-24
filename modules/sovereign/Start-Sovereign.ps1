@@ -15,7 +15,8 @@ $manifestPath = Join-Path $rootPath "SYSTEM_MANIFEST.json"
 $uiIndexPath = Join-Path $rootPath "ui\ui_shell\dist\index.html"
 $pythonPath = Join-Path $rootPath ".venv\Scripts\python.exe"
 $env:PYTHONPATH = $rootPath + [IO.Path]::PathSeparator + [string]$env:PYTHONPATH
-$stateDirectory = Join-Path $rootPath "runtime"
+. (Join-Path $PSScriptRoot "SovereignStatePaths.ps1")  # SW-25: state lives outside the install tree
+$stateDirectory = Get-SovereignRuntimeDir -Root $rootPath
 $statePath = Join-Path $stateDirectory "service_state.json"
 $logDirectory = Join-Path $stateDirectory "logs"
 $stdoutPath = Join-Path $logDirectory "product.stdout.log"
@@ -129,6 +130,12 @@ if ($LASTEXITCODE -ne 0) {
 $manifest = $manifestJson | ConvertFrom-Json
 $ollamaBaseUrl = [string]$manifest.RUNTIME.OLLAMA_BASE_URL
 $ollamaTagsUrl = $ollamaBaseUrl.TrimEnd("/") + "/api/tags"
+# SW-25: copy legacy install-tree state into the external state home (once, copy-only) BEFORE
+# this script writes its own service record there, so the migration sees an empty destination.
+& $pythonPath -m sovereign_product.state_migration --root $rootPath | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "SOVEREIGN state migration failed."
+}
 $consumerEnvPath = Join-Path $stateDirectory "llamacpp_supervisor\consumer.env"
 if (Test-Path -LiteralPath $consumerEnvPath -PathType Leaf) {
     Get-Content -LiteralPath $consumerEnvPath | ForEach-Object {

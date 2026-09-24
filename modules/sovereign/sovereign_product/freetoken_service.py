@@ -12,6 +12,7 @@ from system_manifest import find_sovereign_root
 
 from .freetoken_supervisor import FreeTokenSupervisor, FreeTokenSupervisorConfig
 from .paths import resolve_runtime_dir
+from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import freetoken_installation
 
@@ -413,6 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     root = find_sovereign_root(args.root)
+    ensure_state_home(root)  # SW-25: copy legacy install-tree state across once
     profile = args.profile or "qwen3-0.6b"
     commands = {
         "start": lambda: cmd_start(root, port=args.port, profile=profile),

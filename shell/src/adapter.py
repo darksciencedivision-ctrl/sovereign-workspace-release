@@ -445,7 +445,7 @@ def python_312() -> str:
 
 
 def _resolve_var(value: str, root: str | None, state_root: str | None = None) -> str:
-    """Resolve ${install_root}, ${python312}, ${root} and ${state_root}.
+    """Resolve ${install_root}, ${python312}, ${root}, ${state_root}, ${workspace_state_root}.
 
     Any other ${...} raises. `root` is None only while the adapter's own `root` field is being
     resolved -- it cannot reference itself, and saying so is better than resolving it to
@@ -469,6 +469,16 @@ def _resolve_var(value: str, root: str | None, state_root: str | None = None) ->
                     "${state_root} is not available here; it may only be used in "
                     "runtime_writes and launch.env_set")
             return state_root
+        if var == "workspace_state_root":
+            # SW-25: the parent of every module's state root, so a module that shares another's
+            # state (the llama.cpp supervisor reads SOVEREIGN's runtime dir) can NAME it in
+            # launch.env_set. It grants no write: runtime_writes containment still admits only
+            # this module's own state root.
+            if state_root is None:
+                raise AdapterError(
+                    "${workspace_state_root} is not available here; it may only be used in "
+                    "runtime_writes and launch.env_set")
+            return workspace_state_root()
         raise AdapterError(f"Unknown variable: ${{{var}}}")
     return _VAR_PATTERN.sub(replacer, value)
 

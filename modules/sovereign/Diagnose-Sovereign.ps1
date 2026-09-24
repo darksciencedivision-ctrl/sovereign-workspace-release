@@ -7,7 +7,8 @@ param(
 
 $ErrorActionPreference = "Continue"
 $rootPath = [System.IO.Path]::GetFullPath($Root)
-$consumerEnvPath = Join-Path $rootPath "runtime\llamacpp_supervisor\consumer.env"
+. (Join-Path $PSScriptRoot "SovereignStatePaths.ps1")  # SW-25: state lives outside the install tree
+$consumerEnvPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "llamacpp_supervisor\consumer.env"
 if (Test-Path -LiteralPath $consumerEnvPath -PathType Leaf) {
     Get-Content -LiteralPath $consumerEnvPath | ForEach-Object {
         if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
@@ -28,7 +29,7 @@ if (
     [string]$env:SOVEREIGN_INFERENCE_BACKEND -eq "llama.cpp" -and
     [string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_LLAMA_CPP_API_KEY)
 ) {
-    $keyPath = Join-Path $rootPath "runtime\llamacpp_supervisor\api_key"
+    $keyPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "llamacpp_supervisor\api_key"
     if (Test-Path -LiteralPath $keyPath -PathType Leaf) {
         $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $keyPath -Raw).Trim()
     }
@@ -226,7 +227,7 @@ if ([string]$env:SOVEREIGN_INFERENCE_BACKEND -ne "ollama") {
     }
 }
 
-$statePath = Join-Path $rootPath "runtime\service_state.json"
+$statePath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "service_state.json"
 $state = $null
 $recordedProcess = $null
 $stateValid = $false
@@ -411,7 +412,7 @@ if ($stateValid) {
     }
 }
 
-$dbPath = Join-Path $rootPath "runtime\sovereign.db"
+$dbPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "sovereign.db"
 if ($pythonValid -and (Test-Path -LiteralPath $dbPath -PathType Leaf)) {
     $dbCheck = @'
 import sys
