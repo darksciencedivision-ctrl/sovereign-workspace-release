@@ -289,3 +289,22 @@ def test_si_p6_long_route_readiness_reflects_the_backend(clean_env, tmp_path):
     llama_like = SimpleNamespace(root=root, paths=paths, model_client=FakeLlama(),
                                  _long_executor=lambda: ProductService._long_executor(llama_like))
     assert ProductService.long_route_ready(llama_like) is True
+
+
+def test_si_p6_health_counts_the_long_lane_separately_from_the_workers():
+    # Found live: the long-lane thread made len(_workers) != worker_count, so /v1/health reported
+    # "durable job workers are not ready" and the shell would have shown the product DEGRADED.
+    from sovereign_product.server import LONG_WORKER_NAME, ProductService
+
+    def thread(name):
+        return SimpleNamespace(name=name, is_alive=lambda: True)
+
+    ready = SimpleNamespace(worker_count=1,
+                            _workers=[thread("sovereign-worker-1"), thread(LONG_WORKER_NAME)])
+    assert ProductService.workers_ready(ready) is True
+    no_lane = SimpleNamespace(worker_count=1, _workers=[thread("sovereign-worker-1")])
+    assert ProductService.workers_ready(no_lane) is False
+    dead = SimpleNamespace(worker_count=1, _workers=[
+        thread("sovereign-worker-1"),
+        SimpleNamespace(name=LONG_WORKER_NAME, is_alive=lambda: False)])
+    assert ProductService.workers_ready(dead) is False

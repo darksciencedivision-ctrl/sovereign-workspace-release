@@ -87,6 +87,7 @@ from system_manifest import (
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
+LONG_WORKER_NAME = "sovereign-long-worker"
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
@@ -840,6 +841,21 @@ class ProductService:
         self.research_unavailable_reason = None
         return executor
 
+    def workers_ready(self) -> bool:
+        """The configured job workers AND the LONG lane worker are running.
+
+        `_workers` holds both kinds (close() drains them together); readiness compares only the
+        normal workers against `worker_count` and requires the long lane separately.
+        """
+        normal = [t for t in self._workers if t.name != LONG_WORKER_NAME]
+        long_lane = [t for t in self._workers if t.name == LONG_WORKER_NAME]
+        return (
+            len(normal) == self.worker_count
+            and all(thread.is_alive() for thread in normal)
+            and len(long_lane) == 1
+            and long_lane[0].is_alive()
+        )
+
     def long_route_ready(self) -> bool:
         """Whether the LONG route can run here: llama.cpp backend + a valid long_workload.json."""
         from .long_workload import LongWorkloadError
@@ -901,7 +917,7 @@ class ProductService:
         long_worker = threading.Thread(
             target=self._worker_loop,
             args=(self._long_queue,),
-            name="sovereign-long-worker",
+            name=LONG_WORKER_NAME,
             daemon=True,
         )
         long_worker.start()
@@ -2147,10 +2163,7 @@ def create_app(
             detail.append("system manifest missing")
         if not deep_ok:
             detail.append("configured DEEP executor is not callable")
-        worker_ok = (
-            len(owned_service._workers) == owned_service.worker_count
-            and all(thread.is_alive() for thread in owned_service._workers)
-        )
+        worker_ok = owned_service.workers_ready()
         if not worker_ok:
             detail.append("durable job workers are not ready")
         try:
@@ -2222,7 +2235,9 @@ def create_app(
                 "loopback_only": True,
                 "same_origin": True,
                 "durable_store": store_ok,
-                "worker_count": len(owned_service._workers),
+                "worker_count": len(
+                    [t for t in owned_service._workers if t.name != LONG_WORKER_NAME]
+                ),
                 "workers_ready": worker_ok,
                 "model_service_reachable": model_service_ok,
                 "configured_models_ready": models_ok,
