@@ -66,7 +66,10 @@ def get_sandbox_root() -> Path:
 
 
 def get_runtime_root() -> Path:
-    return resolve_under_root(get_repo_root(), "runtime")
+    # SW-25: runtime state may live outside the install tree; resolve it the one way.
+    from sovereign_product.paths import resolve_runtime_dir
+
+    return resolve_runtime_dir(get_repo_root())
 
 
 def get_reports_root() -> Path:

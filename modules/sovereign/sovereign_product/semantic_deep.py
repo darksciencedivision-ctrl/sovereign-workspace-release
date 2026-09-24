@@ -36,6 +36,7 @@ from .model_client import (
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
     OllamaClient,
 )
+from .paths import UnsafeArtifactPointer, resolve_runtime_dir, state_artifact_pointer
 from .runtime_registry import CONSUMER_WEIGHTS, PRODUCTION_WEIGHTS, blob_path
 from .semantic_guards import mechanism_analysis_issues
 
@@ -403,16 +404,6 @@ def _semantic_request_record(
     )
 
 
-def _safe_relative(path: Path, root: Path) -> str:
-    resolved = path.resolve()
-    try:
-        return resolved.relative_to(root.resolve()).as_posix()
-    except ValueError as exc:
-        raise SemanticDeepError(
-            f"artifact path escaped product root: {resolved}"
-        ) from exc
-
-
 def _response_dict(response: Any) -> dict[str, Any]:
     if isinstance(response, Mapping):
         return dict(response)
@@ -661,6 +652,7 @@ class SemanticDeepExecutor:
         synthesizer_model: str = "qwen3:14b",
         verifier_model: str = "qwen3:8b",
         artifact_root: str | Path | None = None,
+        state_dir: str | Path | None = None,
         evidence_builder: Any | None = None,
         base_options: Mapping[str, Any] | None = None,
         stage_options: Mapping[str, Mapping[str, Any]] | None = None,
@@ -694,15 +686,21 @@ class SemanticDeepExecutor:
         self.critic_model = critic_model.strip()
         self.synthesizer_model = synthesizer_model.strip()
         self.verifier_model = verifier_model.strip()
+        # SW-25: artifacts live in the runtime state dir, which may be outside the install
+        # tree. Containment is "inside the product root OR inside the state dir"; refs to a
+        # state-dir artifact are emitted as sovereign-state:// pointers (see _artifact_ref).
+        self.state_dir = (
+            Path(state_dir).resolve()
+            if state_dir is not None
+            else resolve_runtime_dir(self.root).resolve()
+        )
         self.artifact_root = (
             Path(artifact_root).resolve()
             if artifact_root is not None
-            else (self.root / "runtime" / "evidence" / "semantic_deep").resolve()
+            else (self.state_dir / "evidence" / "semantic_deep").resolve()
         )
-        try:
-            self.artifact_root.relative_to(self.root)
-        except ValueError as exc:
-            raise ValueError("artifact_root must resolve inside product root") from exc
+        if not self._contained(self.artifact_root):
+            raise ValueError("artifact_root must resolve inside product root or state dir")
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
         defaults = {
@@ -1221,12 +1219,10 @@ class SemanticDeepExecutor:
         execution_id: str,
     ) -> Path:
         resolved_artifact_root = self.artifact_root.resolve()
-        try:
-            resolved_artifact_root.relative_to(self.root)
-        except ValueError as exc:
+        if not self._contained(resolved_artifact_root):
             raise SemanticDeepError(
-                "artifact root no longer resolves inside product root"
-            ) from exc
+                "artifact root no longer resolves inside product root or state dir"
+            )
         session_dir = resolved_artifact_root / session_id
         session_dir.mkdir(parents=True, exist_ok=True)
         resolved_session = session_dir.resolve()
@@ -1246,6 +1242,31 @@ class SemanticDeepExecutor:
                 "execution artifact directory resolves outside session directory"
             ) from exc
         return resolved_run
+
+    def _contained(self, path: Path) -> bool:
+        for base in (self.root, self.state_dir):
+            try:
+                path.relative_to(base)
+                return True
+            except ValueError:
+                continue
+        return False
+
+    def _artifact_ref(self, path: Path) -> str:
+        """Root-relative text for install-tree artifacts (unchanged), a
+        ``sovereign-state://`` pointer for state-dir artifacts (SW-25)."""
+
+        resolved = path.resolve()
+        try:
+            return resolved.relative_to(self.root).as_posix()
+        except ValueError:
+            pass
+        try:
+            return state_artifact_pointer(resolved, state_dir=self.state_dir)
+        except (UnsafeArtifactPointer, ValueError) as exc:
+            raise SemanticDeepError(
+                f"artifact path escaped product root and state dir: {resolved}"
+            ) from exc
 
     def cancel(self, session_id: str) -> bool:
         session_id = _validate_session_id(session_id)
@@ -2141,14 +2162,14 @@ class SemanticDeepExecutor:
                 "completed_at": completed_at,
                 "latency_seconds": max(0.0, self._monotonic() - started),
                 "artifacts": {
-                    "prompt": _safe_relative(prompt_path, self.root),
-                    "output": _safe_relative(output_path, self.root),
+                    "prompt": self._artifact_ref(prompt_path),
+                    "output": self._artifact_ref(output_path),
                 },
             }
         )
         _atomic_json(record_path, record)
-        context.artifacts[f"turn_{turn_number:02d}"] = _safe_relative(
-            record_path, self.root
+        context.artifacts[f"turn_{turn_number:02d}"] = self._artifact_ref(
+            record_path
         )
         context.turns.append(record)
         self._emit(
@@ -2212,10 +2233,10 @@ class SemanticDeepExecutor:
         result_path = run_dir / "result.json"
         context.artifacts.update(
             {
-                "request": _safe_relative(request_path, self.root),
-                "evidence": _safe_relative(evidence_path, self.root),
-                "transcript": _safe_relative(transcript_path, self.root),
-                "result": _safe_relative(result_path, self.root),
+                "request": self._artifact_ref(request_path),
+                "evidence": self._artifact_ref(evidence_path),
+                "transcript": self._artifact_ref(transcript_path),
+                "result": self._artifact_ref(result_path),
             }
         )
         model_provenance_failure: str | None = None
@@ -2401,8 +2422,8 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(critique_path, critique_record)
-                context.artifacts["critique"] = _safe_relative(
-                    critique_path, self.root
+                context.artifacts["critique"] = self._artifact_ref(
+                    critique_path
                 )
 
                 synthesis_prompt = self.build_synthesis_prompt(
@@ -2465,8 +2486,8 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(verification_path, verification_record)
-                context.artifacts["verification_1"] = _safe_relative(
-                    verification_path, self.root
+                context.artifacts["verification_1"] = self._artifact_ref(
+                    verification_path
                 )
                 final_verdict = verdict
 
@@ -2543,8 +2564,8 @@ class SemanticDeepExecutor:
                         }
                     )
                     _atomic_json(verification_path, verification_record)
-                    context.artifacts["verification_2"] = _safe_relative(
-                        verification_path, self.root
+                    context.artifacts["verification_2"] = self._artifact_ref(
+                        verification_path
                     )
                     final_verdict = verdict
                 if not final_verdict["accept"] or local_issues:
@@ -2589,17 +2610,17 @@ class SemanticDeepExecutor:
                         "model_slate": self.model_slate,
                         "model_provenance": model_provenance,
                         "accepted_at": self._now(),
-                        "accepted_text_artifact": _safe_relative(
-                            accepted_text_path, self.root
+                        "accepted_text_artifact": self._artifact_ref(
+                            accepted_text_path
                         ),
                     }
                 )
                 _atomic_json(accepted_path, accepted_record)
-                context.artifacts["accepted"] = _safe_relative(
-                    accepted_path, self.root
+                context.artifacts["accepted"] = self._artifact_ref(
+                    accepted_path
                 )
-                context.artifacts["accepted_text"] = _safe_relative(
-                    accepted_text_path, self.root
+                context.artifacts["accepted_text"] = self._artifact_ref(
+                    accepted_text_path
                 )
                 final_answer = candidate
                 status = ExecutionStatus.ACCEPTED

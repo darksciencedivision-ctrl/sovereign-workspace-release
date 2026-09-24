@@ -24,7 +24,6 @@ from .paths import (
     PathResolutionError,
     ProductPaths,
     UnsafeArtifactPointer,
-    artifact_pointer,
     resolve_product_paths,
 )
 
@@ -47,7 +46,7 @@ _TERMINAL_CYCLE_STATUSES = {
 
 def _pointer(paths: ProductPaths, path: Path) -> str | None:
     try:
-        return artifact_pointer(path, root=paths.root)
+        return paths.pointer(path)
     except (PathResolutionError, UnsafeArtifactPointer):
         return None
 
@@ -338,7 +337,7 @@ def _resolve_introspection_backend(paths: ProductPaths) -> str:
     env = str(os.environ.get("SOVEREIGN_INFERENCE_BACKEND") or "").strip()
     if env:
         return normalize(env)
-    payload, _error = _read_json(paths.root / "runtime" / "backend_selection.json")
+    payload, _error = _read_json(paths.state_dir / "backend_selection.json")
     if isinstance(payload, dict):
         selected = str(payload.get("default_backend") or "").strip()
         if selected:
@@ -396,7 +395,7 @@ def _probe_llama_cpp(
     """
 
     configured = sorted({str(model).strip() for model in configured_models if str(model).strip()})
-    supervisor_dir = paths.root / "runtime" / "llamacpp_supervisor"
+    supervisor_dir = paths.state_dir / "llamacpp_supervisor"
     preset = _parse_models_ini(supervisor_dir / "models.ini")
     state_payload, _state_error = _read_json(supervisor_dir / "state.json")
     if preset is None and state_payload is None:
@@ -522,7 +521,7 @@ def _probe_llama_cpp(
 def _probe_freetoken(paths: ProductPaths, *, timeout: float) -> dict[str, Any]:
     """File/loopback state of the on-demand FreeToken supervisor (informational)."""
 
-    supervisor_dir = paths.root / "runtime" / "freetoken_supervisor"
+    supervisor_dir = paths.state_dir / "freetoken_supervisor"
     state_payload, state_error = _read_json(supervisor_dir / "state.json")
     autostart = (supervisor_dir / "AUTOSTART").is_file()
     if state_payload is None:

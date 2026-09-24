@@ -2,7 +2,7 @@
 
 Designation surface (no temporary shell variables required):
 
-    <root>/runtime/backend_selection.json
+    <runtime state dir>/backend_selection.json   (paths.resolve_runtime_dir; SW-25)
 
     {
       "schema": "sovereign.backend-selection.v1",
@@ -33,6 +33,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .paths import resolve_runtime_dir
 from .runtime_contracts import DEFAULT_INFERENCE_BACKEND, normalize_inference_backend
 
 
@@ -46,7 +47,7 @@ class BackendSelectionError(ValueError):
 
 
 def selection_path(root: Path) -> Path:
-    return Path(root) / "runtime" / "backend_selection.json"
+    return resolve_runtime_dir(root) / "backend_selection.json"
 
 
 def load_selection(root: Path) -> dict[str, Any]:

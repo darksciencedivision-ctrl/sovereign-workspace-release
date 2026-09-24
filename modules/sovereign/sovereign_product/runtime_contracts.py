@@ -185,7 +185,9 @@ def load_default_llama_cpp_api_key() -> str | None:
         root = find_sovereign_root(None)
     except Exception:
         return None
-    path = Path(root) / "runtime" / "llamacpp_supervisor" / "api_key"
+    from .paths import resolve_runtime_dir
+
+    path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "api_key"
     if not path.is_file():
         return None
     value = path.read_text(encoding="utf-8").strip()

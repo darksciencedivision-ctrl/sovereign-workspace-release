@@ -12,6 +12,7 @@ from typing import Any, Iterator
 
 import requests
 
+from .paths import resolve_runtime_dir
 from .runtime_contracts import RuntimeControlError, validate_loopback_origin
 
 
@@ -36,11 +37,11 @@ LOCK_STALE_SECONDS = 300.0
 
 
 def occupancy_path(root: Path) -> Path:
-    return root / "runtime" / "gpu_occupancy.json"
+    return resolve_runtime_dir(root) / "gpu_occupancy.json"
 
 
 def lock_path(root: Path) -> Path:
-    return root / "runtime" / "gpu_occupancy.lock"
+    return resolve_runtime_dir(root) / "gpu_occupancy.lock"
 
 
 def _utc_now() -> str:
@@ -201,7 +202,7 @@ def llama_cpp_api_key(root: Path) -> str | None:
     env = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
     if env:
         return env
-    path = root / "runtime" / "llamacpp_supervisor" / "api_key"
+    path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "api_key"
     if path.is_file():
         value = path.read_text(encoding="utf-8").strip()
         if value:

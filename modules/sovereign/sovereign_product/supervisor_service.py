@@ -16,6 +16,7 @@ from typing import Any
 
 from system_manifest import find_sovereign_root
 
+from .paths import resolve_runtime_dir
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import (
     build_operational_registry,
@@ -68,7 +69,7 @@ DETACHED_PROCESS = 0x00000008
 
 
 def service_dir(root: Path) -> Path:
-    return root / "runtime" / "llamacpp_supervisor"
+    return resolve_runtime_dir(root) / "llamacpp_supervisor"
 
 
 def state_path(root: Path) -> Path:

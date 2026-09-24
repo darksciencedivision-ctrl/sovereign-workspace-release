@@ -53,10 +53,10 @@ from .model_client import (
     OllamaClient,
 )
 from .paths import (
+    STATE_POINTER_PREFIX,
     PathResolutionError,
     ProductPaths,
     UnsafeArtifactPointer,
-    artifact_pointer,
     resolve_product_paths,
 )
 from .quality import (
@@ -603,7 +603,7 @@ class ProductService:
         )
         llama_key = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
         if not llama_key:
-            key_file = self.root / "runtime" / "llamacpp_supervisor" / "api_key"
+            key_file = self.paths.state_dir / "llamacpp_supervisor" / "api_key"
             if key_file.is_file():
                 llama_key = key_file.read_text(encoding="utf-8").strip()
         if not llama_key:
@@ -706,6 +706,7 @@ class ProductService:
             synthesizer_model=synthesizer,
             verifier_model=verifier,
             artifact_root=self.paths.evidence_dir / "semantic_deep",
+            state_dir=self.paths.state_dir,
             evidence_builder=self.evidence_builder,
             base_options=self._runtime_model_options(manifest),
         )
@@ -929,10 +930,15 @@ class ProductService:
                     if isinstance(recovery_artifact, str) and recovery_artifact:
                         if not execution_id:
                             return
-                        raw = Path(recovery_artifact)
-                        candidate = (
-                            raw if raw.is_absolute() else self.root / raw
-                        ).resolve(strict=True)
+                        if recovery_artifact.startswith(STATE_POINTER_PREFIX):
+                            candidate = self.paths.resolve_pointer(
+                                recovery_artifact, must_exist=True
+                            ).resolve(strict=True)
+                        else:
+                            raw = Path(recovery_artifact)
+                            candidate = (
+                                raw if raw.is_absolute() else self.root / raw
+                            ).resolve(strict=True)
                         if not candidate.is_file():
                             return
                         expected_request = (
@@ -951,10 +957,7 @@ class ProductService:
                             execution_id=execution_id,
                         ):
                             return
-                        safe["evidence_pointer"] = artifact_pointer(
-                            candidate,
-                            root=self.root,
-                        )
+                        safe["evidence_pointer"] = self.paths.pointer(candidate)
                     elif execution_id and bound_execution_id is None:
                         # The first semantic progress event must bind its exact
                         # request artifact before any recovery identity is
@@ -1132,7 +1135,7 @@ class ProductService:
             if not isinstance(value, (str, os.PathLike)) or not str(value):
                 continue
             text = str(value)
-            if text.startswith("sovereign://"):
+            if text.startswith(("sovereign://", STATE_POINTER_PREFIX)):
                 try:
                     self.paths.resolve_pointer(text, must_exist=True)
                 except (PathResolutionError, UnsafeArtifactPointer):
@@ -1153,10 +1156,7 @@ class ProductService:
                     resolved = candidate.resolve(strict=True)
                     if not resolved.is_file():
                         continue
-                    converted[str(key)] = artifact_pointer(
-                        resolved,
-                        root=self.root,
-                    )
+                    converted[str(key)] = self.paths.pointer(resolved)
                     break
                 except (
                     OSError,
@@ -1432,10 +1432,7 @@ class ProductService:
         if isinstance(store_state, dict):
             summary = store_state.get("summary")
             if isinstance(summary, dict) and "database" in summary:
-                summary["database"] = artifact_pointer(
-                    self.paths.db_path,
-                    root=self.root,
-                )
+                summary["database"] = self.paths.pointer(self.paths.db_path)
         return state
 
     def _self_answer(self, query: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -1498,7 +1495,7 @@ class ProductService:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
-        return artifact_pointer(target, root=self.root)
+        return self.paths.pointer(target)
 
     def _run_status_job(self, job_id: str, query: str) -> dict[str, Any]:
         job = self.store.transition_job(

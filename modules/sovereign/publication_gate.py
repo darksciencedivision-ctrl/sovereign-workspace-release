@@ -127,14 +127,18 @@ def _error(msg: str, lp: Optional[Path]) -> None:
 
 
 def _paths(root: Path) -> dict[str, Path]:
+    # SW-25: the published index is mutable state, so it lives under the state home.
+    from sovereign_product.paths import resolve_published_dir
+
+    published = resolve_published_dir(root)
     return {
         "session_graph": root / "orchestra" / "session_graph.json",
         "synthesis_log": root / "praxis" / "logs" / "synthesis.txt",
         "domain_file": root / "corpus" / "domain.txt",
         "pub_queue": root / "publication_queue",
-        "pub_index_dir": root / "published" / "index",
-        "gate_log": root / "published" / "index" / "gate_log.jsonl",
-        "pub_index": root / "published" / "index" / "index.jsonl",
+        "pub_index_dir": published / "index",
+        "gate_log": published / "index" / "gate_log.jsonl",
+        "pub_index": published / "index" / "index.jsonl",
         "log_file": root / "logs" / "publication_gate_log.txt",
     }
 

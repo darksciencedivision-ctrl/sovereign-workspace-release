@@ -11,6 +11,7 @@ from typing import Any
 from system_manifest import find_sovereign_root
 
 from .freetoken_supervisor import FreeTokenSupervisor, FreeTokenSupervisorConfig
+from .paths import resolve_runtime_dir
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import freetoken_installation
 
@@ -42,7 +43,7 @@ MOE_MODEL = Path(
 
 
 def service_dir(root: Path) -> Path:
-    return root / "runtime" / "freetoken_supervisor"
+    return resolve_runtime_dir(root) / "freetoken_supervisor"
 
 
 def state_path(root: Path) -> Path:
