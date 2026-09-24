@@ -308,3 +308,79 @@ def test_si_p6_health_counts_the_long_lane_separately_from_the_workers():
         thread("sovereign-worker-1"),
         SimpleNamespace(name=LONG_WORKER_NAME, is_alive=lambda: False)])
     assert ProductService.workers_ready(dead) is False
+
+
+# --- choosing the LONG model ----------------------------------------------------------------------
+
+def test_si_p6_model_directive_picks_a_configured_model(clean_env, tmp_path):
+    root = _root(tmp_path)
+    client = FakeLlama(context=8192)
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(10))
+    result = _executor(root, client).run(
+        "job-m1", f"@model: qwen3:30b-a3b\nCount entries.\n---\n{material}",
+        cancel_requested=lambda: False, progress_callback=lambda p: None)
+    assert result["status"] == "completed" and result["model"] == "qwen3:30b-a3b"
+    assert {c["model"] for c in client.chats} == {"qwen3:30b-a3b"}
+    assert all("@model" not in c["messages"][-1]["content"] for c in client.chats)
+
+
+def test_si_p6_without_a_directive_the_default_model_runs(clean_env, tmp_path):
+    root = _root(tmp_path)
+    client = FakeLlama()
+    result = _executor(root, client).run("job-m2", "Draft a rollout plan.",
+                                         cancel_requested=lambda: False,
+                                         progress_callback=lambda p: None)
+    assert result["model"] == LW.load_config(root).default_model
+    assert {c["model"] for c in client.chats} == {result["model"]}
+
+
+@pytest.mark.parametrize("text,match", [
+    ("@model: qwen3:14b\nDraft a plan.", "not configured for the LONG route"),
+    ("@model: ../../etc\nDraft a plan.", "not configured for the LONG route"),
+    ("@model:\nDraft a plan.", "needs a model name"),
+])
+def test_si_p6_model_directive_refuses_unconfigured_or_empty(clean_env, tmp_path, text, match):
+    root = _root(tmp_path)
+    client = FakeLlama()
+    with pytest.raises(LW.LongWorkloadError, match=match):
+        _executor(root, client).run("job-m3", text, cancel_requested=lambda: False,
+                                    progress_callback=lambda p: None)
+    assert client.chats == []
+
+
+def test_si_p6_model_directive_only_counts_on_the_first_line():
+    assert LW.split_model_directive("Plan it.\n@model: qwen3:30b-a3b") == (
+        None, "Plan it.\n@model: qwen3:30b-a3b")
+    assert LW.split_model_directive("  @model: qwen3:30b-a3b  \r\nPlan it.") == (
+        "qwen3:30b-a3b", "Plan it.")
+
+
+# --- progress through the product's monotonic filter ----------------------------------------------
+
+def test_si_p6_growing_task_lists_keep_n_of_n_progress_flowing(clean_env, tmp_path):
+    """Live: after the plan (1 of 1 -> 99%) every later update regressed and the product dropped it."""
+    from sovereign_product.server import ProductService
+
+    stored = []
+    store = SimpleNamespace(get_job=lambda job_id: {"job_id": job_id, "status": "running"},
+                            update_job_progress=lambda job_id, safe: stored.append(dict(safe)))
+    product_callback = ProductService._progress_callback(SimpleNamespace(store=store), "job-p")
+    sent = []
+
+    def executor_progress(update):
+        sent.append(dict(update))
+        product_callback(update)
+
+    root = _root(tmp_path)
+    result = _executor(root, FakeLlama()).run("job-p", "Draft a rollout plan.",
+                                              cancel_requested=lambda: False,
+                                              progress_callback=executor_progress)
+    assert result["status"] == "completed"
+    counted = [p for p in sent if "total" in p]
+    assert len(counted) > 4 and len(stored) == len(counted), "the product dropped progress updates"
+    assert [(p["current"], p["total"]) for p in stored] == [(p["current"], p["total"])
+                                                            for p in counted]
+    assert stored[-1]["total"] == result["telemetry"]["shards"] > 1
+    percents = [p["percent"] for p in stored]
+    assert percents == sorted(percents) and max(percents) <= 99
+    assert stored[1]["percent"] < 90, "finishing the plan is not nearly finishing the job"

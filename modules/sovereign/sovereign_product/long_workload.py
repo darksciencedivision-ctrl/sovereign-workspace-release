@@ -10,7 +10,8 @@ Ties the pieces together:
 * ``LongWorkloadExecutor`` runs a job: the message is the OBJECTIVE; material after a line ``---``
   is sharded map/reduce (``InputShardMode``); no material means agentic plan steps
   (``PlanStepMode``). Large inputs are referenced as ``@input: <file name>`` and read ONLY from the
-  state home's ``long_inputs`` inbox. The run lives under ``evidence/long/<job id>/``, so a product
+  state home's ``long_inputs`` inbox. An optional first line ``@model: <name>`` picks one of the
+  configured models (default: ``default_model``). The run lives under ``evidence/long/<job id>/``, so a product
   restart resumes it instead of starting over.
 
 LONG requires the llama.cpp backend: exact token counts and the hybrid split are llama.cpp
@@ -37,6 +38,23 @@ INBOX_DIRNAME = "long_inputs"
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 _MATERIAL_SPLIT = re.compile(r"^---[ \t]*$", re.MULTILINE)
 _INPUT_REF = re.compile(r"^\s*@input:\s*(?P<name>[A-Za-z0-9._ -]{1,128})\s*$")
+_MODEL_REF = re.compile(r"\A\s*@model:[ \t]*(?P<name>[^\r\n]*?)[ \t]*(?:\r?\n|\Z)")
+
+
+def split_model_directive(text: str) -> tuple[str | None, str]:
+    """``(model or None, rest)``: an optional first line ``@model: <name>`` picks the LONG model.
+
+    Only models configured in long_workload.json can be chosen (LongConfig.model refuses others),
+    so the choice never reaches a model the supervisor was not planned to serve. The directive is
+    part of the stored job text, so a resumed run re-reads the same choice.
+    """
+    match = _MODEL_REF.match(text)
+    if match is None:
+        return None, text
+    name = match.group("name").strip()
+    if not name:
+        raise LongWorkloadError("@model: needs a model name, e.g. '@model: qwen3:30b-a3b'")
+    return name, text[match.end():]
 
 
 class LongWorkloadError(ValueError):
@@ -216,8 +234,9 @@ class LongWorkloadExecutor:
     def run(self, job_id: str, text: str, *, cancel_requested: Callable[[], bool],
             progress_callback: Callable[[dict[str, Any]], None],
             model: str | None = None) -> dict[str, Any]:
+        requested, text = split_model_directive(text)
         objective, material = parse_request(text, self.root)
-        entry = self.config.model(model)
+        entry = self.config.model(model or requested)
         context = int(self.client.native_context_length(entry.model))
         port = LlamaModelPort(self.client, entry.model, context, thinking=entry.thinking,
                               cancel_requested=cancel_requested)
@@ -236,12 +255,18 @@ class LongWorkloadExecutor:
             mode = PlanStepMode(objective=objective, max_output_tokens=output_tokens)
             kind = "plan_steps"
 
+        high_water = [1]
+
         def progress(event: Mapping[str, Any]) -> None:
             done, total = event.get("done"), event.get("total")
             update: dict[str, Any] = {"stage": str(event.get("event") or "running")}
             if isinstance(done, int) and isinstance(total, int) and total > 0:
-                update.update(current=done, total=total,
-                              percent=max(1, min(99, int(done * 100 / total))))
+                # The task list GROWS (plan -> steps, map -> reduce rounds) and the product drops
+                # any update whose percent goes backwards, which froze "n of N" after the first
+                # task. Reserve one unit for work not yet known and never go backwards, so every
+                # current/total update is accepted.
+                high_water[0] = max(high_water[0], min(99, int(done * 100 / (total + 1))))
+                update.update(current=done, total=total, percent=high_water[0])
             try:
                 progress_callback(update)
             except Exception:
