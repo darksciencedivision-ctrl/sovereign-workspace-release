@@ -57,7 +57,12 @@
 param(
     [int] $Port = 5180,
     [switch] $NoBrowser,
-    [switch] $CheckOnly
+    [switch] $CheckOnly,
+    # SW-18: the llama.cpp supervisor is a PERSISTENT, attached service and outlives the shell by
+    # design. With this switch the launcher stops it on exit - but only if THIS launch started it
+    # and it is still provably that process (SW-08 identity); a supervisor that was already
+    # running, or was since restarted by someone else, is never touched.
+    [switch] $StopInferenceOnExit
 )
 
 $ErrorActionPreference = 'Stop'
@@ -421,6 +426,57 @@ if ($blocking.Count -gt 0) { exit 1 }
 
 # --- run ---------------------------------------------------------------------
 
+# SW-18: owned vs attached at exit. The shell writes a teardown receipt
+# (<workspace state root>\shell\logs\teardown-<utc>.json) listing each OWNED module it stopped
+# (graceful or forced) and each ATTACHED persistent service it left running. The launcher prints it
+# so "modules stop with the shell" is shown, not implied.
+$script:launchStartedUtc = [DateTime]::UtcNow
+$script:startedSupervisorPid = $null
+function Write-ShellTeardownReport {
+    $receiptDir = Join-Path (Get-SovereignWorkspaceStateBase) 'shell\logs'
+    $receipt = Get-ChildItem -LiteralPath $receiptDir -Filter 'teardown-*.json' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTimeUtc -ge $script:launchStartedUtc } |
+        Sort-Object Name | Select-Object -Last 1
+    if (-not $receipt) {
+        Write-Host "  No teardown receipt from this session: the shell did not exit through its own teardown (owned modules were stopped by its Job Object)." -ForegroundColor Yellow
+        return
+    }
+    $doc = Get-Content -LiteralPath $receipt.FullName -Raw | ConvertFrom-Json
+    foreach ($owned in @($doc.owned)) {
+        if ($null -eq $owned) { continue }
+        $how = if ($owned.graceful) { 'graceful' } else { 'FORCED' }
+        $color = if ($owned.graceful_contract_met) { 'DarkGray' } else { 'Yellow' }
+        $note = if ($owned.graceful_contract_met) { '' } else { ' - graceful shutdown contract NOT met' }
+        Write-Host "  owned    $($owned.module_id): stopped $how (exit $($owned.exit_code))$note" -ForegroundColor $color
+    }
+    foreach ($attached in @($doc.attached)) {
+        if ($null -eq $attached) { continue }
+        $state = if ($attached.left_running) { 'left running' } else { "observed $($attached.observed_state)" }
+        Write-Host "  attached $($attached.module_id): $state, not stopped by the shell." -ForegroundColor DarkGray
+    }
+    Write-Host "  Teardown receipt: $($receipt.FullName)" -ForegroundColor DarkGray
+}
+function Stop-LaunchOwnedSupervisor {
+    if (-not $script:startedSupervisorPid) {
+        Write-Host "  -StopInferenceOnExit: the llama.cpp supervisor was already running before this launch; left untouched." -ForegroundColor DarkGray
+        return
+    }
+    $supervisorPython = Join-Path $llamaSupervisorRoot '.venv\Scripts\python.exe'
+    $env:PYTHONPATH = $llamaSupervisorRoot + [IO.Path]::PathSeparator + [string]$env:PYTHONPATH
+    $statusText = (& $supervisorPython -m sovereign_product.supervisor_service --root $llamaSupervisorRoot status | Out-String)
+    $status = $null
+    try { $status = $statusText | ConvertFrom-Json } catch { }
+    # SW-08 identity: stop only the exact process this launch started (same pid AND the recorded
+    # creation time still matches - pid_owned), never a restarted or foreign one.
+    if ($status -and $status.pid_owned -and [int]$status.pid -eq $script:startedSupervisorPid) {
+        & (Join-Path $llamaSupervisorRoot 'Stop-LlamaCppSupervisor.ps1') -Root $llamaSupervisorRoot | Out-Null
+        Write-Host "  -StopInferenceOnExit: stopped the llama.cpp supervisor this launch started (pid $($script:startedSupervisorPid))." -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "  -StopInferenceOnExit: the running supervisor is not the process this launch started; left untouched." -ForegroundColor Yellow
+    }
+}
+
 # Audit SW-01: start the llama.cpp supervisor ONLY when llama.cpp/FreeToken is the selected backend.
 # When Ollama is selected the workspace attaches to Ollama on :11434 and this local service is not
 # needed, so requiring it would make "runs both, selectable" false through the supported launcher.
@@ -428,9 +484,23 @@ if ($usesLlama) {
     if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
         throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
     }
-    & $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
-    if ($LASTEXITCODE -ne 0) {
+    $supervisorOutput = & $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
+    $supervisorExit = $LASTEXITCODE
+    $supervisorText = ($supervisorOutput | Out-String)
+    if ($supervisorText.Trim()) { Write-Host $supervisorText.TrimEnd() }
+    if ($supervisorExit -ne 0) {
         throw "The local llama.cpp supervisor did not become ready."
+    }
+    # SW-18: record whether THIS launch started the supervisor or attached to one already running.
+    # Either way it is attached (not owned by the shell) and persists after the shell exits.
+    $supervisorDoc = $null
+    try { $supervisorDoc = $supervisorText | ConvertFrom-Json } catch { }
+    if ($supervisorDoc -and $supervisorDoc.started -eq $true -and $supervisorDoc.pid) {
+        $script:startedSupervisorPid = [int]$supervisorDoc.pid
+        Write-Host "  llama.cpp supervisor started by this launch (pid $($script:startedSupervisorPid)); persistent service, attached - it outlives the shell unless -StopInferenceOnExit." -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "  llama.cpp supervisor already running; attaching (not started or owned by this launch)." -ForegroundColor DarkGray
     }
 }
 else {
@@ -562,6 +632,18 @@ finally {
     # own code after the stop above. Never leave a stale $LASTEXITCODE.
     if ($null -eq $script:launcherExit) {
         $script:launcherExit = Get-SafeExitCode $proc
+    }
+    # SW-18: report what stopped with the shell (owned modules, from its teardown receipt) and
+    # what deliberately did not (attached persistent services). Reporting never changes the exit
+    # code.
+    try { Write-ShellTeardownReport } catch { Write-Host "  Teardown report unavailable: $($_.Exception.Message)" -ForegroundColor Yellow }
+    if ($usesLlama) {
+        if ($StopInferenceOnExit) {
+            try { Stop-LaunchOwnedSupervisor } catch { Write-Host "  -StopInferenceOnExit: $($_.Exception.Message)" -ForegroundColor Yellow }
+        }
+        else {
+            Write-Host "  llama.cpp supervisor left running: persistent service, attached (not owned by the shell). Stop it with modules\sovereign\Stop-LlamaCppSupervisor.ps1" -ForegroundColor DarkGray
+        }
     }
     Write-Host "  Stopped (exit $script:launcherExit)." -ForegroundColor Cyan
     Write-Host ""

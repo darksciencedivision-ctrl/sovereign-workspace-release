@@ -652,7 +652,9 @@ class ModuleRunner:
         with self._op_lock:
             gen = self._op_seq
         cfg = self.adapter.get("readiness", {})
-        up, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 500)
+        # A short probe: attached services are polled on the 5 s cadence, and a down service
+        # (the normal case when another backend is selected) must not stall the poll loop.
+        up, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 1, 250)
         if not up:
             self._observe_set(gen, None, STOPPED, "persistent service not running")
             return self.display

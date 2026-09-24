@@ -534,15 +534,25 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
 
 
 def _poll_loop(interval: float = 5.0):
-    """READY/DEGRADED every 5 s, everything else every 30 s (§7.7 idle-CPU budget)."""
+    """READY/DEGRADED every 5 s, everything else every 30 s (§7.7 idle-CPU budget).
+
+    SW-18: attached persistent services are observed at the 5 s cadence too, and once
+    immediately at startup, so the tile shows the service the operator started before the shell
+    (ATTACHED) rather than STOPPED for the first 30 s.
+    """
     tick = 0
+    first = True
     while True:
-        time.sleep(interval)
-        tick += 1
+        if not first:
+            time.sleep(interval)
+            tick += 1
         with ShellAPIHandler.lock:
             runners = list(ShellAPIHandler.states.values())
         for runner in runners:
-            if runner.state in (READY, DEGRADED):
+            if first:
+                if not getattr(runner, "attached", False):
+                    continue
+            elif runner.state in (READY, DEGRADED) or getattr(runner, "attached", False):
                 pass
             elif tick % 6 != 0:
                 continue
@@ -550,6 +560,7 @@ def _poll_loop(interval: float = 5.0):
                 runner.poll()
             except Exception:
                 pass
+        first = False
 
 
 def _run_selftest(port: int) -> int:

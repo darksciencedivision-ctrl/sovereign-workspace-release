@@ -232,6 +232,38 @@ if ($Live -and -not $SkipLiveShell) {
     } else {
         $prevBackendLive = $env:SOVEREIGN_INFERENCE_BACKEND
         $env:SOVEREIGN_INFERENCE_BACKEND = 'ollama'
+        # SW-18: stand up a stand-in ATTACHED persistent service on the llama.cpp port (only when the
+        # port is free), so this lane proves the supported-path shell observes it as ATTACHED,
+        # lists it under persistent_services, and leaves it running through its own teardown.
+        $attachedStub = $null
+        $attachedPort = 18080
+        $attachedBusy = $false
+        try { $probeClient = New-Object Net.Sockets.TcpClient; $probeClient.Connect('127.0.0.1', $attachedPort); $probeClient.Close(); $attachedBusy = $true } catch { }
+        if ($attachedBusy) {
+            Info "SW-18: port $attachedPort already in use (a real llama.cpp supervisor?); attached stand-in skipped"
+        } else {
+            $stubScript = Join-Path $work 'attached_stub.py'
+            Set-Content -LiteralPath $stubScript -Encoding ascii -Value @(
+                'from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer',
+                'class H(BaseHTTPRequestHandler):',
+                '    def do_GET(self):',
+                '        body = b''{"data": []}''',
+                '        self.send_response(200)',
+                '        self.send_header("Content-Type", "application/json")',
+                '        self.send_header("Content-Length", str(len(body)))',
+                '        self.end_headers()',
+                '        self.wfile.write(body)',
+                '    def log_message(self, *args):',
+                '        pass',
+                ('ThreadingHTTPServer(("127.0.0.1", {0}), H).serve_forever()' -f $attachedPort))
+            $attachedStub = Start-Process -FilePath $pyExe -ArgumentList (@($pyArgs) + @(('"{0}"' -f $stubScript))) -PassThru -WindowStyle Hidden
+            $stubUp = $false
+            for ($k = 0; $k -lt 40 -and -not $stubUp; $k++) {
+                Start-Sleep -Milliseconds 250
+                try { $null = Invoke-RestMethod -Uri "http://127.0.0.1:$attachedPort/models" -TimeoutSec 1; $stubUp = $true } catch { }
+            }
+            if (-not $stubUp) { Fail 'live-attached' "attached stand-in on port $attachedPort did not come up"; Stop-Process -Id $attachedStub.Id -Force -ErrorAction SilentlyContinue; $attachedStub = $null }
+        }
         $liveOut = Join-Path $work 'live-shell.out.log'
         $liveErr = Join-Path $work 'live-shell.err.log'
         # Run the launcher in its own hidden powershell so the whole tree is ours to observe/stop.
@@ -285,6 +317,24 @@ if ($Live -and -not $SkipLiveShell) {
                         elseif ($liveMods.Count -lt 5) { Fail 'live-supported-modules' "expected the full module set, got $($liveMods.Count)" }
                         else { Ok 'live-supported-modules' "/api/state lists $($liveMods.Count) modules through the supported path, no load errors" }
                     } catch { Fail 'live-supported-modules' "GET /api/state failed on the supported-path shell" }
+                    if ($attachedStub) {
+                        $attachedState = $null
+                        $persistentIds = @()
+                        for ($j = 0; $j -lt 30; $j++) {
+                            try {
+                                $stateNow = Invoke-RestMethod -Uri "http://127.0.0.1:$livePort/api/state" -TimeoutSec 2 -Headers $liveHost
+                                $attachedState = [string]$stateNow.modules.llamacpp.state
+                                $persistentIds = @($stateNow.persistent_services | ForEach-Object { [string]$_.id })
+                            } catch { }
+                            if ($attachedState -eq 'ATTACHED') { break }
+                            Start-Sleep -Milliseconds 500
+                        }
+                        if ($attachedState -eq 'ATTACHED' -and ($persistentIds -contains 'llamacpp')) {
+                            Ok 'live-attached' "llamacpp observed as ATTACHED and listed under persistent_services (not owned by the shell)"
+                        } else {
+                            Fail 'live-attached' "llamacpp state '$attachedState', persistent_services [$($persistentIds -join ',')]"
+                        }
+                    }
                 }
             }
         } finally {
@@ -306,6 +356,18 @@ if ($Live -and -not $SkipLiveShell) {
                 try { Get-Process -Id ([int]$shellInfo.pid) -ErrorAction Stop | Out-Null; $pidGone = $false } catch {}
                 if ($stillListening -or -not $pidGone) { Fail 'live-teardown' "supported-path shell did not fully stop (port held or pid alive)" }
                 else { Ok 'live-teardown' "supported-path shell and its port $livePort released after teardown" }
+            }
+            if ($attachedStub) {
+                # SW-18: the shell's teardown (and its Job Object) must not have touched the attached
+                # service: same process, still answering.
+                $stubAnswers = $false
+                try { $stubReply = Invoke-RestMethod -Uri "http://127.0.0.1:$attachedPort/models" -TimeoutSec 2; $stubAnswers = $stubReply.PSObject.Properties.Name -contains 'data' } catch { }
+                if (-not $attachedStub.HasExited -and $stubAnswers) {
+                    Ok 'live-attached-untouched' "attached service (pid $($attachedStub.Id)) still running after shell teardown"
+                } else {
+                    Fail 'live-attached-untouched' "attached service was stopped or stopped answering during shell teardown"
+                }
+                Stop-Process -Id $attachedStub.Id -Force -ErrorAction SilentlyContinue
             }
         }
     }
