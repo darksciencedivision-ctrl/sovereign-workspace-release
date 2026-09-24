@@ -188,7 +188,7 @@ def derive_envelope(results: Mapping[str, Any], profiles: Mapping[str, Any]) -> 
 
     scenarios: dict[str, Any] = {}
     # Every ladder step is REPORTED; only the contiguous run of passing steps from the bottom
-    # counts toward the limit. An unmeasured step ends the run - it is never extrapolated.
+    # counts. An unmeasured step ends the run - it is never extrapolated.
     context_limit, contiguous = 0, True
     for step in profile["ladder"]["context_tokens"]:
         summary = summarize_runs(pick(scenario="context", context_tokens=step))
@@ -221,6 +221,18 @@ def derive_envelope(results: Mapping[str, Any], profiles: Mapping[str, Any]) -> 
                  <= slo["cancel_p95_seconds"])
     observed_output = max((s.get("tokens_max") or 0) for s in scenarios.values()
                           if isinstance(s, Mapping) and "tokens_max" in s)
+    # The enforced context limit is the WINDOW the product actually ran with during the
+    # measurement (its configured num_ctx), qualified only if the prompt ladder passed at all.
+    # The ladder step is a PROMPT size; the product's own conservative input bound decides how
+    # much of the window a prompt may use, so the largest passing prompt is reported separately
+    # and never compared against a configured window.
+    runtime = results.get("runtime") or {}
+    measured_window = runtime.get("num_ctx")
+    if measured_window is None:
+        start = runtime.get("qualification_at_start") or {}
+        measured_window = (start.get("config") or {}).get("num_ctx")
+    if isinstance(measured_window, bool) or not isinstance(measured_window, int):
+        raise QualificationError("results.runtime does not record the measured num_ctx")
     return {
         "schema": ENVELOPE_SCHEMA,
         "profile": profile["id"],
@@ -232,17 +244,19 @@ def derive_envelope(results: Mapping[str, Any], profiles: Mapping[str, Any]) -> 
         "results_file": results.get("results_file"),
         "limits": {
             # Enforced by the gate: a configuration above these is REJECTED.
-            "context_tokens": context_limit,
+            "context_tokens": measured_window if context_limit > 0 else 0,
             "concurrent_jobs": concurrency_limit,
         },
+        "qualified_prompt_tokens": context_limit,
         "qualified_workflows": {
             "QUICK": context_limit > 0,
             "DEEP": deep_ok,
             "cancellation": cancel_ok,
         },
-        # Reported, not enforced: the largest output actually produced. A configured
-        # MAX_OUTPUT_TOKENS above it has not been exercised and is flagged UNQUALIFIED.
-        "observed_max_output_tokens": observed_output,
+        # Reported, not enforced: the largest task the product metered (its `tokens` job metric
+        # counts input + output). A configured MAX_OUTPUT_TOKENS above it was certainly not
+        # exercised and is flagged UNQUALIFIED.
+        "observed_max_task_tokens": observed_output,
         "resources": results.get("resources") or {},
         "slo": dict(slo),
         "scenarios": scenarios,
@@ -315,13 +329,13 @@ def evaluate(root: str | os.PathLike[str] | Path, *, backend: str, primary_model
     if workers > limits["concurrent_jobs"]:
         reasons.append(f"{workers} concurrent job worker(s) exceed the measured envelope "
                        f"({limits['concurrent_jobs']})")
-    observed = envelope.get("observed_max_output_tokens") or 0
+    observed = envelope.get("observed_max_task_tokens") or 0
     if num_predict > observed:
         unqualified.append("max_output_tokens")
     verdict = REJECTED if reasons else QUALIFIED
     if not reasons and unqualified:
-        reasons.append(f"max output {num_predict} tokens not exercised (largest measured "
-                       f"{observed}); reported, not enforced")
+        reasons.append(f"max output {num_predict} tokens not exercised (largest task "
+                       f"measured {observed} tokens, input + output); reported, not enforced")
     return {"verdict": verdict, "profile": profile["id"], "config": config, "reasons": reasons,
             "unqualified": unqualified, "limits": dict(limits),
             "measured_utc": envelope.get("measured_utc")}
@@ -363,6 +377,92 @@ def apply_envelope(root: str | os.PathLike[str] | Path,
                                   for k in ("CONTEXT_WINDOW", "MAX_OUTPUT_TOKENS")}}
 
 
+def _fmt(value: Any, digits: int = 1) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.{digits}f}"
+    return str(value)
+
+
+def render_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> str:
+    """A Markdown qualification report rendered mechanically from results + derived envelope."""
+    slo = envelope["slo"]
+    gpu = (envelope.get("hardware") or {}).get("gpu") or {}
+    resources = envelope.get("resources") or {}
+    lines = [
+        f"# Qualification report - {envelope['profile']}",
+        "",
+        f"- Measured: {results.get('started_utc')} -> {envelope.get('measured_utc')} (UTC)",
+        f"- Backend / primary model: {envelope['backend']} / {envelope['primary_model']}",
+        f"- Hardware: {gpu.get('name', 'unknown GPU')} "
+        f"({gpu.get('memory_total_mib', '?')} MiB VRAM); "
+        f"{(envelope.get('hardware') or {}).get('platform', '')}",
+        f"- Product: {(envelope.get('runtime') or {}).get('product_version')} "
+        f"(workers {(envelope.get('runtime') or {}).get('worker_count')}); "
+        f"repetitions per step: {results.get('repetitions')}",
+        f"- SLOs: failure rate <= {slo['max_failure_rate']}, QUICK p95 <= "
+        f"{slo['quick_p95_seconds']} s, DEEP p95 <= {slo['deep_p95_seconds']} s, cancel p95 <= "
+        f"{slo['cancel_p95_seconds']} s",
+        "",
+        "## Envelope (enforced)",
+        "",
+        f"- Qualified context window (the num_ctx measured): "
+        f"**{envelope['limits']['context_tokens']} tokens**",
+        f"- Largest prompt meeting the SLOs through the product: "
+        f"**~{envelope.get('qualified_prompt_tokens')} tokens**",
+        f"- Qualified concurrent jobs: **{envelope['limits']['concurrent_jobs']}**",
+        f"- Qualified workflows: "
+        + ", ".join(f"{k}={'yes' if v else 'NO'}"
+                    for k, v in envelope["qualified_workflows"].items()),
+        f"- Largest task observed (input + output, the product's job metric): "
+        f"{envelope['observed_max_task_tokens']} tokens (a configured MAX_OUTPUT_TOKENS above "
+        "this is reported UNQUALIFIED)",
+        f"- Peak VRAM: {_fmt(resources.get('peak_vram_mib'))} MiB (baseline "
+        f"{_fmt((resources.get('baseline') or {}).get('vram_mib'))}); peak system RAM in use: "
+        f"{_fmt(resources.get('peak_system_ram_used_mib'))} of "
+        f"{_fmt(resources.get('ram_total_mib'))} MiB",
+        "",
+        "## End-to-end latency through the product",
+        "",
+        ("| Scenario | Runs | Completed | Failure rate | p50 s | p95 s | max s | task tokens/s p50 "
+         "| max task tokens |"),
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for name, summary in envelope["scenarios"].items():
+        if name == "cancel":
+            continue
+        lines.append(
+            f"| {name} | {summary['runs']} | {summary['completed']} | "
+            f"{_fmt(summary['failure_rate'], 2)} | {_fmt(summary['latency_p50_seconds'])} | "
+            f"{_fmt(summary['latency_p95_seconds'])} | {_fmt(summary['latency_max_seconds'])} | "
+            f"{_fmt(summary['throughput_tokens_per_second_p50'], 2)} | "
+            f"{_fmt(summary['tokens_max'])} |")
+    cancel = envelope["scenarios"].get("cancel") or {}
+    lines += [
+        "",
+        "## Cancellation",
+        "",
+        f"- {cancel.get('cancelled', 0)} of {cancel.get('runs', 0)} mid-flight cancellations "
+        f"reached `cancelled`; cancel-to-terminal p50 {_fmt(cancel.get('cancel_p50_seconds'))} s, "
+        f"p95 {_fmt(cancel.get('cancel_p95_seconds'))} s",
+        "",
+        "## Failures",
+        "",
+    ]
+    failures = [r for r in results.get("runs", []) if r.get("status") not in
+                ("completed", "cancelled")]
+    if not failures:
+        lines.append("- none")
+    for run in failures:
+        lines.append(f"- {run.get('scenario')} ({run.get('context_tokens') or run.get('concurrency') or ''})"
+                     f": {run.get('status')} after {_fmt(run.get('latency_seconds'))} s - "
+                     f"{str(run.get('error') or '')[:200]}")
+    lines += ["", "Rendered by `python -m sovereign_product.qualification report` from "
+              f"`{results.get('results_file')}`.", ""]
+    return "\n".join(lines)
+
+
 # --- CLI ------------------------------------------------------------------------------------------
 
 def _utc_now() -> str:
@@ -389,6 +489,9 @@ def main(argv: list[str] | None = None) -> int:
     derive.add_argument("--write", action="store_true", help="install it in the state home")
     apply = sub.add_parser("apply", help="install the envelope and lower runtime limits to fit it")
     apply.add_argument("--results", required=True)
+    report = sub.add_parser("report", help="render the Markdown qualification report")
+    report.add_argument("--results", required=True)
+    report.add_argument("--out", required=True)
     check = sub.add_parser("check", help="gate a configuration against the envelope")
     check.add_argument("--backend", required=True)
     check.add_argument("--primary-model", required=True)
@@ -417,15 +520,21 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"ok": True, "results": str(out), "runs": len(results["runs"])}))
             return 0
         if args.command == "derive":
-            results = json.loads(Path(args.results).read_text(encoding="utf-8"))
+            results = json.loads(Path(args.results).read_text(encoding="utf-8-sig"))
             envelope = derive_envelope(results, load_profiles(root))
             if args.write:
                 envelope["installed_utc"] = _utc_now()
                 print(json.dumps({"envelope": str(write_envelope(root, envelope))}))
             print(json.dumps(envelope, indent=2, sort_keys=True))
             return 0
+        if args.command == "report":
+            results = json.loads(Path(args.results).read_text(encoding="utf-8-sig"))
+            envelope = derive_envelope(results, load_profiles(root))
+            Path(args.out).write_text(render_report(envelope, results), encoding="utf-8")
+            print(json.dumps({"report": args.out}))
+            return 0
         if args.command == "apply":
-            results = json.loads(Path(args.results).read_text(encoding="utf-8"))
+            results = json.loads(Path(args.results).read_text(encoding="utf-8-sig"))
             envelope = derive_envelope(results, load_profiles(root))
             envelope["installed_utc"] = _utc_now()
             print(json.dumps(apply_envelope(root, envelope), indent=2, sort_keys=True))

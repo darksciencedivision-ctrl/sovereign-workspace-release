@@ -644,7 +644,16 @@ class ProductService:
     @staticmethod
     def _runtime_model_options(
         manifest: Mapping[str, Any],
+        models_in_use: tuple[str, ...] | None = None,
     ) -> dict[str, int]:
+        """Generation options every model in ``models_in_use`` can actually serve.
+
+        SW-27: DEEP runs several models with ONE set of base options. The window used to be
+        derived from the primary reasoner alone, so a slate member with a smaller configured
+        cap (qwen2.5:14b-instruct 32768, qwen3:8b 16384) failed its capability check and every
+        DEEP run failed on the shipped configuration. The effective window is now the smallest
+        cap across every model that will receive these options (default: the primary).
+        """
         runtime = manifest.get("RUNTIME")
         runtime_values = dict(runtime) if isinstance(runtime, Mapping) else {}
         context_window = runtime_values.get("CONTEXT_WINDOW")
@@ -676,13 +685,16 @@ class ProductService:
             configured_primary = models.get("PRIMARY_REASONER")
             if isinstance(configured_primary, str) and configured_primary.strip():
                 primary = configured_primary.strip()
-        resolution = context_resolution(primary)
-        effective = resolution.get("effective_cap") or resolution.get("configured")
-        if not isinstance(effective, int) or effective < 4_096:
-            raise ServiceConfigurationError(
-                f"no enforceable context cap for {primary}; declared "
-                f"{context_window} is not treated as supported"
-            )
+        effective = None
+        for model in models_in_use or (primary,):
+            resolution = context_resolution(model)
+            cap = resolution.get("effective_cap") or resolution.get("configured")
+            if not isinstance(cap, int) or cap < 4_096:
+                raise ServiceConfigurationError(
+                    f"no enforceable context cap for {model}; declared "
+                    f"{context_window} is not treated as supported"
+                )
+            effective = cap if effective is None else min(effective, cap)
         if context_window > effective:
             num_ctx = effective
         else:
@@ -722,7 +734,10 @@ class ProductService:
             artifact_root=self.paths.evidence_dir / "semantic_deep",
             state_dir=self.paths.state_dir,
             evidence_builder=self.evidence_builder,
-            base_options=self._runtime_model_options(manifest),
+            base_options=self._runtime_model_options(
+                manifest,
+                tuple(dict.fromkeys((primary, synthesizer, critic, verifier))),
+            ),
         )
 
     def _write_model_overrides(self, updates: Mapping[str, str]) -> None:

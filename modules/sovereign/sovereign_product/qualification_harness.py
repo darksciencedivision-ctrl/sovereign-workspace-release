@@ -231,6 +231,17 @@ class ResourceSampler:
                 "note": "system-wide peaks sampled once a second during the run"}
 
 
+def slate_models(slate: Any) -> set[str]:
+    """Every model named in the product's DEEP slate (critic/synthesizer/verifier/members)."""
+    if not isinstance(slate, Mapping):
+        return set()
+    names = {slate.get(key) for key in ("critic", "synthesizer", "verifier")}
+    for member in slate.get("members") or []:
+        if isinstance(member, Mapping):
+            names.add(member.get("model"))
+    return {name for name in names if isinstance(name, str) and name.strip()}
+
+
 def unload_ollama_models(ollama_url: str, models: list[str]) -> list[str]:
     unloaded = []
     for model in models:
@@ -265,9 +276,7 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
 
     with ResourceSampler() as sampler:
         backend = str(profile["backend"]).lower()
-        models = sorted(set((health.get("deep_model_slate") or {}).values())
-                        | {profile["primary_model"]}) if isinstance(
-            health.get("deep_model_slate"), Mapping) else [profile["primary_model"]]
+        models = sorted(slate_models(health.get("deep_model_slate")) | {profile["primary_model"]})
         cold_note = "first request of the run"
         if backend == "ollama":
             unload_ollama_models(ollama_url, models)
@@ -315,6 +324,10 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
         "hardware": {"platform": platform.platform(), "machine": platform.machine(),
                      "processor": platform.processor(), "gpu": sampler.gpu},
         "runtime": {"backend": profile["backend"], "primary_model": profile["primary_model"],
+                    "num_ctx": ((health.get("qualification") or {}).get("config") or {}).get(
+                        "num_ctx"),
+                    "num_predict": ((health.get("qualification") or {}).get("config") or {}).get(
+                        "num_predict"),
                     "deep_model_slate": health.get("deep_model_slate"),
                     "product_version": health.get("product_version"),
                     "worker_count": health.get("worker_count"),

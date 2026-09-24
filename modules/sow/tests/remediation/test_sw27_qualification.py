@@ -75,7 +75,7 @@ def _results(**overrides):
     runs += [_run("deep", latency=1200.0, tokens=6000)]
     doc = {"schema": Q.RESULTS_SCHEMA, "profile": "ollama-production-slate",
            "finished_utc": "2026-09-24T00:00:00Z", "hardware": {"gpu": {"name": "test"}},
-           "runtime": {}, "resources": {"peak_vram_mib": 7000}, "runs": runs}
+           "runtime": {"num_ctx": 40960}, "resources": {"peak_vram_mib": 7000}, "runs": runs}
     doc.update(overrides)
     return doc
 
@@ -107,11 +107,13 @@ def test_sw27_malformed_profiles_fail_closed(mutate, match):
 
 def test_sw27_envelope_is_the_largest_contiguous_ladder_step_meeting_the_slo():
     envelope = Q.derive_envelope(_results(), SHIPPED_PROFILES)
-    assert envelope["limits"] == {"context_tokens": 8192, "concurrent_jobs": 2}
+    # The enforced window is the num_ctx measured; the passing prompt size is reported apart.
+    assert envelope["limits"] == {"context_tokens": 40960, "concurrent_jobs": 2}
+    assert envelope["qualified_prompt_tokens"] == 8192
     assert envelope["scenarios"]["context_16384"]["latency_p95_seconds"] == 900.0
     assert envelope["scenarios"]["context_32768"]["runs"] == 0  # never extrapolated
     assert envelope["qualified_workflows"] == {"QUICK": True, "DEEP": True, "cancellation": True}
-    assert envelope["observed_max_output_tokens"] == 6000
+    assert envelope["observed_max_task_tokens"] == 6000
     assert envelope["scenarios"]["quick_cold"]["latency_p50_seconds"] == 80.0
 
 
@@ -120,7 +122,15 @@ def test_sw27_failures_above_the_slo_rate_disqualify_a_step():
     for run in results["runs"]:
         if run["scenario"] == "context" and run["context_tokens"] == 2048:
             run["status"] = "failed"
-    assert Q.derive_envelope(results, SHIPPED_PROFILES)["limits"]["context_tokens"] == 0
+    envelope = Q.derive_envelope(results, SHIPPED_PROFILES)
+    assert envelope["limits"]["context_tokens"] == 0 and envelope["qualified_prompt_tokens"] == 0
+
+
+def test_sw27_results_without_the_measured_window_are_refused():
+    results = _results()
+    results["runtime"] = {}
+    with pytest.raises(Q.QualificationError, match="num_ctx"):
+        Q.derive_envelope(results, SHIPPED_PROFILES)
 
 
 def test_sw27_a_cancel_that_does_not_cancel_is_not_qualified():
@@ -156,8 +166,9 @@ def test_sw27_configuration_above_the_measured_envelope_is_rejected(clean_env, t
     root = _install(tmp_path)
     Q.write_envelope(root, Q.derive_envelope(_results(), SHIPPED_PROFILES))
     assert _evaluate(root)["verdict"] == Q.QUALIFIED
-    over_ctx = _evaluate(root, num_ctx=40960)
-    assert over_ctx["verdict"] == Q.REJECTED and "40960" in over_ctx["reasons"][0]
+    assert _evaluate(root, num_ctx=40960)["verdict"] == Q.QUALIFIED  # exactly what was measured
+    over_ctx = _evaluate(root, num_ctx=65536)
+    assert over_ctx["verdict"] == Q.REJECTED and "65536" in over_ctx["reasons"][0]
     assert _evaluate(root, workers=3)["verdict"] == Q.REJECTED
     output = _evaluate(root, num_predict=32000)
     assert output["verdict"] == Q.QUALIFIED and output["unqualified"] == ["max_output_tokens"]
@@ -176,11 +187,11 @@ def test_sw27_apply_installs_envelope_and_lowers_limits_downward_only(clean_env,
     envelope = Q.derive_envelope(_results(), SHIPPED_PROFILES)
     shipped_before = (root / "SYSTEM_MANIFEST.json").read_bytes()
     applied = Q.apply_envelope(root, envelope)
-    assert applied["effective_runtime"] == {"CONTEXT_WINDOW": 8192, "MAX_OUTPUT_TOKENS": 4096}
+    assert applied["effective_runtime"] == {"CONTEXT_WINDOW": 40960, "MAX_OUTPUT_TOKENS": 20480}
     assert (root / "SYSTEM_MANIFEST.json").read_bytes() == shipped_before
     assert Q.envelope_path(root).is_file()
     effective = SM.load_system_manifest(manifest_path=root / "SYSTEM_MANIFEST.json")
-    assert effective["RUNTIME"]["CONTEXT_WINDOW"] == 8192
+    assert effective["RUNTIME"]["CONTEXT_WINDOW"] == 40960
 
 
 def test_sw27_apply_refuses_a_profile_that_failed_below_the_product_minimum(clean_env, tmp_path):
@@ -303,3 +314,43 @@ def test_sw27_context_prompt_targets_the_requested_size_within_input_limits():
     assert abs(len(prompt) - 26214 * H.CHARS_PER_TOKEN) < 200
     from sovereign_product.server import MAX_INPUT_CHARACTERS
     assert len(H.context_prompt(int(32768 * 0.8))) <= MAX_INPUT_CHARACTERS
+
+
+def test_sw27_harness_reads_every_model_from_the_products_deep_slate():
+    # The real /v1/health shape: nested members and generation constraints, not a flat mapping.
+    slate = {"critic": "qwen3:8b", "synthesizer": "qwen2.5:14b-instruct", "verifier": "qwen3:32b",
+             "members": [{"model": "qwen3:14b", "role_id": "a", "think": False},
+                         {"model": "qwen2.5:14b-instruct", "role_id": "b", "think": None}],
+             "generation_constraints": {"think_by_model": {"qwen3:14b": False}}}
+    assert H.slate_models(slate) == {"qwen3:8b", "qwen2.5:14b-instruct", "qwen3:32b", "qwen3:14b"}
+    assert H.slate_models(None) == set()
+
+
+def test_sw27_report_is_rendered_from_the_results_and_envelope():
+    results = _results(results_file="r.json", started_utc="2026-09-24T00:00:00Z", repetitions=3)
+    results["runs"].append(_run("context", status="failed", latency=5.0, context_tokens=32768,
+                                error="model out of memory"))
+    envelope = Q.derive_envelope(results, SHIPPED_PROFILES)
+    text = Q.render_report(envelope, results)
+    assert "Qualified context window (the num_ctx measured): **40960 tokens**" in text
+    assert "Largest prompt meeting the SLOs through the product: **~8192 tokens**" in text
+    assert "| context_16384 | 3 | 3 |" in text
+    assert "DEEP=yes" in text and "cancellation=yes" in text
+    assert "model out of memory" in text
+    assert "`r.json`" in text
+
+
+def test_sw27_deep_options_fit_every_model_in_the_slate():
+    # Found by the first real qualification run: DEEP sent the primary's 40960 window to
+    # qwen2.5:14b-instruct (cap 32768) and every DEEP run failed its capability check.
+    from sovereign_product.server import ProductService
+
+    manifest = json.loads((SOV_ROOT / "SYSTEM_MANIFEST.json").read_text(encoding="utf-8-sig"))
+    quick = ProductService._runtime_model_options(manifest)
+    deep = ProductService._runtime_model_options(
+        manifest, ("qwen3:14b", "qwen2.5:14b-instruct", "qwen3:8b", "qwen3:32b"))
+    from sovereign_product.runtime_registry import context_resolution
+    caps = [context_resolution(m)["effective_cap"] for m in
+            ("qwen3:14b", "qwen2.5:14b-instruct", "qwen3:8b", "qwen3:32b")]
+    assert quick["num_ctx"] == context_resolution("qwen3:14b")["effective_cap"]
+    assert deep["num_ctx"] == min(caps) and deep["num_predict"] < deep["num_ctx"]
