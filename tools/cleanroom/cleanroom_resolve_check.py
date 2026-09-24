@@ -107,6 +107,17 @@ def check_dist(dist: str) -> dict:
             results.append(r)
             continue
 
+        if a.get("lifecycle") == "attached":
+            # SW-18: an attached persistent service has no shell launch to resolve; only its
+            # root (and the probe endpoints) are compiled. Scan what exists for build-host leaks.
+            blob = json.dumps([a["root"], a.get("readiness", {}), a.get("identity", {})])
+            leaked = [m for m in BUILD_HOST_MARKERS if m in blob]
+            r["status"] = "FAIL" if leaked else "INFO"
+            r["detail"] = (f"build-host path leaked into attached-service config: {leaked}"
+                           if leaked else "attached persistent service (observed, not launched)")
+            results.append(r)
+            continue
+
         launch = a["launch"]
         argv = launch["argv"]
         root = a["root"]

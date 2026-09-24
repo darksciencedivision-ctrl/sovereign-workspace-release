@@ -23,6 +23,9 @@ READY = "READY"
 DEGRADED = "DEGRADED"
 FAILED = "FAILED"
 EXTERNAL = "EXTERNAL"
+# SW-18: an ATTACHED module's persistent service is up and identified. Not READY: the shell does
+# not own that process, will not stop it, and it outlives the shell by design.
+ATTACHED = "ATTACHED"
 CONFIG_ERROR = "CONFIG_ERROR"
 
 # G17 failure vocabulary - ten classes, defined once and reused (CP-M1 O-2). A FAILED
@@ -171,6 +174,8 @@ class ModuleRunner:
         self._op_lock = threading.RLock()
         self._op_seq = 0
         self._current_op = None
+        # SW-18: owned (launched and stopped by this shell) or attached (observed only).
+        self.lifecycle = adapter.get("lifecycle", "owned")
         if "error" in adapter:
             self.state = CONFIG_ERROR
             self.reason = adapter.get("reason", "Unknown")
@@ -178,6 +183,18 @@ class ModuleRunner:
             self.state = NOT_STARTED
         else:
             self.state = STOPPED
+
+    @property
+    def attached(self) -> bool:
+        return self.lifecycle == "attached"
+
+    def attached_refusal(self, action: str) -> str:
+        """The operator-facing reason an attached service refuses a lifecycle action (SW-18)."""
+        service = self.adapter.get("service") or {}
+        hint = service.get("stop_hint" if action in ("stop", "restart") else "start_hint", "")
+        message = (f"Refused: {self.adapter.get('display_name', self.id)} is an attached "
+                   f"persistent service; this shell never {action}s a process it does not own.")
+        return f"{message} {hint}".strip()
 
     # -- presentation -------------------------------------------------------
     @property
@@ -371,6 +388,9 @@ class ModuleRunner:
         proceeds while that operation still owns it. `op=None` keeps the self-contained path used
         by the startup test and the deterministic suite: admit here, atomically.
         """
+        if self.attached:
+            # SW-18: never spawn a process for a service this shell does not own.
+            return self.display, self.attached_refusal("start")
         if op is None:
             with self._op_lock:
                 if self.state not in (STOPPED, FAILED):
@@ -529,6 +549,10 @@ class ModuleRunner:
         start still inside its readiness probe can publish nothing afterwards, and so a stop
         issued during startup is terminal rather than a no-op the start then undoes.
         """
+        if self.attached:
+            # SW-18: an attached service is never stopped by the shell; its state is an
+            # observation, and Stop does not change what is observed.
+            return self.display
         with self._op_lock:
             if self.state in (STOPPED, NOT_STARTED, CONFIG_ERROR):
                 return self.display
@@ -549,7 +573,7 @@ class ModuleRunner:
         that it no longer owns the module at its next checkpoint and publishes nothing.
         """
         with self._op_lock:
-            if self.state != STARTING:
+            if self.state != STARTING or self.attached:
                 return self.display
             self._supersede()
         self.supervisor.stop(self.id, self.adapter.get("stop", {}).get("grace_s", 5))
@@ -575,6 +599,8 @@ class ModuleRunner:
             # STARTING belongs to an operation that is still running. A poll that touched it
             # would race the start's own publication.
             return self.display
+        if self.attached:
+            return self._probe_attached()
         ph = self.supervisor.get_process(self.id)
 
         if state0 in (READY, DEGRADED):
@@ -616,6 +642,26 @@ class ModuleRunner:
             alive = ph.is_alive()
             return alive, ("" if alive else "process exited")
         return False, "unknown readiness kind"
+
+    def _probe_attached(self):
+        """SW-18: (attached) -> ATTACHED | STOPPED("not running") | FAILED(PORT_OCCUPIED_UNRECOGNIZED).
+
+        The service is observed, never owned: the endpoint is probed, the responder's identity is
+        confirmed, and the result is published - nothing is spawned, stopped or adopted.
+        """
+        with self._op_lock:
+            gen = self._op_seq
+        cfg = self.adapter.get("readiness", {})
+        up, _, _ = probe_mod.http_probe(cfg["url"], cfg.get("expect_status", 200), 5, 500)
+        if not up:
+            self._observe_set(gen, None, STOPPED, "persistent service not running")
+            return self.display
+        ok, _ = self._identity(self.adapter["identity"], None)
+        if ok:
+            self._observe_set(gen, None, ATTACHED)
+        else:
+            self._observe_set(gen, None, FAILED, PORT_OCCUPIED_UNRECOGNIZED)
+        return self.display
 
     def _probe_external(self):
         """(any, no managed process) -> EXTERNAL | FAILED(PORT_OCCUPIED_UNRECOGNIZED) | STOPPED.
@@ -663,6 +709,8 @@ class ModuleRunner:
         """(allowed, http_status, message) — Start is refused in EXTERNAL and while occupied."""
         if self.adapter.get("state_class") == "not_started":
             return False, 400, "Module has no runtime"
+        if self.attached:
+            return False, 409, self.attached_refusal("start")
         if not self.runtime_present:
             return False, 400, f"Runtime not installed: {self.runtime_path}"
         if "error" in self.adapter:
@@ -715,7 +763,7 @@ class ModuleRunner:
             return False
         if self.open_kind() == "browser" and not (self.adapter.get("open") or {}).get("url"):
             return False
-        return self.state in (READY, EXTERNAL, DEGRADED)
+        return self.state in (READY, EXTERNAL, DEGRADED, ATTACHED)
 
     def to_dict(self) -> dict:
         return {
@@ -734,4 +782,8 @@ class ModuleRunner:
             "open_kind": self.open_kind(),
             "runtime_present": self.runtime_present,
             "runtime_path": self.runtime_path,
+            # SW-18: owned vs attached is part of the contract the UI and teardown report use.
+            "lifecycle": self.lifecycle,
+            "persistent": self.attached,
+            "service": dict(self.adapter.get("service") or {}) if self.attached else {},
         }

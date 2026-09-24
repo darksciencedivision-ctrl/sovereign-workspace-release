@@ -48,6 +48,21 @@
       "type": "string",
       "minLength": 1
     },
+    "lifecycle": {
+      "type": "string",
+      "description": "SW-18: who owns the module's process. 'owned' (default): the shell launches it inside its Job Object and stops it (graceful shutdown Event, then TerminateJobObject). 'attached': a persistent service run by something else (a user-level supervisor, a Windows service); the shell only observes it (http readiness + http identity) and never launches, stops, restarts or tests it, so launch/stop/startup_test are forbidden.",
+      "enum": ["owned", "attached"],
+      "default": "owned"
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SW-18: operator-facing hints for an attached service - how to start/stop it outside the shell. Only valid when lifecycle is 'attached'.",
+      "properties": {
+        "start_hint": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "stop_hint": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
     "runtime_writes": {
       "type": "array",
       "items": {
@@ -289,19 +304,36 @@
     {
       "if": {
         "properties": {
-          "state_class": {
-            "const": "runnable"
-          }
-        }
+          "state_class": { "const": "runnable" },
+          "lifecycle": { "const": "attached" }
+        },
+        "required": ["lifecycle"]
       },
       "then": {
-        "required": [
-          "launch",
-          "readiness",
-          "identity",
-          "open",
-          "stop"
-        ]
+        "required": ["readiness", "identity", "open"],
+        "not": { "anyOf": [
+          { "required": ["launch"] },
+          { "required": ["stop"] },
+          { "required": ["startup_test"] }
+        ] }
+      },
+      "else": {
+        "if": {
+          "properties": {
+            "state_class": {
+              "const": "runnable"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "launch",
+            "readiness",
+            "identity",
+            "open",
+            "stop"
+          ]
+        }
       }
     }
   ]

@@ -39,8 +39,9 @@
       reasonText: failedWithReason || hideReason ? "" : reasonText,
       resolvedUrl,
       endpointText,
-      shouldCloseBrowser: (prior.state === "READY" || prior.state === "EXTERNAL")
-        && state !== "READY" && state !== "EXTERNAL",
+      shouldCloseBrowser: (prior.state === "READY" || prior.state === "EXTERNAL"
+          || prior.state === "ATTACHED")
+        && state !== "READY" && state !== "EXTERNAL" && state !== "ATTACHED",
       stored: Object.assign({}, prior, current, {
         state: state || prior.state || "NOT_STARTED",
         _url: resolvedUrl,

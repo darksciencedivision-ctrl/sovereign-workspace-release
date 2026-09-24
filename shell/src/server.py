@@ -341,7 +341,14 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
     def _handle_get_state(self):
         with self.lock:
             states = {mid: r.to_dict() for mid, r in self.states.items()}
-        self._send_json({"modules": states})
+        # SW-18: persistent services are reported separately from the modules this shell owns,
+        # so "stops with the shell" is never implied for a process the shell does not own.
+        persistent = [
+            {"id": mid, "state": rec["state"], "reason": rec["reason"],
+             "service": rec.get("service", {})}
+            for mid, rec in sorted(states.items()) if rec.get("persistent")
+        ]
+        self._send_json({"modules": states, "persistent_services": persistent})
 
     def _handle_get_shell_info(self):
         self._send_json({
@@ -465,6 +472,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         if runner is None:
             self._send_error("Unknown module", 400)
             return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("stop"), 409)
+            return
         # stop() supersedes an outstanding start itself, so the STARTING branch is no longer a
         # separate code path that could race the state it is reading.
         runner.stop()
@@ -474,6 +484,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         module_id, runner = self._runner(body)
         if runner is None:
             self._send_error("Unknown module", 400)
+            return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("restart"), 409)
             return
         # A restart is one operator gesture: stop() supersedes whatever was running or starting,
         # and the rate-limit window is cleared so the Start half is not refused as a second
@@ -490,6 +503,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         adapter = runner.adapter
         if adapter.get("state_class") == "not_started":
             self._send_error("Startup test not applicable for this module", 400)
+            return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("test"), 409)
             return
         if "error" in adapter:
             # F-021: read the reason defensively - an adapter can carry "error" without "reason",

@@ -101,21 +101,27 @@ def test_sw25b_sovereign_adapter_writes_only_to_its_state_root(clean_env):
     assert env["SOVEREIGN_EVIDENCE_DIR"] == state_root + "/runtime/evidence"
 
 
-def test_sw25b_llamacpp_adapter_shares_sovereigns_state_home(clean_env):
-    sovereign = _compile("sovereign.json")
+def test_sw25b_llama_supervisor_shares_sovereigns_state_home(clean_env):
+    # SW-18 made the llama.cpp supervisor an ATTACHED persistent service: the shell never launches
+    # it, so it cannot be handed the state home through an adapter. Start-Shell.ps1 - which does
+    # start it - exports SOVEREIGN's state home BEFORE invoking the supervisor launcher.
     llama = _compile("llamacpp.json")
-    assert llama["launch"]["env_set"]["SOVEREIGN_STATE_HOME"] == sovereign["state_root"]
+    assert llama["lifecycle"] == "attached" and "launch" not in llama
+    launcher = (RELEASE_ROOT / "Start-Shell.ps1").read_text(encoding="utf-8-sig")
+    export = launcher.index("$env:SOVEREIGN_STATE_HOME = $sovereignStateHome")
+    start = launcher.index("& $llamaSupervisorLauncher")
+    assert export < start
 
 
 def test_sw25b_workspace_state_root_grants_no_cross_module_write(clean_env):
-    raw = adapter_mod._load_json(str(RELEASE_ROOT / "shell" / "modules" / "llamacpp.json"))
+    raw = adapter_mod._load_json(str(RELEASE_ROOT / "shell" / "modules" / "tokencenter.json"))
     raw["runtime_writes"] = ["${workspace_state_root}/sovereign/runtime"]
     with pytest.raises(adapter_mod.AdapterError):
         adapter_mod.compile_adapter(raw)
 
 
 def test_sw25b_workspace_state_root_is_unavailable_outside_state_contexts(clean_env):
-    raw = adapter_mod._load_json(str(RELEASE_ROOT / "shell" / "modules" / "llamacpp.json"))
+    raw = adapter_mod._load_json(str(RELEASE_ROOT / "shell" / "modules" / "tokencenter.json"))
     raw["launch"]["argv"] = raw["launch"]["argv"] + ["${workspace_state_root}"]
     with pytest.raises(adapter_mod.AdapterError):
         adapter_mod.compile_adapter(raw)

@@ -1,49 +1,14 @@
 {
   "id": "llamacpp",
   "display_name": "llama.cpp (local supervisor)",
-  "description": "The workspace-wide local inference router on loopback port 18080. The outer workspace launcher starts the existing user-level supervisor; every module and picker attaches to this endpoint without an Ollama or cloud fallback.",
+  "description": "Persistent, user-level local inference router on loopback port 18080. Started by Start-Shell.ps1 (or autostart) outside the shell; the shell attaches to it and never stops it.",
   "maturity": "preview",
   "state_class": "runnable",
+  "lifecycle": "attached",
   "root": "${install_root}/modules/sovereign",
-  "runtime_writes": [
-    "${state_root}/logs"
-  ],
-  "launch": {
-    "cwd": "${root}",
-    "argv": [
-      "${root}/.venv/Scripts/python.exe",
-      "-m",
-      "sovereign_product.supervisor_service",
-      "--root",
-      "${root}",
-      "--port",
-      "18080",
-      "watch"
-    ],
-    "env_allowlist": [
-      "SYSTEMROOT",
-      "PATH",
-      "TEMP",
-      "TMP",
-      "SOVEREIGN_INFERENCE_BACKEND",
-      "SOVEREIGN_LLAMACPP_HOST",
-      "SOVEREIGN_LLAMA_CPP_BASE_URL",
-      "SOVEREIGN_LLAMA_CPP_API_KEY",
-      "SOVEREIGN_LLAMA_SUPERVISOR_ROOT",
-      "SOVEREIGN_LLAMACPP_SERVER_EXE",
-      "SOVEREIGN_LLAMACPP_SERVER_SHA256",
-      "SOVEREIGN_LLAMACPP_IMPL_SHA256",
-      "SOVEREIGN_LLAMACPP_MODELS_DIR",
-      "SOVEREIGN_FREETOKEN_ENV",
-      "SOVEREIGN_FREETOKEN_EXE",
-      "SOVEREIGN_FREETOKEN_CUDA_HOME",
-      "SOVEREIGN_FREETOKEN_MODEL",
-      "SOVEREIGN_FREETOKEN_MOE_MODEL"
-    ],
-    "env_set": {
-      "PYTHONDONTWRITEBYTECODE": "1",
-      "SOVEREIGN_STATE_HOME": "${workspace_state_root}/sovereign"
-    }
+  "service": {
+    "start_hint": "Started outside the shell: Start-Shell.ps1 starts it when llama.cpp/FreeToken is the selected backend, or run modules\\sovereign\\Start-LlamaCppSupervisor.ps1",
+    "stop_hint": "Persists after the shell exits by design. Stop it with modules\\sovereign\\Stop-LlamaCppSupervisor.ps1"
   },
   "readiness": {
     "kind": "http",
@@ -61,9 +26,5 @@
   },
   "open": {
     "kind": "none"
-  },
-  "stop": {
-    "kind": "job_object",
-    "grace_s": 8
   }
 }

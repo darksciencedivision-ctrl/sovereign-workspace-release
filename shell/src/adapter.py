@@ -18,6 +18,12 @@ _SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "modules", "schema.
 _MODULES_DIR = os.path.join(os.path.dirname(__file__), "..", "modules")
 
 _ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
+
+# SW-18: who owns a runnable module's process.
+LIFECYCLE_OWNED = "owned"
+LIFECYCLE_ATTACHED = "attached"
+LIFECYCLES = (LIFECYCLE_OWNED, LIFECYCLE_ATTACHED)
+
 _PLACEHOLDER_PATTERN = re.compile(r"<PHASE-1-VERIFIED>")
 _VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
@@ -192,18 +198,58 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
                 raise AdapterError(
                     f"runtime_writes[{i}] has unknown field(s): {', '.join(sorted(extra))}")
 
+    # SW-18: lifecycle. `owned` (the default) is a process the shell launches inside its Job
+    # Object and stops (graceful Event, then TerminateJobObject). `attached` is a persistent
+    # service somebody else runs (a user-level supervisor, a Windows service): the shell only
+    # observes it - probe + identity - and never launches, stops or restarts it, so an attached
+    # adapter may not declare launch/stop/startup_test at all.
+    lifecycle = adapter.get("lifecycle", LIFECYCLE_OWNED)
+    if lifecycle not in LIFECYCLES:
+        raise AdapterError(f"lifecycle must be one of {', '.join(LIFECYCLES)}, got {lifecycle!r}")
+    service = adapter.get("service")
+    if service is not None:
+        if lifecycle != LIFECYCLE_ATTACHED:
+            raise AdapterError("service is only valid for lifecycle 'attached'")
+        if not isinstance(service, dict):
+            raise AdapterError("service must be an object")
+        for key, value in service.items():
+            if key not in ("start_hint", "stop_hint"):
+                raise AdapterError(f"Unknown service field: {key}")
+            if not isinstance(value, str) or not value or len(value) > 256:
+                raise AdapterError(f"service.{key} must be a non-empty string of at most 256 chars")
+
     if adapter.get("state_class") == "runnable":
-        # Must have launch, readiness, identity, open, stop
-        for field in ("launch", "readiness", "identity", "open", "stop"):
+        attached = lifecycle == LIFECYCLE_ATTACHED
+        if attached:
+            for field in ("launch", "stop", "startup_test"):
+                if field in adapter:
+                    raise AdapterError(
+                        f"attached module may not declare {field}: the shell never launches, "
+                        "stops or tests a service it does not own (SW-18)")
+        # Must have launch, readiness, identity, open, stop (owned) / readiness, identity, open
+        # (attached)
+        required = ("readiness", "identity", "open") if attached else (
+            "launch", "readiness", "identity", "open", "stop")
+        for field in required:
             if field not in adapter:
                 raise AdapterError(f"Runnable module missing required field: {field}")
 
-        _validate_nested(adapter, "launch", {"cwd", "argv"})
+        if not attached:
+            _validate_nested(adapter, "launch", {"cwd", "argv"})
         _validate_nested(adapter, "readiness", {"kind", "timeout_s", "poll_ms"})
         _validate_nested(adapter, "identity", {"kind"})
         _validate_nested(adapter, "open", {"kind"})
-        _validate_nested(adapter, "stop", {"kind", "grace_s"})
+        if not attached:
+            _validate_nested(adapter, "stop", {"kind", "grace_s"})
+        if attached:
+            if adapter["readiness"].get("kind") != "http":
+                raise AdapterError("an attached module is observed over HTTP: readiness.kind must be http")
+            if adapter["identity"].get("kind") not in ("http_json", "http_html_marker"):
+                raise AdapterError(
+                    "an attached module has no shell-owned pid: identity.kind must be http_json "
+                    "or http_html_marker")
 
+    if adapter.get("state_class") == "runnable" and lifecycle == LIFECYCLE_OWNED:
         # Validate launch
         launch = adapter["launch"]
         # SW-26: cwd is resolved as a path at compile time; a non-string reached _resolve_path and
@@ -222,6 +268,7 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
             if len(arg) > 1024:
                 raise AdapterError(f"launch.argv[{i}] exceeds 1024 chars")
 
+    if adapter.get("state_class") == "runnable":
         # Validate readiness
         readiness = adapter["readiness"]
         if readiness["kind"] not in ("http", "process_window", "receipt_file"):
@@ -269,6 +316,7 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
         if open_cfg["kind"] != "browser" and open_cfg.get("url"):
             raise AdapterError(f"open.url is meaningless for open.kind {open_cfg['kind']}")
 
+    if adapter.get("state_class") == "runnable" and lifecycle == LIFECYCLE_OWNED:
         # Validate stop
         stop = adapter["stop"]
         if stop["kind"] != "job_object":
@@ -567,7 +615,19 @@ def compile_adapter(adapter: dict) -> dict:
     else:
         compiled["runtime_writes"] = []
 
-    if adapter.get("state_class") == "runnable":
+    compiled["lifecycle"] = adapter.get("lifecycle", LIFECYCLE_OWNED)
+    if (adapter.get("state_class") == "runnable"
+            and compiled["lifecycle"] == LIFECYCLE_ATTACHED):
+        # SW-18: observed, never owned. Only what the shell needs to SEE the service is compiled;
+        # there is no launch, no stop and no startup test to compile.
+        readiness = dict(adapter["readiness"])
+        if "url" not in readiness:
+            raise AdapterError("http readiness requires url")
+        compiled["readiness"] = readiness
+        compiled["identity"] = dict(adapter["identity"])
+        compiled["open"] = dict(adapter["open"])
+        compiled["service"] = dict(adapter.get("service") or {})
+    elif adapter.get("state_class") == "runnable":
         launch = dict(adapter["launch"])
         launch["cwd"] = _resolve_path(launch["cwd"], compiled["root"])
         _validate_path(launch["cwd"])
