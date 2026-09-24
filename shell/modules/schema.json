@@ -26,6 +26,17 @@
       "minLength": 1,
       "maxLength": 256
     },
+    "maturity": {
+      "type": "string",
+      "description": "Honest release maturity of the module, surfaced on its workspace tile so a pre-functional module is not presented as a finished peer product. Optional; absent is treated as 'unspecified'.",
+      "enum": [
+        "stable",
+        "beta",
+        "preview",
+        "alpha",
+        "unspecified"
+      ]
+    },
     "state_class": {
       "type": "string",
       "enum": [
@@ -36,6 +47,21 @@
     "root": {
       "type": "string",
       "minLength": 1
+    },
+    "lifecycle": {
+      "type": "string",
+      "description": "SW-18: who owns the module's process. 'owned' (default): the shell launches it inside its Job Object and stops it (graceful shutdown Event, then TerminateJobObject). 'attached': a persistent service run by something else (a user-level supervisor, a Windows service); the shell only observes it (http readiness + http identity) and never launches, stops, restarts or tests it, so launch/stop/startup_test are forbidden.",
+      "enum": ["owned", "attached"],
+      "default": "owned"
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "SW-18: operator-facing hints for an attached service - how to start/stop it outside the shell. Only valid when lifecycle is 'attached'.",
+      "properties": {
+        "start_hint": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "stop_hint": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
     },
     "runtime_writes": {
       "type": "array",
@@ -141,6 +167,14 @@
         "require": {
           "type": "object",
           "description": "F-130: required key/value pairs the receipt JSON must satisfy (receipt_file readiness); defaults to {\"ok\": true} when absent."
+        },
+        "require_json": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null"]
+          },
+          "description": "SW-13: functional-readiness contract for an http health endpoint. Key/value pairs the health JSON body must satisfy for the module to count as READY; a 200 whose body fails any pair is LIVE but DEGRADED (the tile shows degraded + the payload's reason, and the process is kept so poll can flip it to READY when the backend recovers). Only valid when kind is http; values are JSON scalars the product emits (e.g. {\"ok\": true})."
         }
       }
     },
@@ -216,6 +250,11 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 30
+        },
+        "graceful": {
+          "type": "string",
+          "enum": ["shutdown_event", "none"],
+          "description": "SW-18: the module's graceful-shutdown contract. 'shutdown_event': it watches SWS_SHUTDOWN_EVENT and exits on its own within grace_s (a forced stop is then a failure). 'none': it has no graceful contract and is expected to be force-terminated after grace_s (reported, not hidden). Absent is treated as 'none'."
         }
       }
     },
@@ -270,19 +309,36 @@
     {
       "if": {
         "properties": {
-          "state_class": {
-            "const": "runnable"
-          }
-        }
+          "state_class": { "const": "runnable" },
+          "lifecycle": { "const": "attached" }
+        },
+        "required": ["lifecycle"]
       },
       "then": {
-        "required": [
-          "launch",
-          "readiness",
-          "identity",
-          "open",
-          "stop"
-        ]
+        "required": ["readiness", "identity", "open"],
+        "not": { "anyOf": [
+          { "required": ["launch"] },
+          { "required": ["stop"] },
+          { "required": ["startup_test"] }
+        ] }
+      },
+      "else": {
+        "if": {
+          "properties": {
+            "state_class": {
+              "const": "runnable"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "launch",
+            "readiness",
+            "identity",
+            "open",
+            "stop"
+          ]
+        }
       }
     }
   ]

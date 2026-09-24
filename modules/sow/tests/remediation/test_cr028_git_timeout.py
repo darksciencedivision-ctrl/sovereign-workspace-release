@@ -20,10 +20,24 @@ def test_cr028_noninteractive_env_blocks_credential_prompts():
 def test_cr028_timeout_raises_and_kills_process_tree(monkeypatch):
     killed = {}
 
+    class _FakeStream:
+        def read(self, n=-1):
+            return b""  # EOF immediately; the drain threads finish at once
+
+        def close(self):
+            pass
+
     class _FakeProc:
         pid = 4242
+        returncode = None
 
-        def communicate(self, timeout=None):
+        def __init__(self):
+            self.stdout = _FakeStream()
+            self.stderr = _FakeStream()
+
+        def wait(self, timeout=None):
+            # SW-20: run_git now drains stdout/stderr and waits on the process; the deadline is on
+            # wait(), so a hung git surfaces here.
             raise subprocess.TimeoutExpired(cmd="git", timeout=timeout)
 
         def kill(self):

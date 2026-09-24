@@ -1,25 +1,5 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 from __future__ import annotations
-
-# F-125 - QUARANTINE / SUPPORT DISPOSITION. This legacy Phase-8/9 engine (cycle_runner_v3.py,
-# document_assembler.py, broker_v21/, synthesis/synth_king.py, clu/) is NOT on the shipped product
-# route. Product DEEP traffic runs through sovereign_product/ (server.py ->
-# semantic_deep.SemanticDeepExecutor); executors.DeepExecutor, the only code that drives this runner,
-# refuses unless SOVEREIGN_ALLOW_LEGACY_DEEP=1 and is never the default executor. Do not add a
-# product caller. It still ships and can be run directly, so bounded defects are corrected, each
-# pinned by tests/test_legacy_engine_bounded_repairs.py:
-#   (a) O(1) log append  (b)/(h) one cycle per root (OS lock; a concurrent cycle is refused with a
-#   record, exit 9)  (c) STOP writes a record and exits 8  (d) broker tree-kill on timeout
-#   (e) CLU via sys.executable; --stream/--no-stream meaningful  (f) stale PRAXIS result cleared;
-#   Ollama call ignores ambient proxies  (g) synth_king O(1) append; one system-log read per run
-#   (i) real U+2022 bullets  (k) broker debate under this interpreter and not killed by stderr
-#   (l) broker_once honours STOP, writes the topic first, ignores stale synthesis, leaves no latch
-#   (m) CLU reads runs/<session_id>.json.
-# NOT repaired (unsupported legacy, recorded in the remediation register): per-session IPC paths
-# (concurrency is refused instead); IntegrityGuard cost growing with past sessions (h); the LIVE
-# shadow debate and "suspiciously stable" rejection (j) - a behavioural decision, not a defect fix;
-# praxis/praxis_query.py and research/scripts/theorem_safe_runtime.py are not part of this module,
-# so the Phase-9 publication path and safe theorem mode fail with that stated cause (m).
 
 import argparse
 import json
@@ -126,28 +106,13 @@ class ParsedSynthesis:
 
 @dataclass(frozen=True)
 class CycleRunPlan:
-    """Resolved identity and output locations for one legacy cycle.
-
-    Keeping this deterministic setup outside ``main`` makes the execution phase
-    consume one validated object instead of rebuilding paths while it mutates
-    runtime state.
-    """
+    """CR-038: resolved identity and output locations for one legacy cycle. Keeping this
+    deterministic setup outside ``main`` makes the execution phase consume one validated object
+    instead of rebuilding paths while it mutates runtime state."""
 
     topic: str
     session_id: str
     artifacts: Dict[str, Any]
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def ensure_dir(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def build_cycle_run_plan(args: Any, root: Path, paths: Dict[str, Path]) -> CycleRunPlan:
@@ -187,6 +152,18 @@ def build_cycle_run_plan(args: Any, root: Path, paths: Dict[str, Path]) -> Cycle
         artifacts["safe_theorem_mode"] = True
     artifacts.update(predict_artifact_integrity_paths(root, session_id))
     return CycleRunPlan(topic=topic, session_id=session_id, artifacts=artifacts)
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -323,8 +300,8 @@ def write_text_atomic(path: Path, content: str) -> None:
 
 def append_text_atomic(path: Path, content: str) -> None:
     target = _validate_runtime_write_path(path)
-    with open(target, "a", encoding="utf-8") as handle:
-        handle.write(content)
+    existing = target.read_text(encoding="utf-8") if target.exists() else ""
+    write_text_atomic(target, existing + content)
 
 
 def log(message: str, log_file: Path, level: str = "INFO") -> None:
@@ -373,17 +350,19 @@ def load_safe_theorem_manifest(path_text: str, expected_runtime_root: Path) -> D
     manifest_path_text = str(path_text or "").strip()
     if not manifest_path_text:
         raise ValueError("safe theorem mode requires --safe-theorem-manifest")
-    manifest_path = Path(manifest_path_text).expanduser().resolve()
-    manifest = load_required_json_object(manifest_path, "safe theorem manifest")
-    # Imported here, not at module level: research/ is not a tracked part of this module, so the
-    # top-level import made the whole runner unimportable in every checkout and install - not only
-    # safe theorem mode, the one path that needs it. That path now fails with its actual cause.
+    # SW-14: import lazily. research/scripts/theorem_safe_runtime.py is deliberately NOT part of the
+    # shipped module (safe-theorem mode is an optional add-on), so a module-top import broke
+    # `import cycle_runner_v3` and blocked pytest collection for the whole suite. Defer it to the one
+    # place it is used, with a clear error when the optional module is absent.
     try:
         from research.scripts.theorem_safe_runtime import validate_safe_theorem_manifest
     except ImportError as exc:
         raise ValueError(
-            "safe theorem mode requires research/scripts/theorem_safe_runtime.py, which this "
-            f"installation does not include ({exc})") from exc
+            "safe theorem mode requires research/scripts/theorem_safe_runtime.py, which is not part "
+            "of this module; install it to use --safe-theorem-manifest"
+        ) from exc
+    manifest_path = Path(manifest_path_text).expanduser().resolve()
+    manifest = load_required_json_object(manifest_path, "safe theorem manifest")
     errors = validate_safe_theorem_manifest(manifest, expected_runtime_root)
     if errors:
         raise ValueError("; ".join(errors))
@@ -429,9 +408,7 @@ def split_bullets(text: str) -> List[str]:
     if not cleaned:
         return []
 
-    # F-125(i): "?" was the U+2022 bullet lost in an encoding round-trip, so real bullets were never
-    # recognised and a line beginning "? " was stripped as one.
-    bullet_pattern = re.compile(r"^\s*(?:[-*\u2022]|\d+[.)])\s+")
+    bullet_pattern = re.compile(r"^\s*(?:[-*?]|\d+[.)])\s+")
     lines = cleaned.splitlines()
 
     if any(bullet_pattern.match(line) for line in lines):
@@ -568,27 +545,11 @@ def load_constitution_state(path: Path) -> Dict[str, Any]:
     return state
 
 
-_SYNTH_LOG_CACHE: Dict[Tuple[str, int, int], List[str]] = {}
-
-
-def _synth_log_lines(system_log_path: Path) -> List[str]:
-    """F-125(g): a run summarised the whole never-rotated system log three times. Reuse one read
-    while the file's size and mtime are unchanged; any append invalidates it."""
-    stat = system_log_path.stat()
-    key = (str(system_log_path), int(stat.st_size), int(stat.st_mtime_ns))
-    lines = _SYNTH_LOG_CACHE.get(key)
-    if lines is None:
-        _SYNTH_LOG_CACHE.clear()
-        lines = system_log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        _SYNTH_LOG_CACHE[key] = lines
-    return lines
-
-
 def load_synth_log_events(system_log_path: Path, session_id: str) -> List[Dict[str, Any]]:
     if not system_log_path.exists():
         return []
     events: List[Dict[str, Any]] = []
-    for raw_line in _synth_log_lines(system_log_path):
+    for raw_line in system_log_path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = raw_line.strip()
         if not line or not line.startswith("{"):
             continue
@@ -668,28 +629,6 @@ def enrich_run_record_with_synth_summary(run_record: Dict[str, Any], system_log_
     return run_record
 
 
-def _terminate_owned_tree(pid: int) -> None:
-    if os.name == "nt":
-        try:
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/T", "/F"],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-    else:
-        try:
-            os.killpg(pid, 15)
-        except (ProcessLookupError, OSError):
-            try:
-                os.kill(pid, 15)
-            except (ProcessLookupError, OSError):
-                pass
-
-
 def run_broker(
     root: Path,
     broker_script: Path,
@@ -713,9 +652,6 @@ def run_broker(
         "-ExecutionPolicy", "Bypass",
         "-File", str(broker_script),
         "-Root", str(root),
-        # F-125(k): broker.ps1 defaulted -PythonExe to bare "python" from PATH, so the debate ran
-        # under whatever interpreter PATH yielded rather than the one running this cycle.
-        "-PythonExe", sys.executable,
     ]
     if safe_theorem_mode:
         manifest = dict(safe_theorem_manifest or {})
@@ -736,21 +672,11 @@ def run_broker(
         )
     if once:
         command.append("-Once")
-    kwargs: dict[str, Any] = {"env": env}
-    if not stream_output:
-        kwargs.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    proc = subprocess.Popen(command, **kwargs)
-    try:
-        stdout, stderr = proc.communicate(timeout=timeout_sec)
-    except subprocess.TimeoutExpired:
-        _terminate_owned_tree(int(proc.pid))
-        try:
-            stdout, stderr = proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
-        raise
-    return proc.returncode, stdout or "", stderr or ""
+    if stream_output:
+        proc = subprocess.run(command, env=env, timeout=timeout_sec)
+        return proc.returncode, "", ""
+    proc = subprocess.run(command, env=env, timeout=timeout_sec, capture_output=True, text=True)
+    return proc.returncode, proc.stdout, proc.stderr
 
 
 def invoke_clu(root: Path, clu_script: Path, session_id: str, topic: str, log_file: Path) -> Dict[str, Any]:
@@ -764,7 +690,7 @@ def invoke_clu(root: Path, clu_script: Path, session_id: str, topic: str, log_fi
         return {"ok": False, "error": f"missing {clu_script}"}
     try:
         proc = subprocess.run(
-            [sys.executable, str(clu_script), "--root", str(root), "--session-id", session_id, "--trigger", "post_cycle"],
+            ["python", str(clu_script), "--root", str(root), "--session-id", session_id, "--trigger", "post_cycle"],
             capture_output=True,
             text=True,
             timeout=150,
@@ -2003,45 +1929,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--timeout-sec", type=int, default=2250)
     parser.add_argument("--fail-closed", action="store_true")
-    # F-125(e): `--stream` was store_true with default=True, so it could never change anything.
-    parser.add_argument("--stream", action=argparse.BooleanOptionalAction, default=True,
-                        help="stream broker output (default); --no-stream captures it instead")
+    parser.add_argument("--stream", action="store_true", default=True)
+    parser.add_argument("--no-stream", action="store_true")
     parser.add_argument("--broker-script", default="")
     parser.add_argument("--clu-script", default="")
     parser.add_argument("--safe-theorem-mode", action="store_true")
     parser.add_argument("--safe-theorem-manifest", default="")
     return parser.parse_args()
-
-
-_CYCLE_LOCK_HANDLE: Any = None
-CONCURRENT_CYCLE_EXIT = 9
-
-
-def acquire_cycle_lock(root: Path) -> Any:
-    """F-125(b)/(h): at most ONE legacy cycle per root.
-
-    Every cycle shares global IPC files (broker inbox topic.txt, praxis synthesis/commit files,
-    praxis_answer.json), and IntegrityGuard treats another cycle's writes under evaluation/ as drift,
-    so two concurrent cycles overwrote each other's topic or aborted each other. Per-session IPC
-    would mean re-plumbing the broker, praxis and orchestrator of an unsupported pipeline; the
-    bounded correction is to refuse the concurrency those files cannot survive. The OS lock is held
-    by an open handle, so it is released when the process exits however it exits - no stale lock.
-    Returns the handle, or None when another cycle holds the lock."""
-    lock_path = root / "logs" / "cycle_runner_v3.lock"
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    handle = open(lock_path, "a+b")
-    try:
-        if os.name == "nt":
-            import msvcrt
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        handle.close()
-        return None
-    return handle
 
 
 def create_stop(root: Path) -> None:
@@ -2074,17 +1968,6 @@ def main() -> int:
         return preflight_rc
 
     _configure_runtime_integrity(root)
-    global _CYCLE_LOCK_HANDLE
-    _CYCLE_LOCK_HANDLE = acquire_cycle_lock(root)
-    if _CYCLE_LOCK_HANDLE is None:
-        log("Another cycle_runner_v3 holds this root's cycle lock. Refusing to run concurrently.",
-            log_file, "ERROR")
-        ensure_dir(paths["runs_dir"])
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        record = {"status": "refused", "reason": "another cycle is running on this root",
-                  "session_id": getattr(args, "session_id", "") or ""}
-        write_text_atomic(paths["runs_dir"] / f"concurrent-refused-{stamp}.json", json.dumps(record, indent=2))
-        return CONCURRENT_CYCLE_EXIT
     safe_theorem_manifest: Dict[str, Any] = {}
 
     session_id = ""
@@ -2114,7 +1997,7 @@ def main() -> int:
     broker_exit_code: int | None = None
     stdout_text = ""
     stderr_text = ""
-    stream_mode = bool(args.stream)
+    stream_mode = not args.no_stream
 
     try:
         if args.safe_theorem_mode:
@@ -2123,25 +2006,47 @@ def main() -> int:
 
         if (root / "STOP").exists() or (root / "praxis" / "STOP").exists():
             log("STOP file present. Aborting.", log_file, "WARN")
-            ensure_dir(paths["runs_dir"])
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            record = {
-                "status": "aborted",
-                "reason": "STOP file present",
-                "session_id": getattr(args, "session_id", "") or "",
-            }
-            write_text_atomic(paths["runs_dir"] / f"stop-abort-{stamp}.json", json.dumps(record, indent=2))
-            return 8
+            return 0
 
         ensure_dir(paths["runs_dir"])
 
-        plan = build_cycle_run_plan(args, root, paths)
-        topic = plan.topic
-        session_id = plan.session_id
+        topic = args.topic.strip()
+        if not topic:
+            raw_topic = read_text(paths["topic_file"]).strip()
+            raw_topic = TOPIC_OPEN_TAG_RE.sub("", raw_topic)
+            raw_topic = TOPIC_CLOSE_TAG_RE.sub("", raw_topic).strip()
+            topic = raw_topic
+
+        session_id = (
+            validate_session_id(args.session_id)
+            if str(args.session_id or "").strip()
+            else generate_session_id(topic or "empty-topic")
+        )
         _set_runtime_session_id(session_id)
         parsed = blank_parsed_synthesis(session_id)
         metrics = zero_metrics()
-        artifacts = dict(plan.artifacts)
+        artifacts = {
+            "synthesis_path": str(paths["synthesis_path"]),
+            "praxis_answer_path": str(paths["praxis_answer_path"]),
+            "praxis_answer_session_path": str(
+                root / "output" / "praxis" / f"{session_id}_praxis_answer.json"
+            ),
+            "sovereign_voice_path": str(paths["sovereign_voice_path"]),
+            "sovereign_voice_session_path": str(
+                root / "output" / "sovereign_voice" / f"{session_id}_sovereign_voice.md"
+            ),
+            "praxis_report_path": str(paths["praxis_report_path"]),
+            "praxis_report_session_path": str(
+                root / "output" / "praxis_reports" / f"{session_id}_praxis_report.md"
+            ),
+            "dialog_session_path": str(
+                root / "output" / "dialog" / f"{session_id}_dialog.txt"
+            ),
+        }
+        if args.safe_theorem_mode:
+            artifacts["safe_theorem_manifest_path"] = str(Path(args.safe_theorem_manifest).expanduser().resolve())
+            artifacts["safe_theorem_mode"] = True
+        artifacts.update(predict_artifact_integrity_paths(root, session_id))
 
         execution_state = initial_execution_state()
         execution_mode = "UNKNOWN"

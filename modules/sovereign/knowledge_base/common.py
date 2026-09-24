@@ -262,7 +262,9 @@ def safety_baseline(root: str | Path | None = None) -> dict[str, Any]:
     loop_schedule = read_json(repo_root / "library" / "config" / "loop_schedule.json", {})
     clu_policy = read_json(repo_root / "library" / "config" / "clu_runtime_policy.json", {})
     recurring_constraints = read_json(repo_root / "sandbox_agi" / "cognition" / "environment" / "recurring_constraints.json", {})
-    deletion_queue_path = repo_root / "library" / "queues" / "deletion_queue.jsonl"
+    from sovereign_product.paths import resolve_queue_dir
+
+    deletion_queue_path = resolve_queue_dir(repo_root) / "deletion_queue.jsonl"
     deletion_queue = read_jsonl(deletion_queue_path)
     phase_18_6_reports = sorted((repo_root / "ecology" / "reports").glob("PHASE18_6_*.md"))
     praxis_root = repo_root / "praxis"

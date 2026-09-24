@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import ipaddress
@@ -177,7 +177,8 @@ def validate_system_manifest(data: Any, source: str | Path = MANIFEST_FILENAME) 
     return normalized
 
 
-def load_system_manifest(root: str | Path | None = None, manifest_path: str | Path | None = None) -> dict[str, Any]:
+def load_shipped_manifest(root: str | Path | None = None, manifest_path: str | Path | None = None) -> dict[str, Any]:
+    """The shipped SYSTEM_MANIFEST.json exactly as installed (no operator overrides)."""
     path = Path(manifest_path).expanduser().resolve() if manifest_path is not None else manifest_path_for(root)
     if not path.exists():
         raise ManifestConfigError(f"Missing manifest: {path}")
@@ -190,6 +191,41 @@ def load_system_manifest(root: str | Path | None = None, manifest_path: str | Pa
     except json.JSONDecodeError as exc:
         raise ManifestConfigError(f"Malformed manifest JSON {path}: {exc}") from exc
     return validate_system_manifest(data, path)
+
+
+def _install_root_of(path: Path) -> Path | None:
+    """The install root when `path` is an install's own SYSTEM_MANIFEST.json, else None."""
+    from sovereign_product.paths import PathResolutionError, validate_root
+
+    if path.name != MANIFEST_FILENAME:
+        return None
+    try:
+        return validate_root(path.parent)
+    except PathResolutionError:
+        return None
+
+
+def load_system_manifest(root: str | Path | None = None, manifest_path: str | Path | None = None) -> dict[str, Any]:
+    """The EFFECTIVE manifest: shipped defaults plus the operator's overrides (SW-25).
+
+    The shipped file is never written; model assignments live in the state home's
+    config/manifest.overrides.json and are applied here, then the merged result is validated
+    as a whole.
+    """
+    from sovereign_product.manifest_overrides import ManifestOverrideError, effective_manifest
+
+    path = Path(manifest_path).expanduser().resolve() if manifest_path is not None else manifest_path_for(root)
+    shipped = load_shipped_manifest(manifest_path=path)
+    install_root = _install_root_of(path)
+    if install_root is None:
+        return shipped
+    try:
+        merged = effective_manifest(install_root, shipped)
+    except ManifestOverrideError as exc:
+        raise ManifestConfigError(f"Invalid manifest overrides: {exc}") from exc
+    if merged == shipped:
+        return shipped
+    return validate_system_manifest(merged, path)
 
 
 def model_name(key: str, manifest: dict[str, Any]) -> str:

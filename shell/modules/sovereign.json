@@ -2,12 +2,13 @@
   "id": "sovereign",
   "display_name": "SOVEREIGN",
   "description": "Operator product service and UI (Flask, :5175)",
+  "maturity": "preview",
   "state_class": "runnable",
-  "root": "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK",
+  "root": "${install_root}/modules/sovereign",
   "runtime_writes": [
-    "${root}/runtime",
-    "${root}/published",
-    "${root}/library/queues",
+    { "path": "${state_root}/runtime", "kind": "dir" },
+    { "path": "${state_root}/published", "kind": "dir" },
+    { "path": "${state_root}/library/queues", "kind": "dir" },
     "${state_root}/logs"
   ],
   "launch": {
@@ -37,18 +38,31 @@
       "SOVEREIGN_LLAMACPP_HOST",
       "SOVEREIGN_LLAMA_CPP_BASE_URL",
       "SOVEREIGN_LLAMA_CPP_API_KEY",
-      "SOVEREIGN_LLAMA_SUPERVISOR_ROOT"
+      "SOVEREIGN_LLAMA_SUPERVISOR_ROOT",
+      "SOVEREIGN_LLAMACPP_SERVER_EXE",
+      "SOVEREIGN_LLAMACPP_SERVER_SHA256",
+      "SOVEREIGN_LLAMACPP_IMPL_SHA256",
+      "SOVEREIGN_LLAMACPP_MODELS_DIR",
+      "SOVEREIGN_FREETOKEN_ENV",
+      "SOVEREIGN_FREETOKEN_EXE",
+      "SOVEREIGN_FREETOKEN_CUDA_HOME",
+      "SOVEREIGN_FREETOKEN_MODEL",
+      "SOVEREIGN_FREETOKEN_MOE_MODEL"
     ],
     "env_set": {
       "PYTHONDONTWRITEBYTECODE": "1",
-      "SOVEREIGN_STATE_DIR": "${root}/runtime",
-      "SOVEREIGN_EVIDENCE_DIR": "${root}/runtime/evidence"
+      "SOVEREIGN_STATE_HOME": "${state_root}",
+      "SOVEREIGN_STATE_DIR": "${state_root}/runtime",
+      "SOVEREIGN_EVIDENCE_DIR": "${state_root}/runtime/evidence"
     }
   },
   "readiness": {
     "kind": "http",
     "url": "http://127.0.0.1:5175/v1/health",
     "expect_status": 200,
+    "require_json": {
+      "ok": true
+    },
     "timeout_s": 45,
     "poll_ms": 500
   },
@@ -70,6 +84,7 @@
   },
   "stop": {
     "kind": "job_object",
-    "grace_s": 10
+    "grace_s": 10,
+    "graceful": "shutdown_event"
   }
 }

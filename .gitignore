@@ -17,6 +17,9 @@ env/
 # --- env files (C-1c class) ---
 .env
 .env.*
+# WS-3.1: per-machine provisioning written by Provision-Workspace.ps1; never shipped.
+workspace.env
+workspace.env.bak
 
 # --- node ---
 node_modules/

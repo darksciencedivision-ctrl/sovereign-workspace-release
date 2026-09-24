@@ -1,10 +1,10 @@
-{
+﻿{
   "ARCHIVE_VERSION": "3.1.2",
   "MODELS": {
-    "PRIMARY_REASONER": "qwen2.5:3b-instruct",
-    "ADVERSARIAL_CHALLENGER": "granite4.2:3b",
-    "CRITIC": "sam860/dolphin3-llama3.2:3b",
-    "SYNTHESIZER": "llama3.2:3b",
+    "PRIMARY_REASONER": "qwen3:14b",
+    "ADVERSARIAL_CHALLENGER": "qwen3:32b",
+    "CRITIC": "qwen3:8b",
+    "SYNTHESIZER": "qwen2.5:14b-instruct",
     "EMBEDDING_MODEL": "nomic-embed-text:latest"
   },
   "RUNTIME": {

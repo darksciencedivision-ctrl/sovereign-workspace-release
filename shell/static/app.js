@@ -80,6 +80,7 @@
     DEGRADED: { cls: "badge-warning", label: "Degraded" },
     FAILED: { cls: "badge-danger", label: "Failed" },
     EXTERNAL: { cls: "badge-external", label: "External (not shell-owned)" },
+    ATTACHED: { cls: "badge-external", label: "Attached (persistent service)" },
     CONFIG_ERROR: { cls: "badge-danger", label: "Config Error" },
   };
 
@@ -91,7 +92,7 @@
     start: ["NOT_STARTED", "STOPPED", "FAILED"],
     stop: ["READY", "STARTING", "DEGRADED"],
     restart: ["READY", "STARTING", "DEGRADED", "FAILED"],
-    open: ["READY", "EXTERNAL"],
+    open: ["READY", "EXTERNAL", "ATTACHED"],
     test: ["NOT_STARTED", "STOPPED", "FAILED"],
   };
 
@@ -434,6 +435,11 @@
       card.dataset.module = mod.id;
 
       const title = make("h2", "module-name", mod.name);
+      // Maturity pill sits inline with the name; populated from the live /api/state record so a
+      // pre-functional module is not presented as a finished peer product. Hidden until known.
+      const maturity = make("span", "maturity", "");
+      maturity.hidden = true;
+      title.appendChild(maturity);
       const desc = make("p", "module-desc", mod.description);
 
       // State badge + reason
@@ -544,6 +550,7 @@
 
       cards.set(mod.id, {
         badge,
+        maturity,
         stateText,
         reason,
         lastCheck: lastCheckRow.value,
@@ -565,6 +572,21 @@
     refs.badge.className = "badge " + projected.meta.cls;
     refs.stateText.textContent = projected.stateText;
     refs.reason.textContent = projected.reasonText;
+
+    // Maturity pill (static per module; sourced from the manifest via /api/state). A known,
+    // non-"unspecified" value is shown; anything else stays hidden so the tile is not cluttered.
+    if (refs.maturity) {
+      const known = ["stable", "beta", "preview", "alpha"];
+      const m = record && typeof record.maturity === "string" ? record.maturity : "";
+      if (known.indexOf(m) !== -1) {
+        refs.maturity.textContent = m;
+        refs.maturity.className = "maturity maturity-" + m;
+        refs.maturity.title = "Module maturity: " + m;
+        refs.maturity.hidden = false;
+      } else {
+        refs.maturity.hidden = true;
+      }
+    }
 
     refs.lastCheck.textContent = formatTime(
       record && record.last_check !== undefined ? record.last_check : record && record.lastCheck
@@ -624,6 +646,14 @@
 
       if (action === "logs") {
         enabled = true;
+      } else if (rec.lifecycle === "attached" && action !== "open") {
+        /* SW-18: an attached persistent service is observed, never owned. The shell refuses
+           start/stop/restart/test for it (409), so the controls say how to manage it instead. */
+        enabled = false;
+        const service = rec.service || {};
+        tip = (action === "stop" || action === "restart")
+          ? firstString(service.stop_hint, "Persistent service; not stopped by this shell.")
+          : firstString(service.start_hint, "Persistent service; not started by this shell.");
       } else if (rec.runtime_present === false && action !== "open") {
         // Nothing can be launched without the binary; say which one is missing.
         enabled = false;

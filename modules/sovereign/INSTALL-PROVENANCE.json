@@ -1,33 +1,46 @@
 {
   "module": "sovereign",
-  "source": "D:/Product Software/SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip",
-  "source_kind": "archive",
-  "source_sha256": "150e518e6d0b15b524ff61cda8fe8eb29aec6bbfb30196f9931908d12ff7ec51",
-  "source_revision": "SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520",
-  "source_content_manifest_sha256": "d2fa7633e8f98cbf1143fb60a724eb3cfede224c6df318313edb3230de8305da",
-  "lockfiles": [
-    {
-      "path": "WORKSPACE-RESOLVED-LOCK.txt",
-      "sha256": "b0ce1f437a54e9cf94a16190d68c2ef4dc0108228e551973b655f5ac1e2830bd",
-      "prior_sha256": "1a850957d1c19cc936ff89d4f96d151ac910b451b7eaf43d22a87b3ef1ca0b3f",
-      "change_note": "F-071 (2026-09-14): the pip-freeze lock was re-encoded UTF-16LE->UTF-8 and every one of its 85 unchanged == pins gained --hash=sha256 entries for its PyPI win_amd64/any wheels (tools/release/hash_python_locks.py). prior_sha256 is the digest verification_basis refers to."
-    }
+  "source": "D:/Sov 1/SOVEREIGN_PRODUCT_COMPLETION_WORK (operator development tree)",
+  "source_kind": "operator_directed_working_tree_sync",
+  "source_repo_head": "39229c239d207d94490fcb43bf1a98f4a077572e",
+  "source_repo_head_utc": "2026-09-15T21:54:18-05:00",
+  "source_working_tree_dirty": true,
+  "source_working_tree_uncommitted": [
+    "Test-Sovereign.ps1",
+    "sovereign_product/runtime_registry.py"
   ],
-  "dependency_lock_status": "WORKSPACE_OWNED_RESOLVED",
-  "operator_authorized": null,
-  "installed_utc": "2026-08-21T02:18:00-05:00",
-  "install_commands_evidence": "evidence/phase2-install.txt",
-  "install_commands": [
-    "py -3.12 -m venv .venv",
-    ".venv/Scripts/python.exe -m pip install -r requirements.txt",
-    ".venv/Scripts/python.exe -m pip freeze > WORKSPACE-RESOLVED-LOCK.txt"
-  ],
-  "integrity_verified": true,
-  "verification_basis": "source_sha256 recomputed 2026-08-28T02:24Z by builder seat qwen3.8-max via Get-FileHash SHA256 over D:\\Product Software\\SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520.zip (453,948 bytes) on operator disk; measured value equals the Punch List v2.1 C-2 'real' hash. PACKAGE_MANIFEST.txt (d2fa7633…) and WORKSPACE-RESOLVED-LOCK.txt (1a850957…) re-hashed in the release worktree and matched.",
-  "source_content_manifest_path": "modules/sovereign/PACKAGE_MANIFEST.txt",
-  "operator_authorization_note": "docs/DECISIONS.md is byte-identical to the VOID builder-authored hash named in REM-01 section 1 and carries no signature block. No operator authorization artifact exists as of updated_utc. Prior value of this field was the string 'DECISIONS.md'.",
-  "superseded_record": "modules/sovereign/INSTALL-PROVENANCE.previous.json",
-  "correction_note": "C-2 repair (SWS-REM-DIR-20260828 R2, B2-1): the superseded record carried source_sha256 620e8459c74fb5fe9d2dfe0c4693cea02b8346292804d2d2a01fb71cb615be96 — the DISTILLERY source digest — against this SOVEREIGN archive, and self-attested integrity_verified: true on that foreign digest with operator_authorized: null. The wrong record is preserved byte-identical at the superseded path as classified historical defective record (R2 §8); nothing in it is rewritten.",
-  "producer": "builder qwen3.8-max (SWS-REM-DIR-20260828 R2 B2-1); original record producer: claude-code REM-01",
-  "updated_utc": "2026-08-28T02:26:00Z"
+  "source_revision": "dev-tree@39229c2+2-uncommitted (post-3.1.2 backend-agnostic runtime)",
+  "product_version": "3.1.2",
+  "integrity_verified": false,
+  "integrity_note": "NOT a sealed, hash-verified release archive. This is an operator-directed content synchronization from the live development tree, performed to bring the latest dual-backend (Ollama + llama.cpp) Sovereign runtime into the workspace. No source_sha256 seal applies because the source is a working tree, including two uncommitted files at sync time. Per the source STATUS.md the code is boot-proven on the development host but is 'not yet an independently re-verified release (pending operator re-verification)'. Independent re-verification in this workspace is deferred to the clean-room boot gate (WS-0.2).",
+  "operator_authorized": "SWS-PUNCHLIST-DIRECTIVE-20260921 WS-0.3, operator decision 'complete the migration' / 'must be llama.cpp and Ollama agnostic, run both' (2026-09-21)",
+  "sync_scope": {
+    "directive_item": "WS-0.3",
+    "date_utc": "2026-09-21",
+    "synced": [
+      "sovereign_product/*.py (whole package; adds backend_selection, llama_cpp_client, supervisor_service, runtime_supervisor, runtime_registry, runtime_contracts, gpu_occupancy, freetoken_service, freetoken_supervisor, openai_embeddings)",
+      "root modules the package imports and every shipped root *.py (embedding_client.py, system_manifest.py, and the rest, refreshed to dev-tree latest) + new format_arxiv.py",
+      "SYSTEM_MANIFEST.json, runtime_profile.json",
+      "llama.cpp + FreeToken supervisor PowerShell toolchain and updated Start/Stop/Diagnose/Test-Sovereign.ps1",
+      "README_RUN.md, PREREQUISITES.md, STATUS.md, pyproject.toml"
+    ],
+    "intentionally_not_synced": [
+      "Separate host apps not imported by the product package: URI/, scheduler/, ledger/, research/, completion_mission/",
+      "Unused root research trees (synthesis/, ecology/, praxis/, evaluation/, sandbox_agi/, etc.) — left at prior state; their removal is directive item WS-2.1",
+      "RC packaging overlay preserved unchanged: LICENSE, PACKAGE_MANIFEST.txt, WORKSPACE-RESOLVED-LOCK.txt, requirements.in, requirements.lock.txt"
+    ],
+    "dependency_impact": "None. The entire synced sovereign_product imports only flask, werkzeug, and requests as third-party packages, all already present in the retained hash-locked requirements.lock.txt. No new pip dependency was introduced.",
+    "coherence_checks": [
+      "py -3.12 -m compileall over sovereign_product/ and all shipped root *.py -> exit 0",
+      "import sovereign_product.runtime_contracts, sovereign_product.backend_selection -> OK",
+      "normalize_inference_backend accepts both 'ollama' and 'llama.cpp' (default = llama.cpp)",
+      "server.py resolves backend and dispatches to OllamaClient (Ollama) or LlamaCppClient (llama.cpp / FreeToken)"
+    ]
+  },
+  "dependency_lock_status": "WORKSPACE_OWNED_RESOLVED (requirements.lock.txt retained from prior sealed record; unchanged)",
+  "supersedes_code_of": "SOVEREIGN_ENTERPRISE_PRODUCTION_20260813_142520",
+  "superseded_record": "modules/sovereign/INSTALL-PROVENANCE.pre-WS-0-3-resync.json",
+  "superseded_record_note": "The immediately prior record (the sealed Aug-13 archive install, source_sha256 150e518e…, integrity_verified true) is preserved byte-identical at the superseded path. It remains the true record of how this module was ORIGINALLY packaged; it no longer describes the code on disk after this sync. Nothing in it is rewritten.",
+  "producer": "Claude Opus 4.8 (Claude Code), executing SWS-PUNCHLIST-DIRECTIVE-20260921 WS-0.3 under operator direction",
+  "updated_utc": "2026-09-21T00:00:00Z"
 }

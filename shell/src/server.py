@@ -27,6 +27,11 @@ from shell.src.probe import run_preflight
 from shell.src.distillery import get_distillery_status
 from shell.src.startup_test import run_startup_test
 from shell.src.states import ModuleRunner, EXTERNAL, FAILED, READY, DEGRADED, STARTING
+from shell.src.teardown import (
+    build_receipt as build_teardown_receipt,
+    summarize as summarize_teardown,
+    write_receipt as write_teardown_receipt,
+)
 
 MAX_BODY = 16384
 START_RATE_LIMIT_S = 2.0  # H-7: one Start per module per 2 s
@@ -283,10 +288,13 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _serve_static(self, path: str):
-        safe = path.replace("\\", "/").lstrip("/")
-        # F-032: decide traversal by canonical containment (like the docs route), not a `".." in`
-        # substring test that both false-rejects innocent names and can be bypassed by encodings.
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        # SW-19: strip the /static/ mount prefix and resolve STRICTLY beneath the static asset root.
+        # The base was shell/ (dirname/..), so /static/../src/server.py escaped into the shell tree
+        # while still passing containment. Anchor to shell/static/ so only assets are served.
+        # F-032: traversal is still decided by canonical containment, not a `".." in` substring test.
+        rel = path[len("/static/"):] if path.startswith("/static/") else ""
+        safe = rel.replace("\\", "/").lstrip("/")
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
         file_path = os.path.abspath(os.path.join(base, safe))
         if not is_contained(base, file_path):
             self._send_error("Forbidden", 403)
@@ -338,7 +346,14 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
     def _handle_get_state(self):
         with self.lock:
             states = {mid: r.to_dict() for mid, r in self.states.items()}
-        self._send_json({"modules": states})
+        # SW-18: persistent services are reported separately from the modules this shell owns,
+        # so "stops with the shell" is never implied for a process the shell does not own.
+        persistent = [
+            {"id": mid, "state": rec["state"], "reason": rec["reason"],
+             "service": rec.get("service", {})}
+            for mid, rec in sorted(states.items()) if rec.get("persistent")
+        ]
+        self._send_json({"modules": states, "persistent_services": persistent})
 
     def _handle_get_shell_info(self):
         self._send_json({
@@ -462,6 +477,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         if runner is None:
             self._send_error("Unknown module", 400)
             return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("stop"), 409)
+            return
         # stop() supersedes an outstanding start itself, so the STARTING branch is no longer a
         # separate code path that could race the state it is reading.
         runner.stop()
@@ -471,6 +489,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         module_id, runner = self._runner(body)
         if runner is None:
             self._send_error("Unknown module", 400)
+            return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("restart"), 409)
             return
         # A restart is one operator gesture: stop() supersedes whatever was running or starting,
         # and the rate-limit window is cleared so the Start half is not refused as a second
@@ -487,6 +508,9 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
         adapter = runner.adapter
         if adapter.get("state_class") == "not_started":
             self._send_error("Startup test not applicable for this module", 400)
+            return
+        if runner.attached:
+            self._send_error(runner.attached_refusal("test"), 409)
             return
         if "error" in adapter:
             # F-021: read the reason defensively - an adapter can carry "error" without "reason",
@@ -510,15 +534,25 @@ class ShellAPIHandler(BaseHTTPRequestHandler):
 
 
 def _poll_loop(interval: float = 5.0):
-    """READY/DEGRADED every 5 s, everything else every 30 s (§7.7 idle-CPU budget)."""
+    """READY/DEGRADED every 5 s, everything else every 30 s (§7.7 idle-CPU budget).
+
+    SW-18: attached persistent services are observed at the 5 s cadence too, and once
+    immediately at startup, so the tile shows the service the operator started before the shell
+    (ATTACHED) rather than STOPPED for the first 30 s.
+    """
     tick = 0
+    first = True
     while True:
-        time.sleep(interval)
-        tick += 1
+        if not first:
+            time.sleep(interval)
+            tick += 1
         with ShellAPIHandler.lock:
             runners = list(ShellAPIHandler.states.values())
         for runner in runners:
-            if runner.state in (READY, DEGRADED):
+            if first:
+                if not getattr(runner, "attached", False):
+                    continue
+            elif runner.state in (READY, DEGRADED) or getattr(runner, "attached", False):
                 pass
             elif tick % 6 != 0:
                 continue
@@ -526,6 +560,7 @@ def _poll_loop(interval: float = 5.0):
                 runner.poll()
             except Exception:
                 pass
+        first = False
 
 
 def _run_selftest(port: int) -> int:
@@ -585,6 +620,27 @@ def _run_selftest(port: int) -> int:
     return 0
 
 
+def shutdown_workspace(supervisor, runners: dict, receipt_dir: str | None = None):
+    """Stop every OWNED module and record the teardown (SW-18). Returns (receipt, path).
+
+    Owned modules get the bounded graceful stop (shutdown Event, shared deadline, then
+    TerminateJobObject). Attached persistent services are never touched - only reported, with
+    how to stop them outside the shell. A receipt failure never blocks shell exit.
+    """
+    stop_records = supervisor.close()
+    receipt = build_teardown_receipt(stop_records, runners)
+    path = None
+    try:
+        path = write_teardown_receipt(
+            receipt, receipt_dir or os.path.join(workspace_state_root(), "shell", "logs"))
+        for line in summarize_teardown(receipt):
+            get_logger().info("teardown: %s", line)
+        get_logger().info("teardown receipt: %s", path)
+    except Exception as exc:
+        get_logger().warning("teardown receipt not written: %s", exc)
+    return receipt, path
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Sovereign Workspace Shell")
     parser.add_argument("--port", type=int, default=5180, help="Listen port (default: 5180)")
@@ -632,7 +688,7 @@ def main(argv=None):
         get_logger().info("shutting down on interrupt")
     finally:
         # H-9: only Job-owned processes are stopped. EXTERNAL instances are never touched.
-        supervisor.close()
+        shutdown_workspace(supervisor, states)
         server.shutdown()
     return 0
 

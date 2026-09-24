@@ -2,6 +2,7 @@
   "id": "tokencenter",
   "display_name": "Token Center",
   "description": "Read-only local usage telemetry. No credentials.",
+  "maturity": "stable",
   "state_class": "runnable",
   "root": "${install_root}/modules/tokencenter",
   "runtime_writes": [
@@ -51,6 +52,7 @@
   },
   "stop": {
     "kind": "job_object",
-    "grace_s": 5
+    "grace_s": 5,
+    "graceful": "shutdown_event"
   }
 }

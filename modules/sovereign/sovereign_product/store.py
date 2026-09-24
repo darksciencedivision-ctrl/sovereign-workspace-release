@@ -1,4 +1,4 @@
-"""Crash-safe durable product state with corruption-evident event lineage."""
+"""Crash-safe durable product state with tamper-evident event lineage."""
 
 from __future__ import annotations
 
@@ -11,20 +11,12 @@ from pathlib import Path
 import re
 import sqlite3
 import threading
-import time
 import uuid
 from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 
-SCHEMA_VERSION = 2
-#: F-106. Durable marker of the last-verified point in the corruption-evident event chain, so startup
-#: verification is incremental (only rows appended since) rather than a full re-hash every boot.
-EVENT_CHAIN_CHECKPOINT_KEY = "event_chain.verify_checkpoint.v1"
-# R33. One id contract across the store and the executors. The store used to admit 1-128 chars
-# while QUICK and semantic/legacy DEEP validate 1-96, so a caller-provided session_id of 97-128
-# chars created a session that then failed generation on every attempt. Capped to match the
-# executors' 1-96 (generated ids -- session_/job_/message_ + 32 hex = <=40 -- are well under it).
-ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+SCHEMA_VERSION = 1
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 ROLES = {"user", "sovereign", "system"}
 JOB_STATES = {
     "queued",
@@ -62,17 +54,6 @@ class InvalidTransition(StoreError, ValueError):
 
 class NotFound(StoreError, LookupError):
     """A requested durable entity does not exist."""
-
-
-class ActiveJobExists(StoreError):
-    """A session already has a queued or running job (R05/F-104).
-
-    Carries the existing active job so the caller can report it without a second, racy read.
-    """
-
-    def __init__(self, active_job: Mapping[str, Any]) -> None:
-        super().__init__("session already has an active job")
-        self.active_job = dict(active_job)
 
 
 def utc_now() -> str:
@@ -277,73 +258,12 @@ class SovereignStore:
                         COMMIT;
                         """
                     )
-                    version = 1
-                if version < 2:
-                    self._migrate_to_v2(connection)
             except Exception:
                 if connection.in_transaction:
                     connection.execute("ROLLBACK")
                 raise
             finally:
                 connection.close()
-
-    def _migrate_to_v2(self, connection: sqlite3.Connection) -> None:
-        """R05/F-104. Enforce one active (queued|running) job per session at the DB level with a
-        partial unique index. A pre-existing database written by the buggy admission path may
-        already hold several active jobs for a session, which would make the index creation fail;
-        demote all but the most recent active job per session to `failed` first, recording each in
-        the event lineage so the cleanup is not silent."""
-        connection.execute("BEGIN EXCLUSIVE")
-        try:
-            rows = connection.execute(
-                """
-                SELECT job_id, session_id, created_at, rowid AS rid
-                FROM jobs
-                WHERE status IN ('queued','running')
-                ORDER BY session_id ASC, created_at ASC, rowid ASC
-                """
-            ).fetchall()
-            # Keep the last (newest) active job per session; every earlier one is superseded.
-            keep: dict[str, str] = {}
-            for row in rows:
-                keep[str(row["session_id"])] = str(row["job_id"])
-            now = utc_now()
-            for row in rows:
-                job_id = str(row["job_id"])
-                if keep.get(str(row["session_id"])) == job_id:
-                    continue
-                connection.execute(
-                    """
-                    UPDATE jobs SET status='failed', finished_at=?, updated_at=?,
-                        error=? WHERE job_id=?
-                    """,
-                    (
-                        now,
-                        now,
-                        "superseded during migration: a session may hold only one active "
-                        "job (R05/F-104)",
-                        job_id,
-                    ),
-                )
-                self._append_event(
-                    connection,
-                    "job",
-                    job_id,
-                    "superseded_by_migration",
-                    {"reason": "one_active_job_per_session", "schema_version": 2},
-                )
-            connection.execute(
-                """
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_one_active_per_session
-                    ON jobs(session_id) WHERE status IN ('queued','running')
-                """
-            )
-            connection.execute("PRAGMA user_version=2")
-            connection.execute("COMMIT")
-        except Exception:
-            if connection.in_transaction:
-                connection.execute("ROLLBACK")
-            raise
 
     @staticmethod
     def _append_event(
@@ -635,96 +555,8 @@ class SovereignStore:
             connection.close()
         return [self._message_dict(row) for row in rows]
 
-    # EvidenceBuilder compatibility alias. This is the RECENT-CONTEXT selector; the full session
-    # history is served through page_recent_messages (R27), which paginates and surfaces truncation
-    # instead of silently returning only the first `limit` rows.
+    # EvidenceBuilder compatibility alias.
     get_session_messages = list_messages
-
-    def count_messages(self, session_id: str) -> int:
-        session = _id(session_id, "session")
-        connection = self._connect()
-        try:
-            row = connection.execute(
-                "SELECT COUNT(*) AS c FROM messages WHERE session_id=?", (session,)
-            ).fetchone()
-        finally:
-            connection.close()
-        return int(row["c"])
-
-    def get_jobs_by_ids(self, job_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
-        """R27. Fetch exactly the jobs named by `job_ids` (deduplicated), so message attribution
-        can be joined to the page being rendered rather than to a globally capped job list -- a
-        completed answer whose job is older than any fixed cap is no longer silently dropped."""
-        ordered: list[str] = []
-        seen: set[str] = set()
-        for raw in job_ids:
-            if not raw:
-                continue
-            identifier = _id(raw, "job")
-            if identifier not in seen:
-                seen.add(identifier)
-                ordered.append(identifier)
-        result: dict[str, dict[str, Any]] = {}
-        if not ordered:
-            return result
-        connection = self._connect()
-        try:
-            # Batch to stay well under SQLite's bound-parameter limit.
-            for start in range(0, len(ordered), 900):
-                batch = ordered[start:start + 900]
-                placeholders = ",".join("?" for _ in batch)
-                rows = connection.execute(
-                    f"SELECT * FROM jobs WHERE job_id IN ({placeholders})", batch
-                ).fetchall()
-                for row in rows:
-                    result[str(row["job_id"])] = self._job_dict(row)
-        finally:
-            connection.close()
-        return result
-
-    def page_recent_messages(
-        self,
-        session_id: str,
-        *,
-        limit: int = 2_000,
-        before: str | int | None = None,
-    ) -> dict[str, Any]:
-        """R27. Return the most recent `limit` messages for a session in ascending (display) order,
-        plus a cursor for older messages and the true total, so a session with more messages than
-        the page size surfaces truncation instead of silently dropping answers. `before` is an
-        opaque cursor (a rowid) from a previous page's `older_cursor`; pass it to fetch the page of
-        messages immediately older than that one."""
-        session = _id(session_id, "session")
-        limit = max(1, min(int(limit), 20_000))
-        clause = ""
-        parameters: list[Any] = [session]
-        if before is not None:
-            clause = " AND rowid < ?"
-            parameters.append(int(before))
-        parameters.append(limit + 1)  # one extra row tells us whether more remain
-        connection = self._connect()
-        try:
-            total = int(connection.execute(
-                "SELECT COUNT(*) AS c FROM messages WHERE session_id=?", (session,)
-            ).fetchone()["c"])
-            rows = connection.execute(
-                f"SELECT *, rowid AS _rid FROM messages WHERE session_id=?{clause} "
-                f"ORDER BY rowid DESC LIMIT ?",
-                parameters,
-            ).fetchall()
-        finally:
-            connection.close()
-        has_more_older = len(rows) > limit
-        page = rows[:limit]
-        older_cursor = str(page[-1]["_rid"]) if (has_more_older and page) else None
-        # Ascending for display; the query fetched newest-first to take the most recent page.
-        messages = [self._message_dict(row) for row in reversed(page)]
-        return {
-            "messages": messages,
-            "has_more_older": has_more_older,
-            "older_cursor": older_cursor,
-            "total": total,
-        }
 
     def create_job(
         self,
@@ -781,143 +613,6 @@ class SovereignStore:
                 {"session_id": session, "route": str(route).upper()},
             )
         return self.get_job(identifier)
-
-    def admit_job(
-        self,
-        session_id: str,
-        *,
-        route: str,
-        input_text: str,
-        user_content: str,
-        user_metadata: Mapping[str, Any] | None = None,
-        job_metadata: Mapping[str, Any] | None = None,
-        job_id: str | None = None,
-        user_message_id: str | None = None,
-    ) -> dict[str, Any]:
-        """R05/F-104. Admit one turn atomically: the active-job check, the user message insert and
-        the job creation are ONE transaction, so two concurrent submissions can never both pass
-        the check and leave two jobs (and two user messages) for one session.
-
-        Raises `ActiveJobExists` (carrying the existing job) if the session already has a queued or
-        running job; the partial unique index `idx_jobs_one_active_per_session` is the last-resort
-        guard, so even a write that somehow raced the SELECT is caught and surfaced the same way
-        rather than corrupting state. Returns `{"message": <user message>, "job": <job>}`.
-        """
-        session = _id(session_id, "session")
-        message_identifier = _id(user_message_id, "message")
-        job_identifier = _id(job_id, "job")
-        normalized_role = "user"
-        if not isinstance(user_content, str) or not user_content.strip():
-            raise ValueError("message content must be non-empty text")
-        if not isinstance(input_text, str) or not input_text.strip():
-            raise ValueError("job input must be non-empty text")
-        route_value = str(route).upper()
-        now = utc_now()
-        try:
-            with self._transaction() as connection:
-                exists = connection.execute(
-                    "SELECT 1 FROM sessions WHERE session_id=? AND deleted_at IS NULL",
-                    (session,),
-                ).fetchone()
-                if not exists:
-                    raise NotFound(f"session not found: {session}")
-                active = connection.execute(
-                    """
-                    SELECT * FROM jobs
-                    WHERE session_id=? AND status IN ('queued','running')
-                    ORDER BY created_at DESC, rowid DESC LIMIT 1
-                    """,
-                    (session,),
-                ).fetchone()
-                if active is not None:
-                    raise ActiveJobExists(self._job_dict(active))
-                # User message.
-                connection.execute(
-                    """
-                    INSERT INTO messages(
-                        message_id, session_id, role, content, status, route, job_id,
-                        evidence_pointer, created_at, metadata_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        message_identifier,
-                        session,
-                        normalized_role,
-                        user_content,
-                        "accepted",
-                        route_value,
-                        None,
-                        None,
-                        now,
-                        _json(dict(user_metadata or {})),
-                    ),
-                )
-                title_row = connection.execute(
-                    "SELECT title FROM sessions WHERE session_id=?", (session,)
-                ).fetchone()
-                title = title_row["title"]
-                if title == "New chat":
-                    title = " ".join(user_content.split())[:80]
-                connection.execute(
-                    "UPDATE sessions SET updated_at=?, title=? WHERE session_id=?",
-                    (now, title, session),
-                )
-                self._append_event(
-                    connection,
-                    "message",
-                    message_identifier,
-                    "appended",
-                    {
-                        "session_id": session,
-                        "role": normalized_role,
-                        "status": "accepted",
-                        "route": route_value,
-                        "content_sha256": hashlib.sha256(
-                            user_content.encode("utf-8")
-                        ).hexdigest(),
-                    },
-                )
-                # Job, referencing the message just inserted.
-                connection.execute(
-                    """
-                    INSERT INTO jobs(
-                        job_id, session_id, route, status, input_text,
-                        input_message_id, created_at, updated_at, metadata_json
-                    ) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        job_identifier,
-                        session,
-                        route_value,
-                        input_text,
-                        message_identifier,
-                        now,
-                        now,
-                        _json(dict(job_metadata or {})),
-                    ),
-                )
-                self._append_event(
-                    connection,
-                    "job",
-                    job_identifier,
-                    "created",
-                    {"session_id": session, "route": route_value},
-                )
-        except sqlite3.IntegrityError as exc:
-            # The partial unique index fired: a concurrent admission won the race. Report the
-            # existing active job rather than a raw DB error, and leave no orphan behind (the
-            # whole transaction rolled back).
-            if "idx_jobs_one_active_per_session" in str(exc):
-                current = self.list_jobs(
-                    status=("queued", "running"), session_id=session, limit=1
-                )
-                if current:
-                    raise ActiveJobExists(current[0]) from exc
-            raise
-        return {
-            "message": self.get_message(message_identifier),
-            "job": self.get_job(job_identifier),
-        }
 
     def get_job(self, job_id: str) -> dict[str, Any]:
         identifier = _id(job_id, "job")
@@ -1009,7 +704,6 @@ class SovereignStore:
             finished_at = row["finished_at"]
             attempts = int(row["attempts"])
             cancel_requested = int(row["cancel_requested"])
-            progress_json = row["progress_json"]
             if target == "running":
                 started_at = now
                 finished_at = None
@@ -1017,16 +711,9 @@ class SovereignStore:
             elif target in TERMINAL_JOB_STATES:
                 finished_at = now
             elif target == "queued":
-                # R28. Requeue begins a NEW attempt. The old code reset the timestamps and the
-                # cancel flag but LEFT progress_json, so the previous attempt's high-water mark
-                # (e.g. 80%/"generation") persisted; the worker's fresh 1% then failed the
-                # no-regression guard in update_job_progress, was caught as InvalidTransition, and
-                # the job sat in `running` with no executor ever running. Clearing attempt-scoped
-                # progress here makes the retry start clean.
                 started_at = None
                 finished_at = None
                 cancel_requested = 0
-                progress_json = "{}"
             merged_metadata = _decode(row["metadata_json"], {})
             merged_metadata.update(dict(metadata or {}))
             connection.execute(
@@ -1034,8 +721,7 @@ class SovereignStore:
                 UPDATE jobs SET
                     status=?, started_at=?, finished_at=?, updated_at=?,
                     error=?, evidence_pointer=?, output_message_id=?,
-                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?,
-                    progress_json=?
+                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?
                 WHERE job_id=?
                 """,
                 (
@@ -1050,7 +736,6 @@ class SovereignStore:
                     attempts,
                     cancel_requested,
                     _json(merged_metadata),
-                    progress_json,
                     identifier,
                 ),
             )
@@ -1155,148 +840,6 @@ class SovereignStore:
             )
         return self.get_job(identifier)
 
-    def complete_job_with_answer(
-        self,
-        job_id: str,
-        *,
-        content: str,
-        evidence_pointer: str | None = None,
-        message_metadata: Mapping[str, Any] | None = None,
-        job_metadata: Mapping[str, Any] | None = None,
-        message_id: str | None = None,
-    ) -> dict[str, Any]:
-        """R07. Finish a running job atomically: the cancel check, the accepted answer message, the
-        progress bump and the running->completed transition are ONE transaction. It is therefore
-        impossible to end with an `accepted` output message attached to a job that is not
-        `completed` -- a crash before commit leaves the job running (to be recovered) with no
-        answer; a cancel that arrived while the answer was being computed is honoured here and the
-        answer is discarded.
-
-        Returns `{"job": <job>, "outcome": "completed"|"cancelled", "message": <message?>}`.
-        """
-        identifier = _id(job_id, "job")
-        message_identifier = _id(message_id, "message")
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("answer content must be non-empty text")
-        now = utc_now()
-        with self._transaction() as connection:
-            row = connection.execute(
-                "SELECT * FROM jobs WHERE job_id=?", (identifier,)
-            ).fetchone()
-            if row is None:
-                raise NotFound(f"job not found: {identifier}")
-            current = str(row["status"])
-            if current != "running":
-                raise InvalidTransition(
-                    f"job {identifier} is {current}, expected running"
-                )
-            session = str(row["session_id"])
-            # Cancel check, inside the transaction: a cancel requested while the answer was being
-            # produced wins, and no accepted message is written.
-            if int(row["cancel_requested"]):
-                connection.execute(
-                    """
-                    UPDATE jobs SET status='cancelled', finished_at=?, updated_at=?
-                    WHERE job_id=?
-                    """,
-                    (now, now, identifier),
-                )
-                self._append_event(
-                    connection,
-                    "job",
-                    identifier,
-                    "transitioned",
-                    {"from": "running", "to": "cancelled", "reason": "cancel_requested"},
-                )
-                return {"job": self._job_dict_by_id(connection, identifier),
-                        "outcome": "cancelled", "message": None}
-            # Accepted answer message.
-            connection.execute(
-                """
-                INSERT INTO messages(
-                    message_id, session_id, role, content, status, route, job_id,
-                    evidence_pointer, created_at, metadata_json
-                ) VALUES (?, ?, 'sovereign', ?, 'accepted', ?, ?, ?, ?, ?)
-                """,
-                (
-                    message_identifier,
-                    session,
-                    content,
-                    str(row["route"]).upper() if row["route"] else None,
-                    identifier,
-                    evidence_pointer,
-                    now,
-                    _json(dict(message_metadata or {})),
-                ),
-            )
-            connection.execute(
-                "UPDATE sessions SET updated_at=? WHERE session_id=?", (now, session)
-            )
-            self._append_event(
-                connection,
-                "message",
-                message_identifier,
-                "appended",
-                {
-                    "session_id": session,
-                    "role": "sovereign",
-                    "status": "accepted",
-                    "route": str(row["route"]).upper() if row["route"] else None,
-                    "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-                },
-            )
-            # Progress to 100 and the completion transition, same transaction.
-            prior_progress = _decode(row["progress_json"], {})
-            progress = dict(prior_progress) if isinstance(prior_progress, Mapping) else {}
-            progress.update({"percent": 100, "stage": "completed"})
-            merged_metadata = _decode(row["metadata_json"], {})
-            merged_metadata.update(dict(job_metadata or {}))
-            connection.execute(
-                """
-                UPDATE jobs SET status='completed', finished_at=?, updated_at=?,
-                    progress_json=?, evidence_pointer=?, output_message_id=?, metadata_json=?
-                WHERE job_id=?
-                """,
-                (
-                    now,
-                    now,
-                    _json(progress),
-                    evidence_pointer or row["evidence_pointer"],
-                    message_identifier,
-                    _json(merged_metadata),
-                    identifier,
-                ),
-            )
-            self._append_event(
-                connection,
-                "job",
-                identifier,
-                "transitioned",
-                {
-                    "from": "running",
-                    "to": "completed",
-                    "evidence_pointer": evidence_pointer,
-                    "output_message_id": message_identifier,
-                },
-            )
-            return {"job": self._job_dict_by_id(connection, identifier),
-                    "outcome": "completed",
-                    "message": self._message_dict(
-                        connection.execute(
-                            "SELECT * FROM messages WHERE message_id=?",
-                            (message_identifier,),
-                        ).fetchone()
-                    )}
-
-    @staticmethod
-    def _job_dict_by_id(connection: sqlite3.Connection, job_id: str) -> dict[str, Any]:
-        row = connection.execute(
-            "SELECT * FROM jobs WHERE job_id=?", (job_id,)
-        ).fetchone()
-        if row is None:
-            raise NotFound(f"job not found: {job_id}")
-        return SovereignStore._job_dict(row)
-
     def request_cancel(self, job_id: str) -> dict[str, Any]:
         identifier = _id(job_id, "job")
         with self._transaction() as connection:
@@ -1351,15 +894,9 @@ class SovereignStore:
                     if isinstance(progress, Mapping)
                     else None
                 )
-                # R29. Accept BOTH pointer schemes. Under the shipped external-state layout the
-                # service emits sovereign-state:// pointers for runtime evidence; accepting only
-                # sovereign:// dropped the recovery link for every job with an external-state
-                # pointer, recovering it as interrupted with no evidence to resume from. Resolution
-                # of either scheme happens later through paths.resolve_pointer.
                 if not (
                     isinstance(recovery_pointer, str)
-                    and (recovery_pointer.startswith("sovereign://")
-                         or recovery_pointer.startswith("sovereign-state://"))
+                    and recovery_pointer.startswith("sovereign://")
                     and ".." not in recovery_pointer
                 ):
                     recovery_pointer = None
@@ -1726,18 +1263,7 @@ class SovereignStore:
     # Introspection compatibility alias.
     summary = status_summary
 
-    #: F-124. PRAGMA quick_check scans the WHOLE database. /v1/health used to call it on every
-    #: request while the shell polls readiness every 5s and the UI every 10s, so a full-DB scan ran
-    #: several times a minute and grew with history. A short TTL caches the "ok" result: a passing
-    #: check is trusted for this long before it is run again. Corruption does not appear
-    #: spontaneously between two reads seconds apart, and a failure is never cached.
-    _QUICK_CHECK_TTL_S = 60.0
-
-    def quick_check(self, *, force: bool = False) -> bool:
-        now = time.monotonic()
-        cached_until = getattr(self, "_quick_check_ok_until", 0.0)
-        if not force and now < cached_until:
-            return True
+    def quick_check(self) -> bool:
         connection = self._connect()
         try:
             rows = connection.execute("PRAGMA quick_check").fetchall()
@@ -1748,40 +1274,18 @@ class SovereignStore:
         results = [str(row[0]) for row in rows]
         if results != ["ok"]:
             raise StoreIntegrityError("SQLite quick_check: " + "; ".join(results))
-        self._quick_check_ok_until = now + self._QUICK_CHECK_TTL_S
         return True
 
-    def verify_event_chain(self, *, full: bool = False) -> dict[str, Any]:
-        """Verify the corruption-evident event chain.
-
-        F-106. Re-hashing EVERY row on every startup made startup time (and memory) grow linearly
-        with the install's lifetime, until the service missed the shell's 45s readiness window and
-        presented as HEALTH_CHECK_FAILED. Verification is now INCREMENTAL from a durable checkpoint
-        (`event_chain_checkpoint` in meta = the last-verified sequence and its hash): startup checks
-        only rows appended since the checkpoint, then advances it. `full=True` ignores the
-        checkpoint and re-verifies from genesis -- the explicit, on-demand integrity audit. A
-        mismatch on a checked row still raises StoreIntegrityError; recover by restoring from a
-        backup, or, when the divergence is understood and accepted, by re-checkpointing from a
-        known-good sequence (see recheckpoint_event_chain)."""
-        checkpoint = {} if full else (self.get_meta(EVENT_CHAIN_CHECKPOINT_KEY, {}) or {})
-        start_previous = "0" * 64
-        start_sequence = 1
-        if isinstance(checkpoint, Mapping) and checkpoint.get("event_hash"):
-            try:
-                start_sequence = int(checkpoint["sequence"]) + 1
-                start_previous = str(checkpoint["event_hash"])
-            except (KeyError, ValueError, TypeError):
-                start_previous, start_sequence = "0" * 64, 1
+    def verify_event_chain(self) -> dict[str, Any]:
         connection = self._connect()
         try:
             rows = connection.execute(
-                "SELECT * FROM event_log WHERE sequence >= ? ORDER BY sequence ASC",
-                (start_sequence,),
+                "SELECT * FROM event_log ORDER BY sequence ASC"
             ).fetchall()
         finally:
             connection.close()
-        previous = start_previous
-        expected_sequence = start_sequence
+        previous = "0" * 64
+        expected_sequence = 1
         for row in rows:
             sequence = int(row["sequence"])
             if sequence != expected_sequence:
@@ -1804,24 +1308,11 @@ class SovereignStore:
                 raise StoreIntegrityError(f"event {sequence} hash mismatch")
             previous = expected
             expected_sequence += 1
-        # Advance the checkpoint to the verified head so the next startup re-checks only what is new.
-        if rows:
-            self.set_meta(EVENT_CHAIN_CHECKPOINT_KEY,
-                          {"sequence": expected_sequence - 1, "event_hash": previous})
         return {
             "ok": True,
             "events": len(rows),
-            "verified_from_sequence": start_sequence,
-            "incremental": not full,
             "head": previous,
         }
-
-    def recheckpoint_event_chain(self) -> dict[str, Any]:
-        """F-106 recovery. Re-verify the WHOLE chain from genesis and reset the checkpoint to its
-        head. Use after an understood, accepted divergence (e.g. a restored backup) so a stale
-        checkpoint does not keep raising; it re-verifies every row, so it also confirms the chain is
-        internally consistent before trusting it again."""
-        return self.verify_event_chain(full=True)
 
     def apply_retention(
         self,
@@ -1833,13 +1324,6 @@ class SovereignStore:
 
         Event lineage is retained, and every purge is itself appended. Jobs
         belonging to live sessions are never removed by time alone.
-
-        F-111: this is NOT scheduled anywhere. Deleting a chat is therefore a LOGICAL (soft) delete:
-        the session is hidden, but its full message content remains in sovereign.db until this method
-        is invoked explicitly. That is a deliberate, documented choice - purging content is
-        irreversible, so it is an operator action, not a silent background sweep. A deployment that
-        wants time-based purge must call this from an operator-triggered task; nothing purges content
-        on its own. (See docs: deletion is logical unless retention is explicitly applied.)
         """
 
         if deleted_session_days < 0 or terminal_job_days < 0:

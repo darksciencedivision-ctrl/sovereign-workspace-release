@@ -849,7 +849,9 @@ class JobSupervisor:
                     while time.time() < fdl and ph.is_alive():
                         time.sleep(0.02)
                 records.append({"module_id": module_id, "graceful": graceful,
-                                "forced": forced, "exit_code": ph.exit_code})
+                                "forced": forced, "exit_code": ph.exit_code,
+                                # SW-18: observed, not assumed - the teardown receipt reports it.
+                                "alive_after_stop": ph.is_alive()})
                 reader = self._readers.get(module_id)
                 self._cleanup(module_id, ph)
                 if reader is not None:
@@ -878,11 +880,17 @@ class JobSupervisor:
         self._log_health.pop(module_id, None)
 
     def close(self):
+        """Stop every owned module (bounded graceful, then forced) and release the shell job.
+
+        SW-18: returns the per-module stop records (empty on a repeat call) so the shell can write
+        its teardown receipt.
+        """
         if self._closed:
-            return
+            return []
         self._closed = True
-        self.stop_all()
+        records = self.stop_all()
         try:
             kernel32.CloseHandle(self._shell_job)
         except Exception:
             pass
+        return records

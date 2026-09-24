@@ -55,23 +55,48 @@ class ContentAddressedStore:
         digest = ref.split(":", 1)[1]
         return self._root / digest[:2] / digest[2:]
 
+    def _blob_ok(self, path: Path, ref: str) -> bool:
+        """True only when the stored blob's bytes hash to `ref`. False if absent/unreadable/corrupt."""
+        try:
+            return self.ref_for(path.read_bytes()) == ref
+        except OSError:
+            return False
+
     def put(self, content: bytes) -> str:
         ref = self.ref_for(content)
         path = self._path_for(ref)
-        if path.exists():
-            return ref  # idempotent: identical content already stored
-        with self._lock_for(ref):  # CR-001: one publisher per ref within this process
-            return self._put_locked(content, ref, path)
+        # SW-22: the idempotent fast path must VERIFY, not assume. A present-and-correct blob returns
+        # success without a lock; a present-but-CORRUPT (or unreadable) blob falls through to the
+        # locked (re)publish below, which repairs it — content addressing means we hold the exact
+        # correct bytes, so a present-but-wrong blob must never be reported as a successful publish.
+        if self._blob_ok(path, ref):
+            return ref
+        try:
+            with self._lock_for(ref):  # CR-001: one publisher per ref within this process
+                return self._put_locked(content, ref, path)
+        finally:
+            self._release_lock(ref)
+
+    def _release_lock(self, ref: str) -> None:
+        # SW-22: bound the per-ref lock dict. Once the blob exists, every future put() hits the
+        # verified fast path and never re-acquires this lock, so it is safe to drop.
+        try:
+            exists = self._path_for(ref).exists()
+        except ValueError:
+            exists = False
+        if exists:
+            with self._publish_locks_guard:
+                self._publish_locks.pop(ref, None)
 
     def _put_locked(self, content: bytes, ref: str, path: Path) -> str:
-        if path.exists():
-            return ref  # a sibling thread published it while we waited for the lock
+        # Re-check under the lock: a sibling thread may have published the correct bytes while we
+        # waited. A present-but-corrupt blob is NOT accepted here — it is overwritten (repaired) by
+        # the atomic replace below, which os.replace performs regardless of the target's prior state.
+        if self._blob_ok(path, ref):
+            return ref
         path.parent.mkdir(parents=True, exist_ok=True)
-        # CR-001: a per-PROCESS temp name (the old `.tmp-<pid>`) still collided between THREADS of
-        # one process — the MCP server handles requests on threads, so two threads publishing the
-        # same content shared one .tmp path and the second failed the first's rename (Windows
-        # sharing violation; reproduced in test_cas_concurrent_publish_no_collision). mkstemp gives
-        # every writer a unique same-directory temp file, so writers never contend for a name.
+        # CR-001: mkstemp gives every writer a unique same-directory temp, so concurrent writers of
+        # the same ref never contend for a name (the per-ref lock already serializes them in-process).
         fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".tmp-")
         tmp = Path(tmp_name)
         try:
@@ -81,23 +106,17 @@ class ContentAddressedStore:
                 # fsync the BYTES before the rename. os.replace is atomic for the NAME only;
                 # without this a crash can leave a published ref whose bytes were never durable.
                 os.fsync(fh.fileno())
-            if path.exists():
-                # A concurrent writer of identical content already published the final ref while we
-                # were writing. Content addressing makes the bytes identical, so treat the existing
-                # blob as success and drop only our own temp file — never another writer's.
-                os.unlink(tmp)
-                return ref
-            # CR-001: atomic publish of our own uniquely-named temp. On Windows os.replace can
-            # transiently fail with PermissionError (ERROR_ACCESS_DENIED) when AV/the indexer or a
-            # concurrent identical publisher briefly holds the target — the acceptance hammers 100+
-            # threads, so tolerate it: retry with a short backoff, and treat "the final blob now
-            # exists" (a concurrent identical publish won) as success (idempotent).
+            # CR-001: atomic publish (and SW-22 repair) of our uniquely-named temp. os.replace
+            # overwrites the target whether it is absent, correct, or corrupt, so this both publishes
+            # a new blob and repairs a bad one. On Windows it can transiently raise PermissionError
+            # (AV/indexer/concurrent identical publisher briefly holds the target); retry, and treat
+            # "the final blob is now correct" (a concurrent identical publish won) as success.
             for attempt in range(_PUBLISH_ATTEMPTS):
                 try:
                     os.replace(tmp, path)
                     break
                 except PermissionError:
-                    if path.exists():
+                    if self._blob_ok(path, ref):
                         os.unlink(tmp)
                         return ref
                     if attempt == _PUBLISH_ATTEMPTS - 1:
@@ -110,8 +129,8 @@ class ContentAddressedStore:
                 os.unlink(tmp)
             except OSError:
                 pass
-            if path.exists():
-                # Lost the race but the content is durably published by the winner: still success.
+            if self._blob_ok(path, ref):
+                # Lost the race but the correct content is durably published: still success.
                 return ref
             raise
         return ref

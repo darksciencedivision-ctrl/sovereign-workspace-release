@@ -1,0 +1,348 @@
+{
+  "base_url": "http://127.0.0.1:5299",
+  "finished_utc": "2026-09-24T15:06:18.519Z",
+  "hardware": {
+    "gpu": {
+      "memory_total_mib": 8151,
+      "name": "NVIDIA GeForce RTX 5060 Ti"
+    },
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel"
+  },
+  "profile": "ollama-production-slate",
+  "repetitions": 3,
+  "resources": {
+    "baseline": {
+      "ram_used_mib": 39240,
+      "vram_mib": 7495
+    },
+    "note": "system-wide peaks sampled once a second during the run",
+    "peak_system_ram_used_mib": 40069,
+    "peak_vram_mib": 7661,
+    "ram_total_mib": 65230
+  },
+  "results_file": "run2-ollama-production-slate.results.json",
+  "runs": [
+    {
+      "cold": true,
+      "http_status": 202,
+      "input_chars": 72,
+      "job_elapsed_seconds": 17.933319,
+      "job_id": "job_a9134966af9a443c926678f840bff331",
+      "latency_seconds": 18.23399999999674,
+      "note": "after unloading the profile's models (keep_alive=0)",
+      "route": "QUICK",
+      "scenario": "quick_cold",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:56:39.686Z",
+      "tokens": 301
+    },
+    {
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 72,
+      "job_elapsed_seconds": 8.896678,
+      "job_id": "job_01f792823092432bb2603c9e5b1ac027",
+      "latency_seconds": 9.34399999998277,
+      "route": "QUICK",
+      "scenario": "quick_warm",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:56:57.932Z",
+      "tokens": 301
+    },
+    {
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 67,
+      "job_elapsed_seconds": 11.686157,
+      "job_id": "job_2f530f113c2045efba542a8b06e54372",
+      "latency_seconds": 11.921999999962281,
+      "route": "QUICK",
+      "scenario": "quick_warm",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:07.315Z",
+      "tokens": 314
+    },
+    {
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 61,
+      "job_elapsed_seconds": 10.058476,
+      "job_id": "job_ad980e77074c4eff97b7d72923a13196",
+      "latency_seconds": 10.375,
+      "route": "QUICK",
+      "scenario": "quick_warm",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:19.263Z",
+      "tokens": 311
+    },
+    {
+      "context_tokens": 2048,
+      "http_status": 202,
+      "input_chars": 6552,
+      "job_elapsed_seconds": 8.249785,
+      "job_id": "job_35175bacdfee4b2f9078eadce9048f00",
+      "latency_seconds": 8.797000000020489,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:29.662Z",
+      "tokens": 2211
+    },
+    {
+      "context_tokens": 2048,
+      "http_status": 202,
+      "input_chars": 6552,
+      "job_elapsed_seconds": 8.449091,
+      "job_id": "job_e7354131660a469e8f73f8d48a367d84",
+      "latency_seconds": 8.875,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:38.481Z",
+      "tokens": 2215
+    },
+    {
+      "context_tokens": 2048,
+      "http_status": 202,
+      "input_chars": 6552,
+      "job_elapsed_seconds": 8.428724,
+      "job_id": "job_60c04c68630546bd879734e7504658f2",
+      "latency_seconds": 8.813000000023749,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:47.379Z",
+      "tokens": 2213
+    },
+    {
+      "context_tokens": 8192,
+      "http_status": 202,
+      "input_chars": 26212,
+      "job_elapsed_seconds": 21.871653,
+      "job_id": "job_73b2554249d64a86a215bafb274c9b7b",
+      "latency_seconds": 22.29700000002049,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:57:56.238Z",
+      "tokens": 8301
+    },
+    {
+      "context_tokens": 8192,
+      "http_status": 202,
+      "input_chars": 26212,
+      "job_elapsed_seconds": 22.021163,
+      "job_id": "job_7644eafe4e1e4ba7a686549db33d8986",
+      "latency_seconds": 22.28100000001723,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:58:18.543Z",
+      "tokens": 8307
+    },
+    {
+      "context_tokens": 8192,
+      "http_status": 202,
+      "input_chars": 26212,
+      "job_elapsed_seconds": 22.396467,
+      "job_id": "job_89f51ba3ee4f4ebe9d9aac4cd010a6b9",
+      "latency_seconds": 22.735000000044238,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:58:40.844Z",
+      "tokens": 8304
+    },
+    {
+      "context_tokens": 16384,
+      "error": "ModelCapabilityError: input bound (53261) plus safety allowance (512) leaves no generation capacity inside effective context 40960 for model 'qwen3:14b'",
+      "http_status": 202,
+      "input_chars": 52428,
+      "job_elapsed_seconds": 0.147594,
+      "job_id": "job_a03e963676eb4b5e863c1db04de10b80",
+      "latency_seconds": 0.5630000000237487,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "failed",
+      "submitted_utc": "2026-09-24T14:59:03.588Z"
+    },
+    {
+      "context_tokens": 16384,
+      "error": "ModelCapabilityError: input bound (53261) plus safety allowance (512) leaves no generation capacity inside effective context 40960 for model 'qwen3:14b'",
+      "http_status": 202,
+      "input_chars": 52428,
+      "job_elapsed_seconds": 0.149233,
+      "job_id": "job_a58a8ea44638457ba9d44fe8ebd979cc",
+      "latency_seconds": 0.5310000000172295,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "failed",
+      "submitted_utc": "2026-09-24T14:59:04.149Z"
+    },
+    {
+      "context_tokens": 16384,
+      "error": "ModelCapabilityError: input bound (53261) plus safety allowance (512) leaves no generation capacity inside effective context 40960 for model 'qwen3:14b'",
+      "http_status": 202,
+      "input_chars": 52428,
+      "job_elapsed_seconds": 0.158011,
+      "job_id": "job_aa7f5ecfd80b4d21af924204badce435",
+      "latency_seconds": 0.5470000000204891,
+      "route": "QUICK",
+      "scenario": "context",
+      "status": "failed",
+      "submitted_utc": "2026-09-24T14:59:04.701Z"
+    },
+    {
+      "concurrency": 1,
+      "http_status": 202,
+      "input_chars": 67,
+      "job_elapsed_seconds": 16.499201,
+      "job_id": "job_7c6f544c481844aa98c250d6a0c0bb47",
+      "latency_seconds": 16.59299999999348,
+      "route": "QUICK",
+      "scenario": "concurrency",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:59:05.294Z",
+      "tokens": 336
+    },
+    {
+      "concurrency": 1,
+      "http_status": 202,
+      "input_chars": 67,
+      "job_elapsed_seconds": 14.587674,
+      "job_id": "job_7bd81355c77043a6890657862a058e5d",
+      "latency_seconds": 14.952999999979511,
+      "route": "QUICK",
+      "scenario": "concurrency",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:59:21.920Z",
+      "tokens": 330
+    },
+    {
+      "concurrency": 1,
+      "http_status": 202,
+      "input_chars": 67,
+      "job_elapsed_seconds": 15.198821,
+      "job_id": "job_18b16804a412441498ee32630ea11986",
+      "latency_seconds": 15.53100000001723,
+      "route": "QUICK",
+      "scenario": "concurrency",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:59:36.884Z",
+      "tokens": 345
+    },
+    {
+      "concurrency": 2,
+      "http_status": 202,
+      "input_chars": 61,
+      "job_elapsed_seconds": 11.554565,
+      "job_id": "job_f464eaa03997494f99671ae94c3a7273",
+      "latency_seconds": 11.920999999972992,
+      "route": "QUICK",
+      "scenario": "concurrency",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:59:52.443Z",
+      "tokens": 320
+    },
+    {
+      "concurrency": 2,
+      "http_status": 202,
+      "input_chars": 75,
+      "job_elapsed_seconds": 9.707104,
+      "job_id": "job_b0dac4053a2149cbb94cbcfbda989c96",
+      "latency_seconds": 21.79700000002049,
+      "route": "QUICK",
+      "scenario": "concurrency",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T14:59:52.460Z",
+      "tokens": 308
+    },
+    {
+      "cancel_latency_seconds": 1.0310000000172295,
+      "error": "generation cancelled",
+      "http_status": 202,
+      "input_chars": 8000,
+      "job_elapsed_seconds": 3.861501,
+      "job_id": "job_e0f37723e82649e19af24df228f8c49d",
+      "latency_seconds": 4.186999999976251,
+      "route": "QUICK",
+      "scenario": "cancel",
+      "status": "cancelled",
+      "submitted_utc": "2026-09-24T15:00:14.233Z"
+    },
+    {
+      "http_status": 202,
+      "input_chars": 61,
+      "job_elapsed_seconds": 359.749631,
+      "job_id": "job_60207b0559624e4185886aae6d989350",
+      "latency_seconds": 360.125,
+      "route": "DEEP",
+      "scenario": "deep",
+      "status": "completed",
+      "submitted_utc": "2026-09-24T15:00:18.462Z",
+      "tokens": 8306
+    }
+  ],
+  "runtime": {
+    "backend": "ollama",
+    "deep_model_slate": {
+      "critic": "qwen3:8b",
+      "generation_constraints": {
+        "minimum_num_predict_by_model": {
+          "qwen3:14b": 1024
+        },
+        "think_by_model": {
+          "qwen3:14b": false
+        },
+        "top_level_think_control": "passed explicitly through OllamaClient; qwen3 defaults to think=false for complete concise visible output"
+      },
+      "members": [
+        {
+          "model": "qwen3:14b",
+          "role_id": "evidence_analyst",
+          "think": false
+        },
+        {
+          "model": "qwen2.5:14b-instruct",
+          "role_id": "causal_skeptic",
+          "think": null
+        },
+        {
+          "model": "qwen3:8b",
+          "role_id": "decision_engineer",
+          "think": false
+        }
+      ],
+      "synthesizer": "qwen2.5:14b-instruct",
+      "verifier": "qwen3:32b"
+    },
+    "num_ctx": 40960,
+    "num_predict": 32768,
+    "primary_model": "qwen3:14b",
+    "product_version": "3.1.2",
+    "qualification_at_start": {
+      "config": {
+        "backend": "ollama",
+        "num_ctx": 40960,
+        "num_predict": 32768,
+        "primary_model": "qwen3:14b",
+        "workers": 1
+      },
+      "profile": "ollama-production-slate",
+      "reasons": [
+        "profile has not been measured on this machine (run: python -m sovereign_product.qualification run/derive)"
+      ],
+      "unqualified": [
+        "context_tokens",
+        "concurrent_jobs",
+        "max_output_tokens"
+      ],
+      "verdict": "unqualified"
+    },
+    "worker_count": 1
+  },
+  "schema": "sovereign.qualification-results.v1",
+  "started_utc": "2026-09-24T14:56:38.171Z"
+}

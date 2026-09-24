@@ -36,6 +36,8 @@ from .model_client import (
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
     OllamaClient,
 )
+from .paths import UnsafeArtifactPointer, resolve_runtime_dir, state_artifact_pointer
+from .runtime_registry import CONSUMER_WEIGHTS, PRODUCTION_WEIGHTS, blob_path
 from .semantic_guards import mechanism_analysis_issues
 
 
@@ -51,92 +53,7 @@ _VERSION_TOKEN_RE = re.compile(
     r"\bv?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?\b",
     re.IGNORECASE,
 )
-# EPC-02, ENTRY 034 (slate-wide tuning), operator-directed.
-#
-# 2,048 was too tight for a member writing a complete structured answer, and the cost of being
-# tight here is total rather than partial: a member that stops mid-sentence returns
-# done_reason=length, the pipeline correctly refuses to synthesise from a truncated input, and
-# the ENTIRE six-minute four-model run is discarded. Measured three times in a row on this
-# host - "member_2 returned a truncated visible answer" - with genuinely good reasoning thrown
-# away each time.
-#
-# member_2 is dolphin3:8b, which reports no thinking capability and has a 131,072-token
-# context, so neither hidden reasoning nor context exhaustion explains it. It was simply
-# writing a longer answer than the cap allowed.
-#
-# 6,144 is chosen against that asymmetry: a couple of extra minutes per run costs far less
-# than losing the run. It remains a bounded cap - a member cannot generate without limit - and
-# sits far inside the smallest context on the slate.
-# EPC-02, operator-directed. `num_ctx` was 131_072 - dolphin3's MODEL-CARD maximum, taken as
-# though it were a setting. Measured consequence on this host: an 8B model whose weights are
-# ~4.9 GB sat RESIDENT AT 23.2 GB on an 8,151 MiB card, because a 131k KV cache cannot fit and
-# Ollama spills the model into system RAM. Every DEEP member then ran largely on CPU, which is
-# why a run took 17-45 minutes rather than seconds. The model count was never the cost.
-#
-# This is the same mistake as the hardcoded 8B ceiling, in a different constant: a number
-# written down instead of derived. The card says what it can hold; the machine says what it
-# WILL hold. So the size is measured here and pinned for this host, exactly as the ceiling
-# advisory now is.
-#
-# It RECOMMENDS a size and pins it; it does not claim precision it has not got. The reserve
-# fractions below are deliberately conservative - spilling is catastrophic (7x slower) while a
-# smaller context costs nothing on a 2.5 KB evidence corpus.
-_VRAM_ENV = "SOVEREIGN_VRAM_MIB"
-_NUM_CTX_ENV = "SOVEREIGN_DEEP_NUM_CTX"
-
-#: Share of VRAM left for the KV cache after weights and runtime overhead.
-_KV_SHARE_OF_VRAM = 0.35
-#: Approximate MiB of KV cache per token for an 8B-class model at this quantisation.
-_MIB_PER_CONTEXT_TOKEN = 0.13
-#: Never below this: the pipeline's own validator requires >= 4096 and > num_predict.
-_MIN_NUM_CTX = 8_192
-#: Never above this, whatever the card: a context far larger than the corpus buys nothing.
-_MAX_NUM_CTX = 32_768
-
-
-def detect_vram_mib() -> tuple[int, str]:
-    """Total VRAM on the largest visible GPU, and how it was learned. Never raises."""
-    import os  # noqa: PLC0415
-    import shutil  # noqa: PLC0415
-    import subprocess  # noqa: PLC0415
-
-    override = (os.environ.get(_VRAM_ENV) or "").strip()
-    if override.isdigit() and int(override) > 0:
-        return int(override), f"{_VRAM_ENV}={override}"
-    executable = shutil.which("nvidia-smi")
-    if executable:
-        try:
-            result = subprocess.run(
-                [executable, "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=20, check=False)
-            sizes = [int(line.strip()) for line in result.stdout.splitlines()
-                     if line.strip().isdigit()]
-            if sizes:
-                return max(sizes), "nvidia-smi"
-        except (OSError, ValueError, subprocess.SubprocessError):
-            pass
-    return 0, "not detected"
-
-
-def recommended_num_ctx() -> tuple[int, str]:
-    """A context size this machine can actually hold, and the basis for it."""
-    import os  # noqa: PLC0415
-
-    override = (os.environ.get(_NUM_CTX_ENV) or "").strip()
-    if override.isdigit() and int(override) >= 4096:
-        return int(override), f"pinned by {_NUM_CTX_ENV}"
-
-    vram_mib, source = detect_vram_mib()
-    if not vram_mib:
-        return _MIN_NUM_CTX, "VRAM not detected; using the conservative floor"
-    budget_mib = vram_mib * _KV_SHARE_OF_VRAM
-    derived = int(budget_mib / _MIB_PER_CONTEXT_TOKEN)
-    derived = max(_MIN_NUM_CTX, min(_MAX_NUM_CTX, (derived // 4096) * 4096))
-    return derived, (f"{vram_mib} MiB VRAM ({source}), "
-                     f"{int(_KV_SHARE_OF_VRAM * 100)}% reserved for KV cache")
-
-
-DEEP_MEMBER_MAX_GENERATION_TOKENS = 6_144
+DEEP_MEMBER_MAX_GENERATION_TOKENS = 2_048
 _NEGATION_TOKEN_RE = re.compile(
     r"\b(?:not|never|no|without|isn't|aren't|wasn't|weren't|"
     r"unconfirmed|unproven|unknown|unavailable)\b",
@@ -440,6 +357,7 @@ def _validate_semantic_execution_request(
     options: Mapping[str, Any] | None,
     timeout_seconds: float | None,
 ) -> tuple[str, str | None, str, dict[str, Any]]:
+    """CR-038: validate one semantic DEEP execution request as a pure phase before any model turn."""
     validated_session = _validate_session_id(session_id)
     validated_job = _validate_session_id(job_id) if job_id is not None else None
     if not isinstance(topic, str) or not topic.strip():
@@ -464,7 +382,7 @@ def _semantic_request_record(
     evidence_builder_configured: bool,
     started_at: str,
 ) -> dict[str, Any]:
-    """Build the immutable request phase record before any model turn runs."""
+    """CR-038: build the immutable request-phase record (with digest) before any model turn runs."""
     return _with_digest(
         {
             "schema_version": 1,
@@ -483,32 +401,6 @@ def _semantic_request_record(
             "evidence_builder_configured": evidence_builder_configured,
             "started_at": started_at,
         }
-    )
-
-
-def _safe_relative(path: Path, root: Path | Sequence[Path]) -> str:
-    """An artifact path expressed relative to whichever trusted root contains it.
-
-    EPC-02. `root` was a single Path - the install root - and every artifact reference in the
-    DEEP pipeline went through here. EPC-01 P4-4 moved runtime state OUT of the install root,
-    so once the run directory itself was fixed, the very next write failed on this instead:
-    "artifact path escaped product root: D:/...state.../semantic_deep/.../request.json".
-
-    That was the FOURTH site of one regression, found one at a time by running the product.
-    Accepting a sequence fixes the class rather than the instance: the containment property is
-    unchanged - an artifact must still sit inside a root the caller named - and only the
-    number of named roots grew.
-    """
-    resolved = path.resolve()
-    bases = [root] if isinstance(root, Path) else list(root)
-    for base in bases:
-        try:
-            return resolved.relative_to(Path(base).resolve()).as_posix()
-        except ValueError:
-            continue
-    raise SemanticDeepError(
-        f"artifact path escaped every trusted root: {resolved} is inside none of "
-        f"{[str(b) for b in bases]}"
     )
 
 
@@ -751,32 +643,16 @@ class SemanticDeepExecutor:
         root: str | Path,
         client: OllamaClient,
         *,
-        # LOCAL-01 F-5. These DEFAULTS named two models above the operator's 8B ceiling, and
-        # ENTRY 017 forbids a model above it being "used, selected, DEFAULTED TO or pulled". The
-        # manifest path always passes explicit values, so the old defaults were unreachable in
-        # practice - which is exactly why they could sit there being wrong. They now mirror
-        # SYSTEM_MANIFEST.json's assignments, so a caller that omits them gets the same slate the
-        # product is configured with rather than a silently larger one.
         member_models: Sequence[str] = (
-            "qwen3:8b",
-            "deepseek-r1:8b",
+            "qwen2.5:14b-instruct",
+            "qwen3:14b",
             "dolphin3:8b",
         ),
         critic_model: str = "dolphin3:8b",
-        synthesizer_model: str = "deepseek-r1:8b",
-        verifier_model: str = "granite4.2:8b",
+        synthesizer_model: str = "qwen3:14b",
+        verifier_model: str = "qwen3:8b",
         artifact_root: str | Path | None = None,
-        # EPC-01 P4-4. Roots an artifact_root may legitimately sit inside, beyond the product
-        # root. Defaults to nothing, so a caller that passes no trusted root gets exactly the
-        # behaviour this class always had.
-        #
-        # The containment check below re-derived trust from `root` alone. Once runtime state
-        # moved out of the install tree, `self.paths.evidence_dir` legitimately resolves under
-        # %LOCALAPPDATA% and the check refused it — even though `paths.resolve_evidence_dir`
-        # had ALREADY validated that exact path against the product root and the caller's
-        # approved roots. It was a second, weaker copy of a check that had already passed, and
-        # the weaker copy did not know about the second root.
-        trusted_roots: Sequence[str | Path] = (),
+        state_dir: str | Path | None = None,
         evidence_builder: Any | None = None,
         base_options: Mapping[str, Any] | None = None,
         stage_options: Mapping[str, Mapping[str, Any]] | None = None,
@@ -787,13 +663,6 @@ class SemanticDeepExecutor:
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
         execution_id_factory: Callable[[], str] | None = None,
-        # R35. Optional producer-side pointer contract. When supplied (the service passes
-        # ProductPaths.make_pointer), every artifact reference this executor emits is a typed,
-        # round-trip-validated pointer (sovereign:// or sovereign-state://) rather than a bare
-        # relative path, so the reference resolves through the one shared contract wherever runtime
-        # state lives. Defaults to None, which preserves the historical relative-path behaviour, so
-        # existing callers and tests are unchanged.
-        pointer_factory: Callable[[Path], str] | None = None,
     ) -> None:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
@@ -817,52 +686,30 @@ class SemanticDeepExecutor:
         self.critic_model = critic_model.strip()
         self.synthesizer_model = synthesizer_model.strip()
         self.verifier_model = verifier_model.strip()
+        # SW-25: artifacts live in the runtime state dir, which may be outside the install
+        # tree. Containment is "inside the product root OR inside the state dir"; refs to a
+        # state-dir artifact are emitted as sovereign-state:// pointers (see _artifact_ref).
+        self.state_dir = (
+            Path(state_dir).resolve()
+            if state_dir is not None
+            else resolve_runtime_dir(self.root).resolve()
+        )
         self.artifact_root = (
             Path(artifact_root).resolve()
             if artifact_root is not None
-            else (self.root / "runtime" / "evidence" / "semantic_deep").resolve()
+            else (self.state_dir / "evidence" / "semantic_deep").resolve()
         )
-        _trusted = [self.root, *(Path(base).resolve() for base in trusted_roots)]
-        if not any(
-            self.artifact_root == base or base in self.artifact_root.parents
-            for base in _trusted
-        ):
-            raise ValueError(
-                "artifact_root must resolve inside the product root or a trusted root; "
-                f"{self.artifact_root} is inside none of {[str(b) for b in _trusted]}"
-            )
-        # EPC-02. The constructor validated against these and then threw them away, so every
-        # LATER containment check fell back to `self.root` alone. `_create_run_directory` is
-        # one of those, and it is on the DEEP path - the four-model pipeline failed in four
-        # seconds with "artifact root no longer resolves inside product root" for exactly this
-        # reason, once P4-4 moved runtime state out of the install tree. Kept now.
-        self._trusted_roots = tuple(_trusted)
-        self._pointer_factory = pointer_factory
+        if not self._contained(self.artifact_root):
+            raise ValueError("artifact_root must resolve inside product root or state dir")
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         self.evidence_builder = evidence_builder
-        # R36. Derive the output budget JOINTLY with the context so the default always satisfies
-        # _validate_options (num_ctx >= 4096 and num_ctx > num_predict). The old defaults pinned
-        # num_predict = 32768 next to num_ctx = recommended_num_ctx()[0], which on a host whose
-        # recommendation caps at 32768 is NOT greater than num_predict -- so the public constructor
-        # raised ValueError on its own defaults. An explicit base_options still wins.
-        provided = dict(base_options or {})
-        # F-115: compute recommended_num_ctx() (which shells out to nvidia-smi, up to ~20s) ONLY when
-        # the caller did not supply num_ctx. `provided.get("num_ctx", recommended_num_ctx()[0])`
-        # evaluated the default EAGERLY on every construction - including under _configuration_lock
-        # in update_model_assignments - even though the manifest path always passes num_ctx and the
-        # probe's result was then discarded.
-        if "num_ctx" in provided:
-            effective_ctx = int(provided["num_ctx"])
-        else:
-            effective_ctx = int(recommended_num_ctx()[0])
-        default_predict = min(32_768, max(256, effective_ctx // 2))
         defaults = {
             "temperature": 0.1,
-            "num_predict": default_predict,
-            "num_ctx": effective_ctx,
+            "num_predict": 32_768,
+            "num_ctx": 40_960,
             "seed": 1729,
         }
-        defaults.update(provided)
+        defaults.update(dict(base_options or {}))
         self.base_options = _validate_options(defaults)
         configured_stage_options: dict[str, dict[str, Any]] = {
             "critique": {"temperature": 0},
@@ -882,31 +729,7 @@ class SemanticDeepExecutor:
             _validate_options(merged)
             if not stage:
                 raise ValueError("stage option keys must be nonempty")
-        # EPC-02, ENTRY 034 (tuning). This was `{"qwen3:8b": False}` - written for the one
-        # model somebody had tested, and never extended. Every OTHER reasoning model on the
-        # slate kept thinking enabled, spent its token budget on hidden reasoning, and
-        # returned a truncated visible answer. The pipeline then correctly refused to
-        # synthesise from it: "member_2 returned a truncated visible answer
-        # (done_reason=length)". Six minutes of four-model deliberation, discarded, every run.
-        #
-        # Measured directly on this host: deepseek-r1:8b produced 2,985 characters of
-        # `thinking` before its visible answer and hit done_reason=length at a 700-token cap.
-        #
-        # The DEEP pipeline needs a COMPLETE VISIBLE answer from every member - a member's
-        # private reasoning is not what the critic and synthesiser read. So thinking is off by
-        # default for the models known to do it, and the floor on visible tokens is raised to
-        # match. An explicit think_by_model from the caller still wins; this only changes the
-        # default from "one model handled" to "the models we know need handling".
-        #
-        # No guard is relaxed by this. The honesty check that rejected these runs is
-        # untouched; it is given a valid answer to judge instead of a truncated one.
-        configured_thinking: dict[str, bool | None] = {
-            "qwen3:8b": False,
-            "deepseek-r1:8b": False,
-            "deepseek-r1:latest": False,
-            "qwen3:14b": False,
-            "qwen3:32b": False,
-        }
+        configured_thinking: dict[str, bool | None] = {"qwen3:14b": False}
         configured_thinking.update(dict(think_by_model or {}))
         self.think_by_model: dict[str, bool | None] = {}
         for model, think in configured_thinking.items():
@@ -915,11 +738,7 @@ class SemanticDeepExecutor:
             if think is not None and type(think) is not bool:
                 raise ValueError("think_by_model values must be boolean or None")
             self.think_by_model[model.strip()] = think
-        configured_minimums = {"qwen3:8b": 1024,
-            "deepseek-r1:8b": 1024,
-            "deepseek-r1:latest": 1024,
-            "dolphin3:8b": 1024,
-            "granite4.2:8b": 1024}
+        configured_minimums = {"qwen3:14b": 1024}
         configured_minimums.update(dict(minimum_num_predict_by_model or {}))
         self.minimum_num_predict_by_model: dict[str, int] = {}
         for model, minimum in configured_minimums.items():
@@ -941,32 +760,11 @@ class SemanticDeepExecutor:
             self.minimum_num_predict_by_model[model.strip()] = minimum
         self.require_evidence_citations = bool(require_evidence_citations)
         self.per_call_timeout_seconds = float(per_call_timeout_seconds)
-        # Measurement-only ablation flags. Production callers never set these; the
-        # default path still runs critic and verifier.
-        self.skip_critique = False
-        self.skip_verification = False
         self._now = now
         self._monotonic = monotonic
         self._execution_id_factory = execution_id_factory or self._new_execution_id
         self._lock = threading.RLock()
         self._active: dict[str, threading.Event] = {}
-
-    def set_measurement_skip(self, stage: str) -> None:
-        """Disable one named DEEP stage for an ablation measurement.
-
-        Production defaults are unchanged. A named stage that is skipped is absent
-        from the call trace; remaining stages still run.
-        """
-        key = str(stage).strip().lower()
-        if key in {"critic", "critique"}:
-            self.skip_critique = True
-            return
-        if key in {"verifier", "verification"}:
-            self.skip_verification = True
-            return
-        raise ValueError(
-            "measurement skip stage must be critic or verifier, not " + repr(stage)
-        )
 
     @staticmethod
     def _new_execution_id() -> str:
@@ -1107,7 +905,12 @@ class SemanticDeepExecutor:
         )
 
     def _freeze_model_provenance(self) -> dict[str, Any]:
-        """Resolve every configured tag to one exact local Ollama digest."""
+        """Resolve every configured tag to one exact local weight digest.
+
+        Ollama clients resolve digests from the native /api/tags inventory;
+        llama.cpp clients resolve them from the runtime registry weights table
+        verified against the on-disk blob index (no Ollama service involved).
+        """
 
         probe_installed = getattr(self.client, "probe_installed", None)
         if not callable(probe_installed):
@@ -1126,6 +929,8 @@ class SemanticDeepExecutor:
                 + self._bounded_provenance_error(exc)
             ) from exc
         endpoint = getattr(probe, "endpoint", None)
+        if endpoint == "/models":
+            return self._freeze_llama_cpp_model_provenance(probe)
         if endpoint != "/api/tags":
             raise ModelProvenanceError(
                 "installed-model inventory probe did not identify /api/tags"
@@ -1265,6 +1070,105 @@ class SemanticDeepExecutor:
             }
         )
 
+    def _freeze_llama_cpp_model_provenance(self, probe: Any) -> dict[str, Any]:
+        """Resolve configured tags against the llama.cpp router inventory.
+
+        The router's /models payload carries no Ollama blob digests, so exact
+        weight identity comes from the runtime registry weights tables and is
+        verified against the on-disk blob index (file existence and size).
+        """
+
+        raw_inventory = getattr(probe, "raw", None)
+        if not isinstance(raw_inventory, Mapping):
+            raise ModelProvenanceError(
+                "llama.cpp inventory probe omitted its raw JSON object"
+            )
+        raw_entries = raw_inventory.get("data")
+        if not isinstance(raw_entries, list):
+            raw_entries = raw_inventory.get("models")
+        if not isinstance(raw_entries, list):
+            raise ModelProvenanceError(
+                "llama.cpp inventory JSON has no models list"
+            )
+        served: set[str] = set()
+        for entry in raw_entries:
+            if not isinstance(entry, Mapping):
+                continue
+            identity = str(entry.get("id") or entry.get("name") or "").strip()
+            if identity:
+                served.add(identity)
+            alias = str(entry.get("alias") or "").strip()
+            if alias:
+                served.add(alias)
+            aliases = entry.get("aliases")
+            if isinstance(aliases, list):
+                served.update(
+                    str(item).strip() for item in aliases if str(item).strip()
+                )
+
+        registry = getattr(self.client, "registry", None)
+        weights = {**CONSUMER_WEIGHTS, **PRODUCTION_WEIGHTS}
+        identities: list[dict[str, Any]] = []
+        for configured_model in self.configured_models:
+            engine_id = None
+            if registry is not None:
+                try:
+                    engine_id = registry.engine_id(configured_model)
+                except Exception:
+                    engine_id = None
+            if configured_model not in served and (
+                engine_id is None or engine_id not in served
+            ):
+                raise ModelProvenanceError(
+                    f"configured model is absent from llama.cpp router inventory: "
+                    f"{configured_model}"
+                )
+            digest_value = weights.get(configured_model)
+            if (
+                not isinstance(digest_value, str)
+                or not _MODEL_DIGEST_RE.fullmatch(digest_value)
+            ):
+                raise ModelProvenanceError(
+                    f"configured model has no registry weight digest: "
+                    f"{configured_model}"
+                )
+            digest = digest_value.lower()
+            blob = blob_path(digest)
+            if not blob.is_file():
+                raise ModelProvenanceError(
+                    f"registry blob for configured model is missing on disk: "
+                    f"{configured_model}"
+                )
+            identities.append(
+                self._model_identity_record(
+                    configured_model,
+                    status="resolved",
+                    name=configured_model,
+                    model=configured_model,
+                    digest=digest,
+                    size=blob.stat().st_size,
+                    details={
+                        "inventory": "llama.cpp /models",
+                        "digest_source": (
+                            "runtime_registry weights table + on-disk blob index"
+                        ),
+                    },
+                    capabilities=(),
+                    modified_at=None,
+                )
+            )
+        return _with_digest(
+            {
+                "schema_version": 1,
+                "record_type": "semantic_deep_model_provenance",
+                "status": "resolved",
+                "probe_endpoint": "/models",
+                "client_type": type(self.client).__name__,
+                "inventory_models_count": len(raw_entries),
+                "models": identities,
+            }
+        )
+
     def _recheck_model_provenance(
         self,
         context: _RunContext,
@@ -1309,38 +1213,15 @@ class SemanticDeepExecutor:
         with self._lock:
             return tuple(sorted(self._active))
 
-    def _artifact_roots(self) -> tuple[Path, ...]:
-        """Every root an artifact of this run may legitimately sit inside."""
-        return tuple(getattr(self, "_trusted_roots", None) or (self.root,))
-
-    def _artifact_ref(self, path: Path) -> str:
-        """R35. Emit an artifact reference through the shared pointer contract when one was
-        supplied, so it is a typed, round-trip-validated pointer that resolves wherever runtime
-        state lives. Fall back to the historical relative path if no factory was given or it cannot
-        express this path -- an artifact reference must never crash a completed run."""
-        factory = getattr(self, "_pointer_factory", None)
-        if factory is not None:
-            try:
-                return str(factory(Path(path)))
-            except Exception:
-                pass
-        return _safe_relative(path, self._artifact_roots())
-
     def _create_run_directory(
         self,
         session_id: str,
         execution_id: str,
     ) -> Path:
         resolved_artifact_root = self.artifact_root.resolve()
-        trusted = getattr(self, "_trusted_roots", None) or (self.root,)
-        if not any(
-            resolved_artifact_root == base or base in resolved_artifact_root.parents
-            for base in trusted
-        ):
+        if not self._contained(resolved_artifact_root):
             raise SemanticDeepError(
-                "artifact root no longer resolves inside the product root or any trusted "
-                f"root: {resolved_artifact_root} is inside none of "
-                f"{[str(b) for b in trusted]}"
+                "artifact root no longer resolves inside product root or state dir"
             )
         session_dir = resolved_artifact_root / session_id
         session_dir.mkdir(parents=True, exist_ok=True)
@@ -1361,6 +1242,31 @@ class SemanticDeepExecutor:
                 "execution artifact directory resolves outside session directory"
             ) from exc
         return resolved_run
+
+    def _contained(self, path: Path) -> bool:
+        for base in (self.root, self.state_dir):
+            try:
+                path.relative_to(base)
+                return True
+            except ValueError:
+                continue
+        return False
+
+    def _artifact_ref(self, path: Path) -> str:
+        """Root-relative text for install-tree artifacts (unchanged), a
+        ``sovereign-state://`` pointer for state-dir artifacts (SW-25)."""
+
+        resolved = path.resolve()
+        try:
+            return resolved.relative_to(self.root).as_posix()
+        except ValueError:
+            pass
+        try:
+            return state_artifact_pointer(resolved, state_dir=self.state_dir)
+        except (UnsafeArtifactPointer, ValueError) as exc:
+            raise SemanticDeepError(
+                f"artifact path escaped product root and state dir: {resolved}"
+            ) from exc
 
     def cancel(self, session_id: str) -> bool:
         session_id = _validate_session_id(session_id)
@@ -2256,13 +2162,15 @@ class SemanticDeepExecutor:
                 "completed_at": completed_at,
                 "latency_seconds": max(0.0, self._monotonic() - started),
                 "artifacts": {
-                    "prompt": _safe_relative(prompt_path, self._artifact_roots()),
-                    "output": _safe_relative(output_path, self._artifact_roots()),
+                    "prompt": self._artifact_ref(prompt_path),
+                    "output": self._artifact_ref(output_path),
                 },
             }
         )
         _atomic_json(record_path, record)
-        context.artifacts[f"turn_{turn_number:02d}"] = self._artifact_ref(record_path)
+        context.artifacts[f"turn_{turn_number:02d}"] = self._artifact_ref(
+            record_path
+        )
         context.turns.append(record)
         self._emit(
             context,
@@ -2288,13 +2196,14 @@ class SemanticDeepExecutor:
         cancel_requested: CancelCallback | None = None,
         timeout_seconds: float | None = None,
     ) -> ExecutionResult:
-        session_id, job_id, topic, runtime_options = _validate_semantic_execution_request(
-            session_id=session_id,
-            job_id=job_id,
-            topic=topic,
-            options=options,
-            timeout_seconds=timeout_seconds,
-        )
+        session_id = _validate_session_id(session_id)
+        if job_id is not None:
+            job_id = _validate_session_id(job_id)
+        if not isinstance(topic, str) or not topic.strip():
+            raise ValueError("topic must be nonempty text")
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        runtime_options = dict(options or {})
         # Validate before any model call while preserving stage-specific config.
         self._options_for("member_1", runtime_options)
         execution_id = self._execution_id_factory()
@@ -2352,19 +2261,24 @@ class SemanticDeepExecutor:
                 and isinstance(item.get("configured_model"), str)
                 and isinstance(item.get("record_sha256"), str)
             }
-        request_record = _semantic_request_record(
-            session_id=session_id,
-            job_id=job_id,
-            execution_id=execution_id,
-            topic=topic,
-            model_slate=self.model_slate,
-            model_provenance=model_provenance,
-            base_options=self.base_options,
-            runtime_options=runtime_options,
-            timeout_seconds=timeout_seconds,
-            evidence_supplied=evidence is not None,
-            evidence_builder_configured=self.evidence_builder is not None,
-            started_at=started_at,
+        request_record = _with_digest(
+            {
+                "schema_version": 1,
+                "record_type": "semantic_deep_request",
+                "session_id": session_id,
+                "job_id": job_id,
+                "execution_id": execution_id,
+                "topic": topic,
+                "topic_sha256": _sha256_text(topic),
+                "model_slate": self.model_slate,
+                "model_provenance": model_provenance,
+                "base_options": self.base_options,
+                "runtime_options": runtime_options,
+                "timeout_seconds": timeout_seconds,
+                "evidence_supplied": evidence is not None,
+                "evidence_builder_configured": self.evidence_builder is not None,
+                "started_at": started_at,
+            }
         )
         _atomic_json(request_path, request_record)
 
@@ -2473,43 +2387,28 @@ class SemanticDeepExecutor:
                         }
                     )
 
-                if self.skip_critique:
-                    critique_raw = ""
-                    critique = {
-                        "material_issues": [],
-                        "reliable_points": [],
-                        "unresolved": [],
-                        "synthesis_guidance": [],
-                    }
-                    context.pipeline_findings.append(
-                        {
-                            "stage": "critique",
-                            "disposition": "measurement skip: critic stage absent",
-                        }
-                    )
-                else:
-                    critique_prompt = self.build_critique_prompt(
-                        topic,
-                        evidence_view,
-                        member_material,
-                    )
-                    critique_raw, _turn = self._call_turn(
-                        context,
-                        stage="critique",
-                        role="adversarial_critic",
-                        model=self.critic_model,
-                        prompt=critique_prompt,
-                        options=self._options_for("critique", runtime_options),
-                        percent=51,
-                        cancel_requested=cancel_requested,
-                    )
-                    try:
-                        critique = parse_critique(critique_raw)
-                    except ModelContractError as exc:
-                        raise _PipelineStop(
-                            ExecutionStatus.REJECTED,
-                            f"critique contract rejected: {exc}",
-                        ) from exc
+                critique_prompt = self.build_critique_prompt(
+                    topic,
+                    evidence_view,
+                    member_material,
+                )
+                critique_raw, _turn = self._call_turn(
+                    context,
+                    stage="critique",
+                    role="adversarial_critic",
+                    model=self.critic_model,
+                    prompt=critique_prompt,
+                    options=self._options_for("critique", runtime_options),
+                    percent=51,
+                    cancel_requested=cancel_requested,
+                )
+                try:
+                    critique = parse_critique(critique_raw)
+                except ModelContractError as exc:
+                    raise _PipelineStop(
+                        ExecutionStatus.REJECTED,
+                        f"critique contract rejected: {exc}",
+                    ) from exc
                 critique_path = run_dir / "critique.json"
                 critique_record = _with_digest(
                     {
@@ -2523,7 +2422,9 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(critique_path, critique_record)
-                context.artifacts["critique"] = self._artifact_ref(critique_path)
+                context.artifacts["critique"] = self._artifact_ref(
+                    critique_path
+                )
 
                 synthesis_prompt = self.build_synthesis_prompt(
                     topic,
@@ -2541,47 +2442,29 @@ class SemanticDeepExecutor:
                     percent=65,
                     cancel_requested=cancel_requested,
                 )
-                if self.skip_verification:
-                    verdict_raw = ""
-                    verdict = {
-                        "accept": True,
-                        "unsupported_claims": [],
-                        "contradictions": [],
-                        "missing_requirements": [],
-                        "directness": "pass",
-                        "grounding": "pass",
-                        "reason": "measurement skip: verifier stage absent",
-                    }
-                    context.pipeline_findings.append(
-                        {
-                            "stage": "verification",
-                            "disposition": "measurement skip: verifier stage absent",
-                        }
-                    )
-                else:
-                    verification_prompt = self.build_verification_prompt(
-                        topic,
-                        evidence_view,
-                        candidate,
-                        critique,
-                    )
-                    verdict_raw, _turn = self._call_turn(
-                        context,
-                        stage="verification",
-                        role="grounding_verifier",
-                        model=self.verifier_model,
-                        prompt=verification_prompt,
-                        options=self._options_for("verification", runtime_options),
-                        percent=75,
-                        cancel_requested=cancel_requested,
-                    )
-                    try:
-                        verdict = parse_verdict(verdict_raw)
-                    except ModelContractError as exc:
-                        raise _PipelineStop(
-                            ExecutionStatus.REJECTED,
-                            f"verification contract rejected: {exc}",
-                        ) from exc
+                verification_prompt = self.build_verification_prompt(
+                    topic,
+                    evidence_view,
+                    candidate,
+                    critique,
+                )
+                verdict_raw, _turn = self._call_turn(
+                    context,
+                    stage="verification",
+                    role="grounding_verifier",
+                    model=self.verifier_model,
+                    prompt=verification_prompt,
+                    options=self._options_for("verification", runtime_options),
+                    percent=75,
+                    cancel_requested=cancel_requested,
+                )
+                try:
+                    verdict = parse_verdict(verdict_raw)
+                except ModelContractError as exc:
+                    raise _PipelineStop(
+                        ExecutionStatus.REJECTED,
+                        f"verification contract rejected: {exc}",
+                    ) from exc
                 local_issues = self._local_acceptance_issues(
                     candidate,
                     resolved_evidence,
@@ -2603,7 +2486,9 @@ class SemanticDeepExecutor:
                     }
                 )
                 _atomic_json(verification_path, verification_record)
-                context.artifacts["verification_1"] = self._artifact_ref(verification_path)
+                context.artifacts["verification_1"] = self._artifact_ref(
+                    verification_path
+                )
                 final_verdict = verdict
 
                 if not verdict["accept"] or local_issues:
@@ -2633,43 +2518,31 @@ class SemanticDeepExecutor:
                         percent=85,
                         cancel_requested=cancel_requested,
                     )
-                    if self.skip_verification:
-                        verdict_raw = ""
-                        verdict = {
-                            "accept": True,
-                            "unsupported_claims": [],
-                            "contradictions": [],
-                            "missing_requirements": [],
-                            "directness": "pass",
-                            "grounding": "pass",
-                            "reason": "measurement skip: verifier stage absent",
-                        }
-                    else:
-                        reverify_prompt = self.build_verification_prompt(
-                            topic,
-                            evidence_view,
-                            candidate,
-                            critique,
-                        )
-                        verdict_raw, _turn = self._call_turn(
-                            context,
-                            stage="reverification",
-                            role="grounding_verifier",
-                            model=self.verifier_model,
-                            prompt=reverify_prompt,
-                            options=self._options_for(
-                                "reverification", runtime_options
-                            ),
-                            percent=94,
-                            cancel_requested=cancel_requested,
-                        )
-                        try:
-                            verdict = parse_verdict(verdict_raw)
-                        except ModelContractError as exc:
-                            raise _PipelineStop(
-                                ExecutionStatus.REJECTED,
-                                f"reverification contract rejected: {exc}",
-                            ) from exc
+                    reverify_prompt = self.build_verification_prompt(
+                        topic,
+                        evidence_view,
+                        candidate,
+                        critique,
+                    )
+                    verdict_raw, _turn = self._call_turn(
+                        context,
+                        stage="reverification",
+                        role="grounding_verifier",
+                        model=self.verifier_model,
+                        prompt=reverify_prompt,
+                        options=self._options_for(
+                            "reverification", runtime_options
+                        ),
+                        percent=94,
+                        cancel_requested=cancel_requested,
+                    )
+                    try:
+                        verdict = parse_verdict(verdict_raw)
+                    except ModelContractError as exc:
+                        raise _PipelineStop(
+                            ExecutionStatus.REJECTED,
+                            f"reverification contract rejected: {exc}",
+                        ) from exc
                     local_issues = self._local_acceptance_issues(
                         candidate,
                         resolved_evidence,
@@ -2691,7 +2564,9 @@ class SemanticDeepExecutor:
                         }
                     )
                     _atomic_json(verification_path, verification_record)
-                    context.artifacts["verification_2"] = self._artifact_ref(verification_path)
+                    context.artifacts["verification_2"] = self._artifact_ref(
+                        verification_path
+                    )
                     final_verdict = verdict
                 if not final_verdict["accept"] or local_issues:
                     raise _PipelineStop(
@@ -2735,14 +2610,18 @@ class SemanticDeepExecutor:
                         "model_slate": self.model_slate,
                         "model_provenance": model_provenance,
                         "accepted_at": self._now(),
-                        "accepted_text_artifact": _safe_relative(
-                            accepted_text_path, self._artifact_roots()
+                        "accepted_text_artifact": self._artifact_ref(
+                            accepted_text_path
                         ),
                     }
                 )
                 _atomic_json(accepted_path, accepted_record)
-                context.artifacts["accepted"] = self._artifact_ref(accepted_path)
-                context.artifacts["accepted_text"] = self._artifact_ref(accepted_text_path)
+                context.artifacts["accepted"] = self._artifact_ref(
+                    accepted_path
+                )
+                context.artifacts["accepted_text"] = self._artifact_ref(
+                    accepted_text_path
+                )
                 final_answer = candidate
                 status = ExecutionStatus.ACCEPTED
                 reason = None

@@ -18,6 +18,12 @@ _SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "modules", "schema.
 _MODULES_DIR = os.path.join(os.path.dirname(__file__), "..", "modules")
 
 _ID_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
+
+# SW-18: who owns a runnable module's process.
+LIFECYCLE_OWNED = "owned"
+LIFECYCLE_ATTACHED = "attached"
+LIFECYCLES = (LIFECYCLE_OWNED, LIFECYCLE_ATTACHED)
+
 _PLACEHOLDER_PATTERN = re.compile(r"<PHASE-1-VERIFIED>")
 _VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
@@ -160,30 +166,109 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
     if adapter.get("state_class") not in ("runnable", "not_started"):
         raise AdapterError(f"Invalid state_class: {adapter.get('state_class')}")
 
-    # Check id
-    if not _ID_PATTERN.match(adapter.get("id", "")):
-        raise AdapterError(f"Invalid id: {adapter.get('id')}")
+    # Check id. SW-26/R18: a non-string id reached re.match() and raised a raw TypeError, which
+    # load_all_adapters (catching only AdapterError) let escape and stop the whole shell. Type
+    # before operation: a wrongly-typed id is one module's CONFIG_ERROR, not a shell crash.
+    _id = adapter.get("id", "")
+    if not isinstance(_id, str):
+        raise AdapterError(f"id must be a string, got {type(_id).__name__}")
+    if not _ID_PATTERN.match(_id):
+        raise AdapterError(f"Invalid id: {_id}")
+
+    # SW-26: runtime_writes item structure. compile_adapter resolves each entry as a path, so a
+    # numeric or malformed entry reached _resolve_path and raised a raw TypeError instead of a
+    # field-scoped CONFIG_ERROR. Enforce the supported shape here with explicit type checks and a
+    # precise path: a plain string, or {"path": <non-empty str>, "kind": "dir"|"file"}.
+    rw = adapter.get("runtime_writes")
+    if rw is not None:
+        if not isinstance(rw, list):
+            raise AdapterError("runtime_writes must be an array")
+        for i, w in enumerate(rw):
+            if isinstance(w, str):
+                continue
+            if not isinstance(w, dict):
+                raise AdapterError(
+                    f"runtime_writes[{i}] must be a string or object, got {type(w).__name__}")
+            if not isinstance(w.get("path"), str) or not w.get("path"):
+                raise AdapterError(f"runtime_writes[{i}].path must be a non-empty string")
+            if w.get("kind") not in ("dir", "file"):
+                raise AdapterError(f"runtime_writes[{i}].kind must be 'dir' or 'file'")
+            extra = set(w) - {"path", "kind"}
+            if extra:
+                raise AdapterError(
+                    f"runtime_writes[{i}] has unknown field(s): {', '.join(sorted(extra))}")
+
+    # SW-18: lifecycle. `owned` (the default) is a process the shell launches inside its Job
+    # Object and stops (graceful Event, then TerminateJobObject). `attached` is a persistent
+    # service somebody else runs (a user-level supervisor, a Windows service): the shell only
+    # observes it - probe + identity - and never launches, stops or restarts it, so an attached
+    # adapter may not declare launch/stop/startup_test at all.
+    lifecycle = adapter.get("lifecycle", LIFECYCLE_OWNED)
+    if lifecycle not in LIFECYCLES:
+        raise AdapterError(f"lifecycle must be one of {', '.join(LIFECYCLES)}, got {lifecycle!r}")
+    service = adapter.get("service")
+    if service is not None:
+        if lifecycle != LIFECYCLE_ATTACHED:
+            raise AdapterError("service is only valid for lifecycle 'attached'")
+        if not isinstance(service, dict):
+            raise AdapterError("service must be an object")
+        for key, value in service.items():
+            if key not in ("start_hint", "stop_hint"):
+                raise AdapterError(f"Unknown service field: {key}")
+            if not isinstance(value, str) or not value or len(value) > 256:
+                raise AdapterError(f"service.{key} must be a non-empty string of at most 256 chars")
 
     if adapter.get("state_class") == "runnable":
-        # Must have launch, readiness, identity, open, stop
-        for field in ("launch", "readiness", "identity", "open", "stop"):
+        attached = lifecycle == LIFECYCLE_ATTACHED
+        if attached:
+            for field in ("launch", "stop", "startup_test"):
+                if field in adapter:
+                    raise AdapterError(
+                        f"attached module may not declare {field}: the shell never launches, "
+                        "stops or tests a service it does not own (SW-18)")
+        # Must have launch, readiness, identity, open, stop (owned) / readiness, identity, open
+        # (attached)
+        required = ("readiness", "identity", "open") if attached else (
+            "launch", "readiness", "identity", "open", "stop")
+        for field in required:
             if field not in adapter:
                 raise AdapterError(f"Runnable module missing required field: {field}")
 
-        _validate_nested(adapter, "launch", {"cwd", "argv"})
+        if not attached:
+            _validate_nested(adapter, "launch", {"cwd", "argv"})
         _validate_nested(adapter, "readiness", {"kind", "timeout_s", "poll_ms"})
         _validate_nested(adapter, "identity", {"kind"})
         _validate_nested(adapter, "open", {"kind"})
-        _validate_nested(adapter, "stop", {"kind", "grace_s"})
+        if not attached:
+            _validate_nested(adapter, "stop", {"kind", "grace_s"})
+        if attached:
+            if adapter["readiness"].get("kind") != "http":
+                raise AdapterError("an attached module is observed over HTTP: readiness.kind must be http")
+            if adapter["identity"].get("kind") not in ("http_json", "http_html_marker"):
+                raise AdapterError(
+                    "an attached module has no shell-owned pid: identity.kind must be http_json "
+                    "or http_html_marker")
 
+    if adapter.get("state_class") == "runnable" and lifecycle == LIFECYCLE_OWNED:
         # Validate launch
         launch = adapter["launch"]
+        # SW-26: cwd is resolved as a path at compile time; a non-string reached _resolve_path and
+        # raised a raw TypeError. Type-check it here with a field-scoped AdapterError.
+        if not isinstance(launch.get("cwd"), str) or not launch["cwd"]:
+            raise AdapterError("launch.cwd must be a non-empty string")
         if not isinstance(launch["argv"], list) or len(launch["argv"]) < 1 or len(launch["argv"]) > 32:
             raise AdapterError("launch.argv must be 1-32 items")
         for i, arg in enumerate(launch["argv"]):
-            if len(str(arg)) > 1024:
+            # SW-26: len(str(arg)) silently coerced a number, so argv:[8080] passed validation and
+            # was later resolved to the string "8080" (or raised deeper). Each entry must be a
+            # string, rejected at load with its exact index.
+            if not isinstance(arg, str):
+                raise AdapterError(
+                    f"launch.argv[{i}] must be a string, got {type(arg).__name__}")
+            if len(arg) > 1024:
                 raise AdapterError(f"launch.argv[{i}] exceeds 1024 chars")
 
+    if adapter.get("state_class") == "runnable":
         # Validate readiness
         readiness = adapter["readiness"]
         if readiness["kind"] not in ("http", "process_window", "receipt_file"):
@@ -194,6 +279,22 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
             raise AdapterError("readiness.timeout_s must be a number 5-120")
         if not _is_number(readiness.get("poll_ms")) or not (250 <= readiness["poll_ms"] <= 5000):
             raise AdapterError("readiness.poll_ms must be a number 250-5000")
+        # SW-13: `require_json` declares the functional-readiness contract for an http health
+        # endpoint - the key/value pairs a body must satisfy to count as READY rather than merely
+        # live (a 200 that reports degraded). Only meaningful for http readiness; values are JSON
+        # scalars (the fields a product emits, e.g. {"ok": true}).
+        if "require_json" in readiness:
+            if readiness["kind"] != "http":
+                raise AdapterError("readiness.require_json is only valid for http readiness")
+            rj = readiness["require_json"]
+            if not isinstance(rj, dict) or not rj:
+                raise AdapterError("readiness.require_json must be a non-empty object")
+            for rk, rv in rj.items():
+                if not isinstance(rk, str):
+                    raise AdapterError("readiness.require_json keys must be strings")
+                if rv is not None and not isinstance(rv, (str, int, float, bool)):
+                    raise AdapterError(
+                        f"readiness.require_json['{rk}'] must be a JSON scalar")
 
         # Validate identity. process_path/path_prefix is gone: H-5 forbids prefix-string
         # comparison, and ADR-004 requires canonical-image equality instead (R3-11).
@@ -215,12 +316,20 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
         if open_cfg["kind"] != "browser" and open_cfg.get("url"):
             raise AdapterError(f"open.url is meaningless for open.kind {open_cfg['kind']}")
 
+    if adapter.get("state_class") == "runnable" and lifecycle == LIFECYCLE_OWNED:
         # Validate stop
         stop = adapter["stop"]
         if stop["kind"] != "job_object":
             raise AdapterError(f"Invalid stop.kind: {stop['kind']}")
         if not _is_number(stop.get("grace_s")) or not (1 <= stop["grace_s"] <= 30):
             raise AdapterError("stop.grace_s must be a number 1-30")
+        # SW-18: the module's graceful-shutdown contract, reported in the teardown receipt so a
+        # forced stop of a module that promised to exit on its own is visible as a failure.
+        if stop.get("graceful", "none") not in ("shutdown_event", "none"):
+            raise AdapterError("stop.graceful must be 'shutdown_event' or 'none'")
+        extra = set(stop) - {"kind", "grace_s", "graceful"}
+        if extra:
+            raise AdapterError(f"Unknown stop field(s): {', '.join(sorted(extra))}")
 
         # Optional startup_test override block (ADR-004, R3-11).
         st = adapter.get("startup_test")
@@ -247,10 +356,15 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
                     raise AdapterError("startup_test.readiness.path is required")
                 if not isinstance(r.get("require", {}), dict):
                     raise AdapterError("startup_test.readiness.require must be an object")
-                if not (5 <= r.get("timeout_s", 0) <= 120):
-                    raise AdapterError("startup_test.readiness.timeout_s must be 5-120")
-                if not (250 <= r.get("poll_ms", 0) <= 5000):
-                    raise AdapterError("startup_test.readiness.poll_ms must be 250-5000")
+                # SW-26/R18: a string timeout_s/poll_ms reached `5 <= "x"` and raised a raw
+                # TypeError. Guard the type before the range comparison, as the module-level
+                # readiness and stop.grace_s checks already do.
+                st_timeout = r.get("timeout_s", 0)
+                if not _is_number(st_timeout) or not (5 <= st_timeout <= 120):
+                    raise AdapterError("startup_test.readiness.timeout_s must be a number 5-120")
+                st_poll = r.get("poll_ms", 0)
+                if not _is_number(st_poll) or not (250 <= st_poll <= 5000):
+                    raise AdapterError("startup_test.readiness.poll_ms must be a number 250-5000")
 
 
 def _is_number(value) -> bool:
@@ -386,7 +500,7 @@ def python_312() -> str:
 
 
 def _resolve_var(value: str, root: str | None, state_root: str | None = None) -> str:
-    """Resolve ${install_root}, ${python312}, ${root} and ${state_root}.
+    """Resolve ${install_root}, ${python312}, ${root}, ${state_root}, ${workspace_state_root}.
 
     Any other ${...} raises. `root` is None only while the adapter's own `root` field is being
     resolved -- it cannot reference itself, and saying so is better than resolving it to
@@ -410,6 +524,16 @@ def _resolve_var(value: str, root: str | None, state_root: str | None = None) ->
                     "${state_root} is not available here; it may only be used in "
                     "runtime_writes and launch.env_set")
             return state_root
+        if var == "workspace_state_root":
+            # SW-25: the parent of every module's state root, so a module that shares another's
+            # state (the llama.cpp supervisor reads SOVEREIGN's runtime dir) can NAME it in
+            # launch.env_set. It grants no write: runtime_writes containment still admits only
+            # this module's own state root.
+            if state_root is None:
+                raise AdapterError(
+                    "${workspace_state_root} is not available here; it may only be used in "
+                    "runtime_writes and launch.env_set")
+            return workspace_state_root()
         raise AdapterError(f"Unknown variable: ${{{var}}}")
     return _VAR_PATTERN.sub(replacer, value)
 
@@ -441,8 +565,11 @@ def compile_adapter(adapter: dict) -> dict:
     """Compile an adapter: resolve all paths, validate, return compiled config."""
     _check_placeholder_literals(adapter, "adapter")
 
-    # Validate id
-    if not _ID_PATTERN.match(adapter.get("id", "")):
+    # Validate id. SW-26: guarded for direct compile_adapter callers (the startup test, the
+    # deterministic suite) that do not go through _validate_against_schema first - a non-string id
+    # must raise AdapterError here too, never a raw TypeError from re.match().
+    _id = adapter.get("id", "")
+    if not isinstance(_id, str) or not _ID_PATTERN.match(_id):
         raise AdapterError(f"Invalid id: {adapter.get('id')}")
 
     root = _resolve_var(adapter["root"], root=None)
@@ -495,7 +622,19 @@ def compile_adapter(adapter: dict) -> dict:
     else:
         compiled["runtime_writes"] = []
 
-    if adapter.get("state_class") == "runnable":
+    compiled["lifecycle"] = adapter.get("lifecycle", LIFECYCLE_OWNED)
+    if (adapter.get("state_class") == "runnable"
+            and compiled["lifecycle"] == LIFECYCLE_ATTACHED):
+        # SW-18: observed, never owned. Only what the shell needs to SEE the service is compiled;
+        # there is no launch, no stop and no startup test to compile.
+        readiness = dict(adapter["readiness"])
+        if "url" not in readiness:
+            raise AdapterError("http readiness requires url")
+        compiled["readiness"] = readiness
+        compiled["identity"] = dict(adapter["identity"])
+        compiled["open"] = dict(adapter["open"])
+        compiled["service"] = dict(adapter.get("service") or {})
+    elif adapter.get("state_class") == "runnable":
         launch = dict(adapter["launch"])
         launch["cwd"] = _resolve_path(launch["cwd"], compiled["root"])
         _validate_path(launch["cwd"])

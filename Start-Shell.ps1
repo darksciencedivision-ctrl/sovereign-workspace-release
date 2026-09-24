@@ -57,12 +57,37 @@
 param(
     [int] $Port = 5180,
     [switch] $NoBrowser,
-    [switch] $CheckOnly
+    [switch] $CheckOnly,
+    # SW-18: the llama.cpp supervisor is a PERSISTENT, attached service and outlives the shell by
+    # design. With this switch the launcher stops it on exit - but only if THIS launch started it
+    # and it is still provably that process (SW-08 identity); a supervisor that was already
+    # running, or was since restarted by someone else, is never touched.
+    [switch] $StopInferenceOnExit
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $root
+
+# Local provisioning values. `workspace.env` (created by Provision-Workspace.ps1; gitignored, never
+# shipped) carries THIS machine's paths — the llama.cpp server binary, its models, the SOW coding
+# repo — so the sealed product stays free of any one machine's absolute paths. KEY=VALUE lines;
+# blank lines and lines starting with `#` are ignored; an already-set environment variable is never
+# overwritten, so an operator's own environment still wins.
+$envFile = Join-Path $root 'workspace.env'
+if (Test-Path -LiteralPath $envFile -PathType Leaf) {
+    foreach ($line in Get-Content -LiteralPath $envFile) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        $eq = $t.IndexOf('=')
+        if ($eq -lt 1) { continue }
+        $name = $t.Substring(0, $eq).Trim()
+        $value = $t.Substring($eq + 1).Trim()
+        if ($name -and -not [Environment]::GetEnvironmentVariable($name, 'Process')) {
+            Set-Item -Path ("Env:" + $name) -Value $value
+        }
+    }
+}
 
 # Workspace-wide local inference authority. These values are inherited by the
 # shell and every module process it owns, so picker enumeration, conductor
@@ -70,14 +95,50 @@ Set-Location -LiteralPath $root
 $llamaSupervisorRoot = if ($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT) {
     [IO.Path]::GetFullPath($env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT)
 } else {
-    'D:\Sov 1\SOVEREIGN_PRODUCT_COMPLETION_WORK'
+    # Default into the bundled Sovereign module, not a build-host path. The supervisor resolves its
+    # server binary under <root>\runtime\llama.cpp\current\ (or SOVEREIGN_LLAMACPP_SERVER_EXE from
+    # workspace.env). Provision-Workspace.ps1 sets these; the default keeps everything inside the
+    # distribution so it is correct on any machine.
+    Join-Path $root 'modules\sovereign'
 }
 $llamaSupervisorLauncher = Join-Path $llamaSupervisorRoot 'Start-LlamaCppSupervisor.ps1'
-$llamaApiKeyPath = Join-Path $llamaSupervisorRoot 'runtime\llamacpp_supervisor\api_key'
 $env:SOVEREIGN_LLAMA_SUPERVISOR_ROOT = $llamaSupervisorRoot
-$env:SOVEREIGN_INFERENCE_BACKEND = 'llama.cpp'
-$env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080'
-$env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080'
+# SW-25: SOVEREIGN's mutable state (backend selection, supervisor state + api_key, DB, evidence)
+# lives in an external per-user state home, not the install tree. Resolve it the same way the
+# product does and hand it to the supervisor this launcher starts, so the launcher, the detached
+# supervisor and the shell-launched product all read and write ONE state location.
+$sovereignStatePathsScript = Join-Path $root 'modules\sovereign\SovereignStatePaths.ps1'
+if (-not (Test-Path -LiteralPath $sovereignStatePathsScript -PathType Leaf)) {
+    throw "The SOVEREIGN state-path resolver is missing: $sovereignStatePathsScript"
+}
+. $sovereignStatePathsScript
+$sovereignStateHome = Get-SovereignStateHome -Root $llamaSupervisorRoot
+if (-not $env:SOVEREIGN_STATE_HOME) { $env:SOVEREIGN_STATE_HOME = $sovereignStateHome }
+$llamaApiKeyPath = Resolve-SovereignRuntimeFile -Root $llamaSupervisorRoot -RelativePath 'llamacpp_supervisor\api_key'
+# Audit SW-02: do NOT inject a default SOVEREIGN_INFERENCE_BACKEND. The product ranks an env value
+# ABOVE its saved runtime/backend_selection.json, so a launcher default of llama.cpp would silently
+# override a saved Ollama choice. Instead, RESOLVE the effective backend read-only with the SAME
+# precedence the product uses (explicit env > saved selection file > llama.cpp) purely to decide
+# which local services THIS launcher must start (SW-01). The env is left untouched, so the product
+# does its own resolution and the saved selection wins when no env is set.
+function Resolve-EffectiveBackend {
+    if ($env:SOVEREIGN_INFERENCE_BACKEND) { return ([string]$env:SOVEREIGN_INFERENCE_BACKEND).Trim().ToLower() }
+    $sel = Resolve-SovereignRuntimeFile -Root $llamaSupervisorRoot -RelativePath 'backend_selection.json'
+    if (Test-Path -LiteralPath $sel -PathType Leaf) {
+        try {
+            $doc = Get-Content -LiteralPath $sel -Raw | ConvertFrom-Json
+            if ($doc.default_backend) { return ([string]$doc.default_backend).Trim().ToLower() }
+        } catch {}
+    }
+    return 'llama.cpp'
+}
+$effectiveBackend = Resolve-EffectiveBackend
+if ($effectiveBackend -in @('llamacpp', 'llama_cpp', 'llama-cpp')) { $effectiveBackend = 'llama.cpp' }
+$usesLlama = $effectiveBackend -in @('llama.cpp', 'freetoken')
+# The llama.cpp endpoint variables are the router's address; harmless when Ollama is selected (the
+# product's backend_selection ignores them), so they are only defaulted when unset.
+if (-not $env:SOVEREIGN_LLAMACPP_HOST) { $env:SOVEREIGN_LLAMACPP_HOST = 'http://127.0.0.1:18080' }
+if (-not $env:SOVEREIGN_LLAMA_CPP_BASE_URL) { $env:SOVEREIGN_LLAMA_CPP_BASE_URL = 'http://127.0.0.1:18080' }
 if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
     $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $llamaApiKeyPath -Raw).Trim()
 }
@@ -88,12 +149,28 @@ if (Test-Path -LiteralPath $llamaApiKeyPath -PathType Leaf) {
 # refusal is where the orphan `worktrees/worker-pane-2` records came from). No containment means no
 # coding pane, so an unset value here is a `worktree_unavailable` refusal, not a silent fallback.
 # An operator-set value wins: this launcher only defaults it when nothing else already has.
-if (-not $env:SOW_CODING_BASE_REPO) {
-    $env:SOW_CODING_BASE_REPO = 'D:\Git\sow-sovereign-workspace'
-}
+# SOW_CODING_BASE_REPO is deliberately NOT defaulted to any machine's path. If workspace.env or the
+# operator's own environment set it, that value is used; otherwise it stays unset and the coding
+# pane reports `worktree_unavailable` (a clean refusal, per the note above) rather than pointing at
+# a repository that exists on no other machine.
 
 $blocking = New-Object System.Collections.Generic.List[string]
 $advisory = New-Object System.Collections.Generic.List[string]
+
+# Audit SW-01: validate the SELECTED backend's prerequisites in preflight, so -CheckOnly rejects a
+# missing selected runtime rather than giving false reassurance. An Ollama-only operator is never
+# blocked by a missing llama.cpp binary; a llama.cpp operator is never given a green preflight
+# without one.
+if ($usesLlama) {
+    $llamaExe = if ($env:SOVEREIGN_LLAMACPP_SERVER_EXE) { $env:SOVEREIGN_LLAMACPP_SERVER_EXE }
+    else { Join-Path $llamaSupervisorRoot 'runtime\llama.cpp\current\llama-server.exe' }
+    if (-not (Test-Path -LiteralPath $llamaExe -PathType Leaf)) {
+        $blocking.Add("inference backend '$effectiveBackend' is selected but its server binary is missing: $llamaExe. Run Provision-Workspace.ps1 -LlamaCppExe <path>, or select the Ollama backend.") | Out-Null
+    }
+}
+else {
+    $advisory.Add("inference backend '$effectiveBackend' selected; the llama.cpp supervisor will not be started") | Out-Null
+}
 
 function Line($label, $value, $color = 'Gray') {
     Write-Host ("  {0,-22}" -f $label) -NoNewline -ForegroundColor DarkGray
@@ -349,12 +426,85 @@ if ($blocking.Count -gt 0) { exit 1 }
 
 # --- run ---------------------------------------------------------------------
 
-if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
-    throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
+# SW-18: owned vs attached at exit. The shell writes a teardown receipt
+# (<workspace state root>\shell\logs\teardown-<utc>.json) listing each OWNED module it stopped
+# (graceful or forced) and each ATTACHED persistent service it left running. The launcher prints it
+# so "modules stop with the shell" is shown, not implied.
+$script:launchStartedUtc = [DateTime]::UtcNow
+$script:startedSupervisorPid = $null
+function Write-ShellTeardownReport {
+    $receiptDir = Join-Path (Get-SovereignWorkspaceStateBase) 'shell\logs'
+    $receipt = Get-ChildItem -LiteralPath $receiptDir -Filter 'teardown-*.json' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTimeUtc -ge $script:launchStartedUtc } |
+        Sort-Object Name | Select-Object -Last 1
+    if (-not $receipt) {
+        Write-Host "  No teardown receipt from this session: the shell did not exit through its own teardown (owned modules were stopped by its Job Object)." -ForegroundColor Yellow
+        return
+    }
+    $doc = Get-Content -LiteralPath $receipt.FullName -Raw | ConvertFrom-Json
+    foreach ($owned in @($doc.owned)) {
+        if ($null -eq $owned) { continue }
+        $how = if ($owned.graceful) { 'graceful' } else { 'FORCED' }
+        $color = if ($owned.graceful_contract_met) { 'DarkGray' } else { 'Yellow' }
+        $note = if ($owned.graceful_contract_met) { '' } else { ' - graceful shutdown contract NOT met' }
+        Write-Host "  owned    $($owned.module_id): stopped $how (exit $($owned.exit_code))$note" -ForegroundColor $color
+    }
+    foreach ($attached in @($doc.attached)) {
+        if ($null -eq $attached) { continue }
+        $state = if ($attached.left_running) { 'left running' } else { "observed $($attached.observed_state)" }
+        Write-Host "  attached $($attached.module_id): $state, not stopped by the shell." -ForegroundColor DarkGray
+    }
+    Write-Host "  Teardown receipt: $($receipt.FullName)" -ForegroundColor DarkGray
 }
-& $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
-if ($LASTEXITCODE -ne 0) {
-    throw "The local llama.cpp supervisor did not become ready."
+function Stop-LaunchOwnedSupervisor {
+    if (-not $script:startedSupervisorPid) {
+        Write-Host "  -StopInferenceOnExit: the llama.cpp supervisor was already running before this launch; left untouched." -ForegroundColor DarkGray
+        return
+    }
+    $supervisorPython = Join-Path $llamaSupervisorRoot '.venv\Scripts\python.exe'
+    $env:PYTHONPATH = $llamaSupervisorRoot + [IO.Path]::PathSeparator + [string]$env:PYTHONPATH
+    $statusText = (& $supervisorPython -m sovereign_product.supervisor_service --root $llamaSupervisorRoot status | Out-String)
+    $status = $null
+    try { $status = $statusText | ConvertFrom-Json } catch { }
+    # SW-08 identity: stop only the exact process this launch started (same pid AND the recorded
+    # creation time still matches - pid_owned), never a restarted or foreign one.
+    if ($status -and $status.pid_owned -and [int]$status.pid -eq $script:startedSupervisorPid) {
+        & (Join-Path $llamaSupervisorRoot 'Stop-LlamaCppSupervisor.ps1') -Root $llamaSupervisorRoot | Out-Null
+        Write-Host "  -StopInferenceOnExit: stopped the llama.cpp supervisor this launch started (pid $($script:startedSupervisorPid))." -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "  -StopInferenceOnExit: the running supervisor is not the process this launch started; left untouched." -ForegroundColor Yellow
+    }
+}
+
+# Audit SW-01: start the llama.cpp supervisor ONLY when llama.cpp/FreeToken is the selected backend.
+# When Ollama is selected the workspace attaches to Ollama on :11434 and this local service is not
+# needed, so requiring it would make "runs both, selectable" false through the supported launcher.
+if ($usesLlama) {
+    if (-not (Test-Path -LiteralPath $llamaSupervisorLauncher -PathType Leaf)) {
+        throw "The configured local llama.cpp supervisor launcher is missing: $llamaSupervisorLauncher"
+    }
+    $supervisorOutput = & $llamaSupervisorLauncher -Root $llamaSupervisorRoot -Port 18080
+    $supervisorExit = $LASTEXITCODE
+    $supervisorText = ($supervisorOutput | Out-String)
+    if ($supervisorText.Trim()) { Write-Host $supervisorText.TrimEnd() }
+    if ($supervisorExit -ne 0) {
+        throw "The local llama.cpp supervisor did not become ready."
+    }
+    # SW-18: record whether THIS launch started the supervisor or attached to one already running.
+    # Either way it is attached (not owned by the shell) and persists after the shell exits.
+    $supervisorDoc = $null
+    try { $supervisorDoc = $supervisorText | ConvertFrom-Json } catch { }
+    if ($supervisorDoc -and $supervisorDoc.started -eq $true -and $supervisorDoc.pid) {
+        $script:startedSupervisorPid = [int]$supervisorDoc.pid
+        Write-Host "  llama.cpp supervisor started by this launch (pid $($script:startedSupervisorPid)); persistent service, attached - it outlives the shell unless -StopInferenceOnExit." -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "  llama.cpp supervisor already running; attaching (not started or owned by this launch)." -ForegroundColor DarkGray
+    }
+}
+else {
+    Write-Host "  Inference backend '$effectiveBackend' selected; llama.cpp supervisor not started." -ForegroundColor DarkGray
 }
 
 # F-002/F-003. A deterministic exit code on every path. In Windows PowerShell 5.1 a
@@ -482,6 +632,18 @@ finally {
     # own code after the stop above. Never leave a stale $LASTEXITCODE.
     if ($null -eq $script:launcherExit) {
         $script:launcherExit = Get-SafeExitCode $proc
+    }
+    # SW-18: report what stopped with the shell (owned modules, from its teardown receipt) and
+    # what deliberately did not (attached persistent services). Reporting never changes the exit
+    # code.
+    try { Write-ShellTeardownReport } catch { Write-Host "  Teardown report unavailable: $($_.Exception.Message)" -ForegroundColor Yellow }
+    if ($usesLlama) {
+        if ($StopInferenceOnExit) {
+            try { Stop-LaunchOwnedSupervisor } catch { Write-Host "  -StopInferenceOnExit: $($_.Exception.Message)" -ForegroundColor Yellow }
+        }
+        else {
+            Write-Host "  llama.cpp supervisor left running: persistent service, attached (not owned by the shell). Stop it with modules\sovereign\Stop-LlamaCppSupervisor.ps1" -ForegroundColor DarkGray
+        }
     }
     Write-Host "  Stopped (exit $script:launcherExit)." -ForegroundColor Cyan
     Write-Host ""

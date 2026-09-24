@@ -7,6 +7,33 @@ param(
 
 $ErrorActionPreference = "Continue"
 $rootPath = [System.IO.Path]::GetFullPath($Root)
+. (Join-Path $PSScriptRoot "SovereignStatePaths.ps1")  # SW-25: state lives outside the install tree
+$consumerEnvPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "llamacpp_supervisor\consumer.env"
+if (Test-Path -LiteralPath $consumerEnvPath -PathType Leaf) {
+    Get-Content -LiteralPath $consumerEnvPath | ForEach-Object {
+        if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
+            Set-Item -Path ("Env:" + $Matches[1]) -Value $Matches[2]
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_INFERENCE_BACKEND)) {
+    $env:SOVEREIGN_INFERENCE_BACKEND = "llama.cpp"
+}
+if (
+    [string]$env:SOVEREIGN_INFERENCE_BACKEND -eq "llama.cpp" -and
+    [string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_LLAMA_CPP_BASE_URL)
+) {
+    $env:SOVEREIGN_LLAMA_CPP_BASE_URL = "http://127.0.0.1:18080"
+}
+if (
+    [string]$env:SOVEREIGN_INFERENCE_BACKEND -eq "llama.cpp" -and
+    [string]::IsNullOrWhiteSpace([string]$env:SOVEREIGN_LLAMA_CPP_API_KEY)
+) {
+    $keyPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "llamacpp_supervisor\api_key"
+    if (Test-Path -LiteralPath $keyPath -PathType Leaf) {
+        $env:SOVEREIGN_LLAMA_CPP_API_KEY = (Get-Content -LiteralPath $keyPath -Raw).Trim()
+    }
+}
 $checks = [System.Collections.Generic.List[object]]::new()
 
 function Add-Check {
@@ -139,20 +166,68 @@ try {
             $manifest.MODELS.SYNTHESIZER,
             $manifest.MODELS.EMBEDDING_MODEL
         ) | Where-Object { $_ } | Sort-Object -Unique
+        $requireOllamaModels = [string]$env:SOVEREIGN_INFERENCE_BACKEND -eq "ollama"
         foreach ($model in $requiredModels) {
             $present = $model -in $installed
             $modelDetail = "missing"
             if ($present) {
                 $modelDetail = "installed"
             }
-            Add-Check "Model $model" $present $modelDetail
+            if ($requireOllamaModels) {
+                Add-Check "Model $model" $present $modelDetail
+            } else {
+                Add-Check "Ollama residual $model" $present $modelDetail
+            }
         }
     }
 } catch {
-    Add-Check "Ollama" $false $_.Exception.Message
+    if ([string]$env:SOVEREIGN_INFERENCE_BACKEND -eq "ollama") {
+        Add-Check "Ollama" $false $_.Exception.Message
+    } else {
+        Add-Check "Ollama residual" $false $_.Exception.Message
+    }
 }
 
-$statePath = Join-Path $rootPath "runtime\service_state.json"
+if ([string]$env:SOVEREIGN_INFERENCE_BACKEND -ne "ollama") {
+    try {
+        $llamaBaseUrl = [string]$env:SOVEREIGN_LLAMA_CPP_BASE_URL
+        if ([string]::IsNullOrWhiteSpace($llamaBaseUrl)) {
+            $llamaBaseUrl = "http://127.0.0.1:18080"
+        }
+        $llamaHeaders = @{}
+        if (-not [string]::IsNullOrWhiteSpace($env:SOVEREIGN_LLAMA_CPP_API_KEY)) {
+            $llamaHeaders["Authorization"] = "Bearer $($env:SOVEREIGN_LLAMA_CPP_API_KEY)"
+        }
+        $llamaModels = Invoke-RestMethod `
+            -Uri ($llamaBaseUrl.TrimEnd("/") + "/models") `
+            -Method Get `
+            -Headers $llamaHeaders `
+            -TimeoutSec 5
+        $llamaCount = 0
+        if ($llamaModels.data) {
+            $llamaCount = @($llamaModels.data).Count
+        }
+        Add-Check "llama.cpp supervisor" $true "$llamaBaseUrl reachable; $llamaCount registered profile(s)"
+    } catch {
+        Add-Check "llama.cpp supervisor" $false $_.Exception.Message
+    }
+    try {
+        $persistJson = & $pythonPath -m sovereign_product.supervisor_service --root $rootPath persistence-status
+        $persist = $persistJson | ConvertFrom-Json
+        $persistOk = [bool]$persist.persistent -and [bool]$persist.autostart
+        $persistDetail = (
+            "logon=$($persist.logon_launcher_present); " +
+            "failure=$($persist.failure_launcher_present); " +
+            "autostart=$($persist.autostart); " +
+            "watch_alive=$($persist.watch_alive)"
+        )
+        Add-Check "llama.cpp persistence" $persistOk $persistDetail
+    } catch {
+        Add-Check "llama.cpp persistence" $false $_.Exception.Message
+    }
+}
+
+$statePath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "service_state.json"
 $state = $null
 $recordedProcess = $null
 $stateValid = $false
@@ -185,9 +260,7 @@ if (Test-Path -LiteralPath $statePath -PathType Leaf) {
                 ) -ge 0
             )
             if ($state.process_started_at) {
-                $recordedStart = [DateTimeOffset]::Parse(
-                    [string]$state.process_started_at
-                )
+                $recordedStart = [DateTimeOffset]$state.process_started_at
                 $actualStart = [DateTimeOffset]$recordedProcess.StartTime.ToUniversalTime()
                 $startMatches = (
                     [Math]::Abs(
@@ -226,9 +299,7 @@ if (Test-Path -LiteralPath $statePath -PathType Leaf) {
             if ($null -ne $launcher) {
                 $launcherStartMatches = $false
                 if ($state.launcher_started_at) {
-                    $recordedLauncherStart = [DateTimeOffset]::Parse(
-                        [string]$state.launcher_started_at
-                    )
+                    $recordedLauncherStart = [DateTimeOffset]$state.launcher_started_at
                     $actualLauncherStart = (
                         [DateTimeOffset]$launcher.StartTime.ToUniversalTime()
                     )
@@ -341,7 +412,7 @@ if ($stateValid) {
     }
 }
 
-$dbPath = Join-Path $rootPath "runtime\sovereign.db"
+$dbPath = Resolve-SovereignRuntimeFile -Root $rootPath -RelativePath "sovereign.db"
 if ($pythonValid -and (Test-Path -LiteralPath $dbPath -PathType Leaf)) {
     $dbCheck = @'
 import sys
