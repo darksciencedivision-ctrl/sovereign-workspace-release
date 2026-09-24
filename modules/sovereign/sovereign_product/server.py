@@ -71,7 +71,7 @@ from .quality import (
     quick_escalation_policy,
     validate_quick_response,
 )
-from .router import Route, RoutingDecision, route_query
+from .router import Route, RoutingDecision, job_input, route_query
 from .semantic_deep import SemanticDeepExecutor
 from .shutdown_watcher import install_shutdown_watcher
 from .state_migration import ensure_state_home
@@ -1549,7 +1549,7 @@ class ProductService:
         job = self.store.create_job(
             session_id,
             decision.route.value,
-            decision.normalized_query or text.strip(),
+            job_input(text, decision),
             input_message_id=user_message["message_id"],
             metadata={"routing": decision.as_dict()},
         )

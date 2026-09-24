@@ -186,6 +186,23 @@ def _context_requests_continuity(context: Mapping[str, Any] | None) -> bool:
     )
 
 
+def job_input(text: str, decision: RoutingDecision) -> str:
+    """The text a job runs on. LONG keeps the operator's line structure; others the normalized query.
+
+    A LONG request is structured - an optional ``@model:`` first line, the objective, a ``---``
+    line, then material - and collapsing whitespace (as routing does) destroys every line of it.
+    An inline route prefix (``route: LONG``) is still removed.
+    """
+    if decision.route is not Route.LONG:
+        return decision.normalized_query or text.strip()
+    raw = text.strip()
+    if "inline_override" in decision.matched_rules:
+        inline = _INLINE_OVERRIDE.match(raw)
+        if inline:
+            raw = raw[inline.end():].strip()
+    return raw
+
+
 def route_query(
     query: str,
     override: Route | str | None = None,

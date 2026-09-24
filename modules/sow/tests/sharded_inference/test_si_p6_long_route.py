@@ -384,3 +384,49 @@ def test_si_p6_growing_task_lists_keep_n_of_n_progress_flowing(clean_env, tmp_pa
     percents = [p["percent"] for p in stored]
     assert percents == sorted(percents) and max(percents) <= 99
     assert stored[1]["percent"] < 90, "finishing the plan is not nearly finishing the job"
+
+
+# --- the request through /v1/message keeps its structure -------------------------------------------
+
+LONG_REQUEST = ("@model: qwen3:30b-a3b\nList the components.\n---\n"
+                "@input: distillery-design-validation.md")
+
+
+def _submitting_product(tmp_path):
+    from sovereign_product.server import ProductService
+    from sovereign_product.store import SovereignStore
+
+    store = SovereignStore(tmp_path / "sovereign.db")
+    session = store.create_session(None, title="t")
+    enqueued = []
+    fake = SimpleNamespace(store=store, qualification=lambda: {"verdict": "qualified"},
+                           active_job=lambda sid: None, _enqueue=enqueued.append,
+                           public_job=lambda job: {"job_id": job["job_id"]})
+    fake.route = lambda text, override: ProductService.route(fake, text, override)
+    return ProductService, fake, store, session["session_id"]
+
+
+@pytest.mark.parametrize("text,override", [
+    (LONG_REQUEST, "LONG"),
+    ("route: LONG\n" + LONG_REQUEST, None),
+])
+def test_si_p6_long_job_keeps_the_request_lines(tmp_path, text, override):
+    """Live: routing collapsed whitespace, so '---' and '@model:' lines never reached the executor."""
+    service, fake, store, session_id = _submitting_product(tmp_path)
+    payload, status = service.submit(fake, session_id, text, route_override=override)
+    assert status == 202
+    job = store.get_job(payload["job_id"])
+    assert job["route"] == "LONG" and job["input"] == LONG_REQUEST
+    requested, rest = LW.split_model_directive(job["input"])
+    objective, material = LW.parse_request(rest.replace("@input: distillery-design-validation.md",
+                                                        "inline material"), tmp_path)
+    assert requested == "qwen3:30b-a3b" and objective == "List the components."
+    assert material == "inline material"
+    store.close()
+
+
+def test_si_p6_other_routes_still_run_on_the_normalized_query(tmp_path):
+    service, fake, store, session_id = _submitting_product(tmp_path)
+    payload, status = service.submit(fake, session_id, "what   is\n\nthe  time", route_override="QUICK")
+    assert status == 202 and store.get_job(payload["job_id"])["input"] == "what is the time"
+    store.close()
