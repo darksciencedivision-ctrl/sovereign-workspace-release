@@ -79,7 +79,7 @@ class Ledger:
                            "open_questions": self.open_questions, "results": self.results},
                           ensure_ascii=False, separators=(",", ":"))
 
-    def apply(self, update: Mapping[str, Any], *, task_id: str, summary: str) -> None:
+    def apply(self, update: Mapping[str, Any], *, task_id: str, summary: str | None) -> None:
         for key, target in (("add_facts", self.facts), ("add_decisions", self.decisions),
                             ("add_open_questions", self.open_questions)):
             for item in update.get(key) or []:
@@ -88,7 +88,8 @@ class Ledger:
                     target.append(text)
         resolved = {str(q).strip() for q in update.get("resolve_open_questions") or []}
         self.open_questions = [q for q in self.open_questions if q not in resolved]
-        self.results.append({"task": task_id, "summary": summary})
+        if summary is not None:
+            self.results.append({"task": task_id, "summary": summary})
         self.version += 1
 
     def to_dict(self) -> dict[str, Any]:
@@ -257,6 +258,8 @@ class ShardRunner:
                  progress: Callable[[dict[str, Any]], None] = lambda event: None,
                  on_task_done: Callable[["ShardRunner", "RunState", ShardTask], None]
                  | None = None,
+                 validators: Mapping[str, Callable[[str], None]] | None = None,
+                 summary_kinds: Iterable[str] | None = None,
                  monotonic: Callable[[], float] = time.monotonic):
         self.run_dir = Path(run_dir)
         self.model = model
@@ -267,6 +270,13 @@ class ShardRunner:
         # A MODE (input shards, plan steps) reacts to finished tasks by adding more - reduce
         # rounds, next plan steps. It must be idempotent: on resume it sees the same tasks again.
         self.on_task_done = on_task_done
+        # Per task-kind result validators (e.g. "a plan must be a JSON list"). A validator raises
+        # ValueError; the reply is then treated as invalid and retried in a fresh session.
+        self.validators = dict(validators or {})
+        # Which task kinds leave a result summary in the ledger (None = all). Map/reduce needs
+        # none - reduce sessions read the map outputs directly - so its ledger stays facts-only
+        # instead of growing by one line per chunk.
+        self.summary_kinds = None if summary_kinds is None else frozenset(summary_kinds)
         self.state: RunState | None = None
         self.log = CheckpointLog(self.run_dir / "checkpoints")
         self.outputs = self.run_dir / "outputs"
@@ -419,6 +429,9 @@ class ShardRunner:
                                            max_tokens=task.max_output_tokens,
                                            should_stop=self.should_stop)
                 result, update = _parse_reply(text)
+                validator = self.validators.get(task.kind)
+                if validator is not None:
+                    validator(result)
             except ValueError as exc:
                 last_error = str(exc)
                 note = f"{last_error}. Reply with ONE valid JSON object only."
@@ -431,7 +444,9 @@ class ShardRunner:
             digest = _sha256(data)
             (self.outputs / f"{digest}.txt").write_bytes(data)
             summary = _summarize(result)
-            state.ledger.apply(update, task_id=task.task_id, summary=summary)
+            carried = (summary if self.summary_kinds is None or task.kind in self.summary_kinds
+                       else None)
+            state.ledger.apply(update, task_id=task.task_id, summary=carried)
             record = {"task_id": task.task_id, "kind": task.kind, "attempts": attempt,
                       "output_sha256": digest, "summary": summary,
                       "ledger": state.ledger.to_dict(), "model_calls": state.model_calls}
