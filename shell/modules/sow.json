@@ -59,7 +59,8 @@
   },
   "stop": {
     "kind": "job_object",
-    "grace_s": 15
+    "grace_s": 15,
+    "graceful": "none"
   },
   "startup_test": {
     "env_set": {

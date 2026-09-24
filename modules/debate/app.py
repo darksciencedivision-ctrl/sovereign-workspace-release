@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 from debate import argument_memory, prompt_contract
 from debate.control_plane_guard import LoopbackControlPlaneGuard
+from debate.shutdown_watcher import install_shutdown_watcher
 from debate import model_capabilities as mcap
 from debate.config_policy import (
     ConfigurationError,
@@ -2456,9 +2457,14 @@ app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 
 if __name__ == "__main__":
-    uvicorn.run(
+    # SW-18: an explicit uvicorn.Server so the shell's graceful-shutdown Event can ask it to exit;
+    # should_exit runs the normal lifespan shutdown (orchestrator stop, insight flush, http client
+    # close, app_lifespan_shutdown log) before the shell's TerminateJobObject fallback would fire.
+    _server = uvicorn.Server(uvicorn.Config(
         app,
         host="127.0.0.1",
         port=int(CONFIG["port"]),
         log_level="warning",
-    )
+    ))
+    install_shutdown_watcher(lambda: setattr(_server, "should_exit", True))
+    _server.run()

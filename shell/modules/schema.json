@@ -250,6 +250,11 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 30
+        },
+        "graceful": {
+          "type": "string",
+          "enum": ["shutdown_event", "none"],
+          "description": "SW-18: the module's graceful-shutdown contract. 'shutdown_event': it watches SWS_SHUTDOWN_EVENT and exits on its own within grace_s (a forced stop is then a failure). 'none': it has no graceful contract and is expected to be force-terminated after grace_s (reported, not hidden). Absent is treated as 'none'."
         }
       }
     },

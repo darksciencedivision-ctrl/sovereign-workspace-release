@@ -73,6 +73,7 @@ from .quality import (
 )
 from .router import Route, RoutingDecision, route_query
 from .semantic_deep import SemanticDeepExecutor
+from .shutdown_watcher import install_shutdown_watcher
 from .state_migration import ensure_state_home
 from .store import InvalidTransition, NotFound, SovereignStore
 from system_manifest import (
@@ -2360,14 +2361,18 @@ def main(argv: list[str] | None = None) -> int:
         worker_count=args.workers,
     )
     app = create_app(service=service)
+    # SW-18: serve through an explicit werkzeug server (what app.run wraps) so the shell's
+    # graceful-shutdown Event can stop it: the watcher calls server.shutdown(), serve_forever()
+    # returns, and service.close() drains the job workers and closes the store BEFORE the shell's
+    # TerminateJobObject fallback would fire.
+    from werkzeug.serving import make_server
+
+    server = make_server(host, int(args.port), app, threaded=True)
+    install_shutdown_watcher(server.shutdown)
     try:
-        app.run(
-            host=host,
-            port=int(args.port),
-            threaded=True,
-            use_reloader=False,
-        )
+        server.serve_forever()
     finally:
+        server.server_close()
         service.close()
     return 0
 

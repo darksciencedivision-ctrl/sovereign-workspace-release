@@ -8,12 +8,17 @@ idle-but-ready product. The status is derived from the real gates (see capabilit
 from __future__ import annotations
 import html
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import capability
+from shutdown_watcher import install_shutdown_watcher
 
 HOST = "127.0.0.1"
-PORT = 5184
+# The shell adapter does not pass DISTILLERY_PORT (not in its env_allowlist), so a shell launch is
+# always 5184; the override exists so the SW-18 graceful-shutdown test can run the real entry point
+# without colliding with a running console.
+PORT = int(os.environ.get("DISTILLERY_PORT", "5184"))
 
 # M-9 (B2-8): hardening for the health/console surface.
 # - Host header must exactly match the bound loopback origin (DNS names and
@@ -128,8 +133,14 @@ class H(BaseHTTPRequestHandler):
 
 def main():
     httpd = ThreadingHTTPServer((HOST, PORT), H)
+    # SW-18: stop serving when the shell signals graceful shutdown (before its terminate fallback).
+    install_shutdown_watcher(httpd.shutdown)
     print(f"distillery-console http://{HOST}:{PORT}", flush=True)
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    finally:
+        httpd.server_close()
+        print("distillery-console stopped (graceful)", flush=True)
 
 if __name__ == "__main__":
     main()

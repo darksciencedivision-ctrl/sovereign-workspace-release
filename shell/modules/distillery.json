@@ -47,6 +47,7 @@
   },
   "stop": {
     "kind": "job_object",
-    "grace_s": 5
+    "grace_s": 5,
+    "graceful": "shutdown_event"
   }
 }

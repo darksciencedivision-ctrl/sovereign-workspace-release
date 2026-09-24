@@ -27,6 +27,11 @@ from shell.src.probe import run_preflight
 from shell.src.distillery import get_distillery_status
 from shell.src.startup_test import run_startup_test
 from shell.src.states import ModuleRunner, EXTERNAL, FAILED, READY, DEGRADED, STARTING
+from shell.src.teardown import (
+    build_receipt as build_teardown_receipt,
+    summarize as summarize_teardown,
+    write_receipt as write_teardown_receipt,
+)
 
 MAX_BODY = 16384
 START_RATE_LIMIT_S = 2.0  # H-7: one Start per module per 2 s
@@ -604,6 +609,27 @@ def _run_selftest(port: int) -> int:
     return 0
 
 
+def shutdown_workspace(supervisor, runners: dict, receipt_dir: str | None = None):
+    """Stop every OWNED module and record the teardown (SW-18). Returns (receipt, path).
+
+    Owned modules get the bounded graceful stop (shutdown Event, shared deadline, then
+    TerminateJobObject). Attached persistent services are never touched - only reported, with
+    how to stop them outside the shell. A receipt failure never blocks shell exit.
+    """
+    stop_records = supervisor.close()
+    receipt = build_teardown_receipt(stop_records, runners)
+    path = None
+    try:
+        path = write_teardown_receipt(
+            receipt, receipt_dir or os.path.join(workspace_state_root(), "shell", "logs"))
+        for line in summarize_teardown(receipt):
+            get_logger().info("teardown: %s", line)
+        get_logger().info("teardown receipt: %s", path)
+    except Exception as exc:
+        get_logger().warning("teardown receipt not written: %s", exc)
+    return receipt, path
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Sovereign Workspace Shell")
     parser.add_argument("--port", type=int, default=5180, help="Listen port (default: 5180)")
@@ -651,7 +677,7 @@ def main(argv=None):
         get_logger().info("shutting down on interrupt")
     finally:
         # H-9: only Job-owned processes are stopped. EXTERNAL instances are never touched.
-        supervisor.close()
+        shutdown_workspace(supervisor, states)
         server.shutdown()
     return 0
 

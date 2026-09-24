@@ -323,6 +323,13 @@ def _validate_against_schema(adapter: dict, schema: dict) -> None:
             raise AdapterError(f"Invalid stop.kind: {stop['kind']}")
         if not _is_number(stop.get("grace_s")) or not (1 <= stop["grace_s"] <= 30):
             raise AdapterError("stop.grace_s must be a number 1-30")
+        # SW-18: the module's graceful-shutdown contract, reported in the teardown receipt so a
+        # forced stop of a module that promised to exit on its own is visible as a failure.
+        if stop.get("graceful", "none") not in ("shutdown_event", "none"):
+            raise AdapterError("stop.graceful must be 'shutdown_event' or 'none'")
+        extra = set(stop) - {"kind", "grace_s", "graceful"}
+        if extra:
+            raise AdapterError(f"Unknown stop field(s): {', '.join(sorted(extra))}")
 
         # Optional startup_test override block (ADR-004, R3-11).
         st = adapter.get("startup_test")
