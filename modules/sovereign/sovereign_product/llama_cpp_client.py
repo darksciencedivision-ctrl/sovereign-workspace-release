@@ -157,6 +157,7 @@ class LlamaCppClient:
                 f"native context capability is unknown for model {model!r}"
             )
         candidates: set[int] = set()
+        served: set[int] = set()
         for entry in rows:
             if not isinstance(entry, Mapping):
                 continue
@@ -167,6 +168,13 @@ class LlamaCppClient:
                 continue
             values = _extract_context_values(entry)
             candidates.update(values)
+            per_slot = _served_context(entry)
+            if per_slot is not None:
+                served.add(per_slot)
+        # Router mode: the preset's served per-slot context is the real limit, and the only one
+        # an unloaded model reports (n_ctx_train appears once loaded, and is the TRAINING size).
+        if served:
+            candidates = served
         if len(candidates) != 1:
             detail = "missing" if not candidates else "conflicting"
             raise ModelCapabilityError(
@@ -719,6 +727,26 @@ def _extract_context_values(entry: Mapping[str, Any]) -> set[int]:
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             found.add(value)
     return found
+
+
+def _served_context(entry: Mapping[str, Any]) -> int | None:
+    """Per-slot context a router entry is served with: ``--ctx-size`` / ``--parallel``, or None."""
+    status = entry.get("status")
+    args = status.get("args") if isinstance(status, Mapping) else None
+    if not isinstance(args, list):
+        return None
+    values: dict[str, int] = {}
+    for flag, value in zip(args, args[1:]):
+        if flag in ("--ctx-size", "-c", "--parallel", "-np"):
+            try:
+                values["ctx" if flag in ("--ctx-size", "-c") else "parallel"] = int(str(value))
+            except ValueError:
+                return None
+    context = values.get("ctx")
+    if context is None or context <= 0:
+        return None
+    parallel = max(1, values.get("parallel", 1))
+    return context // parallel
 
 
 def _normalize_response_format(
