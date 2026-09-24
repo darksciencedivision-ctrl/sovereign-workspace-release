@@ -260,3 +260,18 @@ def test_sw18b_close_is_idempotent_and_reports_stop_records(tmp_path):
     assert [r["module_id"] for r in records] == ["x"] and records[0]["alive_after_stop"] is False
     assert not ph.is_alive()
     assert sup.close() == []
+
+
+def test_sw18b_receipts_written_in_the_same_instant_do_not_collide(tmp_path, monkeypatch):
+    # Found as a flake: on Windows two receipts could get the same timestamp name and one
+    # silently replaced the other. Freeze the clock to make the collision deterministic.
+    from datetime import datetime, timezone
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 24, 12, 0, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(teardown, "datetime", _Frozen)
+    paths = {teardown.write_receipt({"schema": 1, "n": i}, str(tmp_path)) for i in range(5)}
+    assert len(paths) == 5 and len(list(tmp_path.glob("teardown-*.json"))) == 5
