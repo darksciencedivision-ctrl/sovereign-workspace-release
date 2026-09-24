@@ -75,3 +75,9 @@ evidence/scratch/
 # SWS-CORRECTIVE-01 workstream 5: benchmark run output. The protocol, the frozen dataset and
 # the harness are tracked; raw run records and model artifacts are evidence, not release input.
 tools/benchmark/results/
+
+# --- provisioned inference binaries (per machine; never release input) ---
+# The llama.cpp server build lives in the install tree by operator decision (SW-25 decision 3:
+# a provisioned ASSET, not state), but it is downloaded per machine and hash-pinned in
+# workspace.env by Provision-Workspace.ps1 - it is never committed.
+modules/sovereign/runtime/llama.cpp/
