@@ -577,7 +577,9 @@ class ProductService:
             BACKEND_FREETOKEN,
             BACKEND_OLLAMA,
             DEFAULT_LLAMA_CPP_BASE_URL,
+            KEY_SOURCE_SUPERVISOR_FILE,
             load_default_llama_cpp_api_key,
+            resolve_llama_cpp_api_key,
         )
 
         # Precedence: explicit SOVEREIGN_INFERENCE_BACKEND env choice, then the
@@ -619,16 +621,16 @@ class ProductService:
             str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or "").strip()
             or DEFAULT_LLAMA_CPP_BASE_URL
         )
-        llama_key = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
+        # The state home's supervisor key wins for the URL that supervisor serves; a
+        # disagreeing SOVEREIGN_LLAMA_CPP_API_KEY is stale (resolve_llama_cpp_api_key).
+        llama_key, key_source = resolve_llama_cpp_api_key(self.paths.state_dir, llama_url)
         if not llama_key:
-            key_file = self.paths.state_dir / "llamacpp_supervisor" / "api_key"
-            if key_file.is_file():
-                llama_key = key_file.read_text(encoding="utf-8").strip()
-        if not llama_key:
-            llama_key = load_default_llama_cpp_api_key() or ""
+            llama_key = load_default_llama_cpp_api_key(llama_url)
+            key_source = KEY_SOURCE_SUPERVISOR_FILE if llama_key else key_source
         return LlamaCppClient(
             llama_url,
             api_key=llama_key or None,
+            api_key_source=key_source,
             connect_timeout=OLLAMA_CONNECT_TIMEOUT_SECONDS,
             read_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
             overall_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,

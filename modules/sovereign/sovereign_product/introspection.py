@@ -456,8 +456,10 @@ def _probe_llama_cpp(
         if model_file and Path(model_file).is_file():
             installed.update(names)
 
-    api_key_text, api_key_error = _read_text(supervisor_dir / "api_key")
-    api_key = api_key_text.strip() if api_key_error is None and api_key_text else None
+    # The same key the product's client sends, so "reachable" here means reachable for it.
+    from .runtime_contracts import resolve_llama_cpp_api_key
+
+    api_key = resolve_llama_cpp_api_key(paths.state_dir, trusted_base)[0]
     loaded: list[str] | None = None
     models_error: str | None = None
     rows: list[Any] | None = None

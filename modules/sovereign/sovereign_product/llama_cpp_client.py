@@ -23,6 +23,7 @@ from .model_client import (
 from .runtime_contracts import (
     CancelCallback,
     ChatResponse,
+    InferenceAuthError,
     InferenceProtocolError,
     validate_loopback_origin,
 )
@@ -41,6 +42,7 @@ class LlamaCppClient:
         overall_timeout: float = OLLAMA_GENERATION_TIMEOUT_SECONDS,
         session: requests.Session | None = None,
         monotonic: Callable[[], float] | None = None,
+        api_key_source: str | None = None,
     ) -> None:
         for name, value in (
             ("connect_timeout", connect_timeout),
@@ -51,6 +53,9 @@ class LlamaCppClient:
                 raise ValueError(f"{name} must be positive")
         self.base_url = validate_loopback_origin(base_url)
         self.api_key = api_key
+        # Where the key came from (runtime_contracts.resolve_llama_cpp_api_key), named in the
+        # refusal when the server rejects it; never the key itself.
+        self.api_key_source = api_key_source or ("caller" if api_key else "none")
         self.registry = registry
         self.connect_timeout = float(connect_timeout)
         self.read_timeout = float(read_timeout)
@@ -109,8 +114,21 @@ class LlamaCppClient:
             raise GenerationTimeout("transport") from exc
         except requests.RequestException as exc:
             raise ModelClientError(f"llama.cpp request failed: {exc}") from exc
-        if 300 <= int(getattr(response, "status_code", 0)) < 400:
+        status = int(getattr(response, "status_code", 0))
+        if 300 <= status < 400:
             raise ModelClientError("llama.cpp redirects are not permitted")
+        if status in (401, 403):
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
+            sent = "an API key" if self.api_key else "no API key"
+            raise InferenceAuthError(
+                f"llama.cpp at {self.base_url} refused {sent} (HTTP {status}); key source: "
+                f"{self.api_key_source}. The key must be the one the llama.cpp supervisor "
+                "serving this URL was started with (its state home's llamacpp_supervisor/"
+                "api_key); a stale SOVEREIGN_LLAMA_CPP_API_KEY in the environment is the "
+                "usual cause."
+            )
         return response
 
     def native_context_length(self, model: str) -> int:
@@ -184,6 +202,8 @@ class LlamaCppClient:
             counted = self._post_json(
                 "/tokenize", {"model": engine_id, "content": prompt, "add_special": True})
             tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
+        except InferenceAuthError:
+            raise
         except (ModelClientError, ValueError):
             return None
         if not isinstance(tokens, list):
@@ -200,6 +220,8 @@ class LlamaCppClient:
         try:
             counted = self._post_json(
                 "/tokenize", {"model": engine_id, "content": text, "add_special": False})
+        except InferenceAuthError:
+            raise
         except (ModelClientError, ValueError):
             return None
         tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
