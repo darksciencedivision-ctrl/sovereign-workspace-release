@@ -33,6 +33,10 @@ from typing import Any, Mapping
 from .paths import STATE_LAYOUT_FILE, resolve_state_home
 
 MIGRATION_RECEIPT = "STATE_MIGRATION.json"
+STATE_VERSION_FILE = "STATE_VERSION.json"
+# The state layout this code reads and writes. Bump it (and teach ensure_state_home to upgrade the
+# older layout) whenever a change makes state unreadable to the previous release.
+STATE_SCHEMA = 1
 STAGING_DIRNAME = ".migration-staging"
 # Legacy piece -> the same relative location under the state home.
 LEGACY_PIECES = ("runtime", "published", "library/queues")
@@ -75,8 +79,11 @@ def _ignore_assets(directory: str, names: list[str]) -> set[str]:
 
 
 def _write_receipt(home: Path, payload: Mapping[str, Any]) -> None:
-    target = home / MIGRATION_RECEIPT
-    temporary = home / f".{MIGRATION_RECEIPT}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+    _write_json_atomic(home / MIGRATION_RECEIPT, payload)
+
+
+def _write_json_atomic(target: Path, payload: Mapping[str, Any]) -> None:
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     with temporary.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
         handle.flush()
@@ -90,6 +97,51 @@ def read_receipt(home: Path) -> dict[str, Any] | None:
     except (OSError, ValueError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+class StateVersionError(RuntimeError):
+    """The state home was written by a newer build than this one understands (fail closed)."""
+
+
+def read_state_version(home: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads((home / STATE_VERSION_FILE).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise StateVersionError(f"{home / STATE_VERSION_FILE} is unreadable: {exc}") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("schema"), int):
+        raise StateVersionError(f"{home / STATE_VERSION_FILE} has no integer schema")
+    return payload
+
+
+def check_state_version(home: Path) -> dict[str, Any]:
+    """Stamp a new state home, or refuse one written by a newer build (SW-25 rollback safety).
+
+    Rolling the INSTALL back to an older release must not let that older code silently
+    misread - or rewrite - state a newer release produced. It refuses to start instead; the
+    operator restores the backup taken before the upgrade (state_admin restore) or re-installs
+    the newer release.
+    """
+
+    from sovereign_version import PRODUCT_VERSION
+
+    current = read_state_version(home)
+    if current is None:
+        current = {"schema": STATE_SCHEMA, "created_utc": _utc_now(),
+                   "created_by": PRODUCT_VERSION, "last_opened_by": PRODUCT_VERSION}
+        _write_json_atomic(home / STATE_VERSION_FILE, current)
+        return current
+    if current["schema"] > STATE_SCHEMA:
+        raise StateVersionError(
+            f"state at {home} has schema {current['schema']}, newer than this build supports "
+            f"({STATE_SCHEMA}); it was written by {current.get('last_opened_by')!r}. Re-install "
+            "that release, or restore a backup taken with this release (state_admin restore)."
+        )
+    if current.get("last_opened_by") != PRODUCT_VERSION:
+        current = {**current, "last_opened_by": PRODUCT_VERSION}
+        _write_json_atomic(home / STATE_VERSION_FILE, current)
+    return current
 
 
 class _MigrationLock:
@@ -193,6 +245,7 @@ def ensure_state_home(
         return {"state_home": str(home), "external": False, "migrated": False, "receipt": None}
 
     home.mkdir(parents=True, exist_ok=True)
+    check_state_version(home)
     capture_edited_manifest(product_root, home)
     existing = read_receipt(home)
     if existing is not None:

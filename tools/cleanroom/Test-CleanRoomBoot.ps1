@@ -9,10 +9,16 @@
       1. Extracts the exact shipped artifact (`git archive HEAD`, honouring export-ignore) into a
          temp directory whose path CONTAINS A SPACE and differs from the build tree - so spaced-path
          quoting is exercised too.
+         1b. (SW-25) Hashes every extracted file and marks the whole distribution READ-ONLY; every
+         later step runs against a read-only install, and the summary re-hashes the tree
+         ('readonly-install': nothing may be changed, removed or added).
       2. Runs the distribution's own `Start-Shell.ps1 -CheckOnly` preflight and asserts exit 0.
       3. Runs the adapter RESOLUTION check (cleanroom_resolve_check.py): every module's resolved
          root / cwd / launch entry must exist INSIDE the extracted distribution, with no build-host
          path leaked. This is the WS-0.1 / WS-0.3 / WS-0.4-class gate.
+         3b. (SW-25) cleanroom_state_lifecycle.py runs SOVEREIGN's state lifecycle from the
+         read-only install against a scratch external state root: launch-state, model
+         assignment, state write, backup, refusal of newer-build state (rollback), restore.
       4. Unless -SkipLiveShell: boots the stdlib-only shell from the extracted copy (no venv needed)
          and asserts GET /api/state lists every module with no CONFIG_ERROR. This is the FAST,
          resolution-only live check - it launches `python -m shell.src` directly, so it proves the
@@ -118,6 +124,21 @@ if ($dist -notmatch ' ') { Fail 'extract' "dist path has no space; spaced-path q
 if (Test-Path (Join-Path $dist 'shell\src\adapter.py')) { Ok 'extract' "distribution extracted to a spaced path" }
 else { Fail 'extract' "shell\src\adapter.py missing from extract"; }
 
+# --- 1b. SW-25: the install is READ-ONLY from here on -------------------------------------------
+# Every shipped file is hashed, then marked read-only, so every later step (preflight, resolution,
+# the state lifecycle, both shell boots) runs against a read-only install. The summary re-hashes
+# the tree: a single changed, added or removed file fails the gate ('readonly-install').
+function Get-DistHashes([string]$root) {
+    $map = @{}
+    Get-ChildItem -LiteralPath $root -Recurse -File -Force | ForEach-Object {
+        $map[$_.FullName.Substring($root.Length)] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+    }
+    return $map
+}
+$distHashesBefore = Get-DistHashes $dist
+Get-ChildItem -LiteralPath $dist -Recurse -File -Force | ForEach-Object { $_.IsReadOnly = $true }
+Info "SW-25: $($distHashesBefore.Count) shipped files hashed and marked read-only"
+
 # --- 2. Start-Shell.ps1 -CheckOnly --------------------------------------------------------------
 $startShell = Join-Path $dist 'Start-Shell.ps1'
 if (Test-Path $startShell) {
@@ -147,6 +168,18 @@ $reportJson = Join-Path $work 'resolution-report.json'
 $resolveExit = $LASTEXITCODE
 if ($resolveExit -eq 0) { Ok 'resolution' "every module entry resolves inside the distribution" }
 else { Fail 'resolution' "one or more modules failed resolution (see resolution-report.json)" }
+
+# --- 3b. SW-25: state lifecycle of the read-only install against an external state root ---------
+# Stdlib-only (system Python 3.12, no venv): launch-state, model assignment, state write, backup,
+# refusal of newer-build state (rollback), restore. The state root is a scratch dir under $work,
+# never the operator's real %LOCALAPPDATA%.
+Info "SW-25: read-only install state lifecycle (external state root under the work dir)"
+$lifecycle = Join-Path $PSScriptRoot 'cleanroom_state_lifecycle.py'
+$lifecycleLog = Join-Path $work 'state-lifecycle.json'
+& $pyExe @pyArgs $lifecycle --root (Join-Path $dist 'modules\sovereign') --work (Join-Path $work 'state-lifecycle') *> $lifecycleLog
+$lifecycleExit = $LASTEXITCODE
+if ($lifecycleExit -eq 0) { Ok 'state-lifecycle' "read-only install: external state launch, assign, backup, rollback refusal, restore" }
+else { Fail 'state-lifecycle' "state lifecycle failed (see state-lifecycle.json): $((Get-Content -Raw $lifecycleLog) -replace '\s+', ' ')" }
 
 # --- 4. FAST live stdlib-shell boot + /api/state (resolution-only; NOT the supported entry) -----
 if (-not $SkipLiveShell) {
@@ -272,6 +305,16 @@ if ($Live -and -not $SkipLiveShell) {
     }
 } elseif ($Live -and $SkipLiveShell) {
     Info "SW-17 supported-path lane skipped (-SkipLiveShell overrides -Live)"
+}
+
+# --- SW-25: no step changed a shipped file -----------------------------------------------------
+$distHashesAfter = Get-DistHashes $dist
+$changed = @($distHashesBefore.Keys | Where-Object { $distHashesAfter[$_] -ne $distHashesBefore[$_] })
+$added = @($distHashesAfter.Keys | Where-Object { -not $distHashesBefore.ContainsKey($_) })
+if ($changed.Count -eq 0 -and $added.Count -eq 0) {
+    Ok 'readonly-install' "all $($distHashesBefore.Count) shipped files unchanged; nothing written into the install tree"
+} else {
+    Fail 'readonly-install' "install tree modified: changed/removed=$($changed.Count) [$(($changed | Select-Object -First 5) -join ', ')] added=$($added.Count) [$(($added | Select-Object -First 5) -join ', ')]"
 }
 
 # --- summary ------------------------------------------------------------------------------------
