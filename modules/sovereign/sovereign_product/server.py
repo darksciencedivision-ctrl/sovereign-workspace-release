@@ -47,6 +47,12 @@ from .introspection import (
     model_service_authority,
     status_answer,
 )
+from .manifest_overrides import (
+    ManifestOverrideError,
+    apply_overrides,
+    load_overrides,
+    write_model_overrides,
+)
 from .model_client import (
     OLLAMA_CONNECT_TIMEOUT_SECONDS,
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
@@ -71,6 +77,7 @@ from .state_migration import ensure_state_home
 from .store import InvalidTransition, NotFound, SovereignStore
 from system_manifest import (
     ManifestConfigError,
+    load_shipped_manifest,
     load_system_manifest,
     validate_system_manifest,
 )
@@ -717,35 +724,28 @@ class ProductService:
             base_options=self._runtime_model_options(manifest),
         )
 
-    def _write_manifest(self, manifest: Mapping[str, Any]) -> None:
+    def _write_model_overrides(self, updates: Mapping[str, str]) -> None:
+        """SW-25: record model assignments as operator overrides in the state home.
+
+        The shipped SYSTEM_MANIFEST.json is never written. The merged (shipped + overrides)
+        manifest is validated BEFORE anything is persisted, and re-loaded after, so an
+        assignment that would make the effective manifest invalid is refused unchanged.
+        """
         path = self.root / "SYSTEM_MANIFEST.json"
         try:
-            validated = validate_system_manifest(dict(manifest), path)
-        except ManifestConfigError as exc:
+            shipped = load_shipped_manifest(manifest_path=path)
+            current = load_overrides(self.root, shipped)
+            proposed = dict(current.get("MODELS") or {})
+            proposed.update(updates)
+            validate_system_manifest(
+                apply_overrides(shipped, {"MODELS": proposed}), path
+            )
+            write_model_overrides(self.root, shipped, updates)
+            load_system_manifest(manifest_path=path)
+        except (ManifestConfigError, ManifestOverrideError) as exc:
             raise ServiceConfigurationError(
                 f"invalid SYSTEM_MANIFEST update: {exc}"
             ) from exc
-        temporary = path.with_name(
-            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
-        )
-        encoded = json.dumps(
-            validated,
-            ensure_ascii=False,
-            sort_keys=False,
-            indent=2,
-        ) + "\n"
-        try:
-            with temporary.open("w", encoding="utf-8-sig", newline="\n") as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary, path)
-            load_system_manifest(manifest_path=path)
-        finally:
-            try:
-                temporary.unlink()
-            except FileNotFoundError:
-                pass
 
     def _approved_evidence_paths(self) -> tuple[str, ...]:
         candidates = (
@@ -1875,7 +1875,7 @@ class ProductService:
                 if self._injected_deep_executor is not None
                 else self._deep_executor_from_manifest(updated_manifest)
             )
-            self._write_manifest(updated_manifest)
+            self._write_model_overrides(updates)
             if replacement_deep is not None:
                 self.deep_executor = replacement_deep
         return self.profile()

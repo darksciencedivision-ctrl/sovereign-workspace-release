@@ -18,6 +18,7 @@ discarded and redone.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -29,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from .paths import resolve_state_home
+from .paths import STATE_LAYOUT_FILE, resolve_state_home
 
 MIGRATION_RECEIPT = "STATE_MIGRATION.json"
 STAGING_DIRNAME = ".migration-staging"
@@ -128,6 +129,53 @@ class _MigrationLock:
             pass
 
 
+def capture_edited_manifest(product_root: Path, home: Path) -> dict[str, Any] | None:
+    """Carry model assignments an OLDER build wrote into the shipped manifest (SW-25).
+
+    Before SW-25, assigning a model rewrote SYSTEM_MANIFEST.json in place. STATE_LAYOUT.json
+    records the digest of the manifest this release ships; if the installed manifest differs, it
+    was edited in place, and its MODELS are captured into the operator overrides - once, and only
+    when no override file exists yet - so replacing the install tree on upgrade does not silently
+    discard the operator's choices. Returns what was captured, or None.
+    """
+
+    from .manifest_overrides import OVERRIDES_RELATIVE, SCHEMA
+
+    try:
+        layout = json.loads((product_root / STATE_LAYOUT_FILE).read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return None
+    expected = layout.get("shipped_manifest_sha256") if isinstance(layout, dict) else None
+    manifest = product_root / "SYSTEM_MANIFEST.json"
+    target = home.joinpath(*OVERRIDES_RELATIVE)
+    if not expected or not manifest.is_file() or target.exists():
+        return None
+    data = manifest.read_bytes()
+    if hashlib.sha256(data).hexdigest() == expected:
+        return None
+    try:
+        models = json.loads(data.decode("utf-8-sig")).get("MODELS")
+    except (UnicodeError, ValueError, AttributeError):
+        return None
+    if not isinstance(models, dict):
+        return None
+    captured = {str(k): v.strip() for k, v in models.items() if isinstance(v, str) and v.strip()}
+    payload = {
+        "schema": SCHEMA,
+        "MODELS": dict(sorted(captured.items())),
+        "source": "captured from an in-place-edited SYSTEM_MANIFEST.json (pre-SW-25 build)",
+        "updated_utc": _utc_now(),
+    }
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, target)
+    return payload
+
+
 def ensure_state_home(
     root: str | os.PathLike[str] | Path,
     *,
@@ -145,6 +193,7 @@ def ensure_state_home(
         return {"state_home": str(home), "external": False, "migrated": False, "receipt": None}
 
     home.mkdir(parents=True, exist_ok=True)
+    capture_edited_manifest(product_root, home)
     existing = read_receipt(home)
     if existing is not None:
         return {"state_home": str(home), "external": True, "migrated": False,

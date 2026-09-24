@@ -20,6 +20,13 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 from urllib.parse import urlsplit
 
+from .manifest_overrides import (
+    OVERRIDES_RELATIVE,
+    ManifestOverrideError,
+    effective_manifest,
+    manifest_digest,
+    overrides_path,
+)
 from .paths import (
     PathResolutionError,
     ProductPaths,
@@ -1063,6 +1070,15 @@ def collect_self_state(
     manifest_path = resolved_paths.root / "SYSTEM_MANIFEST.json"
     manifest, manifest_error = _read_json(manifest_path)
     manifest = manifest or {}
+    # SW-25: report the EFFECTIVE configuration - shipped manifest plus the operator's
+    # overrides from the state home - not the shipped defaults alone.
+    overrides_error: str | None = None
+    overrides_file = overrides_path(resolved_paths.root)
+    if manifest:
+        try:
+            manifest = effective_manifest(resolved_paths.root, manifest)
+        except ManifestOverrideError as exc:
+            overrides_error = str(exc)
 
     models = manifest.get("MODELS")
     configured_roles = {
@@ -1130,6 +1146,10 @@ def collect_self_state(
             "read_error": manifest_error,
             "configured_models_by_role": configured_roles,
             "source": _pointer(resolved_paths, manifest_path),
+            # Relative to the state home (outside both pointer namespaces), or None.
+            "overrides": "/".join(OVERRIDES_RELATIVE) if overrides_file.is_file() else None,
+            "overrides_error": overrides_error,
+            "effective_sha256": manifest_digest(manifest) if manifest else None,
         },
         **components,
         "constitution": constitution,
