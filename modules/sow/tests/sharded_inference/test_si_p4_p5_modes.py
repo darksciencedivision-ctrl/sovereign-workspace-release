@@ -230,3 +230,49 @@ def test_si_p5_resume_mid_plan_does_not_duplicate_steps(tmp_path):
     ids = [t.task_id for t in state.tasks]
     assert state.status == "completed" and len(ids) == len(set(ids))
     assert ids.count("synthesize") == 1 and len([i for i in ids if i.startswith("step-")]) == 6
+
+
+# --- the reply contract as real models answer it --------------------------------------------------
+
+# The live qwen3.8:27b reply to the plan instruction, verbatim (captured 2026-09-24). The plan
+# instruction asks for a JSON LIST in "result"; the model gave one, and the runner used to reject
+# it three times ('reply must be an object with a string "result"'), failing the whole LONG run.
+REAL_27B_PLAN_REPLY = (
+    '{"result": ["Draft a 6-item checklist covering key generation, server reload, client update, '
+    'and verification.", "Review the draft for practicality and safety, ensuring no step exceeds '
+    '120 words.", "Finalize the checklist and format it as a concise, actionable list."], '
+    '"ledger_update": {"add_facts": ["Objective is to create a 6-item checklist for API key '
+    'rotation.", "Checklist must cover both server and client sides.", "Each step must be under '
+    '120 words."], "add_decisions": ["Use 3 plan steps to complete the task.", "Focus on '
+    'practical, actionable items."], "add_open_questions": [], "resolve_open_questions": []}}')
+
+
+def test_si_p5_a_plan_given_as_a_json_list_is_accepted(tmp_path):
+    base = _plan_script(["unused"])
+
+    def script(prompt, n):
+        if "INSTRUCTION (plan)" in prompt:
+            return REAL_27B_PLAN_REPLY
+        return base(prompt, n)
+
+    mode, runner, state, model = _run_plan(tmp_path, script)
+    assert state.status == "completed"
+    steps = [t for t in state.tasks if t.kind == "step"]
+    assert len(steps) == 3 and "key generation" in steps[0].instruction
+    assert sum("INSTRUCTION (plan)" in p for p in model.prompts) == 1, "no retries needed"
+
+
+@pytest.mark.parametrize("text,expected", [
+    ('{"result": ["a", "b"]}', '["a", "b"]'),
+    ('{"result": {"k": 1}}', '{"k": 1}'),
+    ('{"result": 42}', "42"),
+    ('{"result": "plain"}', "plain"),
+])
+def test_si_p5_structured_results_are_kept_as_canonical_json(text, expected):
+    assert SR._parse_reply(text)[0] == expected
+
+
+@pytest.mark.parametrize("text", ['{"ledger_update": {}}', '{"result": null}', '["a"]'])
+def test_si_p5_a_reply_without_a_result_is_still_invalid(text):
+    with pytest.raises(ValueError):
+        SR._parse_reply(text)

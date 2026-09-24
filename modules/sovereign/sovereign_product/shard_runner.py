@@ -234,8 +234,12 @@ def _parse_reply(text: str) -> tuple[str, dict[str, Any]]:
     if start < 0 or end <= start:
         raise ValueError("reply contains no JSON object")
     data = json.loads(candidate[start:end + 1])
-    if not isinstance(data, dict) or not isinstance(data.get("result"), str):
-        raise ValueError('reply must be an object with a string "result"')
+    if not isinstance(data, dict) or "result" not in data or data["result"] is None:
+        raise ValueError('reply must be an object with a "result"')
+    if not isinstance(data["result"], str):
+        # A structured result (a plan's JSON list, as its instruction asks for) is kept exactly,
+        # as canonical JSON text; the task kind's validator decides whether it is acceptable.
+        data["result"] = json.dumps(data["result"], ensure_ascii=False)
     update = data.get("ledger_update") or {}
     if not isinstance(update, dict):
         raise ValueError('"ledger_update" must be an object')
