@@ -19,6 +19,9 @@ class Route(str, Enum):
     DEEP = "DEEP"
     RESEARCH = "RESEARCH"
     CONTINUITY = "CONTINUITY"
+    # Sharded inference: a big-model, big-workload run. Never chosen automatically - only by an
+    # explicit override (route_override "LONG" or an inline "route: LONG").
+    LONG = "LONG"
 
     @classmethod
     def parse(cls, value: "Route | str") -> "Route":
@@ -141,7 +144,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
 
 _INLINE_OVERRIDE = re.compile(
     r"^\s*(?:/route\s+|route\s*[:=]\s*)"
-    r"(STATUS|QUICK|DEEP|RESEARCH|CONTINUITY)\b[\s:,-]*",
+    r"(STATUS|QUICK|DEEP|RESEARCH|CONTINUITY|LONG)\b[\s:,-]*",
     re.IGNORECASE,
 )
 _WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)

@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "note": "Sharded inference: models the LONG route may run, each served by llama.cpp with a GPU/RAM split planned by sovereign_product.memory_planner at supervisor start. The dense 27B runs mostly from system RAM; the MoE keeps its experts in RAM. ram_budget_gib is the operator's inference RAM cap (plans above it are refused).",
+  "default_model": "qwen3.8:27b",
+  "ram_budget_gib": 32,
+  "prompt_cache_mib": 2048,
+  "ledger_budget_tokens": 4096,
+  "max_output_tokens": 2048,
+  "models": [
+    {"model": "qwen3.8:27b", "context": 131072, "thinking": "off"},
+    {"model": "qwen3:30b-a3b", "context": 32768, "thinking": "off"}
+  ]
+}

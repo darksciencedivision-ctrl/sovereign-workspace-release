@@ -190,6 +190,21 @@ class LlamaCppClient:
             return None
         return len(tokens)
 
+    def count_text_tokens(self, model: str, text: str) -> int | None:
+        """EXACT tokens of raw ``text`` (no chat template) by the model's tokenizer, or None.
+
+        Used to size shards of a large input; like count_prompt_tokens, any failure returns
+        None so the caller falls back to the conservative byte bound.
+        """
+        engine_id = self._engine_model(model.strip())
+        try:
+            counted = self._post_json(
+                "/tokenize", {"model": engine_id, "content": text, "add_special": False})
+        except (ModelClientError, ValueError):
+            return None
+        tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
+        return len(tokens) if isinstance(tokens, list) else None
+
     def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
         response = self._request("POST", path, json_body=body)
         try:

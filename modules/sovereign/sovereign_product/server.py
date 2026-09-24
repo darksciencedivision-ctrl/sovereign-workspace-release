@@ -544,6 +544,9 @@ class ProductService:
         self.deep_timeout = None if deep_timeout is None else float(deep_timeout)
         self.ui_dist = self.root / "ui" / "ui_shell" / "dist"
         self._queue: queue.Queue[str | None] = queue.Queue()
+        # Sharded inference: LONG jobs run for hours on a big model, so they get their own lane
+        # (one worker) instead of blocking QUICK/DEEP behind them on the normal workers.
+        self._long_queue: queue.Queue[str | None] = queue.Queue()
         self._workers: list[threading.Thread] = []
         self._closed = threading.Event()
         self._queue_lock = threading.RLock()
@@ -837,6 +840,16 @@ class ProductService:
         self.research_unavailable_reason = None
         return executor
 
+    def long_route_ready(self) -> bool:
+        """Whether the LONG route can run here: llama.cpp backend + a valid long_workload.json."""
+        from .long_workload import LongWorkloadError
+
+        try:
+            self._long_executor()
+        except (LongWorkloadError, ServiceConfigurationError):
+            return False
+        return True
+
     def qualification(self) -> dict[str, Any]:
         """SW-27: the qualification verdict for the configuration this service is running.
 
@@ -885,6 +898,14 @@ class ProductService:
             )
             thread.start()
             self._workers.append(thread)
+        long_worker = threading.Thread(
+            target=self._worker_loop,
+            args=(self._long_queue,),
+            name="sovereign-long-worker",
+            daemon=True,
+        )
+        long_worker.start()
+        self._workers.append(long_worker)
 
     def close(self) -> dict[str, Any]:
         """CR-026: shut down without silently forgetting workers that outlive the bounded drain.
@@ -903,6 +924,9 @@ class ProductService:
             event.set()
         for _thread in self._workers:
             self._queue.put(None)
+        long_queue = getattr(self, "_long_queue", None)
+        if long_queue is not None:
+            long_queue.put(None)
         deadline = time.monotonic() + 2.0
         for thread in self._workers:
             remaining = deadline - time.monotonic()
@@ -915,24 +939,40 @@ class ProductService:
         return {"clean": not survivors, "survivors": [t.name for t in survivors]}
 
     def _enqueue(self, job_id: str) -> None:
+        try:
+            is_long = str(self.store.get_job(job_id)["route"]).upper() == Route.LONG.value
+        except Exception:
+            is_long = False
         with self._queue_lock:
             if job_id in self._enqueued:
                 return
             self._enqueued.add(job_id)
-            self._queue.put(job_id)
+            (self._long_queue if is_long else self._queue).put(job_id)
 
-    def _worker_loop(self) -> None:
+    def _worker_loop(self, source: "queue.Queue[str | None] | None" = None) -> None:
+        jobs = self._queue if source is None else source
         while not self._closed.is_set():
-            job_id = self._queue.get()
+            job_id = jobs.get()
             if job_id is None:
-                self._queue.task_done()
+                jobs.task_done()
                 return
             with self._queue_lock:
                 self._enqueued.discard(job_id)
             try:
                 self._run_job(job_id)
             finally:
-                self._queue.task_done()
+                jobs.task_done()
+
+    def _long_executor(self) -> Any:
+        """The LONG route's executor (sharded inference); raises when it cannot run here."""
+        from .long_workload import LongWorkloadExecutor, load_config
+
+        return LongWorkloadExecutor(
+            root=self.root,
+            evidence_dir=self.paths.evidence_dir,
+            client=self.model_client,
+            config=load_config(self.root),
+        )
 
     def _cancel_callback(
         self, job_id: str, event: threading.Event
@@ -1149,6 +1189,22 @@ class ProductService:
                 timeout_seconds=self.deep_timeout,
                 route=route.value,
                 job_id=str(job["job_id"]),
+            )
+            return result, executor
+        if route is Route.LONG:
+            from .long_workload import LongWorkloadError
+
+            try:
+                executor = self._long_executor()
+            except LongWorkloadError as exc:
+                raise ServiceConfigurationError(str(exc)) from exc
+            with self._queue_lock:
+                self._active_executor[str(job["job_id"])] = executor
+            result = executor.run(
+                str(job["job_id"]),
+                text,
+                cancel_requested=cancel_requested,
+                progress_callback=progress_callback,
             )
             return result, executor
         if route is Route.RESEARCH:
@@ -2186,6 +2242,7 @@ def create_app(
                     "CONTINUITY": models_ok,
                     "DEEP": deep_ok and models_ok,
                     "RESEARCH": research_ok and models_ok,
+                    "LONG": owned_service.long_route_ready(),
                 },
                 "detail": "; ".join(detail) if detail else "ready",
             }
