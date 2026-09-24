@@ -1,0 +1,44 @@
+{
+  "schema": "sovereign.qualification-profiles.v1",
+  "note": "SW-27 supported inference profiles. A profile is QUALIFIED on a machine only by an end-to-end measurement through the product (python -m sovereign_product.qualification run/derive/apply); until then it is reported UNQUALIFIED. A configuration above a measured envelope is REJECTED (jobs refused, health degraded). SLOs are the targets a ladder step must meet to count as qualified.",
+  "slo": {
+    "max_failure_rate": 0.2,
+    "quick_p95_seconds": 300,
+    "deep_p95_seconds": 3600,
+    "cancel_p95_seconds": 30
+  },
+  "profiles": [
+    {
+      "id": "ollama-production-slate",
+      "description": "Ollama backend, production role slate (PRIMARY_REASONER qwen3:14b; DEEP adds qwen3:32b, qwen3:8b, qwen2.5:14b-instruct).",
+      "backend": "ollama",
+      "primary_model": "qwen3:14b",
+      "declared": {
+        "context_tokens": 131072,
+        "max_output_tokens": 32768,
+        "concurrent_jobs": 1
+      },
+      "ladder": {
+        "context_tokens": [2048, 8192, 16384, 32768],
+        "concurrency": [1, 2],
+        "repetitions": 3
+      }
+    },
+    {
+      "id": "llamacpp-production-slate",
+      "description": "Local llama.cpp supervisor (router on 127.0.0.1:18080), production role slate.",
+      "backend": "llama.cpp",
+      "primary_model": "qwen3:14b",
+      "declared": {
+        "context_tokens": 131072,
+        "max_output_tokens": 32768,
+        "concurrent_jobs": 1
+      },
+      "ladder": {
+        "context_tokens": [2048, 8192, 16384, 32768],
+        "concurrency": [1, 2],
+        "repetitions": 3
+      }
+    }
+  ]
+}

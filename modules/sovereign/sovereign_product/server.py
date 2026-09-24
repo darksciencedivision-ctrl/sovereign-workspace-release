@@ -739,7 +739,7 @@ class ProductService:
             proposed = dict(current.get("MODELS") or {})
             proposed.update(updates)
             validate_system_manifest(
-                apply_overrides(shipped, {"MODELS": proposed}), path
+                apply_overrides(shipped, {**current, "MODELS": proposed}), path
             )
             write_model_overrides(self.root, shipped, updates)
             load_system_manifest(manifest_path=path)
@@ -821,6 +821,43 @@ class ProductService:
             return None
         self.research_unavailable_reason = None
         return executor
+
+    def qualification(self) -> dict[str, Any]:
+        """SW-27: the qualification verdict for the configuration this service is running.
+
+        `rejected` when the configuration exceeds an envelope MEASURED on this machine (new
+        jobs are refused and health reports degraded until it is re-qualified or lowered with
+        `python -m sovereign_product.qualification apply`); `unqualified` when a dimension was
+        never measured (reported, never used to refuse); `qualified` otherwise.
+        """
+        from .backend_selection import resolve_backend
+        from .qualification import UNQUALIFIED, evaluate
+
+        try:
+            manifest = self._manifest()
+            options = self._runtime_model_options(manifest)
+            models = manifest.get("MODELS")
+            primary = (
+                str(models.get("PRIMARY_REASONER") or "")
+                if isinstance(models, Mapping)
+                else ""
+            )
+            backend = resolve_backend(self.root)
+        except Exception as exc:
+            return {
+                "verdict": UNQUALIFIED,
+                "profile": None,
+                "reasons": [f"configuration unavailable: {exc}"],
+                "unqualified": ["configuration"],
+            }
+        return evaluate(
+            self.root,
+            backend=backend,
+            primary_model=primary,
+            num_ctx=options["num_ctx"],
+            num_predict=options["num_predict"],
+            workers=self.worker_count,
+        )
 
     def start(self) -> None:
         if self._closed.is_set() or self._workers:
@@ -1390,6 +1427,19 @@ class ProductService:
             )
         self.store.get_session(session_id, include_messages=False)
         decision = self.route(text, route_override)
+        if decision.route is not Route.STATUS:
+            # SW-27: never run inference on a configuration that exceeds the envelope measured
+            # on this machine. STATUS (self-inspection) stays available for remediation.
+            qualification = self.qualification()
+            if qualification.get("verdict") == "rejected":
+                return {
+                    "ok": False,
+                    "error": (
+                        "configuration exceeds the measured qualification envelope: "
+                        + "; ".join(qualification.get("reasons") or [])
+                    ),
+                    "qualification": qualification,
+                }, 409
         active = self.active_job(session_id)
         if active is not None:
             return {
@@ -2072,6 +2122,13 @@ def create_app(
                 owned_service.research_unavailable_reason
                 or "research executor is unavailable"
             )
+        qualification = owned_service.qualification()
+        qualification_ok = qualification.get("verdict") != "rejected"
+        if not qualification_ok:
+            detail.append(
+                "qualification: "
+                + "; ".join(qualification.get("reasons") or ["rejected"])
+            )
         ready = all(
             (
                 store_ok,
@@ -2080,6 +2137,7 @@ def create_app(
                 worker_ok,
                 models_ok,
                 research_ok,
+                qualification_ok,
             )
         )
         status = "ok" if ready else "degraded"
@@ -2106,6 +2164,7 @@ def create_app(
                     else None
                 ),
                 "legacy_cycle_runner_present": legacy_runner_present,
+                "qualification": qualification,
                 "routes": {
                     "STATUS": True,
                     "QUICK": models_ok,
