@@ -137,6 +137,12 @@ function Get-DistHashes([string]$root) {
 }
 $distHashesBefore = Get-DistHashes $dist
 Get-ChildItem -LiteralPath $dist -Recurse -File -Force | ForEach-Object { $_.IsReadOnly = $true }
+# The shipped launchers and every adapter run Python with PYTHONDONTWRITEBYTECODE=1 (Start-Shell.ps1,
+# launch.env_set), so the product never writes __pycache__ into the install tree. The gate's own
+# Python steps (resolution check, state lifecycle, fast shell boot) import from the distribution too
+# and must run under the same posture, or the 'readonly-install' check would flag the harness.
+$prevGateDontWriteBytecode = $env:PYTHONDONTWRITEBYTECODE
+$env:PYTHONDONTWRITEBYTECODE = '1'
 Info "SW-25: $($distHashesBefore.Count) shipped files hashed and marked read-only"
 
 # --- 2. Start-Shell.ps1 -CheckOnly --------------------------------------------------------------
@@ -308,6 +314,7 @@ if ($Live -and -not $SkipLiveShell) {
 }
 
 # --- SW-25: no step changed a shipped file -----------------------------------------------------
+if ($null -eq $prevGateDontWriteBytecode) { Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue } else { $env:PYTHONDONTWRITEBYTECODE = $prevGateDontWriteBytecode }
 $distHashesAfter = Get-DistHashes $dist
 $changed = @($distHashesBefore.Keys | Where-Object { $distHashesAfter[$_] -ne $distHashesBefore[$_] })
 $added = @($distHashesAfter.Keys | Where-Object { -not $distHashesBefore.ContainsKey($_) })
