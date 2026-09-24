@@ -84,7 +84,7 @@ class LlamaCppClient:
             path.startswith("/v1/")
             or path.startswith("/models")
             or path.startswith("/props")
-            or path in {"/health", "/slots"}
+            or path in {"/health", "/slots", "/tokenize", "/apply-template"}
         )
         if not allowed or path.startswith("/api/"):
             raise ModelClientError(f"llama.cpp client refuses native Ollama path {path}")
@@ -156,6 +156,54 @@ class LlamaCppClient:
             )
         return candidates.pop()
 
+    def count_prompt_tokens(
+        self,
+        model: str,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        think: bool | None = None,
+    ) -> int | None:
+        """EXACT prompt tokens for ``messages`` as the server will run them, or None.
+
+        Renders the conversation through the model's own chat template (``/apply-template``)
+        and counts it with the model's own tokenizer (``/tokenize``) - the same bytes the
+        generation request will evaluate. Any failure returns None so the caller falls back
+        to the conservative one-token-per-byte bound: counting can only ever make capacity
+        MORE accurate, never optimistic on error. In router mode both endpoints need the
+        model name and load that model, which the generation that follows needs anyway.
+        """
+        engine_id = self._engine_model(model.strip())
+        body: dict[str, Any] = {"model": engine_id, "messages": [dict(m) for m in messages]}
+        if think is not None:
+            body["chat_template_kwargs"] = {"enable_thinking": bool(think)}
+        try:
+            rendered = self._post_json("/apply-template", body)
+            prompt = rendered.get("prompt") if isinstance(rendered, Mapping) else None
+            if not isinstance(prompt, str):
+                return None
+            counted = self._post_json(
+                "/tokenize", {"model": engine_id, "content": prompt, "add_special": True})
+            tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
+        except (ModelClientError, ValueError):
+            return None
+        if not isinstance(tokens, list):
+            return None
+        return len(tokens)
+
+    def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
+        response = self._request("POST", path, json_body=body)
+        try:
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            raise ModelClientError(f"llama.cpp {path} returned an HTTP error: {exc}") from exc
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise InferenceProtocolError(f"llama.cpp {path} returned invalid JSON") from exc
+        finally:
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
+
     def _models_payload(self) -> dict[str, Any]:
         response = self._request("GET", "/models")
         try:
@@ -201,7 +249,8 @@ class LlamaCppClient:
         options: Mapping[str, Any],
         system: str | None,
         response_format: str | Mapping[str, Any] | None,
-    ) -> tuple[dict[str, Any], dict[str, int]]:
+        exact_input_tokens: int | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         resolved = dict(options)
         if "num_ctx" not in resolved or "num_predict" not in resolved:
             return resolved, {}
@@ -227,18 +276,25 @@ class LlamaCppClient:
                 f"not supported and is not silently truncated"
             )
         effective_context = requested_context
-        material = prompt.encode("utf-8")
-        if system is not None:
-            material += system.encode("utf-8")
-        if response_format is not None:
-            material += json.dumps(
-                response_format,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            ).encode("utf-8")
-        input_bound = len(material)
+        if exact_input_tokens is not None:
+            # The templated prompt counted by the model's own tokenizer. The template margin is
+            # still reserved below, so the only slack is the margin itself.
+            input_bound = int(exact_input_tokens)
+            input_count = "exact"
+        else:
+            material = prompt.encode("utf-8")
+            if system is not None:
+                material += system.encode("utf-8")
+            if response_format is not None:
+                material += json.dumps(
+                    response_format,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+            input_bound = len(material)
+            input_count = "conservative_bytes"
         remaining_generation = (
             effective_context - input_bound - CONTEXT_TEMPLATE_MARGIN_TOKENS
         )
@@ -255,6 +311,7 @@ class LlamaCppClient:
             "native_context": native_context,
             "effective_context": effective_context,
             "input_bound": input_bound,
+            "input_count": input_count,
             "context_safety_allowance": CONTEXT_TEMPLATE_MARGIN_TOKENS,
             "remaining_generation_capacity": remaining_generation,
             "effective_generation_max": effective_generation,
@@ -329,12 +386,18 @@ class LlamaCppClient:
         capacity_prompt = prompt_for_capacity
         if capacity_prompt is None:
             capacity_prompt = json.dumps(list(messages), ensure_ascii=False, separators=(",", ":"))
+        # Exact counting needs a context budget to check against, and cannot see tool schemas
+        # through the template endpoint; either way the conservative bound stays in force.
+        exact_tokens = None
+        if "num_ctx" in request_options and "num_predict" in request_options and not tools:
+            exact_tokens = self.count_prompt_tokens(model, messages, think=think)
         request_options, capacity = self._resolve_generation_capacity(
             model=model,
             prompt=capacity_prompt,
             options=request_options,
             system=system_for_capacity,
             response_format=requested_format,
+            exact_input_tokens=exact_tokens,
         )
         engine_id = self._engine_model(model.strip())
         payload: dict[str, Any] = {
