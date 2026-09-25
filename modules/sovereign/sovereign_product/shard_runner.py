@@ -224,6 +224,14 @@ class RunState:
     started_monotonic: float
 
 
+class ModelConfigurationError(RuntimeError):
+    """The model cannot serve this run as configured; a fresh retry cannot help.
+
+    Raised by a model port (e.g. a thinking-only model configured with thinking off). The runner
+    stops at once instead of spending every retry on a call that will fail the same way.
+    """
+
+
 def _parse_reply(text: str) -> tuple[str, dict[str, Any]]:
     """The model's JSON reply -> (result, ledger_update). Raises ValueError when invalid."""
     candidate = text.strip()
@@ -436,6 +444,8 @@ class ShardRunner:
                 validator = self.validators.get(task.kind)
                 if validator is not None:
                     validator(result)
+            except ModelConfigurationError:
+                raise
             except ValueError as exc:
                 last_error = str(exc)
                 note = f"{last_error}. Reply with ONE valid JSON object only."

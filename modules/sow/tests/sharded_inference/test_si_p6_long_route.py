@@ -430,3 +430,63 @@ def test_si_p6_other_routes_still_run_on_the_normalized_query(tmp_path):
     payload, status = service.submit(fake, session_id, "what   is\n\nthe  time", route_override="QUICK")
     assert status == 202 and store.get_job(payload["job_id"])["input"] == "what is the time"
     store.close()
+
+
+# --- reasoning models ------------------------------------------------------------------------------
+
+def _config_with(tmp_path, **moe):
+    doc = json.loads((SOV_ROOT / LW.CONFIG_FILE).read_text(encoding="utf-8"))
+    entry = next(m for m in doc["models"] if m["model"] == "qwen3:30b-a3b")
+    entry.clear()
+    entry.update({"model": "qwen3:30b-a3b", "context": 32768, **moe})
+    return _root(tmp_path, doc)
+
+
+def test_si_p6_shipped_moe_is_a_thinking_model_with_room_to_reason(clean_env, tmp_path):
+    """Live: Ollama's qwen3:30b-a3b is Qwen3-30B-A3B-Thinking-2507; with thinking 'off' it spent
+    all 2048 tokens reasoning, returned an empty answer, and the reduce failed three times."""
+    entry = LW.load_config(_root(tmp_path)).model("qwen3:30b-a3b")
+    assert entry.thinking == "on" and entry.reasoning_tokens >= 4096
+
+
+@pytest.mark.parametrize("moe,match", [
+    ({"thinking": "on"}, "reasoning_tokens >= 512"),
+    ({"thinking": "on", "reasoning_tokens": 100}, "reasoning_tokens >= 512"),
+    ({"thinking": "on", "reasoning_tokens": -1}, "integer >= 0"),
+    ({"thinking": "on", "reasoning_tokens": 9000}, "quarter"),
+])
+def test_si_p6_reasoning_budget_is_validated(clean_env, tmp_path, moe, match):
+    with pytest.raises(LW.LongWorkloadError, match=match):
+        LW.load_config(_config_with(tmp_path, **moe))
+
+
+def test_si_p6_reasoning_budget_reaches_every_model_call(clean_env, tmp_path):
+    root = _config_with(tmp_path, thinking="on", reasoning_tokens=4096)
+    client = FakeLlama(context=32768)
+    result = _executor(root, client).run("job-t1", "@model: qwen3:30b-a3b\nDraft a plan.",
+                                         cancel_requested=lambda: False,
+                                         progress_callback=lambda p: None)
+    assert result["status"] == "completed"
+    assert all(c["think"] is True for c in client.chats)
+    assert all(c["options"]["num_predict"] == 2048 + 4096 for c in client.chats)
+
+
+class _ReasonsAnyway(FakeLlama):
+    """A thinking-only model: whatever enable_thinking says, it reasons and runs out of room."""
+
+    def chat(self, *, model, messages, options, think, cancel_requested):
+        self.chats.append({"model": model, "think": think})
+        return SimpleNamespace(text="", reasoning="Okay, let's tackle this step. " * 200,
+                               finish_reason="length")
+
+
+def test_si_p6_a_thinking_only_model_configured_off_fails_fast_and_says_why(clean_env, tmp_path):
+    from sovereign_product.shard_runner import ModelConfigurationError
+
+    root = _config_with(tmp_path, thinking="off")
+    client = _ReasonsAnyway(context=32768)
+    with pytest.raises(ModelConfigurationError, match="thinking-only model"):
+        _executor(root, client).run("job-t2", "@model: qwen3:30b-a3b\nDraft a plan.",
+                                    cancel_requested=lambda: False,
+                                    progress_callback=lambda p: None)
+    assert len(client.chats) == 1, "no retries spent on a call that cannot succeed"

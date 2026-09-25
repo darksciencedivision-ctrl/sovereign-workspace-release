@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Sharded inference: models the LONG route may run, each served by llama.cpp with a GPU/RAM split planned by sovereign_product.memory_planner at supervisor start. The dense 27B runs mostly from system RAM; the MoE keeps its experts in RAM. ram_budget_gib is the operator's inference RAM cap (plans above it are refused).",
+  "note": "Sharded inference: models the LONG route may run, each served by llama.cpp with a GPU/RAM split planned by sovereign_product.memory_planner at supervisor start. The dense 27B runs mostly from system RAM; the MoE keeps its experts in RAM. ram_budget_gib is the operator's inference RAM cap (plans above it are refused). qwen3:30b-a3b in the Ollama store is Qwen3-30B-A3B-Thinking-2507, a thinking-only model (its template ignores enable_thinking), so it runs with thinking on and reasoning_tokens of room before each answer.",
   "default_model": "qwen3.8:27b",
   "ram_budget_gib": 32,
   "prompt_cache_mib": 2048,
@@ -8,6 +8,6 @@
   "max_output_tokens": 2048,
   "models": [
     {"model": "qwen3.8:27b", "context": 131072, "thinking": "off"},
-    {"model": "qwen3:30b-a3b", "context": 32768, "thinking": "off"}
+    {"model": "qwen3:30b-a3b", "context": 32768, "thinking": "on", "reasoning_tokens": 6144}
   ]
 }

@@ -31,7 +31,7 @@ from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
 from .runtime_registry import RuntimeRegistry, hybrid_profile
 from .shard_modes import InputShardMode, PlanStepMode
-from .shard_runner import RunLimits, ShardRunner
+from .shard_runner import ModelConfigurationError, RunLimits, ShardRunner
 
 CONFIG_FILE = "long_workload.json"
 INBOX_DIRNAME = "long_inputs"
@@ -66,6 +66,10 @@ class LongModel:
     model: str
     context: int
     thinking: str = "off"
+    # Tokens a reasoning model may spend thinking before it answers, added to every task's
+    # output budget. Required with thinking "on": a thinking-only model (e.g. Qwen3 Thinking
+    # 2507) reasons whatever enable_thinking says, and without room it never reaches its answer.
+    reasoning_tokens: int = 0
 
 
 @dataclass(frozen=True)
@@ -102,9 +106,19 @@ def load_config(root: str | Path) -> LongConfig:
         context = item.get("context")
         if isinstance(context, bool) or not isinstance(context, int) or context < 4096:
             raise LongWorkloadError(f"{item['model']}: context must be an integer >= 4096")
-        if item.get("thinking", "off") not in ("off", "on"):
+        thinking = item.get("thinking", "off")
+        if thinking not in ("off", "on"):
             raise LongWorkloadError(f"{item['model']}: thinking must be 'off' or 'on'")
-        models.append(LongModel(item["model"], context, item.get("thinking", "off")))
+        reasoning = item.get("reasoning_tokens", 0)
+        if isinstance(reasoning, bool) or not isinstance(reasoning, int) or reasoning < 0:
+            raise LongWorkloadError(f"{item['model']}: reasoning_tokens must be an integer >= 0")
+        if thinking == "on" and reasoning < 512:
+            raise LongWorkloadError(f"{item['model']}: thinking 'on' needs reasoning_tokens >= 512 "
+                                    "(room to reason before the answer)")
+        if reasoning > context // 4:
+            raise LongWorkloadError(f"{item['model']}: reasoning_tokens above a quarter of the "
+                                    f"{context}-token context leaves no room for the work")
+        models.append(LongModel(item["model"], context, thinking, reasoning))
     if not models:
         raise LongWorkloadError(f"{CONFIG_FILE} configures no models")
     ints = {}
@@ -182,7 +196,14 @@ class LlamaModelPort:
             options={"num_ctx": self.context, "num_predict": max_tokens, "temperature": 0.2},
             think=self.thinking == "on",
             cancel_requested=lambda: should_stop() or self.cancel_requested())
-        return str(getattr(response, "text", "") or "")
+        text = str(getattr(response, "text", "") or "")
+        if self.thinking == "off" and not text.strip() and str(
+                getattr(response, "reasoning", "") or "").strip():
+            raise ModelConfigurationError(
+                f"{self.model} reasoned although thinking is off and left no answer: it is a "
+                "thinking-only model. Set \"thinking\": \"on\" with a \"reasoning_tokens\" "
+                "budget for it in long_workload.json.")
+        return text
 
     def count_tokens(self, text: str) -> int:
         counted = self.client.count_text_tokens(self.model, text)
@@ -243,7 +264,9 @@ class LongWorkloadExecutor:
         limits = RunLimits(context_tokens=context,
                            ledger_budget_tokens=min(self.config.ledger_budget_tokens,
                                                     context // 4))
-        output_tokens = min(self.config.max_output_tokens, context // 4)
+        # The answer budget plus the model's reasoning budget: a reasoning model spends the
+        # latter before its answer starts, and chunks are sized with the whole reply reserved.
+        output_tokens = min(self.config.max_output_tokens, context // 4) + entry.reasoning_tokens
         if material is not None:
             mode: Any = InputShardMode(
                 objective=objective, max_output_tokens=output_tokens,
