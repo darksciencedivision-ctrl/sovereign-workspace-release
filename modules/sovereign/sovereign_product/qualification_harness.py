@@ -11,6 +11,10 @@ and the store all included - never a direct model call. Scenarios, per profile l
 * ``concurrency``  N sessions submitting at once, per ladder level.
 * ``cancel``       a job cancelled mid-flight; records cancel-to-terminal latency.
 * ``deep``         DEEP runs (the adversarial slate: several models, i.e. model swaps).
+* ``long_plan`` / ``long_input``  (LONG profiles, ``run_long_qualification``) sharded-inference
+                   jobs on the profile's big model: plan steps, then map/reduce over each
+                   ``ladder.input_tokens`` size via the ``long_inputs`` inbox; records shards,
+                   chunks per hour and cold vs warm model load.
 
 A background sampler records peak GPU memory (nvidia-smi, when present) and peak system RAM in use
 (GlobalMemoryStatusEx). Stdlib only. Token counts are approximate (4 characters per token) for the
@@ -120,7 +124,8 @@ def _job_id(payload: Mapping[str, Any]) -> str | None:
 
 def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
             cancel_after: float | None = None, clock: Callable[[], float] = time.monotonic,
-            sleep: Callable[[float], None] = time.sleep, poll: float = 0.5) -> dict[str, Any]:
+            sleep: Callable[[float], None] = time.sleep, poll: float = 0.5,
+            on_job: Callable[[Mapping[str, Any]], None] | None = None) -> dict[str, Any]:
     """Submit one message end-to-end and wait for its job to finish (or cancel it)."""
     session = client.new_session(f"qualification {route}")
     started = clock()
@@ -145,6 +150,8 @@ def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
             cancel_sent = clock()
         sleep(poll)
         job = client.job(job_id)
+        if on_job is not None:
+            on_job(job)
     finished = clock()
     record["status"] = str(job.get("status"))
     record["latency_seconds"] = finished - started
@@ -229,6 +236,119 @@ class ResourceSampler:
                 "baseline": getattr(self, "baseline", {}),
                 "ram_total_mib": getattr(self, "ram_total_mib", None),
                 "note": "system-wide peaks sampled once a second during the run"}
+
+
+LONG_OBJECTIVE_PLAN = ("Write a short, practical checklist (at most 6 items) for verifying that a "
+                       "nightly batch job finished correctly. Use at most 3 plan steps.")
+LONG_OBJECTIVE_INPUT = ("Using only the notes, state the step with the most warnings and its "
+                        "record count, and how many notes report 16 warnings.")
+
+
+def llama_loaded_models(client: ProductClient) -> list[str] | None:
+    """Models the product reports resident in llama.cpp (``/v1/self-state``), or None if unknown."""
+    try:
+        state = client._call("GET", "/v1/self-state")[1]
+    except OSError:
+        return None
+    stack = [state]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, Mapping):
+            if node.get("service") == "llama.cpp" and isinstance(node.get("loaded_models"), list):
+                return [str(m) for m in node["loaded_models"]]
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return None
+
+
+def run_long_job(client: ProductClient, text: str, *, timeout: float,
+                 clock: Callable[[], float] = time.monotonic,
+                 sleep: Callable[[float], None] = time.sleep, poll: float = 5.0) -> dict[str, Any]:
+    """One LONG job end-to-end; also records the shard count from the job's progress."""
+    shards: dict[str, int | None] = {"total": None, "done": None}
+
+    def watch(job: Mapping[str, Any]) -> None:
+        progress = job.get("progress") if isinstance(job.get("progress"), Mapping) else {}
+        for key, field in (("total", "total"), ("done", "current")):
+            value = progress.get(field)
+            if isinstance(value, int) and not isinstance(value, bool):
+                shards[key] = max(shards[key] or 0, value)
+
+    record = run_job(client, text, "LONG", timeout=timeout, clock=clock, sleep=sleep, poll=poll,
+                     on_job=watch)
+    record["shards"] = shards["total"]
+    if record.get("status") == "completed" and shards["total"]:
+        record["shards_done"] = shards["total"]  # a completed run finished every shard
+    else:
+        record["shards_done"] = shards["done"]
+    latency = record.get("latency_seconds")
+    if record.get("status") == "completed" and shards["total"] and latency:
+        record["chunks_per_hour"] = shards["total"] * 3600.0 / latency
+    return record
+
+
+def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_dir: Any,
+                           repetitions: int | None = None, job_timeout: float = 4 * 3600.0,
+                           poll: float = 5.0,
+                           log: Callable[[str], None] = lambda m: print(m, file=sys.stderr,
+                                                                        flush=True)
+                           ) -> dict[str, Any]:
+    """Qualify a LONG (sharded inference) profile end-to-end through the product.
+
+    Per rung of ``ladder.input_tokens``: 0 = agentic plan steps (objective only); N = map/reduce
+    over ~N tokens of material, placed in the state home's ``long_inputs`` inbox (the message
+    size cap is far below a LONG input) and referenced with ``@input:``. Every job names the
+    profile's model with ``@model:``. Records end-to-end time, shards and chunks per hour, peak
+    VRAM/RAM, and whether the model was resident when the job was submitted (cold vs warm load).
+    """
+    from pathlib import Path
+
+    client = ProductClient(base_url)
+    health = client.health()
+    reps = repetitions or int(profile["ladder"]["repetitions"])
+    model = str(profile["primary_model"])
+    inbox = Path(inbox_dir)
+    runs: list[dict[str, Any]] = []
+    started = _utc_now()
+    with ResourceSampler() as sampler:
+        for step in profile["ladder"]["input_tokens"]:
+            text = f"@model: {model}\n"
+            if step == 0:
+                text += LONG_OBJECTIVE_PLAN
+                scenario = "long_plan"
+            else:
+                name = f"qualification-{int(step)}.txt"
+                inbox.mkdir(parents=True, exist_ok=True)
+                (inbox / name).write_text(context_prompt(int(step)), encoding="utf-8")
+                text += f"{LONG_OBJECTIVE_INPUT}\n---\n@input: {name}"
+                scenario = "long_input"
+            for _ in range(reps):
+                loaded = llama_loaded_models(client)
+                result = run_long_job(client, text, timeout=job_timeout, poll=poll)
+                result.update(scenario=scenario, input_tokens=int(step), model=model,
+                              cold=None if loaded is None else model not in loaded)
+                runs.append(result)
+                log(f"[{scenario}] input~{step} cold={result['cold']} -> "
+                    f"{result.get('status')} {result.get('latency_seconds', 0):.0f}s "
+                    f"shards={result.get('shards')} chunks/h={result.get('chunks_per_hour')}")
+    return {
+        "schema": RESULTS_SCHEMA,
+        "profile": profile["id"],
+        "kind": "long",
+        "started_utc": started,
+        "finished_utc": _utc_now(),
+        "base_url": base_url,
+        "hardware": {"platform": platform.platform(), "machine": platform.machine(),
+                     "processor": platform.processor(), "gpu": sampler.gpu},
+        "runtime": {"backend": profile["backend"], "primary_model": model,
+                    "product_version": health.get("product_version"),
+                    "worker_count": health.get("worker_count"),
+                    "long_route_ready": (health.get("routes") or {}).get("LONG")},
+        "repetitions": reps,
+        "resources": sampler.report(),
+        "runs": runs,
+    }
 
 
 def slate_models(slate: Any) -> set[str]:

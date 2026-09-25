@@ -5,7 +5,8 @@
     "max_failure_rate": 0.2,
     "quick_p95_seconds": 300,
     "deep_p95_seconds": 3600,
-    "cancel_p95_seconds": 30
+    "cancel_p95_seconds": 30,
+    "long_p95_seconds": 14400
   },
   "profiles": [
     {
@@ -38,6 +39,38 @@
         "context_tokens": [2048, 8192, 16384, 32768],
         "concurrency": [1, 2],
         "repetitions": 3
+      }
+    },
+    {
+      "id": "llamacpp-long-dense-27b",
+      "kind": "long",
+      "description": "LONG route (sharded inference) on the dense qwen3.8:27b, served by the llama.cpp supervisor with the planner's GPU/RAM layer split at 131k context. Reported, never enforced. input_tokens 0 = agentic plan steps; N = map/reduce over ~N tokens.",
+      "backend": "llama.cpp",
+      "primary_model": "qwen3.8:27b",
+      "declared": {
+        "context_tokens": 131072,
+        "max_output_tokens": 2048,
+        "concurrent_jobs": 1
+      },
+      "ladder": {
+        "input_tokens": [0, 16384],
+        "repetitions": 1
+      }
+    },
+    {
+      "id": "llamacpp-long-moe-30b-a3b",
+      "kind": "long",
+      "description": "LONG route (sharded inference) on the MoE qwen3:30b-a3b, experts in system RAM, 32k context: inputs above the window are split into shards and reduced. Reported, never enforced.",
+      "backend": "llama.cpp",
+      "primary_model": "qwen3:30b-a3b",
+      "declared": {
+        "context_tokens": 32768,
+        "max_output_tokens": 2048,
+        "concurrent_jobs": 1
+      },
+      "ladder": {
+        "input_tokens": [0, 32768, 65536],
+        "repetitions": 1
       }
     }
   ]

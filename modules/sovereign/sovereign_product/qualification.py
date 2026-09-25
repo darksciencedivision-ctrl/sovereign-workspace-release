@@ -45,6 +45,11 @@ UNQUALIFIED = "unqualified"
 REJECTED = "rejected"
 
 _SLO_KEYS = ("max_failure_rate", "quick_p95_seconds", "deep_p95_seconds", "cancel_p95_seconds")
+# Sharded inference: a LONG profile qualifies the LONG route on a big hybrid-served model. It is
+# measured and REPORTED (end-to-end time, chunks per hour, cold vs warm load, VRAM/RAM) but never
+# gates the QUICK/DEEP configuration, so it is never installed as the enforced envelope.
+LONG_KIND = "long"
+_LONG_SLO_KEY = "long_p95_seconds"
 
 
 class QualificationError(ValueError):
@@ -75,6 +80,7 @@ def validate_profiles(doc: Any) -> dict[str, Any]:
     if not isinstance(profiles, list) or not profiles:
         raise QualificationError("profiles.profiles must be a non-empty list")
     seen = set()
+    has_long = False
     for index, profile in enumerate(profiles):
         label = f"profiles[{index}]"
         if not isinstance(profile, dict):
@@ -82,6 +88,9 @@ def validate_profiles(doc: Any) -> dict[str, Any]:
         for key in ("id", "backend", "primary_model"):
             if not isinstance(profile.get(key), str) or not profile[key].strip():
                 raise QualificationError(f"{label}.{key} must be non-empty text")
+        kind = profile.get("kind", "quick")
+        if kind not in ("quick", LONG_KIND):
+            raise QualificationError(f"{label}.kind must be 'quick' or '{LONG_KIND}'")
         if profile["id"] in seen:
             raise QualificationError(f"duplicate profile id {profile['id']!r}")
         seen.add(profile["id"])
@@ -93,14 +102,32 @@ def validate_profiles(doc: Any) -> dict[str, Any]:
         ladder = profile.get("ladder")
         if not isinstance(ladder, dict):
             raise QualificationError(f"{label}.ladder must be an object")
-        for key in ("context_tokens", "concurrency"):
-            steps = ladder.get(key)
+        if kind == LONG_KIND:
+            has_long = True
+            if _normalize_backend(profile["backend"]) != "llama.cpp":
+                raise QualificationError(f"{label}: the LONG route runs only on llama.cpp")
+            steps = ladder.get("input_tokens")
             if not isinstance(steps, list) or not steps:
-                raise QualificationError(f"{label}.ladder.{key} must be a non-empty list")
-            values = [_positive_int(v, f"{label}.ladder.{key}[]") for v in steps]
-            if values != sorted(set(values)):
-                raise QualificationError(f"{label}.ladder.{key} must be strictly ascending")
+                raise QualificationError(f"{label}.ladder.input_tokens must be a non-empty list")
+            for value in steps:
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise QualificationError(
+                        f"{label}.ladder.input_tokens[] must be integers >= 0 (0 = plan steps)")
+            if steps != sorted(set(steps)):
+                raise QualificationError(f"{label}.ladder.input_tokens must be strictly ascending")
+        else:
+            for key in ("context_tokens", "concurrency"):
+                steps = ladder.get(key)
+                if not isinstance(steps, list) or not steps:
+                    raise QualificationError(f"{label}.ladder.{key} must be a non-empty list")
+                values = [_positive_int(v, f"{label}.ladder.{key}[]") for v in steps]
+                if values != sorted(set(values)):
+                    raise QualificationError(f"{label}.ladder.{key} must be strictly ascending")
         _positive_int(ladder.get("repetitions"), f"{label}.ladder.repetitions")
+    if has_long:
+        value = slo.get(_LONG_SLO_KEY)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise QualificationError(f"profiles.slo.{_LONG_SLO_KEY} must be a positive number")
     return doc
 
 
@@ -123,6 +150,8 @@ def _normalize_backend(value: str) -> str:
 def find_profile(profiles: Mapping[str, Any], backend: str,
                  primary_model: str) -> dict[str, Any] | None:
     for profile in profiles.get("profiles", []):
+        if profile.get("kind") == LONG_KIND:
+            continue  # LONG profiles never gate the QUICK/DEEP configuration
         if (_normalize_backend(profile["backend"]) == _normalize_backend(backend)
                 and profile["primary_model"] == primary_model):
             return profile
@@ -182,6 +211,8 @@ def derive_envelope(results: Mapping[str, Any], profiles: Mapping[str, Any]) -> 
     runs = results.get("runs")
     if not isinstance(runs, list):
         raise QualificationError("results.runs must be a list")
+    if profile.get("kind") == LONG_KIND:
+        return _derive_long_envelope(results, profile, slo, runs)
 
     def pick(**match: Any) -> list[Mapping[str, Any]]:
         return [r for r in runs if all(r.get(k) == v for k, v in match.items())]
@@ -263,6 +294,65 @@ def derive_envelope(results: Mapping[str, Any], profiles: Mapping[str, Any]) -> 
     }
 
 
+def _derive_long_envelope(results: Mapping[str, Any], profile: Mapping[str, Any],
+                          slo: Mapping[str, Any], runs: list[Any]) -> dict[str, Any]:
+    """A LONG profile's measured envelope: reported per input rung, never enforced."""
+    scenarios: dict[str, Any] = {}
+    plan_ok, input_limit, contiguous = False, 0, True
+    for step in profile["ladder"]["input_tokens"]:
+        rung = [r for r in runs if isinstance(r, Mapping) and r.get("input_tokens") == step
+                and str(r.get("scenario", "")).startswith("long_")]
+        summary = summarize_runs(rung)
+        completed = [r for r in rung if r.get("status") == "completed"]
+        summary["shards_max"] = max((r["shards"] for r in completed
+                                     if isinstance(r.get("shards"), int)), default=None)
+        summary["chunks_per_hour_p50"] = percentile(
+            [r["chunks_per_hour"] for r in completed
+             if isinstance(r.get("chunks_per_hour"), (int, float))], 50)
+        for label, cold in (("cold", True), ("warm", False)):
+            latencies = [r["latency_seconds"] for r in completed if r.get("cold") is cold
+                         and isinstance(r.get("latency_seconds"), (int, float))]
+            summary[f"{label}_runs"] = len(latencies)
+            summary[f"{label}_latency_p50_seconds"] = percentile(latencies, 50)
+        name = "long_plan" if step == 0 else f"long_input_{step}"
+        scenarios[name] = summary
+        passed = _passes(summary, slo, _LONG_SLO_KEY)
+        if step == 0:
+            plan_ok = passed
+            continue
+        contiguous = contiguous and passed
+        if contiguous:
+            input_limit = step
+    measured_inputs = [s for s in profile["ladder"]["input_tokens"] if s > 0]
+    return {
+        "schema": ENVELOPE_SCHEMA,
+        "kind": LONG_KIND,
+        "profile": profile["id"],
+        "backend": _normalize_backend(profile["backend"]),
+        "primary_model": profile["primary_model"],
+        "measured_utc": results.get("finished_utc"),
+        "hardware": results.get("hardware") or {},
+        "runtime": results.get("runtime") or {},
+        "results_file": results.get("results_file"),
+        "limits": {},  # reported, never enforced
+        "qualified_input_tokens": input_limit,
+        "qualified_workflows": {
+            "LONG_plan_steps": plan_ok if 0 in profile["ladder"]["input_tokens"] else None,
+            "LONG_input_shards": (input_limit > 0) if measured_inputs else None,
+        },
+        "resources": results.get("resources") or {},
+        "slo": dict(slo),
+        "scenarios": scenarios,
+    }
+
+
+def _refuse_long(envelope: Mapping[str, Any]) -> None:
+    if envelope.get("kind") == LONG_KIND:
+        raise QualificationError(
+            f"{envelope.get('profile')!r} is a LONG profile: its envelope is reported (derive, "
+            "report), never installed - it does not gate the QUICK/DEEP configuration")
+
+
 def envelope_path(root: str | os.PathLike[str] | Path) -> Path:
     return resolve_state_home(root).joinpath(*ENVELOPE_RELATIVE)
 
@@ -287,6 +377,7 @@ def load_envelope(root: str | os.PathLike[str] | Path) -> dict[str, Any] | None:
 
 
 def write_envelope(root: str | os.PathLike[str] | Path, envelope: Mapping[str, Any]) -> Path:
+    _refuse_long(envelope)
     path = envelope_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
@@ -354,6 +445,7 @@ def apply_envelope(root: str | os.PathLike[str] | Path,
 
     from .manifest_overrides import ManifestOverrideError, write_overrides
 
+    _refuse_long(envelope)
     limit = int(envelope["limits"]["context_tokens"])
     if limit < 4096:
         raise QualificationError(
@@ -387,6 +479,8 @@ def _fmt(value: Any, digits: int = 1) -> str:
 
 def render_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> str:
     """A Markdown qualification report rendered mechanically from results + derived envelope."""
+    if envelope.get("kind") == LONG_KIND:
+        return _render_long_report(envelope, results)
     slo = envelope["slo"]
     gpu = (envelope.get("hardware") or {}).get("gpu") or {}
     resources = envelope.get("resources") or {}
@@ -463,6 +557,64 @@ def render_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> st
     return "\n".join(lines)
 
 
+def _render_long_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> str:
+    slo = envelope["slo"]
+    gpu = (envelope.get("hardware") or {}).get("gpu") or {}
+    resources = envelope.get("resources") or {}
+    workflows = envelope["qualified_workflows"]
+    lines = [
+        f"# LONG qualification report - {envelope['profile']}",
+        "",
+        f"- Measured: {results.get('started_utc')} -> {envelope.get('measured_utc')} (UTC)",
+        f"- Backend / model: {envelope['backend']} / {envelope['primary_model']} "
+        "(hybrid GPU/RAM serving planned by the supervisor)",
+        f"- Hardware: {gpu.get('name', 'unknown GPU')} "
+        f"({gpu.get('memory_total_mib', '?')} MiB VRAM); "
+        f"{(envelope.get('hardware') or {}).get('platform', '')}",
+        f"- Repetitions per rung: {results.get('repetitions')}; SLOs: failure rate <= "
+        f"{slo['max_failure_rate']}, LONG p95 <= {slo[_LONG_SLO_KEY]} s",
+        "",
+        "## Envelope (reported, not enforced)",
+        "",
+        "- Plan steps (objective only): "
+        + {True: "**qualified**", False: "**NOT qualified**", None: "not measured"}[
+            workflows.get("LONG_plan_steps")],
+        f"- Largest map/reduce input meeting the SLOs: "
+        f"**~{envelope.get('qualified_input_tokens')} tokens**",
+        f"- Peak VRAM: {_fmt(resources.get('peak_vram_mib'))} MiB (baseline "
+        f"{_fmt((resources.get('baseline') or {}).get('vram_mib'))}); peak system RAM in use: "
+        f"{_fmt(resources.get('peak_system_ram_used_mib'))} of "
+        f"{_fmt(resources.get('ram_total_mib'))} MiB (baseline "
+        f"{_fmt((resources.get('baseline') or {}).get('ram_used_mib'))})",
+        "",
+        "## End-to-end through the product",
+        "",
+        ("| Rung | Runs | Completed | Failure rate | p50 s | p95 s | shards max | chunks/h p50 "
+         "| cold p50 s (n) | warm p50 s (n) |"),
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for name, s in envelope["scenarios"].items():
+        lines.append(
+            f"| {name} | {s['runs']} | {s['completed']} | {_fmt(s['failure_rate'], 2)} | "
+            f"{_fmt(s['latency_p50_seconds'])} | {_fmt(s['latency_p95_seconds'])} | "
+            f"{_fmt(s['shards_max'])} | {_fmt(s['chunks_per_hour_p50'])} | "
+            f"{_fmt(s['cold_latency_p50_seconds'])} ({s['cold_runs']}) | "
+            f"{_fmt(s['warm_latency_p50_seconds'])} ({s['warm_runs']}) |")
+    lines += ["", "## Failures", ""]
+    failures = [r for r in results.get("runs", []) if r.get("status") != "completed"]
+    if not failures:
+        lines.append("- none")
+    for run in failures:
+        lines.append(f"- {run.get('scenario')} (input ~{run.get('input_tokens')}): "
+                     f"{run.get('status')} after {_fmt(run.get('latency_seconds'))} s - "
+                     f"{str(run.get('error') or '')[:200]}")
+    lines += ["", "Cold = the model was not resident in llama.cpp when the job was submitted "
+              "(its load time is inside the end-to-end time).", "",
+              "Rendered by `python -m sovereign_product.qualification report` from "
+              f"`{results.get('results_file')}`.", ""]
+    return "\n".join(lines)
+
+
 # --- CLI ------------------------------------------------------------------------------------------
 
 def _utc_now() -> str:
@@ -480,7 +632,11 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--ollama-url", default="http://127.0.0.1:11434")
     run.add_argument("--out", required=True)
     run.add_argument("--repetitions", type=int, default=None)
-    run.add_argument("--job-timeout", type=float, default=1800.0)
+    run.add_argument("--job-timeout", type=float, default=None,
+                     help="seconds per job (default 1800; 14400 for a LONG profile)")
+    run.add_argument("--inbox", default=None,
+                     help="LONG profiles: the product's long_inputs inbox (default: this state "
+                          "home's)")
     run.add_argument("--skip-deep", action="store_true")
     run.add_argument("--max-context", type=int, default=None,
                      help="stop the context ladder above this many tokens")
@@ -509,10 +665,23 @@ def main(argv: list[str] | None = None) -> int:
             profile = next((p for p in profiles["profiles"] if p["id"] == args.profile), None)
             if profile is None:
                 raise QualificationError(f"unknown profile {args.profile!r}")
-            results = run_qualification(
-                profile, base_url=args.base_url, ollama_url=args.ollama_url,
-                repetitions=args.repetitions, job_timeout=args.job_timeout,
-                include_deep=not args.skip_deep, max_context=args.max_context)
+            if profile.get("kind") == LONG_KIND:
+                from .long_workload import INBOX_DIRNAME
+                from .qualification_harness import run_long_qualification
+
+                # The product reads @input only from ITS state home's inbox: run this with the
+                # same state environment as the product (or pass --inbox).
+                inbox = (Path(args.inbox) if args.inbox
+                         else resolve_state_home(root) / INBOX_DIRNAME)
+                results = run_long_qualification(
+                    profile, base_url=args.base_url, inbox_dir=inbox,
+                    repetitions=args.repetitions,
+                    job_timeout=args.job_timeout or 4 * 3600.0)
+            else:
+                results = run_qualification(
+                    profile, base_url=args.base_url, ollama_url=args.ollama_url,
+                    repetitions=args.repetitions, job_timeout=args.job_timeout or 1800.0,
+                    include_deep=not args.skip_deep, max_context=args.max_context)
             out = Path(args.out)
             results["results_file"] = out.name
             out.parent.mkdir(parents=True, exist_ok=True)
