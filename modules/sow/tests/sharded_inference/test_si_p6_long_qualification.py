@@ -205,3 +205,48 @@ def test_si_long_harness_drives_every_rung_through_the_product(fake_product, tmp
     assert len(texts[2]) < 1024, "big inputs go through the inbox, not the message"
     env = Q.derive_envelope(results, SHIPPED)
     assert env["qualified_input_tokens"] == 65536
+
+
+# --- cold vs warm needs self-state to name loaded models as configured ----------------------------
+
+class _Router(BaseHTTPRequestHandler):
+    """GET /models as llama.cpp b11160's router answers it (one preset, loaded)."""
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        body = json.dumps({"data": [{"id": "qwen3-30b-a3b-hybrid-32k", "aliases": ["qwen3:30b-a3b"],
+                                     "status": {"value": "loaded"}}]}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def test_si_long_self_state_names_loaded_models_by_their_aliases(tmp_path, monkeypatch):
+    """Live: self-state listed only the router id, so the harness marked every LONG run cold."""
+    from sovereign_product import paths as P
+    from sovereign_product.introspection import _probe_llama_cpp
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _Router)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        state_dir = tmp_path / "runtime"
+        (state_dir / "llamacpp_supervisor").mkdir(parents=True)
+        (state_dir / "llamacpp_supervisor" / "state.json").write_text("{}", encoding="utf-8")
+        monkeypatch.setenv("SOVEREIGN_LLAMA_CPP_BASE_URL",
+                           f"http://127.0.0.1:{server.server_address[1]}")
+        monkeypatch.delenv("SOVEREIGN_LLAMA_CPP_API_KEY", raising=False)
+        paths = P.ProductPaths(root=tmp_path, state_dir=state_dir,
+                               db_path=state_dir / "db", evidence_dir=state_dir / "ev")
+        report = _probe_llama_cpp(paths, configured_models=["qwen3:30b-a3b"], timeout=1.0)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert report["probe_status"] == "online"
+    assert "qwen3:30b-a3b" in report["loaded_models"]
+    assert "qwen3:30b-a3b" in report["installed_models"]
+    state = next(s for s in report["model_states"] if s["name"] == "qwen3:30b-a3b")
+    assert state["loaded"] is True

@@ -471,17 +471,19 @@ def _probe_llama_cpp(
                 if not isinstance(row, Mapping):
                     continue
                 identity = str(row.get("id") or "").strip()
-                alias = str(row.get("alias") or "").strip()
+                # The router lists a preset's aliases (the configured model names, e.g.
+                # "qwen3:30b-a3b") as a list; older builds used a single "alias".
+                raw_aliases = row.get("aliases") if isinstance(row.get("aliases"), list) else []
+                aliases = {str(a).strip() for a in [*raw_aliases, row.get("alias")]
+                           if a is not None and str(a).strip()}
                 if identity:
                     installed.add(identity)
-                if alias:
-                    installed.add(alias)
+                installed.update(aliases)
                 status = row.get("status")
                 value = status.get("value") if isinstance(status, Mapping) else status
                 if identity and str(value or "").strip().lower() in {"loaded", "loading", "busy"}:
                     loaded.append(identity)
-                    if alias:
-                        loaded.append(alias)
+                    loaded.extend(aliases)
             loaded = sorted(set(loaded))
 
     if not listening and rows is None:
