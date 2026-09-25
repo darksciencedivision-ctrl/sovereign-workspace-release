@@ -53,6 +53,17 @@ def _root(tmp_path: Path, config: dict | None = None) -> Path:
     return root
 
 
+def _small_root(tmp_path: Path) -> Path:
+    """The shipped config with every model at an 8k window (as FakeLlama serves by default), so a
+    few KB of material already needs several shards."""
+    doc = json.loads((SOV_ROOT / LW.CONFIG_FILE).read_text(encoding="utf-8"))
+    for entry in doc["models"]:
+        entry["context"] = 8192
+        if entry.get("thinking") == "on":
+            entry["reasoning_tokens"] = 2048
+    return _root(tmp_path, doc)
+
+
 # --- routing --------------------------------------------------------------------------------------
 
 def test_si_p6_long_is_never_chosen_automatically_only_explicitly():
@@ -215,7 +226,7 @@ def test_si_p6_long_requires_the_llama_cpp_backend(clean_env, tmp_path):
 
 
 def test_si_p6_material_runs_map_reduce_fresh_sessions(clean_env, tmp_path):
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     client = FakeLlama(context=8192)
     material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(40))
     progress = []
@@ -230,7 +241,7 @@ def test_si_p6_material_runs_map_reduce_fresh_sessions(clean_env, tmp_path):
 
 
 def test_si_p6_objective_only_runs_plan_steps(clean_env, tmp_path):
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     result = _executor(root, FakeLlama()).run("job-2", "Draft a rollout plan.",
                                               cancel_requested=lambda: False,
                                               progress_callback=lambda p: None)
@@ -238,7 +249,7 @@ def test_si_p6_objective_only_runs_plan_steps(clean_env, tmp_path):
 
 
 def test_si_p6_a_restarted_product_resumes_the_same_run(clean_env, tmp_path):
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(40))
     stop = {"now": False}
     client = FakeLlama()
@@ -313,7 +324,7 @@ def test_si_p6_health_counts_the_long_lane_separately_from_the_workers():
 # --- choosing the LONG model ----------------------------------------------------------------------
 
 def test_si_p6_model_directive_picks_a_configured_model(clean_env, tmp_path):
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     client = FakeLlama(context=8192)
     material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(10))
     result = _executor(root, client).run(
@@ -325,7 +336,7 @@ def test_si_p6_model_directive_picks_a_configured_model(clean_env, tmp_path):
 
 
 def test_si_p6_without_a_directive_the_default_model_runs(clean_env, tmp_path):
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     client = FakeLlama()
     result = _executor(root, client).run("job-m2", "Draft a rollout plan.",
                                          cancel_requested=lambda: False,
@@ -371,7 +382,7 @@ def test_si_p6_growing_task_lists_keep_n_of_n_progress_flowing(clean_env, tmp_pa
         sent.append(dict(update))
         product_callback(update)
 
-    root = _root(tmp_path)
+    root = _small_root(tmp_path)
     result = _executor(root, FakeLlama()).run("job-p", "Draft a rollout plan.",
                                               cancel_requested=lambda: False,
                                               progress_callback=executor_progress)
@@ -490,3 +501,33 @@ def test_si_p6_a_thinking_only_model_configured_off_fails_fast_and_says_why(clea
                                     cancel_requested=lambda: False,
                                     progress_callback=lambda p: None)
     assert len(client.chats) == 1, "no retries spent on a call that cannot succeed"
+
+
+# --- a model served without its LONG plan ----------------------------------------------------------
+
+def test_si_p6_a_model_served_without_its_plan_is_refused_with_the_reason(clean_env, tmp_path):
+    """Live: with the GPU busy the supervisor refused the MoE's plan and served it at its 8k default;
+    the job then failed with a misleading 'no room for shard content'."""
+    root = _root(tmp_path)
+    service = P.resolve_runtime_dir(root) / "llamacpp_supervisor"
+    service.mkdir(parents=True)
+    (service / "hybrid_plans.json").write_text(json.dumps({"qwen3:30b-a3b": {
+        "applied": False, "reason": "even with every expert in RAM, attention weights + KV "
+                                    "(2.3 GiB) exceed usable VRAM 0.6 GiB"}}), encoding="utf-8")
+    client = FakeLlama(context=8192)
+    with pytest.raises(LW.LongWorkloadError) as refused:
+        _executor(root, client).run("job-np", "@model: qwen3:30b-a3b\nDraft a plan.",
+                                    cancel_requested=lambda: False,
+                                    progress_callback=lambda p: None)
+    message = str(refused.value)
+    assert "8192-token context, below the 32768" in message
+    assert "plan refused: even with every expert in RAM" in message and "usable VRAM" in message
+    assert client.chats == [], "refused before any model call"
+
+
+def test_si_p6_missing_plan_report_still_refuses_clearly(clean_env, tmp_path):
+    root = _root(tmp_path)
+    with pytest.raises(LW.LongWorkloadError, match="no plan report from the supervisor"):
+        _executor(root, FakeLlama(context=4096)).run("job-np2", "Draft a plan.",
+                                                     cancel_requested=lambda: False,
+                                                     progress_callback=lambda p: None)

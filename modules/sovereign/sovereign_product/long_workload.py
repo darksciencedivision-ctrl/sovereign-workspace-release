@@ -242,6 +242,22 @@ def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
     return objective, material
 
 
+def _plan_refusal(root: str | Path, model: str) -> str:
+    """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
+    from .paths import resolve_runtime_dir
+
+    path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "hybrid_plans.json"
+    try:
+        report = json.loads(path.read_text(encoding="utf-8")).get(model)
+    except (OSError, ValueError, AttributeError):
+        return "no plan report from the supervisor"
+    if not isinstance(report, Mapping):
+        return "no plan for this model in the supervisor's report"
+    if report.get("applied") is False:
+        return f"plan refused: {report.get('reason') or 'no reason recorded'}"
+    return f"plan applied at context {report.get('context')}; the served model differs"
+
+
 class LongWorkloadExecutor:
     """Runs one LONG job with the shard runner; resumable across product restarts."""
 
@@ -259,6 +275,13 @@ class LongWorkloadExecutor:
         objective, material = parse_request(text, self.root)
         entry = self.config.model(model or requested)
         context = int(self.client.native_context_length(entry.model))
+        if context < entry.context:
+            raise LongWorkloadError(
+                f"{entry.model} is served with a {context}-token context, below the "
+                f"{entry.context} the LONG route is configured for: the supervisor did not apply "
+                f"its GPU/RAM plan ({_plan_refusal(self.root, entry.model)}). Restart the "
+                "supervisor when enough VRAM is free, or lower this model's context in "
+                f"{CONFIG_FILE}.")
         port = LlamaModelPort(self.client, entry.model, context, thinking=entry.thinking,
                               cancel_requested=cancel_requested)
         limits = RunLimits(context_tokens=context,
