@@ -26,11 +26,13 @@ import type {
   RoleAssignment,
 } from "../types/model";
 import type { Settings } from "../types/settings";
+import { normalizeLongRoute, normalizeLongRun } from "../state/longRequest";
 import type { ValidationResult, ValidationStatus } from "../types/validation";
 import {
   ERR_NOT_REACHABLE,
   ERR_VALIDATION,
   type JobResult,
+  type LongRunResult,
   type ModelAssignmentResult,
   type OkResult,
   type SessionResult,
@@ -68,7 +70,7 @@ function clampPercent(value: number): number {
 function normalizeRoute(value: unknown): ExecutionRoute | undefined {
   if (typeof value !== "string") return undefined;
   const route = value.toUpperCase();
-  return ["STATUS", "QUICK", "DEEP", "RESEARCH", "CONTINUITY"].includes(route)
+  return ["STATUS", "QUICK", "DEEP", "RESEARCH", "CONTINUITY", "LONG"].includes(route)
     ? (route as ExecutionRoute)
     : undefined;
 }
@@ -613,7 +615,24 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
           result.data.mode
         ),
         detail: firstString(result.data.detail),
+        longRoute: normalizeLongRoute(
+          result.data.routes?.LONG,
+          result.data.long_route
+        ),
       };
+    },
+
+    async getLongRun(jobId: string): Promise<LongRunResult> {
+      const result = await request<unknown>(
+        baseUrl,
+        "GET",
+        `/v1/jobs/${encodeURIComponent(jobId)}/ledger`
+      );
+      if (!result.ok) return { ok: false, error: result.error };
+      const run = normalizeLongRun(result.data, jobId);
+      return run
+        ? { ok: true, run }
+        : { ok: false, error: "Sovereign returned an invalid LONG run view." };
     },
 
     async getValidationStatus(): Promise<ValidationStatus> {

@@ -242,6 +242,82 @@ def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
     return objective, material
 
 
+def _end_reason(state: Any) -> str:
+    """Why a LONG run ended without an answer, in the operator's terms."""
+    done, total = len(state.completed), len(state.tasks)
+    if state.status == "cancelled":
+        return f"cancelled after {done} of {total} chunks; the finished chunks stay in the ledger"
+    failed = sorted(state.failed)
+    if failed:
+        return (f"run {state.status} after {done} of {total} chunks; failed: "
+                f"{', '.join(failed)}")
+    return f"run {state.status} after {done} of {total} chunks"
+
+
+def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
+    """Read-only view of a LONG run for the operator: its chunks and the carried ledger.
+
+    Built only from the run's hash-verified checkpoints (a broken chain raises ShardRunError);
+    nothing is written, and a job that has not started yet reports ``started: false``.
+    """
+    from .shard_runner import CheckpointLog
+
+    directory = Path(evidence_dir) / "long" / job_id / "checkpoints"
+    if not directory.is_dir():
+        return {"job_id": job_id, "started": False, "tasks": [], "ledger": None}
+    events = CheckpointLog(directory).events()
+    if not events or events[0].get("event") != "run_started":
+        return {"job_id": job_id, "started": False, "tasks": [], "ledger": None}
+    head = events[0]["payload"]
+    tasks: dict[str, dict[str, Any]] = {}
+
+    def add(items: Any) -> None:
+        for item in items or []:
+            if isinstance(item, Mapping) and item.get("task_id") not in tasks:
+                tasks[str(item["task_id"])] = {"task_id": str(item["task_id"]),
+                                               "kind": str(item.get("kind") or ""),
+                                               "status": "pending", "attempts": 0,
+                                               "summary": None, "error": None, "utc": None}
+
+    add(head.get("tasks"))
+    ledger: Any = None
+    status, model_calls = "running", 0
+    for event in events[1:]:
+        name, payload = event.get("event"), event.get("payload") or {}
+        if name == "tasks_added":
+            add(payload.get("tasks"))
+        elif name in ("task_completed", "task_failed"):
+            entry = tasks.get(str(payload.get("task_id")))
+            if entry is not None:
+                entry.update(status="completed" if name == "task_completed" else "failed",
+                             attempts=int(payload.get("attempts") or 0),
+                             summary=payload.get("summary"), error=payload.get("error"),
+                             utc=event.get("utc"))
+        elif name == "run_finished":
+            status = str(payload.get("status") or "finished")
+        if isinstance(payload.get("ledger"), Mapping):
+            ledger = payload["ledger"]
+        if isinstance(payload.get("model_calls"), int):
+            model_calls = payload["model_calls"]
+    ordered = list(tasks.values())
+    return {
+        "job_id": job_id,
+        "started": True,
+        "mode": head.get("mode"),
+        "objective": head.get("objective"),
+        "run_status": status,
+        "started_utc": events[0].get("utc"),
+        "updated_utc": events[-1].get("utc"),
+        "model_calls": model_calls,
+        "completed": sum(1 for t in ordered if t["status"] == "completed"),
+        "failed": sum(1 for t in ordered if t["status"] == "failed"),
+        "total": len(ordered),
+        "tasks": ordered,
+        "ledger": ledger if ledger is not None else {"facts": [], "decisions": [],
+                                                     "open_questions": [], "results": []},
+    }
+
+
 def _plan_refusal(root: str | Path, model: str) -> str:
     """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
     from .paths import resolve_runtime_dir
@@ -339,8 +415,7 @@ class LongWorkloadExecutor:
             "status": status,
             "answer": final or "",
             "model": entry.model,
-            "reason": (None if final else
-                       f"run ended {state.status}; failed shards: {sorted(state.failed)}"),
+            "reason": (None if final else _end_reason(state)),
             "telemetry": {"mode": kind, "context": context, "shards": len(state.tasks),
                           "completed": len(state.completed), "failed": sorted(state.failed),
                           "model_calls": state.model_calls, "run_status": state.status},

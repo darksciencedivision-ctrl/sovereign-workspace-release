@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChatInput } from "./components/ChatInput";
 import { ChatWindow } from "./components/ChatWindow";
+import { LongComposer } from "./components/LongComposer";
 import { ModelSelector } from "./components/ModelSelector";
 import { RouteSelector } from "./components/RouteSelector";
 import { RunStatus } from "./components/RunStatus";
@@ -9,10 +10,12 @@ import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { sovereignClient } from "./services/sovereignClient";
 import { useChatState } from "./state/chatState";
+import { composeLongRequest, EMPTY_LONG_OPTIONS } from "./state/longRequest";
 import { useModelState } from "./state/modelState";
 import { useSettingsState } from "./state/settingsState";
 import type { EngineHealth } from "./types/api";
 import { isActiveJobStatus } from "./types/chat";
+import type { LongOptions } from "./types/long";
 
 type Panel = "none" | "models" | "settings";
 
@@ -54,6 +57,8 @@ export default function App() {
   } = useModelState();
   const [panel, setPanel] = useState<Panel>("none");
   const [engineHealth, setEngineHealth] = useState<EngineHealth | null>(null);
+  const [longOptions, setLongOptions] = useState<LongOptions>(EMPTY_LONG_OPTIONS);
+  const [longError, setLongError] = useState<string | null>(null);
 
   const jobActive =
     activeJob !== null && isActiveJobStatus(activeJob.status);
@@ -73,15 +78,49 @@ export default function App() {
     };
   }, []);
 
+  // LONG: the chat input is the objective; the composer adds the model and the material, and
+  // the request text the server parses is built here (never typed by the operator).
+  const send = (text: string): boolean => {
+    if (routeOverride !== "LONG") {
+      void sendMessage(text);
+      return true;
+    }
+    const composed = composeLongRequest(text, longOptions);
+    if (!composed.ok) {
+      setLongError(composed.error);
+      return false; // keep the objective in the box
+    }
+    setLongError(null);
+    void sendMessage(composed.text);
+    setLongOptions({ ...longOptions, material: "" });
+    return true;
+  };
+
   const composer = (
     <div className="composer-stack">
       <RouteSelector
         value={routeOverride}
         disabled={inputDisabled}
+        longRoute={engineHealth?.longRoute}
         onChange={setRouteOverride}
       />
+      {routeOverride === "LONG" && (
+        <LongComposer
+          longRoute={engineHealth?.longRoute}
+          options={longOptions}
+          disabled={inputDisabled}
+          error={longError}
+          onChange={(next) => {
+            setLongOptions(next);
+            setLongError(null);
+          }}
+        />
+      )}
       <ChatInput
-        onSend={sendMessage}
+        onSend={send}
+        placeholder={
+          routeOverride === "LONG" ? "Objective for the LONG run..." : undefined
+        }
         disabled={inputDisabled}
         autoFocus={!active?.messages.length}
       />

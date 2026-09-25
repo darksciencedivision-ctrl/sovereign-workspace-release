@@ -12,6 +12,7 @@ import type {
   JobStatus,
   RouteOverride,
 } from "./chat";
+import type { LongRouteInfo } from "./long";
 import type { ModelInfo, ModelProfile } from "./model";
 import type { Settings } from "./settings";
 
@@ -49,6 +50,12 @@ export interface ApiHealthResponse {
   orchestration_mode?: string;
   mode?: string;
   detail?: string;
+  routes?: Record<string, boolean>;
+  long_route?: {
+    default_model?: string | null;
+    models?: { model?: unknown; context?: unknown; thinking?: unknown }[];
+    error?: string;
+  };
 }
 
 export type ApiModelsResponse =
@@ -73,4 +80,5 @@ export interface EngineHealth {
   engineVersion?: string;
   orchestrationMode?: string;
   detail?: string;
+  longRoute?: LongRouteInfo;
 }

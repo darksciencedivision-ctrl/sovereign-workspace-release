@@ -531,3 +531,82 @@ def test_si_p6_missing_plan_report_still_refuses_clearly(clean_env, tmp_path):
         _executor(root, FakeLlama(context=4096)).run("job-np2", "Draft a plan.",
                                                      cancel_requested=lambda: False,
                                                      progress_callback=lambda p: None)
+
+
+# --- the operator's view of a LONG run (GET /v1/jobs/<id>/ledger) ----------------------------------
+
+def _long_view_service(root, job):
+    from sovereign_product.server import ProductService
+
+    fake = SimpleNamespace(store=SimpleNamespace(get_job=lambda job_id: job),
+                           paths=SimpleNamespace(evidence_dir=root / "ev"))
+    return lambda job_id: ProductService.long_run(fake, job_id)
+
+
+def test_si_p6_ledger_view_shows_every_chunk_and_the_carried_ledger(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    result = _executor(root, FakeLlama()).run("job-v1", "Draft a rollout plan.",
+                                              cancel_requested=lambda: False,
+                                              progress_callback=lambda p: None)
+    view = _long_view_service(root, {"job_id": "job-v1", "route": "LONG",
+                                     "status": "completed"})("job-v1")
+    assert view["started"] is True and view["mode"] == "plan_steps"
+    assert view["objective"] == "Draft a rollout plan." and view["job_status"] == "completed"
+    assert view["run_status"] == "completed"
+    assert view["total"] == result["telemetry"]["shards"] == view["completed"]
+    assert [t["kind"] for t in view["tasks"]][0] == "plan"
+    assert all(t["status"] == "completed" and t["attempts"] == 1 for t in view["tasks"])
+    assert view["model_calls"] == result["telemetry"]["model_calls"]
+    assert set(view["ledger"]) >= {"facts", "decisions", "open_questions", "results"}
+    assert any("done:" in (r.get("summary") or "") for r in view["ledger"]["results"])
+
+
+def test_si_p6_ledger_view_of_a_queued_job_reports_not_started(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    view = _long_view_service(root, {"job_id": "job-q", "route": "LONG",
+                                     "status": "queued"})("job-q")
+    assert view["started"] is False and view["tasks"] == []
+    assert not (root / "ev" / "long" / "job-q").exists(), "a read never creates run state"
+
+
+def test_si_p6_ledger_view_is_only_for_long_jobs(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    with pytest.raises(ValueError, match="not LONG"):
+        _long_view_service(root, {"job_id": "job-quick", "route": "QUICK",
+                                  "status": "completed"})("job-quick")
+
+
+def test_si_p6_ledger_view_refuses_tampered_checkpoints(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    _executor(root, FakeLlama()).run("job-t", "Draft a rollout plan.",
+                                     cancel_requested=lambda: False,
+                                     progress_callback=lambda p: None)
+    checkpoint = sorted((root / "ev" / "long" / "job-t" / "checkpoints").glob("*.json"))[1]
+    record = json.loads(checkpoint.read_text(encoding="utf-8"))
+    record["payload"]["summary"] = "tampered"
+    checkpoint.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(ValueError, match="checkpoints cannot be read"):
+        _long_view_service(root, {"job_id": "job-t", "route": "LONG",
+                                  "status": "completed"})("job-t")
+
+
+def test_si_p6_health_lists_the_long_models(clean_env, tmp_path):
+    from sovereign_product.server import ProductService
+
+    info = ProductService.long_models(SimpleNamespace(root=_root(tmp_path)))
+    assert info["default_model"] == "qwen3.8:27b"
+    assert {m["model"] for m in info["models"]} == {"qwen3.8:27b", "qwen3:30b-a3b"}
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    assert ProductService.long_models(SimpleNamespace(root=broken))["models"] == []
+
+
+def test_si_p6_a_cancelled_run_says_how_far_it_got(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    client = FakeLlama()
+    result = _executor(root, client).run("job-c", "Draft a rollout plan.",
+                                         cancel_requested=lambda: len(client.chats) >= 1,
+                                         progress_callback=lambda p: None)
+    assert result["status"] == "cancelled"
+    assert result["reason"].startswith("cancelled after 1 of ")
+    assert "stay in the ledger" in result["reason"] and "[]" not in result["reason"]

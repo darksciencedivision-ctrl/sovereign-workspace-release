@@ -9,6 +9,7 @@ import type {
 import type { ModelInfo, ModelProfile, RoleAssignment } from "../types/model";
 import type { Settings } from "../types/settings";
 import type { EngineHealth } from "../types/api";
+import type { LongRunView } from "../types/long";
 import type { ValidationResult, ValidationStatus } from "../types/validation";
 
 export interface SubmissionResult {
@@ -23,6 +24,12 @@ export interface SubmissionResult {
 export interface JobResult {
   ok: boolean;
   job?: JobSnapshot;
+  error?: string;
+}
+
+export interface LongRunResult {
+  ok: boolean;
+  run?: LongRunView;
   error?: string;
 }
 
@@ -55,6 +62,8 @@ export interface SovereignTransport {
   ): Promise<SubmissionResult>;
   getJob(jobId: string): Promise<JobResult>;
   cancelJob(jobId: string): Promise<JobResult>;
+  /** LONG jobs only: chunks and the carried ledger, read from the run's checkpoints. */
+  getLongRun(jobId: string): Promise<LongRunResult>;
   createSession(): Promise<SessionResult>;
   getChatHistory(): Promise<SessionsResult>;
   loadSession(sessionId: string): Promise<SessionResult>;

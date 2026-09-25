@@ -858,6 +858,33 @@ class ProductService:
             and long_lane[0].is_alive()
         )
 
+    def long_models(self) -> dict[str, Any]:
+        """The models the LONG route may run (long_workload.json), for the operator's picker."""
+        from .long_workload import LongWorkloadError, load_config
+
+        try:
+            config = load_config(self.root)
+        except LongWorkloadError as exc:
+            return {"default_model": None, "models": [], "error": str(exc)}
+        return {"default_model": config.default_model,
+                "models": [{"model": m.model, "context": m.context, "thinking": m.thinking}
+                           for m in config.models]}
+
+    def long_run(self, job_id: str) -> dict[str, Any]:
+        """A LONG job's chunks and carried ledger, read from its checkpoints (read-only)."""
+        from .long_workload import describe_run
+        from .shard_runner import ShardRunError
+
+        job = self.store.get_job(job_id)  # NotFound -> 404
+        if str(job["route"]).upper() != Route.LONG.value:
+            raise ValueError(f"job {job_id} is a {job['route']} job, not LONG")
+        try:
+            view = describe_run(self.paths.evidence_dir, str(job["job_id"]))
+        except ShardRunError as exc:
+            raise ValueError(f"the run's checkpoints cannot be read: {exc}") from exc
+        view["job_status"] = str(job["status"])
+        return view
+
     def long_route_ready(self) -> bool:
         """Whether the LONG route can run here: llama.cpp backend + a valid long_workload.json."""
         from .long_workload import LongWorkloadError
@@ -2261,6 +2288,7 @@ def create_app(
                     "RESEARCH": research_ok and models_ok,
                     "LONG": owned_service.long_route_ready(),
                 },
+                "long_route": owned_service.long_models(),
                 "detail": "; ".join(detail) if detail else "ready",
             }
         )
@@ -2412,6 +2440,10 @@ def create_app(
         return jsonify(
             owned_service.public_job(owned_service.store.get_job(job_id))
         )
+
+    @app.get("/v1/jobs/<job_id>/ledger")
+    def get_long_ledger(job_id: str) -> Response:
+        return jsonify(owned_service.long_run(job_id))
 
     @app.post("/v1/jobs/<job_id>/cancel")
     def cancel_job(job_id: str) -> Response:

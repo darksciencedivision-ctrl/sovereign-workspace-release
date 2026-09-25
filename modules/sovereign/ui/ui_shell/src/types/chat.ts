@@ -6,7 +6,8 @@ export type RouteOverride =
   | "QUICK"
   | "DEEP"
   | "RESEARCH"
-  | "CONTINUITY";
+  | "CONTINUITY"
+  | "LONG";
 
 export type ExecutionRoute = Exclude<RouteOverride, "AUTO">;
 
