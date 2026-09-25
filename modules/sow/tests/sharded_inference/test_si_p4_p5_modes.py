@@ -276,3 +276,26 @@ def test_si_p5_structured_results_are_kept_as_canonical_json(text, expected):
 def test_si_p5_a_reply_without_a_result_is_still_invalid(text):
     with pytest.raises(ValueError):
         SR._parse_reply(text)
+
+
+# --- aggregation across disjoint parts --------------------------------------------------------------
+
+def test_si_p4_every_map_and_reduce_prompt_carries_the_aggregation_rules(tmp_path):
+    """Live (qwen3:30b-a3b, 65k input): maps answered as if each part were the whole input and the
+    final reduce copied part 1's count (31) instead of adding the parts (31+29+26+25+6)."""
+    text = "\n\n".join(f"Section {i}: " + "log line with a warning. " * 30 for i in range(200))
+    mode, runner, state, model = _run_input(tmp_path, text, _map_reduce_script())
+    maps = [p for p in model.prompts if "INSTRUCTION (map)" in p]
+    reduces = [p for p in model.prompts if "INSTRUCTION (reduce)" in p]
+    assert maps and len(reduces) >= 2
+    for prompt in maps:
+        assert "report for THIS PART ONLY" in prompt and "labeled" in prompt
+    for prompt in reduces:
+        assert "DIFFERENT, non-overlapping part" in prompt
+        assert "ADD counts and totals" in prompt
+        assert "Never give one part's value as the answer for the whole input" in prompt
+    final = [p for p in reduces if "FINAL answer" in p]
+    assert len(final) == 1 and "list the per-part values you combined" in final[0]
+    assert all("keeping the same labeled values" in p for p in reduces if p not in final)
+    # the longer instructions are part of the sizing: every session still fits the window
+    assert all(count(SR.SYSTEM_ROLE) + count(p) <= LIMITS.context_tokens for p in model.prompts)

@@ -109,6 +109,22 @@ def _empty():
 
 # --- P4: input shards (map / reduce) --------------------------------------------------------------
 
+# The parts are DISJOINT slices of one input. Live, maps answered as if each part were the whole
+# input ("16, 26", "1516: 92, 25") and the reduce copied one part's count instead of adding them.
+# So maps report labeled per-part values, and the reduce is told how values combine. (Asking maps
+# to also list the items made a reasoning model enumerate hundreds of records into its reply cap.)
+MAP_PART_RULES = (
+    "The other parts of the input are handled separately; report for THIS PART ONLY, as short "
+    "labeled values that can be combined later: give every count or total for this part with "
+    "its label (e.g. 'items matching X in this part: 12') and this part's best/largest/smallest "
+    "candidate with its value. Report the values, not the items behind them. Do not guess "
+    "about other parts.")
+REDUCE_RULES = (
+    "Each partial result covers a DIFFERENT, non-overlapping part of the input. Combine them: "
+    "ADD counts and totals across all parts; compare maxima, minima and rankings across parts "
+    "and pick the overall one (report ties); merge lists without duplicates. Never give one "
+    "part's value as the answer for the whole input.")
+
 @dataclass(frozen=True)
 class InputShardMode:
     objective: str
@@ -130,14 +146,17 @@ class InputShardMode:
 
     def _map_text(self, index: int = 0, total: int = 0) -> str:
         where = f" This is part {index} of {total} of the input." if total else ""
-        return f"Objective: {self.objective}\n{self.map_instruction}{where}"
+        return f"Objective: {self.objective}\n{self.map_instruction}{where}\n{MAP_PART_RULES}"
 
     def _reduce_text(self, round_no: int, index: int, total: int, final: bool) -> str:
-        role = ("Produce the FINAL answer to the objective from these partial results."
+        role = ("Produce the FINAL answer to the objective for the WHOLE input: first list the "
+                "per-part values you combined, then the answer."
                 if final else f"Merge these partial results (reduce round {round_no}, group "
-                              f"{index} of {total}) into one.")
-        return (f"Objective: {self.objective}\n{self.reduce_instruction}\n{role} Name any part "
-                "marked FAILED as a gap in coverage.")
+                              f"{index} of {total}) into ONE partial result for the parts they "
+                              "cover, keeping the same labeled values (combined, not final "
+                              "prose).")
+        return (f"Objective: {self.objective}\n{self.reduce_instruction}\n{REDUCE_RULES}\n"
+                f"{role} Name any part marked FAILED as a gap in coverage.")
 
     def on_task_done(self, runner: ShardRunner, state: RunState, task: ShardTask) -> None:
         """When every task of the latest round is done, add the next reduce round (or stop)."""

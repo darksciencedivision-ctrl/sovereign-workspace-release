@@ -48,6 +48,9 @@ def split_model_directive(text: str) -> tuple[str | None, str]:
     so the choice never reaches a model the supervisor was not planned to serve. The directive is
     part of the stored job text, so a resumed run re-reads the same choice.
     """
+    # A byte-order mark (Windows tools write one) is not whitespace to the regex: it silently
+    # disabled the directive, ran the default model, and left "@model: ..." in the objective.
+    text = text.lstrip("﻿")
     match = _MODEL_REF.match(text)
     if match is None:
         return None, text
@@ -254,6 +257,18 @@ def _end_reason(state: Any) -> str:
     return f"run {state.status} after {done} of {total} chunks"
 
 
+def _coverage_note(state: Any, gaps: list[str]) -> str:
+    """Deterministic disclosure appended to an answer produced while some chunks failed."""
+    maps = [t.task_id for t in state.tasks if t.kind == "map"]
+    failed_maps = [g for g in gaps if g in maps]
+    if failed_maps:
+        return (f"COVERAGE GAP: {len(failed_maps)} of {len(maps)} parts of the input could not be "
+                f"processed ({', '.join(failed_maps)}), so this answer does not cover them; any "
+                "count or total above is missing those parts.")
+    return (f"INCOMPLETE: {len(gaps)} of {len(state.tasks)} chunks failed ({', '.join(gaps)}); "
+            "this answer was produced without them.")
+
+
 def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
     """Read-only view of a LONG run for the operator: its chunks and the carried ledger.
 
@@ -371,7 +386,8 @@ class LongWorkloadExecutor:
                 objective=objective, max_output_tokens=output_tokens,
                 map_instruction=("Work on the objective using ONLY this part of the input. Report "
                                  "everything in it that bears on the objective."),
-                reduce_instruction="Combine the partial results faithfully; do not invent.")
+                reduce_instruction=("Combine the partial results faithfully, using only the values "
+                                    "they report; do not invent."))
             kind = "input_shards"
         else:
             mode = PlanStepMode(objective=objective, max_output_tokens=output_tokens)
@@ -411,12 +427,18 @@ class LongWorkloadExecutor:
             status = "completed"
         else:
             status = "failed"
+        gaps = sorted(state.failed)
+        if final and gaps and status == "completed":
+            # Live: the reduce was told "map-0004: FAILED - name it as a gap" and still answered
+            # as if it had seen the whole input. The disclosure must not depend on the model.
+            final = final.rstrip() + "\n\n" + _coverage_note(state, gaps)
         return {
             "status": status,
             "answer": final or "",
             "model": entry.model,
             "reason": (None if final else _end_reason(state)),
             "telemetry": {"mode": kind, "context": context, "shards": len(state.tasks),
-                          "completed": len(state.completed), "failed": sorted(state.failed),
+                          "completed": len(state.completed), "failed": gaps,
+                          "coverage_gaps": gaps,
                           "model_calls": state.model_calls, "run_status": state.status},
         }

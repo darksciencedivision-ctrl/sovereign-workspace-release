@@ -610,3 +610,57 @@ def test_si_p6_a_cancelled_run_says_how_far_it_got(clean_env, tmp_path):
     assert result["status"] == "cancelled"
     assert result["reason"].startswith("cancelled after 1 of ")
     assert "stay in the ledger" in result["reason"] and "[]" not in result["reason"]
+
+
+def test_si_p6_a_byte_order_mark_does_not_disable_the_model_directive(clean_env, tmp_path):
+    """Live: a request file written by PowerShell (UTF-8 with BOM) ran the default 27B instead of
+    the requested MoE, with '@model: ...' left inside the objective."""
+    assert LW.split_model_directive("﻿@model: qwen3:30b-a3b\nPlan it.") == (
+        "qwen3:30b-a3b", "Plan it.")
+    root = _small_root(tmp_path)
+    client = FakeLlama()
+    result = _executor(root, client).run("job-bom", "﻿@model: qwen3:30b-a3b\nDraft a plan.",
+                                         cancel_requested=lambda: False,
+                                         progress_callback=lambda p: None)
+    assert result["model"] == "qwen3:30b-a3b"
+    assert all("@model" not in c["messages"][-1]["content"] for c in client.chats)
+
+
+class _FailsOnePart(FakeLlama):
+    """Map part 2 never returns a usable reply; the reduce ignores the FAILED marker it is given."""
+
+    def chat(self, *, model, messages, options, think, cancel_requested):
+        prompt = messages[-1]["content"]
+        if "INSTRUCTION (map)" in prompt and "part 2 of" in prompt:
+            self.chats.append({"model": model, "messages": messages, "options": options,
+                               "think": think})
+            return SimpleNamespace(text="no json here")
+        if "INSTRUCTION (reduce)" in prompt:
+            self.chats.append({"model": model, "messages": messages, "options": options,
+                               "think": think})
+            return SimpleNamespace(text=json.dumps({"result": "total: 87", "ledger_update": {}}))
+        return super().chat(model=model, messages=messages, options=options, think=think,
+                            cancel_requested=cancel_requested)
+
+
+def test_si_p6_an_answer_missing_a_failed_part_says_so(clean_env, tmp_path):
+    """Live (MoE, 65k): map-0004 failed; the reduce answered 87 (true 124) without naming the gap."""
+    root = _small_root(tmp_path)
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    result = _executor(root, _FailsOnePart()).run(
+        "job-gap", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
+        progress_callback=lambda p: None)
+    assert result["status"] == "completed"
+    assert result["answer"].startswith("total: 87")
+    assert "COVERAGE GAP: 1 of " in result["answer"] and "map-0002" in result["answer"]
+    assert "missing those parts" in result["answer"]
+    assert result["telemetry"]["coverage_gaps"] == ["map-0002"]
+
+
+def test_si_p6_a_complete_run_carries_no_gap_note(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    result = _executor(root, FakeLlama()).run(
+        "job-nogap", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
+        progress_callback=lambda p: None)
+    assert "COVERAGE GAP" not in result["answer"] and result["telemetry"]["coverage_gaps"] == []
