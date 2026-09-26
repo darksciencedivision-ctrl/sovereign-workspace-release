@@ -443,6 +443,15 @@ class LongWorkloadExecutor:
         else:
             status = "failed"
         gaps = sorted(state.failed)
+        if final and material is not None and status == "completed":
+            maps = [task for task in state.tasks if task.kind == "map"]
+            if len(maps) > 1:
+                # A live reduce summed correctly but ignored the requested per-part breakdown.
+                # Attach the actual stored outputs, not another model-generated reconstruction.
+                parts = [f"{task.task_id}:\n{runner.output_of(state, task.task_id)}"
+                         for task in maps if task.task_id in state.completed]
+                if parts:
+                    final = final.rstrip() + "\n\nPer-part results:\n\n" + "\n\n".join(parts)
         if final and gaps and status == "completed":
             # Live: the reduce was told "map-0004: FAILED - name it as a gap" and still answered
             # as if it had seen the whole input. The disclosure must not depend on the model.

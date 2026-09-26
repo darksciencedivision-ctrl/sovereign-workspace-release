@@ -74,7 +74,7 @@ def test_live_style_count_leak_cannot_inflate_the_sum(tmp_path):
     model = LeakingModel()
     result = run(executor(tmp_path, model))
     assert len(model.values) > 1
-    assert result["answer"] == str(sum(model.values))
+    assert result["answer"].split("\n\n")[0] == str(sum(model.values))
 
 
 def test_resume_after_crash_does_not_carry_map_facts(tmp_path):
@@ -85,7 +85,19 @@ def test_resume_after_crash_does_not_carry_map_facts(tmp_path):
     result = run(executor(tmp_path, resumed))
     assert result["status"] == "completed"
     assert all(ledger_in(p)["facts"] == [] for p in resumed.prompts)
-    assert result["answer"] == str(sum(first.values + resumed.values))
+    assert result["answer"].split("\n\n")[0] == str(sum(first.values + resumed.values))
+
+
+def test_answer_keeps_part_values_when_reduce_omits_the_breakdown(tmp_path):
+    model = LeakingModel()  # reduce deliberately returns only the scalar total
+    result = run(executor(tmp_path, model))
+    assert "Per-part results:" in result["answer"]
+    for index, value in enumerate(model.values, 1):
+        assert f"map-{index:04d}:\npart_value: {value}" in result["answer"]
+    # A completed checkpoint replay must deliver identical evidence without new model calls.
+    replay = LeakingModel()
+    assert run(executor(tmp_path, replay))["answer"] == result["answer"]
+    assert replay.prompts == []
 
 
 def test_isolated_task_leaves_existing_ledger_unchanged(tmp_path):
