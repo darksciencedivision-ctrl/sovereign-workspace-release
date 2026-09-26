@@ -1,0 +1,18 @@
+{
+  "cancel_requested": false,
+  "created_at": "2026-09-26T15:24:51.141794Z",
+  "error": null,
+  "finished_at": null,
+  "job_id": "job_576754b5e5db44128d5c009afc481f00",
+  "progress": {
+    "current": 1,
+    "percent": 25.0,
+    "stage": "task_started",
+    "total": 3
+  },
+  "route": "LONG",
+  "session_id": "session_4f412d4e81c845c3a5f7c678bda6fafc",
+  "started_at": "2026-09-26T15:24:51.153812Z",
+  "status": "running",
+  "updated_at": "2026-09-26T15:31:11.847575Z"
+}
