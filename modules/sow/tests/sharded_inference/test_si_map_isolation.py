@@ -93,9 +93,64 @@ def test_answer_keeps_part_values_when_reduce_omits_the_breakdown(tmp_path):
     result = run(executor(tmp_path, model))
     assert "Per-part results:" in result["answer"]
     for index, value in enumerate(model.values, 1):
-        assert f"map-{index:04d}:\npart_value: {value}" in result["answer"]
+        assert f"- map-{index:04d}: part_value: {value}" in result["answer"]
     # A completed checkpoint replay must deliver identical evidence without new model calls.
     replay = LeakingModel()
+    assert run(executor(tmp_path, replay))["answer"] == result["answer"]
+    assert replay.prompts == []
+
+
+class VerboseMaps:
+    """Maps emit a long result; the reduce either omits task ids or names every one."""
+
+    def __init__(self, name_parts=False):
+        self.prompts = []
+        self.name_parts = name_parts
+        self.blob = "detail " * 200
+
+    def native_context_length(self, model):
+        return 8192
+
+    def count_text_tokens(self, model, text):
+        return len(text) // 4
+
+    def chat(self, *, messages, **kwargs):
+        prompt = messages[-1]["content"]
+        self.prompts.append(prompt)
+        if "INSTRUCTION (map)" in prompt:
+            own = int(re.search(r"part (\d+) of", prompt)[1])
+            result = f"part_value: {own} {self.blob}"
+        elif self.name_parts:
+            ids = re.findall(r"RESULT of (map-\d+):", prompt)
+            result = "combined " + " ".join(ids)
+        else:
+            result = "total only"
+        return SimpleNamespace(text=json.dumps({"result": result, "ledger_update": {}}))
+
+
+def test_per_part_appendix_is_one_capped_summary_line(tmp_path):
+    model = VerboseMaps()
+    result = run(executor(tmp_path, model))
+    appendix = result["answer"].split("Per-part results:\n", 1)[1]
+    lines = [line for line in appendix.splitlines() if line]
+    assert lines and all(line.startswith("- map-") for line in lines)
+    for line in lines:
+        summary = line.split(": ", 1)[1]
+        assert len(summary) <= 400
+        assert model.blob not in summary
+    assert model.blob not in result["answer"]
+    replay = VerboseMaps()
+    assert run(executor(tmp_path, replay))["answer"] == result["answer"]
+    assert replay.prompts == []
+
+
+def test_per_part_appendix_omitted_when_answer_names_every_map(tmp_path):
+    model = VerboseMaps(name_parts=True)
+    result = run(executor(tmp_path, model))
+    assert "Per-part results:" not in result["answer"]
+    ids = re.findall(r"RESULT of (map-\d+):", "\n".join(model.prompts))
+    assert ids and all(task_id in result["answer"] for task_id in ids)
+    replay = VerboseMaps(name_parts=True)
     assert run(executor(tmp_path, replay))["answer"] == result["answer"]
     assert replay.prompts == []
 

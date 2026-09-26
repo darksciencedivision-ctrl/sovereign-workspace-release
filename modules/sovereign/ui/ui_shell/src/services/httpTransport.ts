@@ -619,6 +619,11 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
           result.data.routes?.LONG,
           result.data.long_route
         ),
+        longActiveJob:
+          typeof result.data.long_active_job === "string" &&
+          result.data.long_active_job.length > 0
+            ? result.data.long_active_job
+            : null,
       };
     },
 

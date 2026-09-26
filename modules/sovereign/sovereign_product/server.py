@@ -1528,6 +1528,18 @@ class ProductService:
         )
         return jobs[0] if jobs else None
 
+    def long_active_job(self) -> str | None:
+        """Job id of a queued or running LONG job, else None.
+
+        QUICK/DEEP while this is set makes the model server swap models and pauses the LONG run.
+        Newest first (``list_jobs`` orders by created_at DESC).
+        """
+        jobs = self.store.list_jobs(status=("queued", "running"), limit=100)
+        for job in jobs:
+            if str(job.get("route") or "").upper() == Route.LONG.value:
+                return str(job["job_id"])
+        return None
+
     def submit(
         self,
         session_id: str,
@@ -2254,6 +2266,10 @@ def create_app(
             )
         )
         status = "ok" if ready else "degraded"
+        try:
+            long_active_job = owned_service.long_active_job()
+        except Exception:
+            long_active_job = None
         return jsonify(
             {
                 "ok": ready,
@@ -2289,6 +2305,7 @@ def create_app(
                     "LONG": owned_service.long_route_ready(),
                 },
                 "long_route": owned_service.long_models(),
+                "long_active_job": long_active_job,
                 "detail": "; ".join(detail) if detail else "ready",
             }
         )

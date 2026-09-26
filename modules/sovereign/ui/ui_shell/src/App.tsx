@@ -11,6 +11,7 @@ import { StatusBar } from "./components/StatusBar";
 import { sovereignClient } from "./services/sovereignClient";
 import { useChatState } from "./state/chatState";
 import { composeLongRequest, EMPTY_LONG_OPTIONS } from "./state/longRequest";
+import { longSwapWarning } from "./state/longSwapWarning";
 import { useModelState } from "./state/modelState";
 import { useSettingsState } from "./state/settingsState";
 import type { EngineHealth } from "./types/api";
@@ -63,6 +64,10 @@ export default function App() {
   const jobActive =
     activeJob !== null && isActiveJobStatus(activeJob.status);
   const inputDisabled = submitting || jobActive || !active;
+  const swapWarning = longSwapWarning(
+    routeOverride,
+    engineHealth?.longActiveJob,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +109,11 @@ export default function App() {
         longRoute={engineHealth?.longRoute}
         onChange={setRouteOverride}
       />
+      {swapWarning && (
+        <div className="composer-warning" role="status">
+          {swapWarning}
+        </div>
+      )}
       {routeOverride === "LONG" && (
         <LongComposer
           longRoute={engineHealth?.longRoute}

@@ -259,6 +259,33 @@ def _end_reason(state: Any) -> str:
     return f"run {state.status} after {done} of {total} chunks"
 
 
+def _task_id_named(answer: str, task_id: str) -> bool:
+    """True when ``task_id`` appears as its own token, not as a prefix of a longer id."""
+    return re.search(rf"(?<![\w-]){re.escape(task_id)}(?![\w-])", answer) is not None
+
+
+def _per_part_appendix(answer: str, state: Any) -> str:
+    """One capped checkpoint-summary line per completed map, unless the answer already names them.
+
+    The checkpoint summary is already collapsed and at most 400 characters. The appendix is
+    omitted when the reduce answer contains every completed map's task id, so a model that
+    already listed the parts is not repeated. Deterministic: a replay builds the same text.
+    """
+    maps = [task for task in state.tasks if task.kind == "map"]
+    completed = [task for task in maps if task.task_id in state.completed]
+    if len(maps) < 2 or not completed:
+        return answer
+    if all(_task_id_named(answer, task.task_id) for task in completed):
+        return answer
+    lines = []
+    for task in completed:
+        summary = " ".join(str(state.completed[task.task_id].get("summary") or "").split())
+        if len(summary) > 400:
+            summary = summary[:397] + "..."
+        lines.append(f"- {task.task_id}: {summary}")
+    return answer.rstrip() + "\n\nPer-part results:\n" + "\n".join(lines)
+
+
 def _coverage_note(state: Any, gaps: list[str]) -> str:
     """Deterministic disclosure appended to an answer produced while some chunks failed."""
     maps = [t.task_id for t in state.tasks if t.kind == "map"]
@@ -444,14 +471,9 @@ class LongWorkloadExecutor:
             status = "failed"
         gaps = sorted(state.failed)
         if final and material is not None and status == "completed":
-            maps = [task for task in state.tasks if task.kind == "map"]
-            if len(maps) > 1:
-                # A live reduce summed correctly but ignored the requested per-part breakdown.
-                # Attach the actual stored outputs, not another model-generated reconstruction.
-                parts = [f"{task.task_id}:\n{runner.output_of(state, task.task_id)}"
-                         for task in maps if task.task_id in state.completed]
-                if parts:
-                    final = final.rstrip() + "\n\nPer-part results:\n\n" + "\n\n".join(parts)
+            # A live reduce summed correctly but ignored the requested per-part breakdown.
+            # Attach the checkpoint summaries (already <= 400 characters), not the full outputs.
+            final = _per_part_appendix(final, state)
         if final and gaps and status == "completed":
             # Live: the reduce was told "map-0004: FAILED - name it as a gap" and still answered
             # as if it had seen the whole input. The disclosure must not depend on the model.

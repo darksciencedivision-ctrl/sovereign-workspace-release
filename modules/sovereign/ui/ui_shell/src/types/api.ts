@@ -56,6 +56,8 @@ export interface ApiHealthResponse {
     models?: { model?: unknown; context?: unknown; thinking?: unknown }[];
     error?: string;
   };
+  /** Job id of a queued or running LONG job, or null when none is active. */
+  long_active_job?: string | null;
 }
 
 export type ApiModelsResponse =
@@ -81,4 +83,6 @@ export interface EngineHealth {
   orchestrationMode?: string;
   detail?: string;
   longRoute?: LongRouteInfo;
+  /** Set when a LONG job is queued or running. Null or absent means none. */
+  longActiveJob?: string | null;
 }
