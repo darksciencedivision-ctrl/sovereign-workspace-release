@@ -135,6 +135,7 @@ class InputShardMode:
 
     #: Map/reduce passes results through reduce inputs, not the ledger (see ShardRunner).
     summary_kinds: frozenset = frozenset()
+    isolated_kinds = frozenset({"map"})
 
     def plan(self, runner: ShardRunner, text: str) -> list[ShardTask]:
         budget = _content_budget(runner, self._map_text(), self.max_output_tokens)

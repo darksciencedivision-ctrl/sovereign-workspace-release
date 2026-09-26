@@ -428,6 +428,7 @@ class LongWorkloadExecutor:
                              on_task_done=mode.on_task_done,
                              validators=getattr(mode, "validators", None),
                              summary_kinds=mode.summary_kinds,
+                             isolated_kinds=getattr(mode, "isolated_kinds", ()),
                              split_task=getattr(mode, "split_task", None))
         if runner.log.events():
             state = runner.resume()

@@ -281,6 +281,7 @@ class ShardRunner:
                  | None = None,
                  validators: Mapping[str, Callable[[str], None]] | None = None,
                  summary_kinds: Iterable[str] | None = None,
+                 isolated_kinds: Iterable[str] = (),
                  split_task: Callable[["ShardRunner", ShardTask], list[ShardTask] | None]
                  | None = None,
                  monotonic: Callable[[], float] = time.monotonic):
@@ -300,6 +301,7 @@ class ShardRunner:
         # none - reduce sessions read the map outputs directly - so its ledger stays facts-only
         # instead of growing by one line per chunk.
         self.summary_kinds = None if summary_kinds is None else frozenset(summary_kinds)
+        self.isolated_kinds = frozenset(isolated_kinds)
         # A MODE may split a task whose reply was cut off (ReplyTruncated) into smaller tasks
         # that replace it in place (checkpointed as task_split). None / no split = fresh retry.
         self.split_task = split_task
@@ -443,6 +445,8 @@ class ShardRunner:
         return state
 
     def fixed_prompt(self, task: ShardTask, ledger: Ledger) -> str:
+        if task.kind in self.isolated_kinds:
+            ledger = Ledger()
         return (f"INSTRUCTION ({task.kind}):\n{task.instruction}\n\n"
                 f"LEDGER (from earlier steps):\n{ledger.render()}\n\n{REPLY_CONTRACT}\n\n"
                 "INPUT:\n")
@@ -463,7 +467,8 @@ class ShardRunner:
                 f"({used} prompt + {task.max_output_tokens} reply + margin); shard it smaller")
 
     def _run_task(self, state: RunState, task: ShardTask) -> None:
-        if self.model.count_tokens(state.ledger.render()) > self.limits.ledger_budget_tokens:
+        if (task.kind not in self.isolated_kinds
+                and self.model.count_tokens(state.ledger.render()) > self.limits.ledger_budget_tokens):
             self._compact(state)
         self._ensure_fits(task, state.ledger)
         note, last_error = "", ""
@@ -506,7 +511,8 @@ class ShardRunner:
             summary = _summarize(result)
             carried = (summary if self.summary_kinds is None or task.kind in self.summary_kinds
                        else None)
-            state.ledger.apply(update, task_id=task.task_id, summary=carried)
+            if task.kind not in self.isolated_kinds:
+                state.ledger.apply(update, task_id=task.task_id, summary=carried)
             record = {"task_id": task.task_id, "kind": task.kind, "attempts": attempt,
                       "output_sha256": digest, "summary": summary,
                       "ledger": state.ledger.to_dict(), "model_calls": state.model_calls}
