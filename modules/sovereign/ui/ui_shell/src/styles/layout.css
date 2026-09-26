@@ -755,6 +755,7 @@
   color: var(--danger);
 }
 
+.long-task.task-split .long-task-status,
 .long-task.task-pending .long-task-status {
   color: var(--text-faint);
 }

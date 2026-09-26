@@ -232,6 +232,15 @@ class ModelConfigurationError(RuntimeError):
     """
 
 
+class ReplyTruncated(ValueError):
+    """The model ran out of reply tokens (finish_reason "length"): the reply is cut off.
+
+    A ValueError, so without a splitter it is an invalid reply and retried like one. With a
+    splitter (map tasks) the task's input is split instead: re-asking the same question of the
+    same amount of input tends to run out of room again.
+    """
+
+
 def _parse_reply(text: str) -> tuple[str, dict[str, Any]]:
     """The model's JSON reply -> (result, ledger_update). Raises ValueError when invalid."""
     candidate = text.strip()
@@ -272,6 +281,8 @@ class ShardRunner:
                  | None = None,
                  validators: Mapping[str, Callable[[str], None]] | None = None,
                  summary_kinds: Iterable[str] | None = None,
+                 split_task: Callable[["ShardRunner", ShardTask], list[ShardTask] | None]
+                 | None = None,
                  monotonic: Callable[[], float] = time.monotonic):
         self.run_dir = Path(run_dir)
         self.model = model
@@ -289,6 +300,9 @@ class ShardRunner:
         # none - reduce sessions read the map outputs directly - so its ledger stays facts-only
         # instead of growing by one line per chunk.
         self.summary_kinds = None if summary_kinds is None else frozenset(summary_kinds)
+        # A MODE may split a task whose reply was cut off (ReplyTruncated) into smaller tasks
+        # that replace it in place (checkpointed as task_split). None / no split = fresh retry.
+        self.split_task = split_task
         self.state: RunState | None = None
         self.log = CheckpointLog(self.run_dir / "checkpoints")
         self.outputs = self.run_dir / "outputs"
@@ -332,6 +346,9 @@ class ShardRunner:
                 state.failed[payload["task_id"]] = payload["error"]
             elif event["event"] == "tasks_added":
                 state.tasks.extend(ShardTask(**t) for t in payload["tasks"])
+            elif event["event"] == "task_split":
+                self._replace(state, payload["task_id"],
+                              [ShardTask(**t) for t in payload["tasks"]])
             elif event["event"] == "run_finished":
                 state.status = payload["status"]
             elif event["event"] == "run_resumed":
@@ -381,6 +398,27 @@ class ShardRunner:
                                             "model_calls": state.model_calls})
             state.tasks.extend(new)
         return new
+
+    @staticmethod
+    def _replace(state: RunState, task_id: str, children: list[ShardTask]) -> None:
+        index = next((i for i, t in enumerate(state.tasks) if t.task_id == task_id), None)
+        if index is None:
+            raise ShardRunError(f"cannot split unknown task {task_id}")
+        state.tasks[index:index + 1] = children
+
+    def _split(self, state: RunState, task: ShardTask, children: list[ShardTask],
+               reason: str) -> None:
+        """Replace ``task`` with ``children`` in place (same position, so outputs keep their order)."""
+        known = {t.task_id for t in state.tasks} - {task.task_id}
+        ids = [c.task_id for c in children]
+        if len(children) < 2 or len(set(ids)) != len(ids) or known.intersection(ids):
+            raise ShardRunError(f"invalid split of {task.task_id}: {ids}")
+        self.log.append("task_split", {"task_id": task.task_id, "reason": reason,
+                                       "tasks": [asdict(c) for c in children],
+                                       "model_calls": state.model_calls})
+        self._replace(state, task.task_id, children)
+        self.progress({"event": "task_split", "task": task.task_id,
+                       "done": len(state.completed), "total": len(state.tasks)})
 
     def output_of(self, state: RunState, task_id: str) -> str:
         record = state.completed[task_id]
@@ -446,6 +484,14 @@ class ShardRunner:
                     validator(result)
             except ModelConfigurationError:
                 raise
+            except ReplyTruncated as exc:
+                children = self.split_task(self, task) if self.split_task is not None else None
+                if children:
+                    self._split(state, task, children, str(exc))
+                    return
+                last_error = str(exc)
+                note = f"{last_error}. Keep the reply shorter: ONE valid JSON object only."
+                continue
             except ValueError as exc:
                 last_error = str(exc)
                 note = f"{last_error}. Reply with ONE valid JSON object only."

@@ -664,3 +664,49 @@ def test_si_p6_a_complete_run_carries_no_gap_note(clean_env, tmp_path):
         "job-nogap", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
         progress_callback=lambda p: None)
     assert "COVERAGE GAP" not in result["answer"] and result["telemetry"]["coverage_gaps"] == []
+
+
+# --- cut-off replies on the real port, and splits in the operator's view ---------------------------
+
+def test_si_p6_the_port_reports_a_cut_off_reply():
+    from sovereign_product.shard_runner import ReplyTruncated
+
+    client = SimpleNamespace(chat=lambda **k: SimpleNamespace(
+        text='{"result": "partial', reasoning="", finish_reason="length"))
+    port = LW.LlamaModelPort(client, "qwen3:30b-a3b", 32768, thinking="on")
+    with pytest.raises(ReplyTruncated, match="8192-token limit"):
+        port.generate(system="s", prompt="p", max_tokens=8192, should_stop=lambda: False)
+    done = SimpleNamespace(chat=lambda **k: SimpleNamespace(
+        text='{"result": "ok"}', reasoning="", finish_reason="stop"))
+    assert LW.LlamaModelPort(done, "m", 8192).generate(
+        system="s", prompt="p", max_tokens=100, should_stop=lambda: False) == '{"result": "ok"}'
+
+
+class _CutsOffPartTwo(FakeLlama):
+    def chat(self, *, model, messages, options, think, cancel_requested):
+        prompt = messages[-1]["content"]
+        if "INSTRUCTION (map)" in prompt and "part 2 of" in prompt and "(Slice " not in prompt:
+            self.chats.append({"model": model, "messages": messages, "options": options,
+                               "think": think})
+            return SimpleNamespace(text='{"result": "step 530, co', reasoning="",
+                                   finish_reason="length")
+        return super().chat(model=model, messages=messages, options=options, think=think,
+                            cancel_requested=cancel_requested)
+
+
+def test_si_p6_a_cut_off_part_is_split_end_to_end_and_shown_in_the_view(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    result = _executor(root, _CutsOffPartTwo()).run(
+        "job-split", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
+        progress_callback=lambda p: None)
+    assert result["status"] == "completed" and result["telemetry"]["coverage_gaps"] == []
+    assert "COVERAGE GAP" not in result["answer"]
+    view = _long_view_service(root, {"job_id": "job-split", "route": "LONG",
+                                     "status": "completed"})("job-split")
+    ids = [t["task_id"] for t in view["tasks"]]
+    at = ids.index("map-0002")
+    assert ids[at + 1:at + 3] == ["map-0002a", "map-0002b"]
+    parent = view["tasks"][at]
+    assert parent["status"] == "split" and "cut off" in parent["error"]
+    assert view["split"] == 1 and view["total"] == view["completed"] == len(ids) - 1

@@ -299,3 +299,104 @@ def test_si_p4_every_map_and_reduce_prompt_carries_the_aggregation_rules(tmp_pat
     assert all("keeping the same labeled values" in p for p in reduces if p not in final)
     # the longer instructions are part of the sizing: every session still fits the window
     assert all(count(SR.SYSTEM_ROLE) + count(p) <= LIMITS.context_tokens for p in model.prompts)
+
+
+# --- a map whose reply was cut off is split, not retried as is --------------------------------------
+
+def _truncating_script(truncate_whole_part: str, log: list[str] | None = None):
+    """Part N of the input is too much for one reply; each of its slices fits."""
+    base = _map_reduce_script()
+
+    def script(prompt, n):
+        if "INSTRUCTION (map)" in prompt and f"part {truncate_whole_part} of" in prompt \
+                and "(Slice " not in prompt:
+            if log is not None:
+                log.append("cut")
+            raise SR.ReplyTruncated("the reply was cut off at the 200-token limit")
+        return base(prompt, n)
+    return script
+
+
+def test_si_p4_a_cut_off_map_is_split_and_the_run_completes(tmp_path):
+    text = "\n\n".join(f"Section {i}: " + "log line with a warning. " * 30 for i in range(60))
+    cuts: list[str] = []
+    mode = SM.InputShardMode(objective="count warnings", map_instruction="Summarize this part.",
+                             reduce_instruction="Combine.", max_output_tokens=200)
+    model = FakeModel(_truncating_script("2", cuts))
+    runner = SR.ShardRunner(tmp_path, model, LIMITS, on_task_done=mode.on_task_done,
+                            summary_kinds=mode.summary_kinds, split_task=mode.split_task)
+    state = runner.start("count warnings", "input_shards", mode.plan(runner, text))
+    assert state.status == "completed" and not state.failed
+    assert cuts == ["cut"], "split on the first cut-off, no identical retries"
+    ids = [t.task_id for t in state.tasks if t.kind == "map"]
+    assert "map-0002" not in ids and ids[1:3] == ["map-0002a", "map-0002b"], ids
+    reduce_prompts = [p for p in model.prompts if "INSTRUCTION (reduce)" in p]
+    assert any("RESULT of map-0002a" in p and "RESULT of map-0002b" in p for p in reduce_prompts)
+    events = [e["event"] for e in runner.log.events()]
+    assert events.count("task_split") == 1
+    slices = [t for t in state.tasks if t.task_id.startswith("map-0002")]
+    assert all("Report for this slice only" in t.instruction for t in slices)
+
+
+def test_si_p4_a_split_survives_a_restart(tmp_path):
+    text = "\n\n".join(f"Section {i}: " + "log line with a warning. " * 30 for i in range(60))
+    mode = SM.InputShardMode(objective="count warnings", map_instruction="Summarize this part.",
+                             reduce_instruction="Combine.", max_output_tokens=200)
+    splitting = _truncating_script("2")
+
+    def crash_after_split(prompt, n):
+        if "(Slice 1 of" in prompt:
+            raise KeyboardInterrupt  # the product dies right after checkpointing the split
+        return splitting(prompt, n)
+
+    runner = SR.ShardRunner(tmp_path, FakeModel(crash_after_split), LIMITS,
+                            on_task_done=mode.on_task_done, summary_kinds=mode.summary_kinds,
+                            split_task=mode.split_task)
+    with pytest.raises(KeyboardInterrupt):
+        runner.start("count warnings", "input_shards", mode.plan(runner, text))
+    again = SR.ShardRunner(tmp_path, FakeModel(splitting), LIMITS, on_task_done=mode.on_task_done,
+                           summary_kinds=mode.summary_kinds, split_task=mode.split_task)
+    state = again.resume()
+    ids = [t.task_id for t in state.tasks]
+    assert state.status == "completed" and len(ids) == len(set(ids))
+    assert "map-0002" not in ids and {"map-0002a", "map-0002b"} <= set(ids)
+
+
+def test_si_p4_a_small_cut_off_map_is_retried_not_split(tmp_path):
+    mode = SM.InputShardMode(objective="o", map_instruction="Summarize.",
+                             reduce_instruction="Combine.", max_output_tokens=200)
+    small = SR.ShardTask("map-0001", "map", "Objective: o\nSummarize. This is part 1 of 1 of "
+                         "the input.", content="tiny input " * 20, max_output_tokens=200)
+
+    def always_cut(prompt, n):
+        raise SR.ReplyTruncated("the reply was cut off at the 200-token limit")
+
+    runner = SR.ShardRunner(tmp_path, FakeModel(always_cut), LIMITS,
+                            on_task_done=mode.on_task_done, split_task=mode.split_task)
+    state = runner.start("o", "input_shards", [small])
+    assert state.failed["map-0001"] == "the reply was cut off at the 200-token limit"
+    assert not any(t.task_id.startswith("map-0001") and t.task_id != "map-0001"
+                   for t in state.tasks), "too small to split"
+    assert not any(e["event"] == "task_split" for e in runner.log.events())
+    map_calls = [p for p in runner.model.prompts if "INSTRUCTION (map)" in p]
+    assert len(map_calls) == LIMITS.max_attempts
+
+
+def test_si_p5_a_cut_off_plan_is_retried_not_split(tmp_path):
+    base = _plan_script(["design", "build"])
+    calls = {"plan": 0}
+
+    def script(prompt, n):
+        if "INSTRUCTION (plan)" in prompt:
+            calls["plan"] += 1
+            if calls["plan"] == 1:
+                raise SR.ReplyTruncated("the reply was cut off at the 200-token limit")
+        return base(prompt, n)
+
+    mode = SM.PlanStepMode(objective="ship the feature")
+    runner = SR.ShardRunner(tmp_path, FakeModel(script), LIMITS, on_task_done=mode.on_task_done,
+                            validators=mode.validators, summary_kinds=mode.summary_kinds,
+                            split_task=getattr(mode, "split_task", None))
+    state = runner.start("ship the feature", "plan_steps", mode.plan(runner))
+    assert state.status == "completed" and calls["plan"] == 2
+    assert not any(e["event"] == "task_split" for e in runner.log.events())

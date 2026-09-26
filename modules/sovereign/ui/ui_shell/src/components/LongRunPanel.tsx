@@ -18,6 +18,7 @@ const TASK_COPY: Record<LongTask["status"], string> = {
   pending: "waiting",
   completed: "done",
   failed: "failed",
+  split: "split into smaller slices (reply ran out of room)",
 };
 
 function LedgerList({ title, items }: { title: string; items: string[] }) {
@@ -87,7 +88,9 @@ export function LongRunPanel({ jobId, refreshKey, active }: Props) {
               {task.attempts > 1 ? ` after ${task.attempts} attempts` : ""}
             </span>
             {task.summary && <span className="long-task-summary">{task.summary}</span>}
-            {task.error && <span className="long-task-error">{task.error}</span>}
+            {task.error && task.status !== "split" && (
+              <span className="long-task-error">{task.error}</span>
+            )}
           </li>
         ))}
       </ol>

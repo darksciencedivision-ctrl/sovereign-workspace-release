@@ -31,7 +31,7 @@ from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
 from .runtime_registry import RuntimeRegistry, hybrid_profile
 from .shard_modes import InputShardMode, PlanStepMode
-from .shard_runner import ModelConfigurationError, RunLimits, ShardRunner
+from .shard_runner import ModelConfigurationError, ReplyTruncated, RunLimits, ShardRunner
 
 CONFIG_FILE = "long_workload.json"
 INBOX_DIRNAME = "long_inputs"
@@ -206,6 +206,8 @@ class LlamaModelPort:
                 f"{self.model} reasoned although thinking is off and left no answer: it is a "
                 "thinking-only model. Set \"thinking\": \"on\" with a \"reasoning_tokens\" "
                 "budget for it in long_workload.json.")
+        if str(getattr(response, "finish_reason", "") or "") == "length":
+            raise ReplyTruncated(f"the reply was cut off at the {max_tokens}-token limit")
         return text
 
     def count_tokens(self, text: str) -> int:
@@ -285,10 +287,14 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
         return {"job_id": job_id, "started": False, "tasks": [], "ledger": None}
     head = events[0]["payload"]
     tasks: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
 
-    def add(items: Any) -> None:
+    def add(items: Any, after: str | None = None) -> None:
+        at = order.index(after) + 1 if after in order else len(order)
         for item in items or []:
             if isinstance(item, Mapping) and item.get("task_id") not in tasks:
+                order.insert(at, str(item["task_id"]))
+                at += 1
                 tasks[str(item["task_id"])] = {"task_id": str(item["task_id"]),
                                                "kind": str(item.get("kind") or ""),
                                                "status": "pending", "attempts": 0,
@@ -301,6 +307,11 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
         name, payload = event.get("event"), event.get("payload") or {}
         if name == "tasks_added":
             add(payload.get("tasks"))
+        elif name == "task_split":
+            parent = tasks.get(str(payload.get("task_id")))
+            if parent is not None:
+                parent.update(status="split", error=payload.get("reason"), utc=event.get("utc"))
+            add(payload.get("tasks"), after=str(payload.get("task_id")))
         elif name in ("task_completed", "task_failed"):
             entry = tasks.get(str(payload.get("task_id")))
             if entry is not None:
@@ -314,7 +325,8 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
             ledger = payload["ledger"]
         if isinstance(payload.get("model_calls"), int):
             model_calls = payload["model_calls"]
-    ordered = list(tasks.values())
+    ordered = [tasks[task_id] for task_id in order]
+    work = [t for t in ordered if t["status"] != "split"]
     return {
         "job_id": job_id,
         "started": True,
@@ -326,7 +338,8 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
         "model_calls": model_calls,
         "completed": sum(1 for t in ordered if t["status"] == "completed"),
         "failed": sum(1 for t in ordered if t["status"] == "failed"),
-        "total": len(ordered),
+        "total": len(work),
+        "split": sum(1 for t in ordered if t["status"] == "split"),
         "tasks": ordered,
         "ledger": ledger if ledger is not None else {"facts": [], "decisions": [],
                                                      "open_questions": [], "results": []},
@@ -414,7 +427,8 @@ class LongWorkloadExecutor:
                              should_stop=cancel_requested, progress=progress,
                              on_task_done=mode.on_task_done,
                              validators=getattr(mode, "validators", None),
-                             summary_kinds=mode.summary_kinds)
+                             summary_kinds=mode.summary_kinds,
+                             split_task=getattr(mode, "split_task", None))
         if runner.log.events():
             state = runner.resume()
         else:

@@ -28,7 +28,7 @@ export interface LongOptions {
   inboxFile: string;
 }
 
-export type LongTaskStatus = "pending" | "completed" | "failed";
+export type LongTaskStatus = "pending" | "completed" | "failed" | "split";
 
 export interface LongTask {
   task_id: string;

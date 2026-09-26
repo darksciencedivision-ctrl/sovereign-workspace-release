@@ -114,7 +114,7 @@ export function normalizeLongRoute(
   };
 }
 
-const TASK_STATUSES: LongTaskStatus[] = ["pending", "completed", "failed"];
+const TASK_STATUSES: LongTaskStatus[] = ["pending", "completed", "failed", "split"];
 
 export function normalizeLongRun(raw: unknown, jobId: string): LongRunView | null {
   if (!isRecord(raw)) return null;

@@ -126,6 +126,12 @@ describe("LONG progress and run view", () => {
     expect(view?.ledger?.facts).toEqual(["f1"]);
     expect(view?.ledger?.results).toEqual([{ task: "map-0001", summary: "s1" }]);
     expect(normalizeLongRun("nope", "job_1")).toBeNull();
+    const split = normalizeLongRun(
+      { started: true, tasks: [{ task_id: "map-0004", status: "split", attempts: 0 },
+        { task_id: "map-0004a", status: "completed", attempts: 1 }] },
+      "job_3"
+    );
+    expect(split?.tasks.map((t) => t.status)).toEqual(["split", "completed"]);
     expect(normalizeLongRun({ started: false }, "job_2")?.job_id).toBe("job_2");
   });
 });

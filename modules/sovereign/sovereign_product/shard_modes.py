@@ -119,6 +119,7 @@ MAP_PART_RULES = (
     "its label (e.g. 'items matching X in this part: 12') and this part's best/largest/smallest "
     "candidate with its value. Report the values, not the items behind them. Do not guess "
     "about other parts.")
+MIN_SPLIT_TOKENS = 1024  # a cut-off map smaller than this is retried, not split further
 REDUCE_RULES = (
     "Each partial result covers a DIFFERENT, non-overlapping part of the input. Combine them: "
     "ADD counts and totals across all parts; compare maxima, minima and rankings across parts "
@@ -143,6 +144,32 @@ class InputShardMode:
                           instruction=self._map_text(i + 1, len(chunks)), content=chunk,
                           max_output_tokens=self.max_output_tokens)
                 for i, chunk in enumerate(chunks)]
+
+    def split_task(self, runner: ShardRunner, task: ShardTask) -> list[ShardTask] | None:
+        """A map whose reply was cut off becomes two (or more) smaller maps over the same input.
+
+        Live, a reasoning model counting ~20k tokens of dense records ran out of its reply budget
+        on 5 of 9 calls and lost a part after three identical retries. Half the input needs about
+        half the reasoning. Only maps split, and not below MIN_SPLIT_TOKENS (then: retry).
+        """
+        if task.kind != "map" or not task.content:
+            return None
+        size = runner.model.count_tokens(task.content)
+        if size < MIN_SPLIT_TOKENS:
+            return None
+        halves = split_text(task.content, count_tokens=runner.model.count_tokens,
+                            max_tokens=max(16, -(-size // 2)))
+        if len(halves) < 2:
+            return None
+        letters = "abcdefghijklmnopqrstuvwxyz"
+        if len(halves) > len(letters):
+            return None
+        return [ShardTask(task_id=f"{task.task_id}{letters[i]}", kind="map",
+                          instruction=(f"{task.instruction}\n(Slice {i + 1} of {len(halves)} of "
+                                       f"{task.task_id}: that part was split because a reply ran "
+                                       "out of room. Report for this slice only.)"),
+                          content=piece, max_output_tokens=task.max_output_tokens)
+                for i, piece in enumerate(halves)]
 
     def _map_text(self, index: int = 0, total: int = 0) -> str:
         where = f" This is part {index} of {total} of the input." if total else ""
