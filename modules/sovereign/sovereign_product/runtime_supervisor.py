@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
 import json
+import os
 import secrets
 import socket
 import subprocess
@@ -65,6 +66,7 @@ class LlamaCppSupervisor:
         self._job = None
         work = Path(config.work_dir) if config.work_dir else Path.cwd() / "runtime_supervisor"
         self.work_dir = work
+        self.key_file = work / "llama-server.keys"
 
     def render_preset(self, profiles: Mapping[str, ServingProfile] | None = None) -> str:
         items = list((profiles or self.registry.profiles).values())
@@ -116,8 +118,8 @@ class LlamaCppSupervisor:
             "--offline",
             "--cors-origins",
             "localhost",
-            "--api-key",
-            self.api_key,
+            "--api-key-file",
+            str(self.key_file),
         ]
         args.extend(self.config.extra_args)
         return args
@@ -130,6 +132,14 @@ class LlamaCppSupervisor:
         self.preset_path = self.work_dir / "models.ini"
         self.log_path = self.work_dir / "llama-server.log"
         self.preset_path.write_text(self.render_preset(), encoding="utf-8")
+        # H4: the key reaches llama-server in a file, not on its command line, where every
+        # process listing (Task Manager, WMI queries, an orphan check) would show it. LF only:
+        # llama.cpp reads one key per line.
+        self.key_file.write_bytes((self.api_key + "\n").encode("utf-8"))
+        try:
+            os.chmod(self.key_file, 0o600)
+        except OSError:
+            pass
         command = self.command(self.preset_path)
         self._log_handle = self.log_path.open("w", encoding="utf-8")
         kwargs: dict[str, Any] = {
