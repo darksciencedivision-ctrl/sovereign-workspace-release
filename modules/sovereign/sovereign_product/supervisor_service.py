@@ -29,6 +29,7 @@ from .runtime_supervisor import LlamaCppSupervisor, SupervisorConfig
 SCHEMA_VERSION = 1
 DEFAULT_PORT = 18080
 WATCH_INTERVAL_SECONDS = 5.0
+WATCH_LOG_MAX_BYTES = 1024 * 1024
 TASK_WATCH = "SOVEREIGN_LlamaCppSupervisor_Watch"
 TASK_ENSURE = "SOVEREIGN_LlamaCppSupervisor_Ensure"
 RUN_VALUE_NAME = "SOVEREIGN_LlamaCppSupervisor"
@@ -600,8 +601,7 @@ def cmd_watch(
                     "pid": last.get("pid"),
                 }
             )
-            with log_path.open("a", encoding="utf-8") as handle:
-                handle.write(line + "\n")
+            _append_rotating(log_path, line)
             if max_iterations is not None and iterations >= max_iterations:
                 break
             sleep(interval)
@@ -609,6 +609,22 @@ def cmd_watch(
         if _read_watch_pid(root) == os.getpid() and watch_pid_path(root).is_file():
             watch_pid_path(root).unlink()
     return {"watched": True, "iterations": iterations, "last": last}
+
+
+def _append_rotating(path: Path, line: str, max_bytes: int | None = None) -> None:
+    """Append one line; past ``max_bytes`` the log becomes ``<name>.1`` (one old copy kept).
+
+    H6: the persistent watcher logs every 5 seconds, which grew watch.log by ~2 MB a day, for
+    good. With rotation it stays under about twice the limit.
+    """
+    limit = WATCH_LOG_MAX_BYTES if max_bytes is None else max_bytes
+    try:
+        if path.stat().st_size >= limit:
+            os.replace(path, path.with_name(path.name + ".1"))
+    except OSError:
+        pass
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
 
 
 def _task_exists(name: str) -> bool:

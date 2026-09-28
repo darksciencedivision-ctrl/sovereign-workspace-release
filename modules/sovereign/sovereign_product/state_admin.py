@@ -4,8 +4,15 @@
     python -m sovereign_product.state_admin --root <install root> backup --out <file.zip>
     python -m sovereign_product.state_admin --root <install root> verify --archive <file.zip>
     python -m sovereign_product.state_admin --root <install root> restore --archive <file.zip>
+    python -m sovereign_product.state_admin --root <install root> prune [--older-than-days N]
 
 Stdlib only, so it runs before (or without) the product venv.
+
+**Prune** (H6) removes the per-chunk checkpoints and outputs of LONG runs that finished (completed
+or failed) more than ``--older-than-days`` ago. It is a dry run unless ``--apply`` is given, and
+it never touches a job that may still run or resume, an unfinished or cancelled run, or a run
+whose checkpoints do not verify; each kept run is listed with the reason. See
+docs/RETENTION.md for what grows and what is kept.
 
 **Backup** writes a zip holding ``BACKUP_MANIFEST.json`` plus every state file under ``state/``.
 The SQLite database is copied through the sqlite3 online-backup API, so the snapshot is consistent
@@ -267,6 +274,96 @@ def restore(root: str | os.PathLike[str] | Path,
             "backup_product_version": manifest.get("product_version")}
 
 
+#: Job states after which nothing will run for the job again (interrupted resumes: H1/H3).
+FINAL_JOB_STATES = {"completed", "failed", "cancelled", "rejected", "timeout",
+                    "concurrence_not_reached"}
+#: Run states after which the run's checkpoints are only history (a cancelled or budget-exhausted
+#: run can still be resumed by the runner, so it is kept).
+PRUNABLE_RUN_STATES = {"completed", "failed"}
+
+
+def _dir_bytes(path: Path) -> int:
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+
+
+def _parse_utc(value: Any) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
+          apply: bool = False, now: datetime | None = None) -> dict[str, Any]:
+    """Remove the checkpoints and outputs of old, finished LONG runs (H6). Dry run by default.
+
+    A LONG run directory (``<evidence>/long/<job id>``) is removed only when its job is in a
+    final state, finished more than ``older_than_days`` ago, and its checkpoints verify and
+    record a completed or failed run. Everything else is KEPT and listed with the reason: a
+    queued, running or interrupted job (it may resume), a cancelled or unfinished run, a run
+    whose checkpoints do not verify, a directory with no job in the database, a link. The
+    job's answer stays in the database; only its per-chunk evidence goes.
+    """
+    from .paths import resolve_db_path, resolve_evidence_dir
+    from .shard_runner import ShardRunError, verify_stored_run
+
+    if older_than_days < 0:
+        raise StateAdminError("--older-than-days cannot be negative")
+    cutoff = (now or datetime.now(timezone.utc)).timestamp() - older_than_days * 86400
+    evidence = resolve_evidence_dir(Path(root))
+    database = resolve_db_path(Path(root))
+    jobs: dict[str, tuple[str, str | None]] = {}
+    if database.is_file():
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        try:
+            for job_id, status_value, finished in connection.execute(
+                    "SELECT job_id, status, finished_at FROM jobs WHERE route='LONG'"):
+                jobs[str(job_id)] = (str(status_value), finished)
+        finally:
+            connection.close()
+    runs = evidence / "long"
+    removed: list[dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
+    for run in sorted(runs.iterdir()) if runs.is_dir() else []:
+        entry: dict[str, Any] = {"job_id": run.name}
+        linked = run.is_symlink() or getattr(run, "is_junction", lambda: False)()
+        if linked or not run.is_dir() or run.resolve().parent != runs.resolve():
+            kept.append({**entry, "reason": "not a plain run directory"})
+            continue
+        job = jobs.get(run.name)
+        if job is None:
+            kept.append({**entry, "reason": "no LONG job with this id in the database"})
+            continue
+        job_status, finished = job
+        if job_status not in FINAL_JOB_STATES:
+            kept.append({**entry, "reason": f"job is {job_status} (it may still run or resume)"})
+            continue
+        finished_at = _parse_utc(finished)
+        if finished_at is None or finished_at.timestamp() > cutoff:
+            kept.append({**entry, "reason": f"finished less than {older_than_days:g} days ago"})
+            continue
+        try:
+            run_status = verify_stored_run(run)
+        except (ShardRunError, OSError, ValueError, KeyError, TypeError) as exc:
+            kept.append({**entry, "reason": f"checkpoints do not verify ({exc})"})
+            continue
+        if run_status not in PRUNABLE_RUN_STATES:
+            kept.append({**entry, "reason": f"run is {run_status or 'not started'}, not finished"})
+            continue
+        entry.update(job_status=job_status, run_status=run_status, bytes=_dir_bytes(run),
+                     finished_at=finished)
+        if apply:
+            shutil.rmtree(run)
+        removed.append(entry)
+    other = {name: _dir_bytes(evidence / name) for name in ("semantic_deep",)
+             if (evidence / name).is_dir()}
+    return {"applied": apply, "older_than_days": older_than_days, "evidence_dir": str(evidence),
+            "removed" if apply else "would_remove": removed,
+            "bytes_freed" if apply else "bytes_to_free": sum(r["bytes"] for r in removed),
+            "kept": kept, "not_pruned_bytes": other,
+            "database_bytes": database.stat().st_size if database.is_file() else 0}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sovereign_product.state_admin",
                                      description=__doc__.splitlines()[0])
@@ -279,6 +376,9 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("--archive", required=True)
     r = sub.add_parser("restore")
     r.add_argument("--archive", required=True)
+    pr = sub.add_parser("prune", help="remove old finished LONG run evidence (dry run by default)")
+    pr.add_argument("--older-than-days", type=float, default=30.0)
+    pr.add_argument("--apply", action="store_true", help="really delete (default: only report)")
     args = parser.parse_args(argv)
     try:
         if args.command == "status":
@@ -290,6 +390,8 @@ def main(argv: list[str] | None = None) -> int:
             result = {"ok": True, "files": len(manifest["files"]),
                       "state_schema": manifest["state_schema"],
                       "created_utc": manifest.get("created_utc")}
+        elif args.command == "prune":
+            result = prune(args.root, older_than_days=args.older_than_days, apply=args.apply)
         else:
             result = restore(args.root, args.archive)
     except (StateAdminError, StateVersionError) as exc:
