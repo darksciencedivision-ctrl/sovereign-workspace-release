@@ -173,7 +173,7 @@ else {
 }
 
 function Line($label, $value, $color = 'Gray') {
-    Write-Host ("  {0,-22}" -f $label) -NoNewline -ForegroundColor DarkGray
+    Write-Host ("  {0,-22} " -f $label) -NoNewline -ForegroundColor DarkGray
     Write-Host $value -ForegroundColor $color
 }
 
