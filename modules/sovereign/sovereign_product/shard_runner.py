@@ -208,6 +208,36 @@ class CheckpointLog:
         return record
 
 
+def verify_stored_run(run_dir: Path) -> str | None:
+    """Check a stored run without changing it: the checkpoint chain and every stored output.
+
+    Returns the run's last recorded status ("running" when it never finished), or None when
+    ``run_dir`` holds no run yet. Raises ShardRunError on anything ``ShardRunner.load`` would
+    refuse, so a caller can decide before resuming whether the run can be resumed at all.
+    """
+    checkpoints = Path(run_dir) / "checkpoints"
+    if not checkpoints.is_dir():
+        return None
+    events = CheckpointLog(checkpoints).events()
+    if not events:
+        return None
+    if events[0]["event"] != "run_started":
+        raise ShardRunError(f"{run_dir} holds no run")
+    status = "running"
+    for event in events[1:]:
+        payload = event["payload"]
+        if event["event"] == "task_completed":
+            output = Path(run_dir) / "outputs" / f"{payload['output_sha256']}.txt"
+            if not output.is_file() or _sha256(output.read_bytes()) != payload["output_sha256"]:
+                raise ShardRunError(f"stored output for {payload['task_id']} is missing or "
+                                    "altered")
+        elif event["event"] == "run_finished":
+            status = payload["status"]
+        elif event["event"] == "run_resumed":
+            status = "running"
+    return status
+
+
 # --- the runner -----------------------------------------------------------------------------------
 
 @dataclass

@@ -873,12 +873,22 @@ class SovereignStore:
             )
         return self.get_job(identifier)
 
-    def recover_incomplete_jobs(self) -> dict[str, list[str]]:
+    def recover_incomplete_jobs(
+        self,
+        resume: Callable[[Mapping[str, Any]], tuple[bool, str | None]] | None = None,
+    ) -> dict[str, list[str]]:
+        """Settle jobs a stopped service left ``running``; return what to (re)queue.
+
+        By default a running job is marked ``interrupted``. ``resume`` may instead return
+        ``(True, None)`` for a job that can safely continue from its own checkpoints (it is put
+        back in the queue, visibly, in the event chain), or ``(False, reason)`` to interrupt it
+        with that reason appended to the error.
+        """
         interrupted: list[str] = []
         with self._transaction() as connection:
             rows = connection.execute(
                 """
-                SELECT job_id, progress_json, metadata_json
+                SELECT job_id, route, attempts, cancel_requested, progress_json, metadata_json
                 FROM jobs
                 WHERE status='running'
                 ORDER BY created_at
@@ -889,6 +899,49 @@ class SovereignStore:
                 identifier = str(row["job_id"])
                 progress = _decode(row["progress_json"], {})
                 metadata = _decode(row["metadata_json"], {})
+                resumable, reason = (
+                    resume(
+                        {
+                            "job_id": identifier,
+                            "route": str(row["route"]),
+                            "attempts": int(row["attempts"]),
+                            "cancel_requested": bool(row["cancel_requested"]),
+                        }
+                    )
+                    if resume is not None
+                    else (False, None)
+                )
+                if resumable:
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata["recovery"] = {
+                        "classification": "resumed_on_service_restart",
+                        "job_id": identifier,
+                        "attempts_before": int(row["attempts"]),
+                    }
+                    # Progress restarts from zero: the store refuses a percent that goes
+                    # backwards, and the resumed run reports its own progress from its checkpoints.
+                    connection.execute(
+                        """
+                        UPDATE jobs SET status='queued', started_at=NULL, finished_at=NULL,
+                            updated_at=?, error=NULL, progress_json=?, metadata_json=?
+                        WHERE job_id=?
+                        """,
+                        (
+                            now,
+                            _json({"percent": 0, "stage": "resuming after restart"}),
+                            _json(metadata),
+                            identifier,
+                        ),
+                    )
+                    self._append_event(
+                        connection,
+                        "job",
+                        identifier,
+                        "recovered_for_resume",
+                        {"reason": "service restart; resuming from the job's checkpoints"},
+                    )
+                    continue
                 recovery_pointer = (
                     progress.get("evidence_pointer")
                     if isinstance(progress, Mapping)
@@ -912,17 +965,20 @@ class SovereignStore:
                     "job_id": identifier,
                     "evidence_pointer": recovery_pointer,
                 }
+                error = "service restarted while job was running"
+                if reason:
+                    error = f"{error}; {reason}"
                 connection.execute(
                     """
                     UPDATE jobs SET status='interrupted', finished_at=?, updated_at=?,
-                        error='service restarted while job was running',
-                        evidence_pointer=COALESCE(?, evidence_pointer),
+                        error=?, evidence_pointer=COALESCE(?, evidence_pointer),
                         metadata_json=?
                     WHERE job_id=?
                     """,
                     (
                         now,
                         now,
+                        error,
                         recovery_pointer,
                         _json(metadata),
                         identifier,
@@ -934,7 +990,8 @@ class SovereignStore:
                     identifier,
                     "recovered_as_interrupted",
                     {
-                        "reason": "service restart; no safe execution checkpoint",
+                        "reason": "service restart; "
+                        + (reason or "no safe execution checkpoint"),
                         "execution_id": metadata["recovery"]["execution_id"],
                         "evidence_pointer": recovery_pointer,
                     },

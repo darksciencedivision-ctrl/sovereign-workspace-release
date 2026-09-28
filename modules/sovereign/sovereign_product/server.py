@@ -555,7 +555,7 @@ class ProductService:
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
         self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after a bounded drain
-        recovery = self.store.recover_incomplete_jobs()
+        recovery = self.store.recover_incomplete_jobs(resume=self._restart_decision)
         for job_id in recovery["queued"]:
             self._enqueue(job_id)
         if start_workers:
@@ -1007,6 +1007,14 @@ class ProductService:
                 self._run_job(job_id)
             finally:
                 jobs.task_done()
+
+    def _restart_decision(
+        self, job: Mapping[str, Any]
+    ) -> tuple[bool, str | None]:
+        """At startup: whether a job the last run left ``running`` resumes (LONG only)."""
+        from .long_workload import restart_decision
+
+        return restart_decision(self.paths.evidence_dir, job)
 
     def _long_executor(self) -> Any:
         """The LONG route's executor (sharded inference); raises when it cannot run here."""

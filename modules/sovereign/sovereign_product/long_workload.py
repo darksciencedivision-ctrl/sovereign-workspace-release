@@ -298,6 +298,39 @@ def _coverage_note(state: Any, gaps: list[str]) -> str:
             "this answer was produced without them.")
 
 
+#: A LONG job is started at most this many times in all, counting restart resumes, so a job that
+#: keeps taking the product down cannot restart it forever.
+RESTART_ATTEMPTS = 3
+
+
+def restart_decision(evidence_dir: Path, job: Mapping[str, Any]) -> tuple[bool, str | None]:
+    """Whether a LONG job left ``running`` by a product restart resumes: ``(resume, reason)``.
+
+    Live (2026-09-27), a restart marked an hours-long LONG job ``interrupted`` although its
+    checkpoints could resume it. A LONG job resumes when its run directory holds no run yet
+    (nothing was lost: it starts again) or a run whose checkpoint chain and stored outputs verify
+    (``ShardRunner.resume`` continues at the first unfinished task, and a run that had finished just
+    reports its result). It does not resume when a cancel was requested, when it has already been
+    started RESTART_ATTEMPTS times, or when its checkpoints are broken; the reason says which.
+    Other routes return ``(False, None)`` and keep the default (interrupted). Read-only.
+    """
+    if str(job.get("route") or "").upper() != "LONG":
+        return False, None
+    if job.get("cancel_requested"):
+        return False, "its cancellation had been requested"
+    attempts = int(job.get("attempts") or 0)
+    if attempts >= RESTART_ATTEMPTS:
+        return False, (f"the LONG run was already started {attempts} times, so it is not resumed "
+                       "again; resubmit it to run it again")
+    from .shard_runner import ShardRunError, verify_stored_run
+
+    try:
+        verify_stored_run(Path(evidence_dir) / "long" / str(job["job_id"]))
+    except (ShardRunError, OSError, ValueError, KeyError, TypeError) as exc:
+        return False, f"its LONG checkpoints cannot be resumed ({exc})"
+    return True, None
+
+
 def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
     """Read-only view of a LONG run for the operator: its chunks and the carried ledger.
 
