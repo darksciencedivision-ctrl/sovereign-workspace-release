@@ -4,10 +4,18 @@
  * `GET /v1/jobs/<id>/ledger`.
  */
 
+/**
+ * How the supervisor serves a LONG model, from its GPU/RAM plan report: `degraded` (plan
+ * refused, or a context below the configured one) fails every run on that model.
+ */
+export type LongModelStatus = "ready" | "degraded" | "unknown";
+
 export interface LongModelInfo {
   model: string;
   context: number;
   thinking: string;
+  status: LongModelStatus;
+  reason?: string;
 }
 
 /** From `/v1/health`: whether LONG can run here and which models it may use. */
@@ -16,6 +24,9 @@ export interface LongRouteInfo {
   defaultModel?: string;
   models: LongModelInfo[];
   error?: string;
+  /** `degraded` when any configured model is degraded; `detail` says which and why. */
+  degraded: boolean;
+  detail?: string;
 }
 
 /** What the operator attaches to a LONG objective. */

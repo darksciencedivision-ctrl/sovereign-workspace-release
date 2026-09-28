@@ -859,16 +859,30 @@ class ProductService:
         )
 
     def long_models(self) -> dict[str, Any]:
-        """The models the LONG route may run (long_workload.json), for the operator's picker."""
-        from .long_workload import LongWorkloadError, load_config
+        """The models the LONG route may run (long_workload.json), for the operator's picker.
+
+        Each model carries its serving ``status`` from the supervisor's plan report (H2): a
+        refused plan or a context below the configured one is ``degraded`` with the reason, and
+        the route's ``status`` is ``degraded`` when any model is.
+        """
+        from .long_workload import (LongWorkloadError, load_config, model_status,
+                                    plan_reports)
 
         try:
             config = load_config(self.root)
         except LongWorkloadError as exc:
-            return {"default_model": None, "models": [], "error": str(exc)}
-        return {"default_model": config.default_model,
-                "models": [{"model": m.model, "context": m.context, "thinking": m.thinking}
-                           for m in config.models]}
+            return {"default_model": None, "models": [], "error": str(exc),
+                    "status": "unavailable"}
+        reports = plan_reports(self.root)
+        models = []
+        for m in config.models:
+            status, reason = model_status(reports, m)
+            models.append({"model": m.model, "context": m.context, "thinking": m.thinking,
+                           "status": status, "reason": reason})
+        degraded = [m for m in models if m["status"] == "degraded"]
+        return {"default_model": config.default_model, "models": models,
+                "status": "degraded" if degraded else "ready",
+                "detail": "; ".join(f"{m['model']}: {m['reason']}" for m in degraded) or None}
 
     def long_run(self, job_id: str) -> dict[str, Any]:
         """A LONG job's chunks and carried ledger, read from its checkpoints (read-only)."""
@@ -2278,6 +2292,12 @@ def create_app(
             long_active_job = owned_service.long_active_job()
         except Exception:
             long_active_job = None
+        long_route = owned_service.long_models()
+        # LONG can run when its executor can and at least one configured model is not degraded
+        # (a model with a refused plan fails every run, so all-degraded is not "available").
+        long_ok = owned_service.long_route_ready() and any(
+            m.get("status") != "degraded" for m in long_route.get("models") or []
+        )
         return jsonify(
             {
                 "ok": ready,
@@ -2310,9 +2330,9 @@ def create_app(
                     "CONTINUITY": models_ok,
                     "DEEP": deep_ok and models_ok,
                     "RESEARCH": research_ok and models_ok,
-                    "LONG": owned_service.long_route_ready(),
+                    "LONG": long_ok,
                 },
-                "long_route": owned_service.long_models(),
+                "long_route": long_route,
                 "long_active_job": long_active_job,
                 "detail": "; ".join(detail) if detail else "ready",
             }

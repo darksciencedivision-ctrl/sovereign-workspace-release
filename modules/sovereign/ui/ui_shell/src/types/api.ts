@@ -53,8 +53,16 @@ export interface ApiHealthResponse {
   routes?: Record<string, boolean>;
   long_route?: {
     default_model?: string | null;
-    models?: { model?: unknown; context?: unknown; thinking?: unknown }[];
+    models?: {
+      model?: unknown;
+      context?: unknown;
+      thinking?: unknown;
+      status?: unknown;
+      reason?: unknown;
+    }[];
     error?: string;
+    status?: string;
+    detail?: string | null;
   };
   /** Job id of a queued or running LONG job, or null when none is active. */
   long_active_job?: string | null;

@@ -406,15 +406,45 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
     }
 
 
-def _plan_refusal(root: str | Path, model: str) -> str:
-    """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
+def plan_reports(root: str | Path) -> Mapping[str, Any] | None:
+    """The supervisor's per-model GPU/RAM plan report (hybrid_plans.json), or None."""
     from .paths import resolve_runtime_dir
 
     path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "hybrid_plans.json"
     try:
-        report = json.loads(path.read_text(encoding="utf-8")).get(model)
-    except (OSError, ValueError, AttributeError):
+        reports = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return reports if isinstance(reports, Mapping) else None
+
+
+def model_status(reports: Mapping[str, Any] | None, entry: LongModel) -> tuple[str, str | None]:
+    """``(status, reason)`` of a configured LONG model from the supervisor's plan report.
+
+    ``degraded`` when its plan was refused or planned below the configured context (the executor
+    would then refuse every run on it), ``unknown`` when the supervisor reported nothing for it,
+    ``ready`` otherwise.
+    """
+    if reports is None:
+        return "unknown", "no plan report from the supervisor (has it started?)"
+    report = reports.get(entry.model)
+    if not isinstance(report, Mapping):
+        return "unknown", "the supervisor's plan report has no entry for this model"
+    if report.get("applied") is False:
+        return "degraded", f"plan refused: {report.get('reason') or 'no reason recorded'}"
+    context = report.get("context")
+    if isinstance(context, int) and not isinstance(context, bool) and context < entry.context:
+        return "degraded", (f"planned at a {context}-token context, below the configured "
+                            f"{entry.context}")
+    return "ready", None
+
+
+def _plan_refusal(root: str | Path, model: str) -> str:
+    """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
+    reports = plan_reports(root)
+    if reports is None:
         return "no plan report from the supervisor"
+    report = reports.get(model)
     if not isinstance(report, Mapping):
         return "no plan for this model in the supervisor's report"
     if report.get("applied") is False:
