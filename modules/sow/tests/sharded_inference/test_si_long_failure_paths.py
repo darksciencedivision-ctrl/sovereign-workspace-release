@@ -338,3 +338,31 @@ def test_h3_a_malformed_config_fails_the_job_with_the_reason(clean_env, tmp_path
     job = store.get_job(job_id)
     assert job["status"] == "failed"
     assert LW.CONFIG_FILE in job["error"] and "internal" not in job["error"].lower()
+
+
+# --- H10: a cancel while a large input is being sized ------------------------------------------
+
+def test_h10_a_cancel_while_sizing_a_large_input_ends_the_job_promptly(clean_env, tmp_path):
+    """Sizing a big @input is thousands of /tokenize calls before any chunk runs; the cancel
+    used to wait for all of them."""
+    root = _small_root(tmp_path)
+    store = SovereignStore(tmp_path / "state.db")
+    client = FakeLlama()
+    counted = {"n": 0}
+    real_count = client.count_text_tokens
+
+    def count(model, text):
+        counted["n"] += 1
+        if counted["n"] == 5:
+            store.request_cancel(job_id)  # the operator presses Cancel mid-sizing
+        return real_count(model, text)
+
+    client.count_text_tokens = count
+    service = _service(root, store, client)
+    big = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(400))
+    job_id = _long_job(store, f"Count entries.\n---\n{big}")
+    service._run_job(job_id)
+    job = store.get_job(job_id)
+    assert job["status"] == "cancelled", job["error"]
+    assert counted["n"] <= 6, f"sizing went on for {counted['n']} counts after the cancel"
+    assert client.chats == [], "no chunk ran"

@@ -227,6 +227,12 @@ class LlamaModelPort:
         return text
 
     def count_tokens(self, text: str) -> int:
+        if self.cancel_requested():
+            # Sizing a large @input takes thousands of /tokenize calls before any chunk runs;
+            # a cancel must not wait for all of them (the job then ends cancelled).
+            from .model_client import GenerationCancelled
+
+            raise GenerationCancelled("cancelled while sizing the input")
         counted = self.client.count_text_tokens(self.model, text)
         if counted is None:
             # The client returns None when /tokenize fails. Mid-run, the old fallback (one token
