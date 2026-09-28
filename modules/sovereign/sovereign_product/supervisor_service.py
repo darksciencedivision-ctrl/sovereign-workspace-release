@@ -20,6 +20,7 @@ from .paths import resolve_runtime_dir
 from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import (
+    RuntimeRegistry,
     build_operational_registry,
     llama_cpp_installation,
 )
@@ -155,13 +156,21 @@ def pid_alive(pid: int) -> bool:
         import ctypes
 
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        STILL_ACTIVE = 259
         handle = ctypes.windll.kernel32.OpenProcess(
             PROCESS_QUERY_LIMITED_INFORMATION, False, pid
         )
-        if handle:
+        if not handle:
+            return False
+        try:
+            # H5: an exited process can still be opened while any handle to it is open (its
+            # parent's, a job's), so "it opens" is not "it runs": ask for its exit code.
+            code = ctypes.c_ulong()
+            if not ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return True  # cannot tell: stay on the safe side for callers that wait
+            return code.value == STILL_ACTIVE
+        finally:
             ctypes.windll.kernel32.CloseHandle(handle)
-            return True
-        return False
     try:
         os.kill(pid, 0)
         return True
@@ -400,23 +409,26 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
             "pid": pid, "pid_alive": True, "pid_owned": False,
         }
     if owned:
-        # Provably ours and alive: terminate it. Guard the binary-dependent build so a stop still
-        # tears down state/claim even if the server binary was removed after start.
-        try:
-            api_key = load_or_create_key(root)
-            supervisor = build_supervisor(root, port=port, api_key=api_key)
-            supervisor.pid = pid
-            supervisor.process = _LiveProcess(pid)
-            try:
-                supervisor.unload("qwen3:8b")
-            except Exception:
-                pass
-            supervisor.stop()
-        except Exception:
-            pass
+        # Provably ours and alive: terminate its whole process tree (the router and its
+        # per-model servers). H5: this used to go through build_supervisor, which needs the
+        # binary (when it was gone, the build raised and the kill was silently skipped, leaving
+        # llama-server running) and re-planned from the VRAM the running model occupies,
+        # overwriting hybrid_plans.json with "refused" plans. Killing needs neither.
+        supervisor = LlamaCppSupervisor(
+            SupervisorConfig(executable=str(DEFAULT_EXE), port=port,
+                             work_dir=str(service_dir(root)), detach=True),
+            RuntimeRegistry(),
+        )
+        supervisor.pid = pid
+        supervisor.process = _LiveProcess(pid)
+        supervisor.stop()
     path = state_path(root)
     if path.is_file():
         path.unlink()
+    # The plan report describes a running supervisor; health must not read a stopped one's plans.
+    plans = service_dir(root) / "hybrid_plans.json"
+    if plans.is_file():
+        plans.unlink()
     if disable_autostart:
         _disable_autostart(root)
     release_gpu(root, "llama.cpp")
