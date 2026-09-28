@@ -17,9 +17,24 @@ True record for `feature/sharded-inference`. This replaces the stale progress no
 
 ## Prose map/reduce
 
-145 KB Distillery design and validation docs. 863.6 s, no coverage gap. About half of that answer was the uncapped per-part appendix, which D1 caps.
+145 KB Distillery design and validation docs, re-run on the final code (HEAD `c1a469e`, which includes D1).
 
-`prose.job.json` is the scratch capture of `job_576754b5e5db44128d5c009afc481f00` (status `running` at capture). It does not itself contain the 863.6 s figure.
+- status: completed
+- elapsed: 798.651189 s
+- answer length: 505 characters
+- appendix: capped
+- coverage gap: none
+
+`prose.job.json` is that completed job, `job_dbbacf9876144a58b9f8a119e2736283` (local paths stripped; this copy had none). The earlier audited run, before the cap, was 863.6 s with no coverage gap; about half of that answer was the uncapped appendix.
+
+## 65k MoE map/reduce, qualification r2
+
+Same input, after D1, on the r2 stack (`docs/performance/qualification-20260926-long-r2/`). Job `job_8cbed56a19214a3aad6272c9a401cef4`.
+
+- 2,613.8 s end-to-end, 9 model calls, 1 split, 0 failures, every map ledger empty
+- answer 115, equal to the sum of the per-part counts (31+25+27+12+13+1+6)
+- truth 124; the gap is the model's per-part counting
+- the product answer carries the capped appendix
 
 ## Decisions now in the branch
 

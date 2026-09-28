@@ -1,0 +1,89 @@
+{
+  "base_url": "http://127.0.0.1:5299",
+  "finished_utc": "2026-09-28T03:21:17.814Z",
+  "hardware": {
+    "gpu": {
+      "memory_total_mib": 8151,
+      "name": "NVIDIA GeForce RTX 5060 Ti"
+    },
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel"
+  },
+  "kind": "long",
+  "profile": "llamacpp-long-moe-30b-a3b",
+  "repetitions": 1,
+  "resources": {
+    "baseline": {
+      "ram_used_mib": 37751,
+      "vram_mib": 6601
+    },
+    "note": "system-wide peaks sampled once a second during the run",
+    "peak_system_ram_used_mib": 39473,
+    "peak_vram_mib": 6609,
+    "ram_total_mib": 65230
+  },
+  "results_file": "llamacpp-long-moe-30b-a3b.results.json",
+  "runs": [
+    {
+      "chunks_per_hour": 42.20291395490134,
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 159,
+      "input_tokens": 0,
+      "job_elapsed_seconds": 507.687844,
+      "job_id": "job_4e3a7e051eaf4bc9b65a062957739d65",
+      "latency_seconds": 511.8130000000019,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_plan",
+      "shards": 6,
+      "shards_done": 6,
+      "status": "completed",
+      "submitted_utc": "2026-09-28T02:11:30.812Z"
+    },
+    {
+      "chunks_per_hour": 13.601355601774967,
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 178,
+      "input_tokens": 32768,
+      "job_elapsed_seconds": 1057.503077,
+      "job_id": "job_ba35fee2762943aeaa47b2dbb112d5a0",
+      "latency_seconds": 1058.7180000000008,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_input",
+      "shards": 4,
+      "shards_done": 4,
+      "status": "completed",
+      "submitted_utc": "2026-09-28T02:20:03.975Z"
+    },
+    {
+      "chunks_per_hour": 11.018385783527766,
+      "cold": false,
+      "http_status": 202,
+      "input_chars": 178,
+      "input_tokens": 65536,
+      "job_elapsed_seconds": 2611.001212,
+      "job_id": "job_8cbed56a19214a3aad6272c9a401cef4",
+      "latency_seconds": 2613.8129999999946,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_input",
+      "shards": 8,
+      "shards_done": 8,
+      "status": "completed",
+      "submitted_utc": "2026-09-28T02:37:44.015Z"
+    }
+  ],
+  "runtime": {
+    "backend": "llama.cpp",
+    "long_route_ready": true,
+    "primary_model": "qwen3:30b-a3b",
+    "product_version": "3.1.2",
+    "worker_count": 1
+  },
+  "schema": "sovereign.qualification-results.v1",
+  "started_utc": "2026-09-28T02:11:29.441Z"
+}
