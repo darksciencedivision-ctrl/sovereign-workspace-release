@@ -301,6 +301,45 @@ def test_si_p4_every_map_and_reduce_prompt_carries_the_aggregation_rules(tmp_pat
     assert all(count(SR.SYSTEM_ROLE) + count(p) <= LIMITS.context_tokens for p in model.prompts)
 
 
+@pytest.mark.parametrize("objective", [
+    "Count the notes that report 16 warnings.",
+    "List the main components of the design and the validation evidence for each.",
+])
+def test_si_p4_map_and_reduce_rules_serve_list_and_count_objectives(tmp_path, objective):
+    """Live (qwen3:30b-a3b, 145 KB prose, 2026-09-28): the map rules said "report the values, not
+    the items behind them", so "list the main components" came back as "4 main components". The
+    rules are objective-agnostic: numbers stay labeled per-part values, lists stay item lists."""
+    text = "\n\n".join(f"Section {i}: " + "component text with evidence. " * 30
+                       for i in range(200))
+    mode = SM.InputShardMode(objective=objective, map_instruction="Report what bears on it.",
+                             reduce_instruction="Combine.", max_output_tokens=200)
+    model = FakeModel(_map_reduce_script())
+    runner = SR.ShardRunner(tmp_path, model, LIMITS, on_task_done=mode.on_task_done,
+                            summary_kinds=mode.summary_kinds)
+    state = runner.start(objective, "input_shards", mode.plan(runner, text))
+    assert state.status == "completed"
+    maps = [p for p in model.prompts if "INSTRUCTION (map)" in p]
+    reduces = [p for p in model.prompts if "INSTRUCTION (reduce)" in p]
+    assert maps and len(reduces) >= 2
+    for prompt in maps:
+        # counts: labeled per-part values, without enumerating the records behind them
+        assert "counts, totals or extremes: give each as a labeled value for this part" in prompt
+        assert "report the numbers, not the records behind them" in prompt
+        # lists: the items themselves, briefly
+        assert "lists, descriptions or comparisons: name each relevant item" in prompt
+        assert "never replace the items with a count of them" in prompt
+        assert "not the items behind them" not in prompt
+    for prompt in reduces:
+        assert "ADD counts and totals" in prompt
+        assert "keep every distinct item any part names, once" in prompt
+        assert "never replace a list with a count of it" in prompt
+    final = [p for p in reduces if "FINAL answer" in p]
+    assert len(final) == 1 and "for lists, give the merged list itself" in final[0]
+    assert all("keeping the same labeled values and item lists" in p
+               for p in reduces if p not in final)
+    assert all(count(SR.SYSTEM_ROLE) + count(p) <= LIMITS.context_tokens for p in model.prompts)
+
+
 # --- a map whose reply was cut off is split, not retried as is --------------------------------------
 
 def _truncating_script(truncate_whole_part: str, log: list[str] | None = None):

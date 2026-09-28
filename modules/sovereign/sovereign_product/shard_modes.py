@@ -112,19 +112,29 @@ def _empty():
 # The parts are DISJOINT slices of one input. Live, maps answered as if each part were the whole
 # input ("16, 26", "1516: 92, 25") and the reduce copied one part's count instead of adding them.
 # So maps report labeled per-part values, and the reduce is told how values combine. (Asking maps
-# to also list the items made a reasoning model enumerate hundreds of records into its reply cap.)
+# to also list the records behind a count made a reasoning model enumerate hundreds of them into
+# its reply cap.) The rules must not assume a counting objective: when they said "report the
+# values, not the items", a "list the components" objective came back as "4 main components".
+# So what a part reports depends on what the objective asks for: numbers stay labeled values,
+# lists stay (brief) lists.
 MAP_PART_RULES = (
-    "The other parts of the input are handled separately; report for THIS PART ONLY, as short "
-    "labeled values that can be combined later: give every count or total for this part with "
-    "its label (e.g. 'items matching X in this part: 12') and this part's best/largest/smallest "
-    "candidate with its value. Report the values, not the items behind them. Do not guess "
-    "about other parts.")
+    "The other parts of the input are handled separately; report for THIS PART ONLY, briefly, "
+    "in a form that can be combined later. Do not guess about other parts. What to report "
+    "depends on what the objective asks for:\n"
+    "- counts, totals or extremes: give each as a labeled value for this part (e.g. 'items "
+    "matching X in this part: 12') and this part's best/largest/smallest candidate with its "
+    "value; report the numbers, not the records behind them.\n"
+    "- lists, descriptions or comparisons: name each relevant item found in this part, one "
+    "short line each with only the detail the objective asks for; never replace the items "
+    "with a count of them.\n"
+    "If nothing in this part bears on the objective, say so in one line.")
 MIN_SPLIT_TOKENS = 1024  # a cut-off map smaller than this is retried, not split further
 REDUCE_RULES = (
     "Each partial result covers a DIFFERENT, non-overlapping part of the input. Combine them: "
     "ADD counts and totals across all parts; compare maxima, minima and rankings across parts "
-    "and pick the overall one (report ties); merge lists without duplicates. Never give one "
-    "part's value as the answer for the whole input.")
+    "and pick the overall one (report ties); merge lists: keep every distinct item any part "
+    "names, once, with its details combined, and never replace a list with a count of it. "
+    "Never give one part's value as the answer for the whole input.")
 
 @dataclass(frozen=True)
 class InputShardMode:
@@ -177,12 +187,13 @@ class InputShardMode:
         return f"Objective: {self.objective}\n{self.map_instruction}{where}\n{MAP_PART_RULES}"
 
     def _reduce_text(self, round_no: int, index: int, total: int, final: bool) -> str:
-        role = ("Produce the FINAL answer to the objective for the WHOLE input: first list the "
-                "per-part values you combined, then the answer."
+        role = ("Produce the FINAL answer to the objective for the WHOLE input: for counts and "
+                "totals, first list the per-part values you combined, then the answer; for "
+                "lists, give the merged list itself."
                 if final else f"Merge these partial results (reduce round {round_no}, group "
                               f"{index} of {total}) into ONE partial result for the parts they "
-                              "cover, keeping the same labeled values (combined, not final "
-                              "prose).")
+                              "cover, keeping the same labeled values and item lists (combined, "
+                              "not final prose).")
         return (f"Objective: {self.objective}\n{self.reduce_instruction}\n{REDUCE_RULES}\n"
                 f"{role} Name any part marked FAILED as a gap in coverage.")
 
