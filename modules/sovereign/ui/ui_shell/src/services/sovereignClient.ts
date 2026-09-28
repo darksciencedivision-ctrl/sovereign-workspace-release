@@ -35,6 +35,7 @@ export const sovereignClient: SovereignTransport & {
     transport.sendMessage(input, sessionId, routeOverride),
   getJob: (jobId) => transport.getJob(jobId),
   cancelJob: (jobId) => transport.cancelJob(jobId),
+  resumeJob: (jobId) => transport.resumeJob(jobId),
   getLongRun: (jobId) => transport.getLongRun(jobId),
   createSession: () => transport.createSession(),
   getChatHistory: () => transport.getChatHistory(),

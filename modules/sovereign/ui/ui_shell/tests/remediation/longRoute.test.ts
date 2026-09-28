@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { longDegradedNote, longUnavailableReason } from "../../src/components/RouteSelector";
+import { canResume } from "../../src/components/RunStatus";
 import {
   EMPTY_LONG_OPTIONS,
   MAX_INPUT_CHARACTERS,
@@ -127,6 +128,13 @@ describe("LONG progress and run view", () => {
     expect(healthy?.degraded).toBe(false);
     expect(healthy?.models[0].status).toBe("unknown");
     expect(longDegradedNote(healthy)).toBeUndefined();
+  });
+
+  it("offers Resume only for an interrupted LONG run (H3)", () => {
+    expect(canResume({ route: "LONG", status: "interrupted" })).toBe(true);
+    expect(canResume({ route: "LONG", status: "failed" })).toBe(false);
+    expect(canResume({ route: "LONG", status: "running" })).toBe(false);
+    expect(canResume({ route: "DEEP", status: "interrupted" })).toBe(false);
   });
 
   it("normalizes the ledger view and drops malformed parts", () => {

@@ -62,6 +62,8 @@ export interface SovereignTransport {
   ): Promise<SubmissionResult>;
   getJob(jobId: string): Promise<JobResult>;
   cancelJob(jobId: string): Promise<JobResult>;
+  /** LONG jobs only: re-queue an interrupted run; it continues from its checkpoints. */
+  resumeJob(jobId: string): Promise<JobResult>;
   /** LONG jobs only: chunks and the carried ledger, read from the run's checkpoints. */
   getLongRun(jobId: string): Promise<LongRunResult>;
   createSession(): Promise<SessionResult>;

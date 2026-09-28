@@ -464,6 +464,20 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
         : { ok: false, error: "Sovereign returned an invalid cancellation response." };
     },
 
+    async resumeJob(jobId: string): Promise<JobResult> {
+      const result = await request<unknown>(
+        baseUrl,
+        "POST",
+        `/v1/jobs/${encodeURIComponent(jobId)}/resume`,
+        {}
+      );
+      if (!result.ok) return { ok: false, error: result.error };
+      const job = normalizeJob(result.data, jobId);
+      return job
+        ? { ok: true, job }
+        : { ok: false, error: "Sovereign returned an invalid resume response." };
+    },
+
     async createSession(): Promise<SessionResult> {
       return sessionResult(
         await request<ApiSessionResponse>(

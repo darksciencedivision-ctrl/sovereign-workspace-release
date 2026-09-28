@@ -1932,6 +1932,33 @@ class ProductService:
             job = self.store.get_job(job_id)
         return self.public_job(job)
 
+    def resume_long_job(self, job_id: str) -> dict[str, Any]:
+        """Re-queue an interrupted LONG job; it continues from its checkpoints (H3).
+
+        A LONG run stopped by its surroundings (the model server away too long, a full disk)
+        ends ``interrupted`` with its checkpoints intact. Refused (400) for other routes and
+        states, and when the checkpoints do not verify.
+        """
+        from .long_workload import checkpoint_problem
+
+        job = self.store.get_job(job_id)  # NotFound -> 404
+        if str(job["route"]).upper() != Route.LONG.value:
+            raise ValueError(f"job {job_id} is a {job['route']} job; only LONG jobs resume")
+        if job["status"] != "interrupted":
+            raise ValueError(f"job {job_id} is {job['status']}; only an interrupted LONG job "
+                             "can be resumed")
+        problem = checkpoint_problem(self.paths.evidence_dir, str(job["job_id"]))
+        if problem:
+            raise ValueError(f"job {job_id} cannot be resumed: {problem}")
+        job = self.store.transition_job(
+            job_id,
+            "queued",
+            expected_status="interrupted",
+            metadata={"resumed_by": "operator"},
+        )
+        self._enqueue(str(job["job_id"]))
+        return self.public_job(job)
+
     def models(self) -> list[dict[str, Any]]:
         state = self._self_state()
         _service_label, model_service = model_service_authority(state)
@@ -2494,6 +2521,11 @@ def create_app(
     def cancel_job(job_id: str) -> Response:
         json_object()
         return jsonify(owned_service.cancel_job(job_id))
+
+    @app.post("/v1/jobs/<job_id>/resume")
+    def resume_job(job_id: str) -> tuple[Response, int]:
+        json_object()
+        return jsonify(owned_service.resume_long_job(job_id)), 202
 
     @app.get("/v1/evidence")
     def evidence() -> Response | tuple[Response, int]:

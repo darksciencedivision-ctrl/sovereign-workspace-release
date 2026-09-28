@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -31,7 +32,8 @@ from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
 from .runtime_registry import RuntimeRegistry, hybrid_profile
 from .shard_modes import InputShardMode, PlanStepMode
-from .shard_runner import ModelConfigurationError, ReplyTruncated, RunLimits, ShardRunner
+from .shard_runner import (ModelConfigurationError, ModelUnavailable, ReplyTruncated, RunLimits,
+                           ShardRunner)
 
 CONFIG_FILE = "long_workload.json"
 INBOX_DIRNAME = "long_inputs"
@@ -193,12 +195,26 @@ class LlamaModelPort:
 
     def generate(self, *, system: str, prompt: str, max_tokens: int,
                  should_stop: Callable[[], bool]) -> str:
-        response = self.client.chat(
-            model=self.model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-            options={"num_ctx": self.context, "num_predict": max_tokens, "temperature": 0.2},
-            think=self.thinking == "on",
-            cancel_requested=lambda: should_stop() or self.cancel_requested())
+        from .runtime_contracts import InferenceAuthError
+
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[{"role": "system", "content": system},
+                          {"role": "user", "content": prompt}],
+                options={"num_ctx": self.context, "num_predict": max_tokens, "temperature": 0.2},
+                think=self.thinking == "on",
+                cancel_requested=lambda: should_stop() or self.cancel_requested())
+        except InferenceAuthError as exc:
+            # A refused key fails every call the same way: stop the run and say why.
+            raise ModelConfigurationError(str(exc)) from exc
+        except Exception as exc:
+            # A server that went away shows up as many different errors (connection refused,
+            # a cut stream, 503 while it reloads, or an over-limit error once exact counting
+            # fails). One cheap probe tells an outage from a real failure of this call.
+            if not (should_stop() or self.cancel_requested()) and not self._answers():
+                raise ModelUnavailable(f"the llama.cpp server is not answering ({exc})") from exc
+            raise
         text = str(getattr(response, "text", "") or "")
         if self.thinking == "off" and not text.strip() and str(
                 getattr(response, "reasoning", "") or "").strip():
@@ -212,14 +228,30 @@ class LlamaModelPort:
 
     def count_tokens(self, text: str) -> int:
         counted = self.client.count_text_tokens(self.model, text)
-        # Conservative fallback (one token per byte) - never optimistic.
-        return counted if counted is not None else len(text.encode("utf-8"))
+        if counted is None:
+            # The client returns None when /tokenize fails. Mid-run, the old fallback (one token
+            # per byte) sized a restarting server's chunks four times too big and failed the run
+            # with a misleading "does not fit the window". An exact count is a LONG requirement.
+            raise ModelUnavailable("the llama.cpp server did not count tokens (it is down, "
+                                   "restarting or loading the model)")
+        return counted
+
+    def _answers(self) -> bool:
+        try:
+            return self.client.count_text_tokens(self.model, "ok") is not None
+        except Exception:
+            return False
 
 
 # --- the executor ---------------------------------------------------------------------------------
 
-def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
-    """(objective, material or None). Material may be an ``@input: <name>`` inbox reference."""
+def parse_request(text: str, root: str | Path, *,
+                  read_input: bool = True) -> tuple[str, str | None]:
+    """(objective, material or None). Material may be an ``@input: <name>`` inbox reference.
+
+    With ``read_input=False`` an inbox reference is returned as written, unread: a resumed run
+    already holds its chunks in its checkpoints and must not depend on the file still existing.
+    """
     parts = _MATERIAL_SPLIT.split(text, maxsplit=1)
     objective = parts[0].strip()
     if not objective:
@@ -233,7 +265,7 @@ def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
         # outright rather than silently treated as literal text.
         raise LongWorkloadError("@input must name a plain file in the long_inputs inbox "
                                 "(letters, digits, space, . _ -)")
-    if reference:
+    if reference and read_input:
         name = reference.group("name").strip()
         inbox = (resolve_state_home(root) / INBOX_DIRNAME).resolve()
         target = (inbox / name).resolve()
@@ -322,13 +354,21 @@ def restart_decision(evidence_dir: Path, job: Mapping[str, Any]) -> tuple[bool, 
     if attempts >= RESTART_ATTEMPTS:
         return False, (f"the LONG run was already started {attempts} times, so it is not resumed "
                        "again; resubmit it to run it again")
+    problem = checkpoint_problem(evidence_dir, str(job["job_id"]))
+    if problem:
+        return False, problem
+    return True, None
+
+
+def checkpoint_problem(evidence_dir: Path, job_id: str) -> str | None:
+    """Why a LONG job's stored run cannot be resumed, or None when it can (read-only)."""
     from .shard_runner import ShardRunError, verify_stored_run
 
     try:
-        verify_stored_run(Path(evidence_dir) / "long" / str(job["job_id"]))
+        verify_stored_run(Path(evidence_dir) / "long" / job_id)
     except (ShardRunError, OSError, ValueError, KeyError, TypeError) as exc:
-        return False, f"its LONG checkpoints cannot be resumed ({exc})"
-    return True, None
+        return f"its LONG checkpoints cannot be resumed ({exc})"
+    return None
 
 
 def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
@@ -452,23 +492,50 @@ def _plan_refusal(root: str | Path, model: str) -> str:
     return f"plan applied at context {report.get('context')}; the served model differs"
 
 
+def _done(runner: ShardRunner | None) -> int:
+    return len(runner.state.completed) if runner is not None and runner.state else 0
+
+
+def _interrupted(model: str, done: int, reason: str) -> dict[str, Any]:
+    """A run stopped by its surroundings (no model server, no disk), not by its own work: the job
+    ends ``interrupted`` with the reason, and POST /v1/jobs/<id>/resume continues it."""
+    return {"status": "interrupted", "answer": "", "model": model, "reason": reason,
+            "telemetry": {"run_status": "interrupted", "completed": done}}
+
+
 class LongWorkloadExecutor:
     """Runs one LONG job with the shard runner; resumable across product restarts."""
 
     def __init__(self, *, root: str | Path, evidence_dir: Path, client: Any,
-                 config: LongConfig):
+                 config: LongConfig, sleep: Callable[[float], None] = time.sleep,
+                 monotonic: Callable[[], float] = time.monotonic):
         if not callable(getattr(client, "count_text_tokens", None)):
             raise LongWorkloadError("the LONG route requires the llama.cpp backend (exact token "
                                     "counts and the GPU/RAM split); select llama.cpp")
         self.root, self.evidence_dir, self.client, self.config = root, evidence_dir, client, config
+        self.sleep, self.monotonic = sleep, monotonic  # the runner's clock (a seam for tests)
 
     def run(self, job_id: str, text: str, *, cancel_requested: Callable[[], bool],
             progress_callback: Callable[[dict[str, Any]], None],
             model: str | None = None) -> dict[str, Any]:
+        from .model_client import ModelClientError
+        from .runtime_contracts import InferenceAuthError
+
+        run_dir = self.evidence_dir / "long" / job_id
+        checkpoints = run_dir / "checkpoints"
+        resuming = checkpoints.is_dir() and any(checkpoints.glob("*.json"))
         requested, text = split_model_directive(text)
-        objective, material = parse_request(text, self.root)
+        # A resumed run has its chunks in its checkpoints: it must not need the @input file.
+        objective, material = parse_request(text, self.root, read_input=not resuming)
         entry = self.config.model(model or requested)
-        context = int(self.client.native_context_length(entry.model))
+        try:
+            context = int(self.client.native_context_length(entry.model))
+        except InferenceAuthError:
+            raise
+        except ModelClientError as exc:
+            return _interrupted(entry.model, 0, (
+                f"the llama.cpp server did not answer for {entry.model} ({exc}). Start the "
+                "llama.cpp supervisor, then resume the job."))
         if context < entry.context:
             raise LongWorkloadError(
                 f"{entry.model} is served with a {context}-token context, below the "
@@ -513,18 +580,33 @@ class LongWorkloadExecutor:
             except Exception:
                 pass
 
-        runner = ShardRunner(self.evidence_dir / "long" / job_id, port, limits,
-                             should_stop=cancel_requested, progress=progress,
-                             on_task_done=mode.on_task_done,
-                             validators=getattr(mode, "validators", None),
-                             summary_kinds=mode.summary_kinds,
-                             isolated_kinds=getattr(mode, "isolated_kinds", ()),
-                             split_task=getattr(mode, "split_task", None))
-        if runner.log.events():
-            state = runner.resume()
-        else:
-            tasks = mode.plan(runner, material) if material is not None else mode.plan(runner)
-            state = runner.start(objective, kind, tasks)
+        runner: ShardRunner | None = None
+        try:
+            runner = ShardRunner(run_dir, port, limits,
+                                 should_stop=cancel_requested, progress=progress,
+                                 on_task_done=mode.on_task_done,
+                                 validators=getattr(mode, "validators", None),
+                                 summary_kinds=mode.summary_kinds,
+                                 isolated_kinds=getattr(mode, "isolated_kinds", ()),
+                                 split_task=getattr(mode, "split_task", None),
+                                 sleep=self.sleep, monotonic=self.monotonic)
+            if runner.log.events():
+                state = runner.resume()
+            else:
+                tasks = (mode.plan(runner, material) if material is not None
+                         else mode.plan(runner))
+                state = runner.start(objective, kind, tasks)
+        except ModelUnavailable as exc:
+            return _interrupted(entry.model, _done(runner), (
+                f"{exc}. The chunks already done are kept; resume the job once the llama.cpp "
+                f"supervisor serves {entry.model} again."))
+        except OSError as exc:
+            # A full disk or an unwritable evidence folder. The checkpoint chain is written
+            # atomically, so everything recorded before the failure is still valid.
+            return _interrupted(entry.model, _done(runner), (
+                f"the LONG run could not write its checkpoints in {run_dir} ({exc}). Free disk "
+                "space or make the folder writable, then resume the job; the chunks already "
+                "done are kept."))
         final = mode.final_output(runner, state)
         if state.status == "cancelled":
             status = "cancelled"

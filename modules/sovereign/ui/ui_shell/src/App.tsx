@@ -36,6 +36,7 @@ export default function App() {
     selectChat,
     sendMessage,
     cancelActiveJob,
+    resumeActiveJob,
     setRouteOverride,
     reloadSessions,
   } = useChatState();
@@ -204,6 +205,7 @@ export default function App() {
                 pollError={pollError}
                 cancelling={cancelling}
                 onCancel={() => void cancelActiveJob()}
+                onResume={() => void resumeActiveJob()}
               />
             </div>
             <div className="input-dock">{composer}</div>

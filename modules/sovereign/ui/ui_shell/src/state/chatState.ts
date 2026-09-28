@@ -311,6 +311,23 @@ export function useChatState() {
     refreshSession,
   ]);
 
+  const resumeActiveJob = useCallback(async () => {
+    if (
+      !active ||
+      !activeJob ||
+      activeJob.route !== "LONG" ||
+      activeJob.status !== "interrupted" ||
+      cancelling
+    ) {
+      return;
+    }
+    setError(null);
+    const result = await sovereignClient.resumeJob(activeJob.job_id);
+    if (!mounted.current) return;
+    if (result.job) adoptJob(active.session_id, result.job);
+    if (!result.ok) setError(result.error ?? "Sovereign could not resume this run.");
+  }, [active, activeJob, adoptJob, cancelling]);
+
   useEffect(() => {
     if (
       !active ||
@@ -373,6 +390,7 @@ export function useChatState() {
     selectChat,
     sendMessage,
     cancelActiveJob,
+    resumeActiveJob,
     setRouteOverride,
     reloadSessions,
   };

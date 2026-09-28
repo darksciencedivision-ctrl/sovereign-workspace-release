@@ -704,6 +704,7 @@ class SovereignStore:
             finished_at = row["finished_at"]
             attempts = int(row["attempts"])
             cancel_requested = int(row["cancel_requested"])
+            progress_json = row["progress_json"]
             if target == "running":
                 started_at = now
                 finished_at = None
@@ -714,6 +715,9 @@ class SovereignStore:
                 started_at = None
                 finished_at = None
                 cancel_requested = 0
+                # A re-queued job starts its progress again: the worker's first update
+                # ("percent 1") would otherwise be refused as a regression and strand it running.
+                progress_json = _json({"percent": 0, "stage": "queued"})
             merged_metadata = _decode(row["metadata_json"], {})
             merged_metadata.update(dict(metadata or {}))
             connection.execute(
@@ -721,7 +725,8 @@ class SovereignStore:
                 UPDATE jobs SET
                     status=?, started_at=?, finished_at=?, updated_at=?,
                     error=?, evidence_pointer=?, output_message_id=?,
-                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?
+                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?,
+                    progress_json=?
                 WHERE job_id=?
                 """,
                 (
@@ -736,6 +741,7 @@ class SovereignStore:
                     attempts,
                     cancel_requested,
                     _json(merged_metadata),
+                    progress_json,
                     identifier,
                 ),
             )
