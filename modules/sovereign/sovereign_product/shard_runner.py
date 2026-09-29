@@ -555,9 +555,14 @@ class ShardRunner:
             prompt += f"\n\nNOTE: a previous attempt at this step was rejected: {retry_note}"
         return prompt
 
-    def _ensure_fits(self, task: ShardTask, ledger: Ledger) -> None:
-        used = self.model.count_tokens(SYSTEM_ROLE) + self.model.count_tokens(
+    def session_tokens(self, task: ShardTask, ledger: Ledger) -> int:
+        """Tokens one session of ``task`` sends: the system role and the prompt (with room for a
+        retry note). A mode sizes content with it (no content) so every chunk passes the check."""
+        return self.model.count_tokens(SYSTEM_ROLE) + self.model.count_tokens(
             self._prompt(task, ledger, retry_note="x" * 200))
+
+    def _ensure_fits(self, task: ShardTask, ledger: Ledger) -> None:
+        used = self.session_tokens(task, ledger)
         room = self.limits.context_tokens - used - task.max_output_tokens - self.limits.margin_tokens
         if room < 0:
             raise ShardRunError(

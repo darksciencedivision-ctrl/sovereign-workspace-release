@@ -439,3 +439,25 @@ def test_si_p5_a_cut_off_plan_is_retried_not_split(tmp_path):
     state = runner.start("ship the feature", "plan_steps", mode.plan(runner))
     assert state.status == "completed" and calls["plan"] == 2
     assert not any(e["event"] == "task_split" for e in runner.log.events())
+
+
+# --- O1: isolated maps size their content without the ledger reserve --------------------------------
+
+def test_o1_isolated_maps_spend_the_ledger_reserve_on_content(tmp_path):
+    """Maps see an empty ledger (isolation), so reserving the ledger's budget in every map only made
+    the chunks smaller. Every session must still fit the window, retry note included."""
+    text = "\n\n".join(f"Section {i}: " + "log line with a warning. " * 30 for i in range(200))
+    mode = SM.InputShardMode(objective="count warnings", map_instruction="Summarize this part.",
+                             reduce_instruction="Combine.", max_output_tokens=200)
+    model = FakeModel(_map_reduce_script())
+    runner = SR.ShardRunner(tmp_path / "a", model, LIMITS, on_task_done=mode.on_task_done,
+                            summary_kinds=mode.summary_kinds, isolated_kinds=mode.isolated_kinds)
+    with_reserve = SM._content_budget(runner, mode._map_text(1, 9), 200)
+    isolated = SM._content_budget(runner, mode._map_text(1, 9), 200, kind="map")
+    assert abs((isolated - with_reserve) - LIMITS.ledger_budget_tokens) <= 4
+    maps = [t for t in mode.plan(runner, text) if t.kind == "map"]
+    assert all(count(t.content) <= isolated for t in maps)
+    assert len(maps) < -(-count(text) // with_reserve), "fewer, bigger maps than with the reserve"
+    state = runner.start("count warnings", "input_shards", mode.plan(runner, text))
+    assert state.status == "completed" and not state.failed
+    assert all(count(SR.SYSTEM_ROLE) + count(p) <= LIMITS.context_tokens for p in model.prompts)
