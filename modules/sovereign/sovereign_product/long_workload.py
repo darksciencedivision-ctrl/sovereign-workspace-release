@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from .exact_counting import (STATE_FILE as EXACT_STATE_FILE, ExactCancelled, ExactCounter,
+                             is_countable_objective)
 from .gguf_meta import GGUFError, read_gguf
 from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
@@ -523,12 +525,44 @@ class LongWorkloadExecutor:
 
     def __init__(self, *, root: str | Path, evidence_dir: Path, client: Any,
                  config: LongConfig, sleep: Callable[[float], None] = time.sleep,
-                 monotonic: Callable[[], float] = time.monotonic):
+                 monotonic: Callable[[], float] = time.monotonic,
+                 exact_counting: bool = True):
         if not callable(getattr(client, "count_text_tokens", None)):
             raise LongWorkloadError("the LONG route requires the llama.cpp backend (exact token "
                                     "counts and the GPU/RAM split); select llama.cpp")
         self.root, self.evidence_dir, self.client, self.config = root, evidence_dir, client, config
         self.sleep, self.monotonic = sleep, monotonic  # the runner's clock (a seam for tests)
+        self.exact_counting = exact_counting
+
+    def _exact_route(self, run_dir: Path, port: "LlamaModelPort", objective: str, material: str,
+                     output_tokens: int, cancel_requested: Callable[[], bool],
+                     progress_callback: Callable[[dict[str, Any]], None], model: str) -> Any:
+        """Try the exact counting route (D6): an ExactOutcome, or a finished result dict when the
+        run was cancelled or its surroundings failed."""
+        from .model_client import GenerationCancelled
+
+        def progress(stage: str, detail: str, percent: int) -> None:
+            try:
+                progress_callback({"stage": stage, "detail": detail, "percent": percent})
+            except Exception:
+                pass
+
+        counter = ExactCounter(port, run_dir, max_output_tokens=output_tokens,
+                               cancel_requested=cancel_requested, progress=progress)
+        try:
+            return counter.run(objective, material)
+        except (GenerationCancelled, ExactCancelled):
+            return {"status": "cancelled", "answer": "", "model": model,
+                    "reason": "cancelled while counting",
+                    "telemetry": {"mode": "exact_counting", "run_status": "cancelled"}}
+        except ModelUnavailable as exc:
+            return _interrupted(model, 0, (
+                f"{exc}. The counting recorded so far is kept; resume the job once the llama.cpp "
+                f"supervisor serves {model} again."))
+        except OSError as exc:
+            return _interrupted(model, 0, (
+                f"the LONG run could not write in {run_dir} ({exc}). Free disk space or make the "
+                "folder writable, then resume the job."))
 
     def run(self, job_id: str, text: str, *, cancel_requested: Callable[[], bool],
             progress_callback: Callable[[dict[str, Any]], None],
@@ -566,6 +600,20 @@ class LongWorkloadExecutor:
         # The answer budget plus the model's reasoning budget: a reasoning model spends the
         # latter before its answer starts, and chunks are sized with the whole reply reserved.
         output_tokens = min(self.config.max_output_tokens, context // 4) + entry.reasoning_tokens
+        exact_note = None
+        exact_path = run_dir / EXACT_STATE_FILE
+        if (self.exact_counting and material is not None and not resuming
+                and (exact_path.is_file() or is_countable_objective(objective))):
+            outcome = self._exact_route(run_dir, port, objective, material, output_tokens,
+                                        cancel_requested, progress_callback, entry.model)
+            if isinstance(outcome, dict):
+                return outcome
+            if outcome.answer is not None:
+                return {"status": "completed", "answer": outcome.answer, "model": entry.model,
+                        "reason": None,
+                        "telemetry": {"mode": "exact_counting", "context": context,
+                                      "run_status": "completed", **outcome.telemetry}}
+            exact_note = outcome.note
         if material is not None:
             mode: Any = InputShardMode(
                 objective=objective, max_output_tokens=output_tokens,
@@ -634,6 +682,10 @@ class LongWorkloadExecutor:
             # A live reduce summed correctly but ignored the requested per-part breakdown.
             # Attach the checkpoint summaries (already <= 400 characters), not the full outputs.
             final = _per_part_appendix(final, state)
+        if final and exact_note and status == "completed":
+            final = final.rstrip() + (
+                f"\n\nNote: exact counting was not used ({exact_note}). This answer comes from "
+                "map/reduce, so any counts in it are the model's estimate, not computed.")
         if final and gaps and status == "completed":
             # Live: the reduce was told "map-0004: FAILED - name it as a gap" and still answered
             # as if it had seen the whole input. The disclosure must not depend on the model.

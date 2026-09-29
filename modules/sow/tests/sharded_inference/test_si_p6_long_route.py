@@ -216,7 +216,7 @@ class FakeLlama:
 
 def _executor(root, client):
     return LW.LongWorkloadExecutor(root=root, evidence_dir=root / "ev", client=client,
-                                   config=LW.load_config(root))
+                                   config=LW.load_config(root), exact_counting=False)
 
 
 def test_si_p6_long_requires_the_llama_cpp_backend(clean_env, tmp_path):

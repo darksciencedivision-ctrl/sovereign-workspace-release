@@ -97,7 +97,7 @@ class FlakyLlama(FakeLlama):
 def _executor(root, client, clock):
     return LW.LongWorkloadExecutor(root=root, evidence_dir=root / "ev", client=client,
                                    config=LW.load_config(root), sleep=clock.sleep,
-                                   monotonic=clock.monotonic)
+                                   monotonic=clock.monotonic, exact_counting=False)
 
 
 def _events(root, job_id, name):
@@ -360,7 +360,7 @@ def test_h10_a_cancel_while_sizing_a_large_input_ends_the_job_promptly(clean_env
     client.count_text_tokens = count
     service = _service(root, store, client)
     big = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(400))
-    job_id = _long_job(store, f"Count entries.\n---\n{big}")
+    job_id = _long_job(store, f"Describe the entries.\n---\n{big}")  # not a counting objective
     service._run_job(job_id)
     job = store.get_job(job_id)
     assert job["status"] == "cancelled", job["error"]
