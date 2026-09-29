@@ -1,11 +1,11 @@
 import type { RouteOverride } from "../types/chat";
 
 export const LONG_SWAP_WARNING =
-  "A LONG run is active; QUICK/DEEP will make the model server swap models (about 50 s) and pause the LONG run.";
+  "A LONG run is active and keeps the model to itself: QUICK, CONTINUITY, DEEP and RESEARCH questions wait in the queue and will run after the LONG job finishes. STATUS answers at once.";
 
 /**
  * Warn when the selected route is neither LONG nor STATUS while a LONG job is active.
- * Those routes make the model server swap models and pause the LONG run.
+ * Those routes queue behind the LONG job (it runs uninterrupted) and start when it ends.
  */
 export function longSwapWarning(
   route: RouteOverride | string,

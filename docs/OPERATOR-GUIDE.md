@@ -102,8 +102,9 @@ after idle includes loading the model (about 20-55 s).
      plain name.
 4. Write the objective and send. The run panel shows "n of N chunks done", every chunk, and the
    small ledger carried between chunks.
-5. While LONG runs, avoid QUICK/DEEP: they make the model server swap models and pause the LONG
-   run (the composer warns you).
+5. While LONG runs, it has the model to itself: a QUICK, CONTINUITY, DEEP or RESEARCH question
+   you send waits in the queue ("waiting for LONG job ...") and runs after the LONG job ends;
+   STATUS answers at once. An **Interrupted** LONG job does not hold the queue.
 
 A run survives a product restart: it resumes from its checkpoints by itself. If it ends
 **Interrupted** (the model server was away for more than 5 minutes, or the disk was full),

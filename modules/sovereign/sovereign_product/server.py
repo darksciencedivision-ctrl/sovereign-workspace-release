@@ -88,6 +88,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
 LONG_WORKER_NAME = "sovereign-long-worker"
+# How often a model job waiting behind a LONG job looks again (D5).
+LONG_WAIT_POLL_SECONDS = 1.0
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
@@ -552,6 +554,7 @@ class ProductService:
         self._closed = threading.Event()
         self._queue_lock = threading.RLock()
         self._enqueued: set[str] = set()
+        self.long_wait_poll_seconds = LONG_WAIT_POLL_SECONDS
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
         self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after a bounded drain
@@ -1018,9 +1021,41 @@ class ProductService:
             with self._queue_lock:
                 self._enqueued.discard(job_id)
             try:
-                self._run_job(job_id)
+                if source is not None or self._wait_out_long_job(job_id):
+                    self._run_job(job_id)
             finally:
                 jobs.task_done()
+
+    def _wait_out_long_job(self, job_id: str) -> bool:
+        """D5: hold a model job while a LONG job is queued or running; True when it may run.
+
+        A LONG run is one the operator chose to focus on: a QUICK/CONTINUITY/DEEP/RESEARCH job
+        would make the model server swap the LONG model out. The job stays ``queued``, its
+        stage names the LONG job it waits for, and it runs once none is left (the queue order
+        is kept: each worker holds the job it took). A cancelled job stops waiting, and so does
+        shutdown. An ``interrupted`` LONG job does not block: it needs the operator's resume, and
+        blocking on it would hold every other route indefinitely; resuming re-queues it and the
+        hold applies again.
+        """
+        announced: str | None = None
+        while not self._closed.is_set():
+            blocker = self.long_active_job()
+            if blocker is None:
+                return True
+            try:
+                job = self.store.get_job(job_id)
+                if job["status"] != "queued" or job["cancel_requested"]:
+                    return True  # _run_job ends a cancelled or already-run job by itself
+                if announced != blocker:
+                    self.store.update_job_progress(
+                        job_id,
+                        {"percent": 0, "stage": f"waiting for LONG job {blocker}"},
+                    )
+                    announced = blocker
+            except (InvalidTransition, NotFound):
+                return True
+            self._closed.wait(self.long_wait_poll_seconds)
+        return False
 
     def _restart_decision(
         self, job: Mapping[str, Any]
@@ -1553,7 +1588,8 @@ class ProductService:
     def long_active_job(self) -> str | None:
         """Job id of a queued or running LONG job, else None.
 
-        QUICK/DEEP while this is set makes the model server swap models and pauses the LONG run.
+        Model jobs on the other routes wait while this is set (D5), so the model server does not
+        swap the LONG model out.
         Newest first (``list_jobs`` orders by created_at DESC).
         """
         jobs = self.store.list_jobs(status=("queued", "running"), limit=100)
