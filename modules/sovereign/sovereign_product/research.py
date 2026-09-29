@@ -88,6 +88,16 @@ class ResearchPhase(str, Enum):
     FINAL_SYNTHESIS = "final_synthesis"
 
 
+_PHASE_LABELS = {
+    ResearchPhase.HYPOTHESIS.value: "forming a hypothesis",
+    ResearchPhase.EVIDENCE_PLAN.value: "checking the local evidence",
+    ResearchPhase.ADVERSARIAL_CHALLENGE.value: "challenging the hypothesis",
+    ResearchPhase.DECISION.value: "deciding: reject, revise or retain",
+    ResearchPhase.ITERATION_CHECKPOINT.value: "closing the iteration",
+    ResearchPhase.FINAL_SYNTHESIS.value: "writing the final synthesis",
+}
+
+
 class ResearchStatus(str, Enum):
     RUNNING = "running"
     INTERRUPTED = "interrupted"
@@ -890,8 +900,39 @@ class ResearchExecutor:
                 "status": state["status"],
                 "phase": state.get("next_phase"),
                 "completed_iterations": state["completed_iterations"],
+                **self._progress_fields(state),
             },
         )
+
+    def _progress_fields(self, state: Mapping[str, Any]) -> dict[str, Any]:
+        """The stage, detail and percent a job shows for this checkpoint.
+
+        Every model call is a checkpoint pair (phase started, phase completed), so the job
+        advances at each one. The percent counts finished model calls against the frozen
+        minimum (four phases per iteration plus the final synthesis); a run that goes past
+        its minimum creeps toward 99 and only completion reads 100. It only grows.
+        """
+        status = str(state["status"])
+        calls = int(state["resources"]["model_calls"])
+        if status == ResearchStatus.COMPLETED.value:
+            return {
+                "percent": 100,
+                "stage": "completed",
+                "detail": f"research completed after {calls} model calls",
+            }
+        limits = ResearchLimits.from_dict(state["limits"])
+        expected = max(limits.minimum_iterations * 4 + 1, calls + 1)
+        phase = state.get("next_phase")
+        label = _PHASE_LABELS.get(str(phase), status)
+        iteration = int(state["completed_iterations"]) + 1
+        return {
+            "percent": round(min(99.0, 1 + 98 * calls / expected), 2),
+            "stage": str(phase or status),
+            "detail": (
+                f"iteration {iteration} of at least {limits.minimum_iterations}: "
+                f"{label}; {calls} model calls done"
+            ),
+        }
 
     def _load_state(self, research_id: str) -> dict[str, Any]:
         files = self._checkpoint_files(research_id)
