@@ -1,0 +1,98 @@
+{
+  "base_url": "http://127.0.0.1:5299",
+  "corrections": [
+    "cold flags corrected from llama-server.log (router): the harness read /v1/self-state, whose loaded_models omitted the router's aliases (fixed in introspection with this publication), so every run was recorded cold=True. The log shows exactly two model loads: qwen3.8:27b at the first job (48 s load) and qwen3:30b-a3b at the first MoE job (55 s load, a swap)."
+  ],
+  "finished_utc": "2026-09-25T17:15:45.569Z",
+  "hardware": {
+    "gpu": {
+      "memory_total_mib": 8151,
+      "name": "NVIDIA GeForce RTX 5060 Ti"
+    },
+    "machine": "AMD64",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 191 Stepping 2, GenuineIntel"
+  },
+  "kind": "long",
+  "profile": "llamacpp-long-moe-30b-a3b",
+  "repetitions": 1,
+  "resources": {
+    "baseline": {
+      "ram_used_mib": 35776,
+      "vram_mib": 7076
+    },
+    "note": "system-wide peaks sampled once a second during the run",
+    "peak_system_ram_used_mib": 35776,
+    "peak_vram_mib": 7088,
+    "ram_total_mib": 65230
+  },
+  "results_file": "llamacpp-long-moe-30b-a3b.results.json",
+  "runs": [
+    {
+      "chunks_per_hour": 39.59530300718095,
+      "cold": true,
+      "cold_recorded": true,
+      "cold_source": "llama-server.log model loads",
+      "http_status": 202,
+      "input_chars": 159,
+      "input_tokens": 0,
+      "job_elapsed_seconds": 724.317728,
+      "job_id": "job_49f799e02650477aaa7d8ae005b3d9fc",
+      "latency_seconds": 727.3589999999967,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_plan",
+      "shards": 8,
+      "shards_done": 8,
+      "status": "completed",
+      "submitted_utc": "2026-09-25T16:02:08.079Z"
+    },
+    {
+      "chunks_per_hour": 9.63009082379407,
+      "cold": false,
+      "cold_recorded": true,
+      "cold_source": "llama-server.log model loads",
+      "http_status": 202,
+      "input_chars": 178,
+      "input_tokens": 32768,
+      "job_elapsed_seconds": 1491.100541,
+      "job_id": "job_2e950d94fc294a548e1353b0b2ce67a6",
+      "latency_seconds": 1495.313000000002,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_input",
+      "shards": 4,
+      "shards_done": 4,
+      "status": "completed",
+      "submitted_utc": "2026-09-25T16:14:16.766Z"
+    },
+    {
+      "chunks_per_hour": 9.853102107788402,
+      "cold": false,
+      "cold_recorded": true,
+      "cold_source": "llama-server.log model loads",
+      "http_status": 202,
+      "input_chars": 178,
+      "input_tokens": 65536,
+      "job_elapsed_seconds": 2187.224899,
+      "job_id": "job_70abf2826dbf4cf1aff9e7af37ad4b56",
+      "latency_seconds": 2192.202999999994,
+      "model": "qwen3:30b-a3b",
+      "route": "LONG",
+      "scenario": "long_input",
+      "shards": 6,
+      "shards_done": 6,
+      "status": "completed",
+      "submitted_utc": "2026-09-25T16:39:13.401Z"
+    }
+  ],
+  "runtime": {
+    "backend": "llama.cpp",
+    "long_route_ready": true,
+    "primary_model": "qwen3:30b-a3b",
+    "product_version": "3.1.2",
+    "worker_count": 1
+  },
+  "schema": "sovereign.qualification-results.v1",
+  "started_utc": "2026-09-25T16:02:06.673Z"
+}

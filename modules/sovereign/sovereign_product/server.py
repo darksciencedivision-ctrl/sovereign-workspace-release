@@ -71,7 +71,7 @@ from .quality import (
     quick_escalation_policy,
     validate_quick_response,
 )
-from .router import Route, RoutingDecision, route_query
+from .router import Route, RoutingDecision, job_input, route_query
 from .semantic_deep import SemanticDeepExecutor
 from .shutdown_watcher import install_shutdown_watcher
 from .state_migration import ensure_state_home
@@ -87,6 +87,7 @@ from system_manifest import (
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
+LONG_WORKER_NAME = "sovereign-long-worker"
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
@@ -544,6 +545,9 @@ class ProductService:
         self.deep_timeout = None if deep_timeout is None else float(deep_timeout)
         self.ui_dist = self.root / "ui" / "ui_shell" / "dist"
         self._queue: queue.Queue[str | None] = queue.Queue()
+        # Sharded inference: LONG jobs run for hours on a big model, so they get their own lane
+        # (one worker) instead of blocking QUICK/DEEP behind them on the normal workers.
+        self._long_queue: queue.Queue[str | None] = queue.Queue()
         self._workers: list[threading.Thread] = []
         self._closed = threading.Event()
         self._queue_lock = threading.RLock()
@@ -573,7 +577,9 @@ class ProductService:
             BACKEND_FREETOKEN,
             BACKEND_OLLAMA,
             DEFAULT_LLAMA_CPP_BASE_URL,
+            KEY_SOURCE_SUPERVISOR_FILE,
             load_default_llama_cpp_api_key,
+            resolve_llama_cpp_api_key,
         )
 
         # Precedence: explicit SOVEREIGN_INFERENCE_BACKEND env choice, then the
@@ -615,16 +621,16 @@ class ProductService:
             str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or "").strip()
             or DEFAULT_LLAMA_CPP_BASE_URL
         )
-        llama_key = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
+        # The state home's supervisor key wins for the URL that supervisor serves; a
+        # disagreeing SOVEREIGN_LLAMA_CPP_API_KEY is stale (resolve_llama_cpp_api_key).
+        llama_key, key_source = resolve_llama_cpp_api_key(self.paths.state_dir, llama_url)
         if not llama_key:
-            key_file = self.paths.state_dir / "llamacpp_supervisor" / "api_key"
-            if key_file.is_file():
-                llama_key = key_file.read_text(encoding="utf-8").strip()
-        if not llama_key:
-            llama_key = load_default_llama_cpp_api_key() or ""
+            llama_key = load_default_llama_cpp_api_key(llama_url)
+            key_source = KEY_SOURCE_SUPERVISOR_FILE if llama_key else key_source
         return LlamaCppClient(
             llama_url,
             api_key=llama_key or None,
+            api_key_source=key_source,
             connect_timeout=OLLAMA_CONNECT_TIMEOUT_SECONDS,
             read_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
             overall_timeout=OLLAMA_GENERATION_TIMEOUT_SECONDS,
@@ -837,6 +843,58 @@ class ProductService:
         self.research_unavailable_reason = None
         return executor
 
+    def workers_ready(self) -> bool:
+        """The configured job workers AND the LONG lane worker are running.
+
+        `_workers` holds both kinds (close() drains them together); readiness compares only the
+        normal workers against `worker_count` and requires the long lane separately.
+        """
+        normal = [t for t in self._workers if t.name != LONG_WORKER_NAME]
+        long_lane = [t for t in self._workers if t.name == LONG_WORKER_NAME]
+        return (
+            len(normal) == self.worker_count
+            and all(thread.is_alive() for thread in normal)
+            and len(long_lane) == 1
+            and long_lane[0].is_alive()
+        )
+
+    def long_models(self) -> dict[str, Any]:
+        """The models the LONG route may run (long_workload.json), for the operator's picker."""
+        from .long_workload import LongWorkloadError, load_config
+
+        try:
+            config = load_config(self.root)
+        except LongWorkloadError as exc:
+            return {"default_model": None, "models": [], "error": str(exc)}
+        return {"default_model": config.default_model,
+                "models": [{"model": m.model, "context": m.context, "thinking": m.thinking}
+                           for m in config.models]}
+
+    def long_run(self, job_id: str) -> dict[str, Any]:
+        """A LONG job's chunks and carried ledger, read from its checkpoints (read-only)."""
+        from .long_workload import describe_run
+        from .shard_runner import ShardRunError
+
+        job = self.store.get_job(job_id)  # NotFound -> 404
+        if str(job["route"]).upper() != Route.LONG.value:
+            raise ValueError(f"job {job_id} is a {job['route']} job, not LONG")
+        try:
+            view = describe_run(self.paths.evidence_dir, str(job["job_id"]))
+        except ShardRunError as exc:
+            raise ValueError(f"the run's checkpoints cannot be read: {exc}") from exc
+        view["job_status"] = str(job["status"])
+        return view
+
+    def long_route_ready(self) -> bool:
+        """Whether the LONG route can run here: llama.cpp backend + a valid long_workload.json."""
+        from .long_workload import LongWorkloadError
+
+        try:
+            self._long_executor()
+        except (LongWorkloadError, ServiceConfigurationError):
+            return False
+        return True
+
     def qualification(self) -> dict[str, Any]:
         """SW-27: the qualification verdict for the configuration this service is running.
 
@@ -885,6 +943,14 @@ class ProductService:
             )
             thread.start()
             self._workers.append(thread)
+        long_worker = threading.Thread(
+            target=self._worker_loop,
+            args=(self._long_queue,),
+            name=LONG_WORKER_NAME,
+            daemon=True,
+        )
+        long_worker.start()
+        self._workers.append(long_worker)
 
     def close(self) -> dict[str, Any]:
         """CR-026: shut down without silently forgetting workers that outlive the bounded drain.
@@ -903,6 +969,9 @@ class ProductService:
             event.set()
         for _thread in self._workers:
             self._queue.put(None)
+        long_queue = getattr(self, "_long_queue", None)
+        if long_queue is not None:
+            long_queue.put(None)
         deadline = time.monotonic() + 2.0
         for thread in self._workers:
             remaining = deadline - time.monotonic()
@@ -915,24 +984,40 @@ class ProductService:
         return {"clean": not survivors, "survivors": [t.name for t in survivors]}
 
     def _enqueue(self, job_id: str) -> None:
+        try:
+            is_long = str(self.store.get_job(job_id)["route"]).upper() == Route.LONG.value
+        except Exception:
+            is_long = False
         with self._queue_lock:
             if job_id in self._enqueued:
                 return
             self._enqueued.add(job_id)
-            self._queue.put(job_id)
+            (self._long_queue if is_long else self._queue).put(job_id)
 
-    def _worker_loop(self) -> None:
+    def _worker_loop(self, source: "queue.Queue[str | None] | None" = None) -> None:
+        jobs = self._queue if source is None else source
         while not self._closed.is_set():
-            job_id = self._queue.get()
+            job_id = jobs.get()
             if job_id is None:
-                self._queue.task_done()
+                jobs.task_done()
                 return
             with self._queue_lock:
                 self._enqueued.discard(job_id)
             try:
                 self._run_job(job_id)
             finally:
-                self._queue.task_done()
+                jobs.task_done()
+
+    def _long_executor(self) -> Any:
+        """The LONG route's executor (sharded inference); raises when it cannot run here."""
+        from .long_workload import LongWorkloadExecutor, load_config
+
+        return LongWorkloadExecutor(
+            root=self.root,
+            evidence_dir=self.paths.evidence_dir,
+            client=self.model_client,
+            config=load_config(self.root),
+        )
 
     def _cancel_callback(
         self, job_id: str, event: threading.Event
@@ -1149,6 +1234,22 @@ class ProductService:
                 timeout_seconds=self.deep_timeout,
                 route=route.value,
                 job_id=str(job["job_id"]),
+            )
+            return result, executor
+        if route is Route.LONG:
+            from .long_workload import LongWorkloadError
+
+            try:
+                executor = self._long_executor()
+            except LongWorkloadError as exc:
+                raise ServiceConfigurationError(str(exc)) from exc
+            with self._queue_lock:
+                self._active_executor[str(job["job_id"])] = executor
+            result = executor.run(
+                str(job["job_id"]),
+                text,
+                cancel_requested=cancel_requested,
+                progress_callback=progress_callback,
             )
             return result, executor
         if route is Route.RESEARCH:
@@ -1427,6 +1528,18 @@ class ProductService:
         )
         return jobs[0] if jobs else None
 
+    def long_active_job(self) -> str | None:
+        """Job id of a queued or running LONG job, else None.
+
+        QUICK/DEEP while this is set makes the model server swap models and pauses the LONG run.
+        Newest first (``list_jobs`` orders by created_at DESC).
+        """
+        jobs = self.store.list_jobs(status=("queued", "running"), limit=100)
+        for job in jobs:
+            if str(job.get("route") or "").upper() == Route.LONG.value:
+                return str(job["job_id"])
+        return None
+
     def submit(
         self,
         session_id: str,
@@ -1475,7 +1588,7 @@ class ProductService:
         job = self.store.create_job(
             session_id,
             decision.route.value,
-            decision.normalized_query or text.strip(),
+            job_input(text, decision),
             input_message_id=user_message["message_id"],
             metadata={"routing": decision.as_dict()},
         )
@@ -2091,10 +2204,7 @@ def create_app(
             detail.append("system manifest missing")
         if not deep_ok:
             detail.append("configured DEEP executor is not callable")
-        worker_ok = (
-            len(owned_service._workers) == owned_service.worker_count
-            and all(thread.is_alive() for thread in owned_service._workers)
-        )
+        worker_ok = owned_service.workers_ready()
         if not worker_ok:
             detail.append("durable job workers are not ready")
         try:
@@ -2156,6 +2266,10 @@ def create_app(
             )
         )
         status = "ok" if ready else "degraded"
+        try:
+            long_active_job = owned_service.long_active_job()
+        except Exception:
+            long_active_job = None
         return jsonify(
             {
                 "ok": ready,
@@ -2166,7 +2280,9 @@ def create_app(
                 "loopback_only": True,
                 "same_origin": True,
                 "durable_store": store_ok,
-                "worker_count": len(owned_service._workers),
+                "worker_count": len(
+                    [t for t in owned_service._workers if t.name != LONG_WORKER_NAME]
+                ),
                 "workers_ready": worker_ok,
                 "model_service_reachable": model_service_ok,
                 "configured_models_ready": models_ok,
@@ -2186,7 +2302,10 @@ def create_app(
                     "CONTINUITY": models_ok,
                     "DEEP": deep_ok and models_ok,
                     "RESEARCH": research_ok and models_ok,
+                    "LONG": owned_service.long_route_ready(),
                 },
+                "long_route": owned_service.long_models(),
+                "long_active_job": long_active_job,
                 "detail": "; ".join(detail) if detail else "ready",
             }
         )
@@ -2338,6 +2457,10 @@ def create_app(
         return jsonify(
             owned_service.public_job(owned_service.store.get_job(job_id))
         )
+
+    @app.get("/v1/jobs/<job_id>/ledger")
+    def get_long_ledger(job_id: str) -> Response:
+        return jsonify(owned_service.long_run(job_id))
 
     @app.post("/v1/jobs/<job_id>/cancel")
     def cancel_job(job_id: str) -> Response:

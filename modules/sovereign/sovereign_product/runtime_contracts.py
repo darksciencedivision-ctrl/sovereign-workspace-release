@@ -48,6 +48,75 @@ class RuntimeControlError(ModelClientError):
     """Lifecycle or supervisor failure for a local inference runtime."""
 
 
+class InferenceAuthError(ModelClientError):
+    """The local inference runtime refused the API key (HTTP 401/403).
+
+    Never degraded into a fallback: a wrong key fails every call, so callers that
+    tolerate other probe failures must re-raise this one.
+    """
+
+
+LLAMA_CPP_KEY_ENV = "SOVEREIGN_LLAMA_CPP_API_KEY"
+KEY_SOURCE_SUPERVISOR_FILE = "supervisor key file"
+KEY_SOURCE_ENV = LLAMA_CPP_KEY_ENV
+KEY_SOURCE_NONE = "none"
+
+
+def _same_origin(left: str | None, right: str | None) -> bool:
+    if not left or not right:
+        return False
+    try:
+        return validate_loopback_origin(left) == validate_loopback_origin(right)
+    except (ValueError, ModelClientError):
+        return str(left).strip().rstrip("/").lower() == str(right).strip().rstrip("/").lower()
+
+
+def resolve_llama_cpp_api_key(
+    runtime_dir: Any | None,
+    base_url: str | None,
+    *,
+    env: Mapping[str, str] | None = None,
+) -> tuple[str | None, str]:
+    """The llama.cpp API key for ``base_url`` and where it came from: ``(key, source)``.
+
+    The supervisor in this state home (``<runtime>/llamacpp_supervisor``) was started with
+    its ``api_key`` file, so that file is AUTHORITATIVE for the URL that supervisor serves
+    (``consumer.env``; a key file without one is taken as serving the configured URL). The
+    ``SOVEREIGN_LLAMA_CPP_API_KEY`` variable only carries that same value to consumers, so
+    when it disagrees it is stale - e.g. persisted at user level from another state home -
+    and must not win. The variable is used for a URL the supervisor does not serve (an
+    externally managed server), and as the fallback when this state home has no key file.
+    """
+    import os
+    from pathlib import Path
+
+    environment = os.environ if env is None else env
+    env_key = str(environment.get(LLAMA_CPP_KEY_ENV) or "").strip() or None
+    file_key: str | None = None
+    served_url: str | None = None
+    if runtime_dir is not None:
+        supervisor_dir = Path(runtime_dir) / "llamacpp_supervisor"
+        try:
+            file_key = (supervisor_dir / "api_key").read_text(encoding="utf-8").strip() or None
+        except OSError:
+            file_key = None
+        try:
+            for line in (supervisor_dir / "consumer.env").read_text(encoding="utf-8").splitlines():
+                name, sep, value = line.partition("=")
+                if sep and name.strip() == "SOVEREIGN_LLAMA_CPP_BASE_URL":
+                    served_url = value.strip() or None
+        except OSError:
+            served_url = None
+    target = str(base_url or "").strip() or DEFAULT_LLAMA_CPP_BASE_URL
+    if file_key and (served_url is None or _same_origin(served_url, target)):
+        return file_key, KEY_SOURCE_SUPERVISOR_FILE
+    if env_key:
+        return env_key, KEY_SOURCE_ENV
+    if file_key:
+        return file_key, KEY_SOURCE_SUPERVISOR_FILE
+    return None, KEY_SOURCE_NONE
+
+
 @dataclass(frozen=True)
 class ChatResponse:
     text: str
@@ -172,26 +241,24 @@ def normalize_inference_backend(value: str | None) -> str:
     raise ValueError(f"unsupported inference backend: {value!r}")
 
 
-def load_default_llama_cpp_api_key() -> str | None:
+def load_default_llama_cpp_api_key(base_url: str | None = None) -> str | None:
     import os
-    from pathlib import Path
 
-    env = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
-    if env:
-        return env
+    target = (
+        base_url
+        or str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or "").strip()
+        or DEFAULT_LLAMA_CPP_BASE_URL
+    )
+    runtime_dir = None
     try:
         from system_manifest import find_sovereign_root
 
-        root = find_sovereign_root(None)
-    except Exception:
-        return None
-    from .paths import resolve_runtime_dir
+        from .paths import resolve_runtime_dir
 
-    path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "api_key"
-    if not path.is_file():
-        return None
-    value = path.read_text(encoding="utf-8").strip()
-    return value or None
+        runtime_dir = resolve_runtime_dir(find_sovereign_root(None))
+    except Exception:
+        runtime_dir = None
+    return resolve_llama_cpp_api_key(runtime_dir, target)[0]
 
 
 def resolve_selected_backend(backend: str | None = None) -> str:
@@ -252,5 +319,5 @@ def create_generation_client(
                 or DEFAULT_LLAMA_CPP_BASE_URL
             )
             if "api_key" not in kwargs:
-                kwargs["api_key"] = load_default_llama_cpp_api_key()
+                kwargs["api_key"] = load_default_llama_cpp_api_key(kwargs["base_url"])
     return LlamaCppClient(**kwargs)

@@ -73,7 +73,9 @@ def write_receipt(receipt: dict, directory: str) -> str:
     """Atomically write the receipt and prune old ones. Returns the receipt path."""
     os.makedirs(directory, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    path = os.path.join(directory, f"{RECEIPT_PREFIX}{stamp}.json")
+    # The random suffix keeps two receipts written within the clock's resolution (Windows: can be
+    # milliseconds) from colliding and silently replacing each other; the timestamp still sorts.
+    path = os.path.join(directory, f"{RECEIPT_PREFIX}{stamp}-{uuid.uuid4().hex[:8]}.json")
     temporary = f"{path}.{uuid.uuid4().hex}.tmp"
     with open(temporary, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(receipt, indent=2, sort_keys=True) + "\n")

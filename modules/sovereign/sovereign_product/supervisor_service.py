@@ -271,6 +271,20 @@ def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervis
         hashes={"llama-server.exe": EXE_HASH, "llama-server-impl.dll": IMPL_HASH},
     )
     registry = build_operational_registry(runtime=runtime)
+    # Sharded inference: LONG-route models get their planned GPU/RAM split (memory_planner)
+    # instead of the CPU-only default profile. A model that cannot be planned keeps its old
+    # profile; the report is written beside the preset so the operator can see why.
+    try:
+        from .long_workload import apply_hybrid_plans, load_config
+        from .memory_planner import detect_free_vram_bytes
+
+        report = apply_hybrid_plans(registry, load_config(root),
+                                    vram_bytes=detect_free_vram_bytes())
+        service_dir(root).mkdir(parents=True, exist_ok=True)
+        (service_dir(root) / "hybrid_plans.json").write_text(
+            json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    except Exception as exc:  # planning must never stop the supervisor from starting
+        print(json.dumps({"hybrid_plans_error": str(exc)}), file=sys.stderr)
     return LlamaCppSupervisor(
         SupervisorConfig(
             executable=str(DEFAULT_EXE),

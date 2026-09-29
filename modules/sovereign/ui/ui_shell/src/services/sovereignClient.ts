@@ -11,6 +11,7 @@ import type { SovereignTransport } from "./transport";
 export type BackendMode = "live";
 export type {
   JobResult,
+  LongRunResult,
   ModelAssignmentResult,
   OkResult,
   SessionResult,
@@ -34,6 +35,7 @@ export const sovereignClient: SovereignTransport & {
     transport.sendMessage(input, sessionId, routeOverride),
   getJob: (jobId) => transport.getJob(jobId),
   cancelJob: (jobId) => transport.cancelJob(jobId),
+  getLongRun: (jobId) => transport.getLongRun(jobId),
   createSession: () => transport.createSession(),
   getChatHistory: () => transport.getChatHistory(),
   loadSession: (sessionId) => transport.loadSession(sessionId),

@@ -141,9 +141,26 @@ class ServingProfile:
     pooling: str | None = None
     stop: tuple[str, ...] = ()
     capability: str = CAPABILITY_UNKNOWN
+    # Sharded inference P2: GPU/RAM split controls from memory_planner (None = llama.cpp default).
+    flash_attn: str | None = None
+    cache_type: str | None = None
+    cache_ram_mib: int | None = None
+    n_cpu_moe: int | None = None
+    fit: str | None = None
 
     def __post_init__(self) -> None:
         _non_empty(self.profile_id, "profile.profile_id")
+        if self.flash_attn not in (None, "on", "off", "auto"):
+            raise RegistryError("profile.flash_attn is invalid")
+        if self.cache_type not in (None, "f16", "q8_0", "q4_0"):
+            raise RegistryError("profile.cache_type is invalid")
+        if self.fit not in (None, "on", "off"):
+            raise RegistryError("profile.fit is invalid")
+        for name in ("cache_ram_mib", "n_cpu_moe"):
+            value = getattr(self, name)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int)
+                                      or value < 0):
+                raise RegistryError(f"profile.{name} must be a non-negative integer")
         _non_empty(self.model_id, "profile.model_id")
         _non_empty(self.engine_id, "profile.engine_id")
         _non_empty(self.model_path, "profile.model_path")
@@ -630,6 +647,34 @@ def add_consumer_model(registry: RuntimeRegistry, model_id: str) -> None:
             thinking_policy="off",
             capability="declared",
         )
+    )
+
+
+def hybrid_profile(model_id: str, plan: Any, *, thinking_policy: str = "off") -> ServingProfile:
+    """A serving profile that realizes a memory_planner ServingPlan (sharded inference P2).
+
+    The plan's split (GPU layers, experts kept in RAM, KV cache type, prompt cache) becomes the
+    profile the supervisor renders into the llama.cpp router preset; ``capability`` stays
+    ``declared`` until the SW-27 harness qualifies it.
+    """
+    profile_id = model_id.replace(":", "-").replace(".", "_") + f"-hybrid-{plan.context // 1024}k"
+    return ServingProfile(
+        profile_id=profile_id,
+        model_id=model_id,
+        engine_id=profile_id,
+        model_path=str(plan.model_path),
+        embeddings=False,
+        context_configured=int(plan.context),
+        context_tested=None,
+        n_gpu_layers=int(plan.n_gpu_layers),
+        parallel=1,
+        thinking_policy=thinking_policy,
+        capability="declared",
+        flash_attn=plan.flash_attn,
+        cache_type=plan.cache_type,
+        cache_ram_mib=int(plan.cache_ram_mib),
+        n_cpu_moe=plan.n_cpu_moe,
+        fit=plan.fit,
     )
 
 

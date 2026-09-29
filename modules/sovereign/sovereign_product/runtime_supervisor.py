@@ -84,6 +84,18 @@ class LlamaCppSupervisor:
                 lines.append(f"batch-size = {profile.batch_size}")
             if profile.ubatch_size is not None:
                 lines.append(f"ubatch-size = {profile.ubatch_size}")
+            # Sharded inference P2: the planned GPU/RAM split (see memory_planner).
+            if profile.flash_attn is not None:
+                lines.append(f"flash-attn = {profile.flash_attn}")
+            if profile.cache_type is not None:
+                lines.append(f"cache-type-k = {profile.cache_type}")
+                lines.append(f"cache-type-v = {profile.cache_type}")
+            if profile.cache_ram_mib is not None:
+                lines.append(f"cache-ram = {profile.cache_ram_mib}")
+            if profile.n_cpu_moe is not None:
+                lines.append(f"n-cpu-moe = {profile.n_cpu_moe}")
+            if profile.fit is not None:
+                lines.append(f"fit = {profile.fit}")
             if profile.engine_id != profile.model_id:
                 lines.append(f"alias = {profile.model_id}")
             lines.append("")

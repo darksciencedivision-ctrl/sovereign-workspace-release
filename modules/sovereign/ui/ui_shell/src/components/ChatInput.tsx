@@ -1,18 +1,20 @@
 import { useState, type KeyboardEvent } from "react";
 
 interface Props {
-  onSend: (text: string) => void;
+  /** Return false to keep the text (e.g. a LONG request the composer refused). */
+  onSend: (text: string) => boolean | void;
   disabled?: boolean;
   autoFocus?: boolean;
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled, autoFocus }: Props) {
+export function ChatInput({ onSend, disabled, autoFocus, placeholder }: Props) {
   const [value, setValue] = useState("");
 
   const submit = () => {
     const text = value.trim();
     if (!text || disabled) return;
-    onSend(text);
+    if (onSend(text) === false) return;
     setValue("");
   };
 
@@ -29,7 +31,7 @@ export function ChatInput({ onSend, disabled, autoFocus }: Props) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Ask Sovereign..."
+        placeholder={placeholder ?? "Ask Sovereign..."}
         rows={1}
         autoFocus={autoFocus}
         aria-label="Message input"

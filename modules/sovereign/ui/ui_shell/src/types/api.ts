@@ -12,6 +12,7 @@ import type {
   JobStatus,
   RouteOverride,
 } from "./chat";
+import type { LongRouteInfo } from "./long";
 import type { ModelInfo, ModelProfile } from "./model";
 import type { Settings } from "./settings";
 
@@ -49,6 +50,14 @@ export interface ApiHealthResponse {
   orchestration_mode?: string;
   mode?: string;
   detail?: string;
+  routes?: Record<string, boolean>;
+  long_route?: {
+    default_model?: string | null;
+    models?: { model?: unknown; context?: unknown; thinking?: unknown }[];
+    error?: string;
+  };
+  /** Job id of a queued or running LONG job, or null when none is active. */
+  long_active_job?: string | null;
 }
 
 export type ApiModelsResponse =
@@ -73,4 +82,7 @@ export interface EngineHealth {
   engineVersion?: string;
   orchestrationMode?: string;
   detail?: string;
+  longRoute?: LongRouteInfo;
+  /** Set when a LONG job is queued or running. Null or absent means none. */
+  longActiveJob?: string | null;
 }

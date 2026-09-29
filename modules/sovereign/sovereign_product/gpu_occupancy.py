@@ -199,15 +199,10 @@ def _session() -> requests.Session:
 
 
 def llama_cpp_api_key(root: Path) -> str | None:
-    env = str(os.environ.get("SOVEREIGN_LLAMA_CPP_API_KEY") or "").strip()
-    if env:
-        return env
-    path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "api_key"
-    if path.is_file():
-        value = path.read_text(encoding="utf-8").strip()
-        if value:
-            return value
-    return None
+    from .runtime_contracts import resolve_llama_cpp_api_key
+
+    base_url = str(os.environ.get("SOVEREIGN_LLAMA_CPP_BASE_URL") or DEFAULT_LLAMA_ORIGIN)
+    return resolve_llama_cpp_api_key(resolve_runtime_dir(root), base_url)[0]
 
 
 def _llama_origin(root: Path) -> str:

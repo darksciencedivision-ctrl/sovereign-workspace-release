@@ -23,6 +23,7 @@ from .model_client import (
 from .runtime_contracts import (
     CancelCallback,
     ChatResponse,
+    InferenceAuthError,
     InferenceProtocolError,
     validate_loopback_origin,
 )
@@ -41,6 +42,7 @@ class LlamaCppClient:
         overall_timeout: float = OLLAMA_GENERATION_TIMEOUT_SECONDS,
         session: requests.Session | None = None,
         monotonic: Callable[[], float] | None = None,
+        api_key_source: str | None = None,
     ) -> None:
         for name, value in (
             ("connect_timeout", connect_timeout),
@@ -51,6 +53,9 @@ class LlamaCppClient:
                 raise ValueError(f"{name} must be positive")
         self.base_url = validate_loopback_origin(base_url)
         self.api_key = api_key
+        # Where the key came from (runtime_contracts.resolve_llama_cpp_api_key), named in the
+        # refusal when the server rejects it; never the key itself.
+        self.api_key_source = api_key_source or ("caller" if api_key else "none")
         self.registry = registry
         self.connect_timeout = float(connect_timeout)
         self.read_timeout = float(read_timeout)
@@ -84,7 +89,7 @@ class LlamaCppClient:
             path.startswith("/v1/")
             or path.startswith("/models")
             or path.startswith("/props")
-            or path in {"/health", "/slots"}
+            or path in {"/health", "/slots", "/tokenize", "/apply-template"}
         )
         if not allowed or path.startswith("/api/"):
             raise ModelClientError(f"llama.cpp client refuses native Ollama path {path}")
@@ -109,8 +114,21 @@ class LlamaCppClient:
             raise GenerationTimeout("transport") from exc
         except requests.RequestException as exc:
             raise ModelClientError(f"llama.cpp request failed: {exc}") from exc
-        if 300 <= int(getattr(response, "status_code", 0)) < 400:
+        status = int(getattr(response, "status_code", 0))
+        if 300 <= status < 400:
             raise ModelClientError("llama.cpp redirects are not permitted")
+        if status in (401, 403):
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
+            sent = "an API key" if self.api_key else "no API key"
+            raise InferenceAuthError(
+                f"llama.cpp at {self.base_url} refused {sent} (HTTP {status}); key source: "
+                f"{self.api_key_source}. The key must be the one the llama.cpp supervisor "
+                "serving this URL was started with (its state home's llamacpp_supervisor/"
+                "api_key); a stale SOVEREIGN_LLAMA_CPP_API_KEY in the environment is the "
+                "usual cause."
+            )
         return response
 
     def native_context_length(self, model: str) -> int:
@@ -139,6 +157,7 @@ class LlamaCppClient:
                 f"native context capability is unknown for model {model!r}"
             )
         candidates: set[int] = set()
+        served: set[int] = set()
         for entry in rows:
             if not isinstance(entry, Mapping):
                 continue
@@ -149,12 +168,86 @@ class LlamaCppClient:
                 continue
             values = _extract_context_values(entry)
             candidates.update(values)
+            per_slot = _served_context(entry)
+            if per_slot is not None:
+                served.add(per_slot)
+        # Router mode: the preset's served per-slot context is the real limit, and the only one
+        # an unloaded model reports (n_ctx_train appears once loaded, and is the TRAINING size).
+        if served:
+            candidates = served
         if len(candidates) != 1:
             detail = "missing" if not candidates else "conflicting"
             raise ModelCapabilityError(
                 f"native context capability is {detail} for model {model!r}"
             )
         return candidates.pop()
+
+    def count_prompt_tokens(
+        self,
+        model: str,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        think: bool | None = None,
+    ) -> int | None:
+        """EXACT prompt tokens for ``messages`` as the server will run them, or None.
+
+        Renders the conversation through the model's own chat template (``/apply-template``)
+        and counts it with the model's own tokenizer (``/tokenize``) - the same bytes the
+        generation request will evaluate. Any failure returns None so the caller falls back
+        to the conservative one-token-per-byte bound: counting can only ever make capacity
+        MORE accurate, never optimistic on error. In router mode both endpoints need the
+        model name and load that model, which the generation that follows needs anyway.
+        """
+        engine_id = self._engine_model(model.strip())
+        body: dict[str, Any] = {"model": engine_id, "messages": [dict(m) for m in messages]}
+        if think is not None:
+            body["chat_template_kwargs"] = {"enable_thinking": bool(think)}
+        try:
+            rendered = self._post_json("/apply-template", body)
+            prompt = rendered.get("prompt") if isinstance(rendered, Mapping) else None
+            if not isinstance(prompt, str):
+                return None
+            counted = self._post_json(
+                "/tokenize", {"model": engine_id, "content": prompt, "add_special": True})
+            tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
+        except InferenceAuthError:
+            raise
+        except (ModelClientError, ValueError):
+            return None
+        if not isinstance(tokens, list):
+            return None
+        return len(tokens)
+
+    def count_text_tokens(self, model: str, text: str) -> int | None:
+        """EXACT tokens of raw ``text`` (no chat template) by the model's tokenizer, or None.
+
+        Used to size shards of a large input; like count_prompt_tokens, any failure returns
+        None so the caller falls back to the conservative byte bound.
+        """
+        engine_id = self._engine_model(model.strip())
+        try:
+            counted = self._post_json(
+                "/tokenize", {"model": engine_id, "content": text, "add_special": False})
+        except InferenceAuthError:
+            raise
+        except (ModelClientError, ValueError):
+            return None
+        tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
+        return len(tokens) if isinstance(tokens, list) else None
+
+    def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
+        response = self._request("POST", path, json_body=body)
+        try:
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            raise ModelClientError(f"llama.cpp {path} returned an HTTP error: {exc}") from exc
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise InferenceProtocolError(f"llama.cpp {path} returned invalid JSON") from exc
+        finally:
+            close = getattr(response, "close", None)
+            if callable(close):
+                close()
 
     def _models_payload(self) -> dict[str, Any]:
         response = self._request("GET", "/models")
@@ -201,7 +294,8 @@ class LlamaCppClient:
         options: Mapping[str, Any],
         system: str | None,
         response_format: str | Mapping[str, Any] | None,
-    ) -> tuple[dict[str, Any], dict[str, int]]:
+        exact_input_tokens: int | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         resolved = dict(options)
         if "num_ctx" not in resolved or "num_predict" not in resolved:
             return resolved, {}
@@ -227,18 +321,25 @@ class LlamaCppClient:
                 f"not supported and is not silently truncated"
             )
         effective_context = requested_context
-        material = prompt.encode("utf-8")
-        if system is not None:
-            material += system.encode("utf-8")
-        if response_format is not None:
-            material += json.dumps(
-                response_format,
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            ).encode("utf-8")
-        input_bound = len(material)
+        if exact_input_tokens is not None:
+            # The templated prompt counted by the model's own tokenizer. The template margin is
+            # still reserved below, so the only slack is the margin itself.
+            input_bound = int(exact_input_tokens)
+            input_count = "exact"
+        else:
+            material = prompt.encode("utf-8")
+            if system is not None:
+                material += system.encode("utf-8")
+            if response_format is not None:
+                material += json.dumps(
+                    response_format,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+            input_bound = len(material)
+            input_count = "conservative_bytes"
         remaining_generation = (
             effective_context - input_bound - CONTEXT_TEMPLATE_MARGIN_TOKENS
         )
@@ -255,6 +356,7 @@ class LlamaCppClient:
             "native_context": native_context,
             "effective_context": effective_context,
             "input_bound": input_bound,
+            "input_count": input_count,
             "context_safety_allowance": CONTEXT_TEMPLATE_MARGIN_TOKENS,
             "remaining_generation_capacity": remaining_generation,
             "effective_generation_max": effective_generation,
@@ -329,12 +431,18 @@ class LlamaCppClient:
         capacity_prompt = prompt_for_capacity
         if capacity_prompt is None:
             capacity_prompt = json.dumps(list(messages), ensure_ascii=False, separators=(",", ":"))
+        # Exact counting needs a context budget to check against, and cannot see tool schemas
+        # through the template endpoint; either way the conservative bound stays in force.
+        exact_tokens = None
+        if "num_ctx" in request_options and "num_predict" in request_options and not tools:
+            exact_tokens = self.count_prompt_tokens(model, messages, think=think)
         request_options, capacity = self._resolve_generation_capacity(
             model=model,
             prompt=capacity_prompt,
             options=request_options,
             system=system_for_capacity,
             response_format=requested_format,
+            exact_input_tokens=exact_tokens,
         )
         engine_id = self._engine_model(model.strip())
         payload: dict[str, Any] = {
@@ -619,6 +727,26 @@ def _extract_context_values(entry: Mapping[str, Any]) -> set[int]:
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             found.add(value)
     return found
+
+
+def _served_context(entry: Mapping[str, Any]) -> int | None:
+    """Per-slot context a router entry is served with: ``--ctx-size`` / ``--parallel``, or None."""
+    status = entry.get("status")
+    args = status.get("args") if isinstance(status, Mapping) else None
+    if not isinstance(args, list):
+        return None
+    values: dict[str, int] = {}
+    for flag, value in zip(args, args[1:]):
+        if flag in ("--ctx-size", "-c", "--parallel", "-np"):
+            try:
+                values["ctx" if flag in ("--ctx-size", "-c") else "parallel"] = int(str(value))
+            except ValueError:
+                return None
+    context = values.get("ctx")
+    if context is None or context <= 0:
+        return None
+    parallel = max(1, values.get("parallel", 1))
+    return context // parallel
 
 
 def _normalize_response_format(

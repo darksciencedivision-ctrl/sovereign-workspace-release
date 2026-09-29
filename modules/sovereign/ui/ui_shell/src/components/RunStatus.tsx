@@ -3,7 +3,9 @@ import {
   isFailureJobStatus,
   type JobSnapshot,
 } from "../types/chat";
+import { chunkLabel } from "../state/longRequest";
 import { EvidenceLink } from "./EvidenceLink";
+import { LongRunPanel } from "./LongRunPanel";
 
 interface Props {
   job: JobSnapshot | null;
@@ -43,6 +45,7 @@ export function RunStatus({
   const active = isActiveJobStatus(job.status);
   const failure = isFailureJobStatus(job.status);
   const progressLabel = `${job.progress.percent}%`;
+  const chunks = chunkLabel(job.progress);
 
   return (
     <section
@@ -105,9 +108,17 @@ export function RunStatus({
               {job.progress.stage ?? "Waiting for progress"}
               {job.progress.detail ? ` — ${job.progress.detail}` : ""}
             </span>
-            <span>{progressLabel}</span>
+            <span>{chunks ? `${chunks} - ${progressLabel}` : progressLabel}</span>
           </div>
         </>
+      )}
+
+      {job.route === "LONG" && (
+        <LongRunPanel
+          jobId={job.job_id}
+          refreshKey={`${job.status}|${job.updated_at ?? ""}|${job.progress.current ?? ""}|${job.progress.total ?? ""}`}
+          active={active}
+        />
       )}
 
       {failure && (

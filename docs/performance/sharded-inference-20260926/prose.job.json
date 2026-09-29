@@ -1,0 +1,39 @@
+{
+  "cancel_requested": false,
+  "created_at": "2026-09-28T01:58:06.894811Z",
+  "error": null,
+  "finished_at": "2026-09-28T02:11:25.567548Z",
+  "job_id": "job_dbbacf9876144a58b9f8a119e2736283",
+  "message": {
+    "content": "4 main components (evidence: 00-VALIDATION-REVIEW.md)\n\nPer-part results:\n- map-0001: registry_entries: 43 (MEASURED), generative_teachers: 39 (MEASURED), t1_teachers: 5 (MEASURED), vram_free: 5.26 GiB (MEASURED), smallest_model: 8B (MEASURED), largest_model: 128B (MEASURED), total_disk: 768.4 GiB (MEASURED)\n- map-0002: Distillery pipeline: none Invariants: none Evaluation suite: none Hardware envelope: modelled estimates\n- map-0003: main components count: 4, evidence document: 00-VALIDATION-REVIEW.md",
+    "created_at": "2026-09-28T02:11:25.551872Z",
+    "id": "message_e790858f9233476783ba1c8144419ddb",
+    "job_id": "job_dbbacf9876144a58b9f8a119e2736283",
+    "job_status": "completed",
+    "message_id": "message_e790858f9233476783ba1c8144419ddb",
+    "metrics": {
+      "elapsed_seconds": 798.651189,
+      "tokens": null
+    },
+    "role": "sovereign",
+    "route": "LONG",
+    "session_id": "session_16c58ea9c7a94de493d86f336064f456",
+    "status": "accepted",
+    "timestamp": "2026-09-28T02:11:25.551872Z"
+  },
+  "metrics": {
+    "elapsed_seconds": 798.651189,
+    "tokens": null
+  },
+  "progress": {
+    "current": 4,
+    "percent": 100,
+    "stage": "completed",
+    "total": 4
+  },
+  "route": "LONG",
+  "session_id": "session_16c58ea9c7a94de493d86f336064f456",
+  "started_at": "2026-09-28T01:58:06.916359Z",
+  "status": "completed",
+  "updated_at": "2026-09-28T02:11:25.567548Z"
+}

@@ -19,6 +19,9 @@ class Route(str, Enum):
     DEEP = "DEEP"
     RESEARCH = "RESEARCH"
     CONTINUITY = "CONTINUITY"
+    # Sharded inference: a big-model, big-workload run. Never chosen automatically - only by an
+    # explicit override (route_override "LONG" or an inline "route: LONG").
+    LONG = "LONG"
 
     @classmethod
     def parse(cls, value: "Route | str") -> "Route":
@@ -141,7 +144,7 @@ ROUTING_RULES: tuple[RoutingRule, ...] = (
 
 _INLINE_OVERRIDE = re.compile(
     r"^\s*(?:/route\s+|route\s*[:=]\s*)"
-    r"(STATUS|QUICK|DEEP|RESEARCH|CONTINUITY)\b[\s:,-]*",
+    r"(STATUS|QUICK|DEEP|RESEARCH|CONTINUITY|LONG)\b[\s:,-]*",
     re.IGNORECASE,
 )
 _WORD = re.compile(r"\b[\w'-]+\b", re.UNICODE)
@@ -181,6 +184,23 @@ def _context_requests_continuity(context: Mapping[str, Any] | None) -> bool:
         or context.get("prior_turn_id")
         or context.get("prior_job_id")
     )
+
+
+def job_input(text: str, decision: RoutingDecision) -> str:
+    """The text a job runs on. LONG keeps the operator's line structure; others the normalized query.
+
+    A LONG request is structured - an optional ``@model:`` first line, the objective, a ``---``
+    line, then material - and collapsing whitespace (as routing does) destroys every line of it.
+    An inline route prefix (``route: LONG``) is still removed.
+    """
+    if decision.route is not Route.LONG:
+        return decision.normalized_query or text.strip()
+    raw = text.strip()
+    if "inline_override" in decision.matched_rules:
+        inline = _INLINE_OVERRIDE.match(raw)
+        if inline:
+            raw = raw[inline.end():].strip()
+    return raw
 
 
 def route_query(
