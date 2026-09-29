@@ -404,6 +404,16 @@ def _semantic_request_record(
     )
 
 
+def _done_reason(telemetry: Mapping[str, Any], terminal_event: Mapping[str, Any]) -> Any:
+    """Why the model stopped: Ollama's ``done_reason`` or llama.cpp's ``finish_reason``.
+
+    The truncation check read only Ollama's key, so a llama.cpp reply cut off at the token limit
+    (``finish_reason: "length"``) passed as a complete answer.
+    """
+    return (telemetry.get("done_reason") or telemetry.get("finish_reason")
+            or terminal_event.get("done_reason"))
+
+
 def _response_dict(response: Any) -> dict[str, Any]:
     if isinstance(response, Mapping):
         return dict(response)
@@ -2047,10 +2057,7 @@ class SemanticDeepExecutor:
                     and isinstance(raw_events[-1], Mapping)
                     else {}
                 )
-                done_reason = (
-                    response_telemetry.get("done_reason")
-                    or terminal_event.get("done_reason")
-                )
+                done_reason = _done_reason(response_telemetry, terminal_event)
                 if str(done_reason).lower() in {
                     "length",
                     "max_tokens",
