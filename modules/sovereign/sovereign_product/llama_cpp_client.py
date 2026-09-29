@@ -65,6 +65,10 @@ class LlamaCppClient:
         if session is None:
             self._session.trust_env = False
         self._monotonic = monotonic or time.monotonic
+        # Per-endpoint {path: [calls, seconds]} of the JSON calls (/tokenize, /apply-template):
+        # the LONG telemetry reports how much of a run the tokenizer took.
+        self.endpoint_stats: dict[str, list[float]] = {}
+        self._stats_lock = threading.Lock()
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -237,6 +241,16 @@ class LlamaCppClient:
         return len(tokens) if isinstance(tokens, list) else None
 
     def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
+        started = time.perf_counter()
+        try:
+            return self._post_json_timed(path, body)
+        finally:
+            with self._stats_lock:
+                stats = self.endpoint_stats.setdefault(path, [0, 0.0])
+                stats[0] += 1
+                stats[1] += time.perf_counter() - started
+
+    def _post_json_timed(self, path: str, body: Mapping[str, Any]) -> Any:
         response = self._request("POST", path, json_body=body)
         try:
             response.raise_for_status()

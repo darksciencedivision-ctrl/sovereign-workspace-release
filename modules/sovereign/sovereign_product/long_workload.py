@@ -30,7 +30,7 @@ from typing import Any, Callable, Mapping
 from .exact_counting import (STATE_FILE as EXACT_STATE_FILE, ExactCancelled, ExactCounter,
                              is_countable_objective)
 from .gguf_meta import GGUFError, read_gguf
-from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
+from .memory_planner import GIB, KV_TYPE_BYTES, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
 from .runtime_registry import RuntimeRegistry, hybrid_profile
 from .shard_modes import InputShardMode, PlanStepMode
@@ -77,6 +77,9 @@ class LongModel:
     # output budget. Required with thinking "on": a thinking-only model (e.g. Qwen3 Thinking
     # 2507) reasons whatever enable_thinking says, and without room it never reaches its answer.
     reasoning_tokens: int = 0
+    # KV cache type the planner serves this model with. q8_0 halves the f16 cache at no visible
+    # cost; q4_0 quarters it, which frees GPU layers at long contexts, at some risk to accuracy.
+    cache_type: str = "q8_0"
 
 
 @dataclass(frozen=True)
@@ -125,7 +128,11 @@ def load_config(root: str | Path) -> LongConfig:
         if reasoning > context // 4:
             raise LongWorkloadError(f"{item['model']}: reasoning_tokens above a quarter of the "
                                     f"{context}-token context leaves no room for the work")
-        models.append(LongModel(item["model"], context, thinking, reasoning))
+        cache_type = item.get("cache_type", "q8_0")
+        if cache_type not in KV_TYPE_BYTES:
+            raise LongWorkloadError(f"{item['model']}: cache_type must be one of "
+                                    f"{', '.join(sorted(KV_TYPE_BYTES))}")
+        models.append(LongModel(item["model"], context, thinking, reasoning, cache_type))
     if not models:
         raise LongWorkloadError(f"{CONFIG_FILE} configures no models")
     ints = {}
@@ -157,7 +164,8 @@ def apply_hybrid_plans(registry: RuntimeRegistry, config: LongConfig, *,
     budget = MemoryBudget(vram_bytes=int(vram_bytes), ram_bytes=config.ram_budget_gib * GIB,
                           prompt_cache_mib=config.prompt_cache_mib)
     return {entry.model: plan_model(registry, entry.model, entry.context, budget,
-                                    thinking_policy=entry.thinking, reader=reader)
+                                    thinking_policy=entry.thinking, cache_type=entry.cache_type,
+                                    reader=reader)
             for entry in config.models}
 
 
@@ -189,7 +197,7 @@ def plan_model(registry: RuntimeRegistry, model: str, context: int, budget: Memo
                                                       "profile_id": profile.profile_id})
     return {"applied": True, "profile": profile.profile_id,
             **{k: v for k, v in plan.as_dict().items()
-               if k in ("n_gpu_layers", "n_cpu_moe", "context", "est_vram_gib",
+               if k in ("n_gpu_layers", "n_cpu_moe", "context", "cache_type", "est_vram_gib",
                         "est_ram_gib", "kv_gib", "notes")}}
 
 
@@ -258,6 +266,28 @@ class LlamaModelPort:
             return self.client.count_text_tokens(self.model, "ok") is not None
         except Exception:
             return False
+
+
+# --- run timing (O4/O5) ---------------------------------------------------------------------------
+
+def _endpoint_stats(client: Any) -> dict[str, list[float]]:
+    """A snapshot of the client's per-endpoint call counts and seconds (none for fakes)."""
+    stats = getattr(client, "endpoint_stats", None)
+    return {k: list(v) for k, v in stats.items()} if isinstance(stats, Mapping) else {}
+
+
+def _timing_telemetry(client: Any, before: Mapping[str, list[float]], started: float,
+                      plan_seconds: float, now: float) -> dict[str, Any]:
+    """Where a run's time went: sizing the input (planning) and the tokenizer endpoints."""
+    after = _endpoint_stats(client)
+    tokenizer = {}
+    for path, (calls, seconds) in after.items():
+        was_calls, was_seconds = before.get(path, [0, 0.0])
+        tokenizer[path] = {"calls": int(calls - was_calls),
+                           "seconds": round(seconds - was_seconds, 2)}
+    return {"wall_seconds": round(now - started, 1), "plan_seconds": round(plan_seconds, 1),
+            "tokenizer_endpoints": tokenizer,
+            "tokenizer_seconds": round(sum(v["seconds"] for v in tokenizer.values()), 2)}
 
 
 # --- the executor ---------------------------------------------------------------------------------
@@ -571,6 +601,8 @@ class LongWorkloadExecutor:
         from .runtime_contracts import InferenceAuthError
 
         run_dir = self.evidence_dir / "long" / job_id
+        run_started = self.monotonic()
+        tokenizer_before = _endpoint_stats(self.client)
         checkpoints = run_dir / "checkpoints"
         resuming = checkpoints.is_dir() and any(checkpoints.glob("*.json"))
         requested, text = split_model_directive(text)
@@ -644,6 +676,7 @@ class LongWorkloadExecutor:
                 pass
 
         runner: ShardRunner | None = None
+        plan_seconds = 0.0
         try:
             runner = ShardRunner(run_dir, port, limits,
                                  should_stop=cancel_requested, progress=progress,
@@ -656,8 +689,10 @@ class LongWorkloadExecutor:
             if runner.log.events():
                 state = runner.resume()
             else:
+                planning = self.monotonic()
                 tasks = (mode.plan(runner, material) if material is not None
                          else mode.plan(runner))
+                plan_seconds = self.monotonic() - planning
                 state = runner.start(objective, kind, tasks)
         except ModelUnavailable as exc:
             return _interrupted(entry.model, _done(runner), (
@@ -698,5 +733,7 @@ class LongWorkloadExecutor:
             "telemetry": {"mode": kind, "context": context, "shards": len(state.tasks),
                           "completed": len(state.completed), "failed": gaps,
                           "coverage_gaps": gaps,
-                          "model_calls": state.model_calls, "run_status": state.status},
+                          "model_calls": state.model_calls, "run_status": state.status,
+                          **_timing_telemetry(self.client, tokenizer_before, run_started,
+                                              plan_seconds, self.monotonic())},
         }
