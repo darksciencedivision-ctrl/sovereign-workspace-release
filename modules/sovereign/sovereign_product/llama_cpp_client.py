@@ -250,6 +250,33 @@ class LlamaCppClient:
             if callable(close):
                 close()
 
+    def _router_names_same_model(self, *requested_names: str) -> bool:
+        """True when the router lists one model that carries every one of these names.
+
+        A router entry names a model by its id ("qwen3-14b") and its aliases ("qwen3:14b").
+        Any failure to read the listing answers False, so an unknown name is never taken for
+        the requested model.
+        """
+        wanted = {name for name in requested_names if name}
+        try:
+            payload = self._models_payload()
+        except ModelClientError:
+            return False
+        rows = payload.get("data")
+        if not isinstance(rows, list):
+            rows = payload.get("models")
+        if not isinstance(rows, list):
+            return False
+        for entry in rows:
+            if not isinstance(entry, Mapping):
+                continue
+            aliases = entry.get("aliases") if isinstance(entry.get("aliases"), list) else []
+            names = {str(entry.get("id") or entry.get("name") or "").strip(),
+                     *(str(item).strip() for item in aliases)}
+            if wanted <= names:
+                return True
+        return False
+
     def _models_payload(self) -> dict[str, Any]:
         response = self._request("GET", "/models")
         try:
@@ -629,9 +656,13 @@ class LlamaCppClient:
             # The router names the model by its engine id (the registry's name for the served
             # profile, e.g. "qwen3-14b"); callers compare against the product's model name
             # ("qwen3:14b"), as Ollama reports it. Live, DEEP rejected every llama.cpp reply for
-            # that. The engine id we sent means the model we asked for; any other name is passed
-            # through as is (telemetry keeps the raw reported_model).
-            identity = model.strip() if reported_model == engine_id else reported_model
+            # that. The engine id we sent, or any id/alias the router lists for the same model,
+            # means the model we asked for (a client without a registry sends the product name
+            # and the router resolves the alias itself); any other name is passed through as is
+            # (telemetry keeps the raw reported_model).
+            same_model = reported_model == engine_id or self._router_names_same_model(
+                model.strip(), engine_id, reported_model)
+            identity = model.strip() if same_model else reported_model
             return ChatResponse(
                 text="".join(text_parts),
                 reasoning=reasoning_text,
