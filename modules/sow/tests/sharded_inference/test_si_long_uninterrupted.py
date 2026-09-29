@@ -26,7 +26,8 @@ from sovereign_product.router import Route  # noqa: E402
 from sovereign_product.server import ProductService  # noqa: E402
 from sovereign_product.store import SovereignStore  # noqa: E402
 
-WORKER_METHODS = ("_worker_loop", "_wait_out_long_job", "long_active_job", "_enqueue")
+WORKER_METHODS = ("_worker_loop", "_wait_out_long_job", "_wait_out_model_jobs",
+                  "_running_model_job", "long_active_job", "_enqueue")
 
 
 def _service(store, workers=2, ran=None):
@@ -62,6 +63,7 @@ def _stop(service):
     service._closed.set()
     for _ in service._workers:
         service._queue.put(None)
+        service._long_queue.put(None)
     for thread in service._workers:
         thread.join(timeout=5)
 
@@ -187,5 +189,73 @@ def test_a_long_job_is_never_held_and_status_is_answered_at_once(tmp_path):
             _run_status_job=lambda job_id, query: answered.append(job_id) or {"ok": True})
         body, status = ProductService.submit(svc, session, "what is your status?")
         assert status == 200 and len(answered) == 1 and store.get_job(blocked)["status"] == "queued"
+    finally:
+        _stop(service)
+
+
+def _long_lane(service):
+    thread = threading.Thread(target=service._worker_loop, args=(service._long_queue,),
+                              daemon=True, name="test-long-lane")
+    thread.start()
+    service._workers.append(thread)
+    return thread
+
+
+def test_a_long_job_waits_for_a_running_model_job_so_it_is_not_evicted(tmp_path):
+    store = SovereignStore(tmp_path / "state.db")
+    quick = _job(store, "QUICK")
+    store.transition_job(quick, "running", expected_status="queued", worker_id="w")
+    service = _service(store, workers=1)
+    try:
+        _long_lane(service)
+        long_id = _job(store, "LONG")
+        service._enqueue(long_id)
+        assert _until(lambda: store.get_job(long_id)["progress"].get("stage", "").startswith("waiting"))
+        assert store.get_job(long_id)["progress"]["stage"] == f"waiting for running job {quick}"
+        time.sleep(0.2)
+        assert service.ran == [] and store.get_job(long_id)["status"] == "queued"
+        store.transition_job(quick, "completed", expected_status="running")
+        assert _until(lambda: service.ran == [long_id])
+    finally:
+        _stop(service)
+
+
+def test_a_model_job_submitted_after_a_waiting_long_job_queues_behind_it(tmp_path):
+    store = SovereignStore(tmp_path / "state.db")
+    quick = _job(store, "QUICK")
+    store.transition_job(quick, "running", expected_status="queued", worker_id="w")
+    service = _service(store, workers=1)
+    try:
+        _long_lane(service)
+        long_id = _job(store, "LONG")
+        service._enqueue(long_id)
+        later = _job(store, "DEEP")
+        service._enqueue(later)
+        time.sleep(0.3)
+        assert service.ran == []  # the LONG job waits for the QUICK; the DEEP waits for the LONG
+        store.transition_job(quick, "completed", expected_status="running")
+        assert _until(lambda: service.ran == [long_id])
+        assert _until(lambda: later in service.ran)  # after the LONG job ended, the DEEP ran
+        assert service.ran == [long_id, later]
+    finally:
+        _stop(service)
+
+
+def test_a_cancelled_long_job_stops_waiting_for_the_running_job(tmp_path):
+    store = SovereignStore(tmp_path / "state.db")
+    quick = _job(store, "QUICK")
+    store.transition_job(quick, "running", expected_status="queued", worker_id="w")
+    service = _service(store, workers=1)
+    try:
+        _long_lane(service)
+        long_id = _job(store, "LONG")
+        service._enqueue(long_id)
+        assert _until(lambda: store.get_job(long_id)["progress"].get("stage", "").startswith("waiting"))
+        store.request_cancel(long_id)
+        second = _job(store, "LONG")
+        service._enqueue(second)
+        store.transition_job(quick, "completed", expected_status="running")
+        assert _until(lambda: service.ran == [second])
+        assert store.get_job(long_id)["status"] == "cancelled"
     finally:
         _stop(service)

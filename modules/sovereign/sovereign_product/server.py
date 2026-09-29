@@ -1050,10 +1050,46 @@ class ProductService:
             with self._queue_lock:
                 self._enqueued.discard(job_id)
             try:
-                if source is not None or self._wait_out_long_job(job_id):
+                held = (self._wait_out_model_jobs(job_id) if source is not None
+                        else self._wait_out_long_job(job_id))
+                if held:
                     self._run_job(job_id)
             finally:
                 jobs.task_done()
+
+    def _running_model_job(self) -> str | None:
+        """Job id of a running QUICK/CONTINUITY/DEEP/RESEARCH job (one that holds the model)."""
+        for job in self.store.list_jobs(status=("running",), limit=100):
+            if str(job.get("route") or "").upper() not in (Route.LONG.value, Route.STATUS.value):
+                return str(job["job_id"])
+        return None
+
+    def _wait_out_model_jobs(self, job_id: str) -> bool:
+        """D5, the other side: a LONG job starts only when no model job is mid-generation.
+
+        The router serves one model at a time, so a LONG job loading its model while a QUICK or
+        DEEP job generates would evict that job's model and break its stream. Jobs submitted
+        after the LONG job are already held behind it (``_wait_out_long_job``), so the running
+        ones only drain. The LONG job stays ``queued`` with the stage naming what it waits for;
+        a cancel or a shutdown ends the wait.
+        """
+        announced: str | None = None
+        while not self._closed.is_set():
+            blocker = self._running_model_job()
+            if blocker is None:
+                return True
+            try:
+                job = self.store.get_job(job_id)
+                if job["status"] != "queued" or job["cancel_requested"]:
+                    return True
+                if announced != blocker:
+                    self.store.update_job_progress(
+                        job_id, {"percent": 0, "stage": f"waiting for running job {blocker}"})
+                    announced = blocker
+            except (InvalidTransition, NotFound):
+                return True
+            self._closed.wait(self.long_wait_poll_seconds)
+        return False
 
     def _wait_out_long_job(self, job_id: str) -> bool:
         """D5: hold a model job while a LONG job is queued or running; True when it may run.
