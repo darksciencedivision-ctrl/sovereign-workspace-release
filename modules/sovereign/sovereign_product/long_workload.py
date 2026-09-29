@@ -149,37 +149,46 @@ def apply_hybrid_plans(registry: RuntimeRegistry, config: LongConfig, *,
     A model that is not installed, whose file cannot be read, or whose plan is refused keeps
     its existing profile and the reason is reported - the supervisor still starts.
     """
-    report: dict[str, dict[str, Any]] = {}
     if vram_bytes is None:
         return {m.model: {"applied": False, "reason": "free VRAM unknown (no nvidia-smi)"}
                 for m in config.models}
     budget = MemoryBudget(vram_bytes=int(vram_bytes), ram_bytes=config.ram_budget_gib * GIB,
                           prompt_cache_mib=config.prompt_cache_mib)
-    for entry in config.models:
-        existing = [p for p in registry.profiles.values() if p.model_id == entry.model]
-        if not existing:
-            report[entry.model] = {"applied": False, "reason": "model not installed"}
-            continue
-        try:
-            plan = plan_serving(reader(existing[0].model_path), context=entry.context,
-                                budget=budget)
-        except (GGUFError, PlanRefused, OSError, ValueError) as exc:
-            report[entry.model] = {"applied": False, "reason": str(exc)}
-            continue
-        profile = hybrid_profile(entry.model, plan, thinking_policy=entry.thinking)
-        replaced = {p.profile_id for p in existing}
-        for profile_id in replaced:
-            registry.profiles.pop(profile_id, None)
-        registry.add_profile(profile)
-        for role_name, role in list(registry.roles.items()):
-            if getattr(role, "profile_id", None) in replaced:
-                registry.roles[role_name] = type(role)(**{**role.__dict__,
-                                                          "profile_id": profile.profile_id})
-        report[entry.model] = {"applied": True, "profile": profile.profile_id,
-                               **{k: v for k, v in plan.as_dict().items()
-                                  if k in ("n_gpu_layers", "n_cpu_moe", "context", "est_vram_gib",
-                                           "est_ram_gib", "kv_gib", "notes")}}
-    return report
+    return {entry.model: plan_model(registry, entry.model, entry.context, budget,
+                                    thinking_policy=entry.thinking, reader=reader)
+            for entry in config.models}
+
+
+def plan_model(registry: RuntimeRegistry, model: str, context: int, budget: MemoryBudget, *,
+               thinking_policy: str | None = None, cache_type: str = "q8_0",
+               reader: Callable[[str], Any] = read_gguf) -> dict[str, Any]:
+    """Replace ``model``'s profile in ``registry`` with its planned GPU/RAM split; the report.
+
+    ``thinking_policy=None`` keeps the model's current one. The registry is untouched when the
+    model is not installed, its file cannot be read, or the plan is refused.
+    """
+    existing = [p for p in registry.profiles.values() if p.model_id == model]
+    if not existing:
+        return {"applied": False, "reason": "model not installed"}
+    try:
+        plan = plan_serving(reader(existing[0].model_path), context=context, budget=budget,
+                            cache_type=cache_type)
+    except (GGUFError, PlanRefused, OSError, ValueError) as exc:
+        return {"applied": False, "reason": str(exc)}
+    profile = hybrid_profile(model, plan, thinking_policy=thinking_policy
+                             or existing[0].thinking_policy)
+    replaced = {p.profile_id for p in existing}
+    for profile_id in replaced:
+        registry.profiles.pop(profile_id, None)
+    registry.add_profile(profile)
+    for role_name, role in list(registry.roles.items()):
+        if getattr(role, "profile_id", None) in replaced:
+            registry.roles[role_name] = type(role)(**{**role.__dict__,
+                                                      "profile_id": profile.profile_id})
+    return {"applied": True, "profile": profile.profile_id,
+            **{k: v for k, v in plan.as_dict().items()
+               if k in ("n_gpu_layers", "n_cpu_moe", "context", "est_vram_gib",
+                        "est_ram_gib", "kv_gib", "notes")}}
 
 
 # --- the model port -------------------------------------------------------------------------------

@@ -887,6 +887,35 @@ class ProductService:
                 "status": "degraded" if degraded else "ready",
                 "detail": "; ".join(f"{m['model']}: {m['reason']}" for m in degraded) or None}
 
+    def role_models(self) -> dict[str, Any]:
+        """How the multi-model research system's models are served (role_plans, D7).
+
+        Each model carries its ``status`` from the supervisor's plan report and, when planned,
+        its GPU layer count and context. ``degraded`` means the plan was refused and the
+        slower default profile serves the model; the routes still work, so this never turns a
+        route off.
+        """
+        from .long_workload import plan_reports
+        from .role_plans import role_model_names, role_model_status
+
+        try:
+            names = role_model_names(self._manifest())
+        except ServiceConfigurationError as exc:
+            return {"models": [], "status": "unavailable", "error": str(exc)}
+        reports = plan_reports(self.root)
+        models = []
+        for name in names:
+            status, reason = role_model_status(reports, name)
+            report = reports.get(name) if isinstance(reports, Mapping) else None
+            planned = isinstance(report, Mapping) and report.get("applied") is True
+            models.append({
+                "model": name, "status": status, "reason": reason,
+                "n_gpu_layers": report.get("n_gpu_layers") if planned else None,
+                "context": report.get("context") if planned else None})
+        degraded = [m for m in models if m["status"] == "degraded"]
+        return {"models": models, "status": "degraded" if degraded else "ready",
+                "detail": "; ".join(f"{m['model']}: {m['reason']}" for m in degraded) or None}
+
     def long_run(self, job_id: str) -> dict[str, Any]:
         """A LONG job's chunks and carried ledger, read from its checkpoints (read-only)."""
         from .long_workload import describe_run
@@ -2396,6 +2425,7 @@ def create_app(
                     "LONG": long_ok,
                 },
                 "long_route": long_route,
+                "role_models": owned_service.role_models(),
                 "long_active_job": long_active_job,
                 "detail": "; ".join(detail) if detail else "ready",
             }

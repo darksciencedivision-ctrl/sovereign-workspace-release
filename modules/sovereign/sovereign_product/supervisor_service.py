@@ -282,19 +282,36 @@ def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervis
     )
     registry = build_operational_registry(runtime=runtime)
     # Sharded inference: LONG-route models get their planned GPU/RAM split (memory_planner)
-    # instead of the CPU-only default profile. A model that cannot be planned keeps its old
-    # profile; the report is written beside the preset so the operator can see why.
+    # instead of the CPU-only default profile, and so do the multi-model research system's
+    # models (role_plans, D7). A model that cannot be planned keeps its old profile; the report
+    # is written beside the preset so the operator can see why. One free-VRAM reading serves
+    # both, and a failure planning one group never costs the other its plans.
+    report: dict[str, Any] = {}
     try:
         from .long_workload import apply_hybrid_plans, load_config
         from .memory_planner import detect_free_vram_bytes
 
-        report = apply_hybrid_plans(registry, load_config(root),
-                                    vram_bytes=detect_free_vram_bytes())
+        free_vram = detect_free_vram_bytes()
+        long_config = load_config(root)
+        report.update(apply_hybrid_plans(registry, long_config, vram_bytes=free_vram))
+        try:
+            from system_manifest import load_system_manifest
+
+            from .role_plans import apply_role_plans
+
+            report.update(apply_role_plans(
+                registry, load_system_manifest(manifest_path=root / "SYSTEM_MANIFEST.json"),
+                vram_bytes=free_vram, ram_budget_gib=long_config.ram_budget_gib,
+                prompt_cache_mib=long_config.prompt_cache_mib,
+                already_planned=frozenset(m.model for m in long_config.models)))
+        except Exception as exc:  # planning must never stop the supervisor from starting
+            print(json.dumps({"role_plans_error": str(exc)}), file=sys.stderr)
+    except Exception as exc:  # planning must never stop the supervisor from starting
+        print(json.dumps({"hybrid_plans_error": str(exc)}), file=sys.stderr)
+    if report:
         service_dir(root).mkdir(parents=True, exist_ok=True)
         (service_dir(root) / "hybrid_plans.json").write_text(
             json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    except Exception as exc:  # planning must never stop the supervisor from starting
-        print(json.dumps({"hybrid_plans_error": str(exc)}), file=sys.stderr)
     return LlamaCppSupervisor(
         SupervisorConfig(
             executable=str(DEFAULT_EXE),

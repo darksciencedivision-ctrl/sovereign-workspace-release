@@ -94,7 +94,8 @@ def _health(long_route: dict, ready: bool = True):
         research_executor=object(), research_unavailable_reason=None,
         qualification=lambda: {"verdict": "accepted", "reasons": []}, _workers=[],
         long_route_ready=lambda: ready, long_models=lambda: long_route,
-        long_active_job=lambda: None)
+        long_active_job=lambda: None,
+        role_models=lambda: {"models": [], "status": "ready", "detail": None})
     return create_app(service=service).test_client().get("/v1/health").get_json()
 
 
