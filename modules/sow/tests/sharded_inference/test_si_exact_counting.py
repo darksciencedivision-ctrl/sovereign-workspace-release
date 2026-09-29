@@ -527,3 +527,13 @@ def test_exact_off_keeps_a_counting_objective_on_map_reduce(clean_env, tmp_path)
     result, _events = _run(root, client, f"@exact: off\n{OBJECTIVE}\n---\n{text}")
     assert client.exact_calls == [] and result["telemetry"]["mode"] == "input_shards"
     assert "exact counting was not used" not in result["answer"]  # it was switched off, not refused
+
+
+def test_a_fallback_continues_the_progress_from_where_the_exact_route_reached(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    text, _ = _notes(60)
+    client = ExactFake(refuse=True)
+    _result, events = _run(root, client, f"{OBJECTIVE}\n---\n{text}")
+    percents = [e["percent"] for e in events if "percent" in e]
+    assert percents == sorted(percents), percents  # never backwards, so the product keeps them all
+    assert any(e.get("stage") == "exact_counting" for e in events) and percents[-1] >= 8

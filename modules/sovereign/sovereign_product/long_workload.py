@@ -595,12 +595,16 @@ class LongWorkloadExecutor:
 
     def _exact_route(self, run_dir: Path, port: "LlamaModelPort", objective: str, material: str,
                      output_tokens: int, cancel_requested: Callable[[], bool],
-                     progress_callback: Callable[[dict[str, Any]], None], model: str) -> Any:
+                     progress_callback: Callable[[dict[str, Any]], None], model: str,
+                     percent_reached: list[int]) -> Any:
         """Try the exact counting route (D6): an ExactOutcome, or a finished result dict when the
-        run was cancelled or its surroundings failed."""
+        run was cancelled or its surroundings failed. ``percent_reached[0]`` follows the
+        progress reported, so a fallback to map/reduce continues from it (the product drops any
+        update whose percent goes backwards)."""
         from .model_client import GenerationCancelled
 
         def progress(stage: str, detail: str, percent: int) -> None:
+            percent_reached[0] = max(percent_reached[0], percent)
             try:
                 progress_callback({"stage": stage, "detail": detail, "percent": percent})
             except Exception:
@@ -662,12 +666,14 @@ class LongWorkloadExecutor:
         # latter before its answer starts, and chunks are sized with the whole reply reserved.
         output_tokens = min(self.config.max_output_tokens, context // 4) + entry.reasoning_tokens
         exact_note = None
+        exact_percent = [1]
         exact_path = run_dir / EXACT_STATE_FILE
         if (self.exact_counting and exact_mode == "auto" and material is not None
                 and not resuming
                 and (exact_path.is_file() or is_countable_objective(objective))):
             outcome = self._exact_route(run_dir, port, objective, material, output_tokens,
-                                        cancel_requested, progress_callback, entry.model)
+                                        cancel_requested, progress_callback, entry.model,
+                                        exact_percent)
             if isinstance(outcome, dict):
                 return outcome
             if outcome.answer is not None:
@@ -688,7 +694,7 @@ class LongWorkloadExecutor:
             mode = PlanStepMode(objective=objective, max_output_tokens=output_tokens)
             kind = "plan_steps"
 
-        high_water = [1]
+        high_water = [exact_percent[0]]
 
         def progress(event: Mapping[str, Any]) -> None:
             done, total = event.get("done"), event.get("total")

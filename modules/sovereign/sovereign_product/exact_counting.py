@@ -79,7 +79,8 @@ def run_engine(spec: Mapping[str, Any], text: str, *, work_dir: Path, seconds: f
     argv = (command or [sys.executable, "-I", str(WORKER)]) + [str(job_path)]
     started = monotonic()
     try:
-        process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         try:
             while True:
                 try:
