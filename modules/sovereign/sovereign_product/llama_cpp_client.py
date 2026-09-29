@@ -19,6 +19,7 @@ from .model_client import (
     ModelProbe,
     OLLAMA_CONNECT_TIMEOUT_SECONDS,
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
+    stream_lines,
 )
 from .runtime_contracts import (
     CancelCallback,
@@ -519,7 +520,7 @@ class LlamaCppClient:
             except requests.RequestException as exc:
                 raise ModelClientError(f"llama.cpp returned an HTTP error: {exc}") from exc
             try:
-                for raw_line in response.iter_lines(decode_unicode=True):
+                for raw_line in stream_lines(response):
                     now = self._monotonic()
                     if now - started > timeout_limit:
                         raise GenerationTimeout("overall")

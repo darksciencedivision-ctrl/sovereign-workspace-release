@@ -14,7 +14,7 @@ import json
 import math
 import threading
 import time
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Iterator, Mapping
 from urllib.parse import urlsplit
 
 import requests
@@ -34,6 +34,32 @@ _CANCELLATION_POLL_SECONDS = 0.05
 _MAX_RESPONSE_TEXT_BYTES = 16 * 1024 * 1024
 _MAX_STREAM_EVENTS = 200_000
 _STREAM_DIAGNOSTIC_TAIL = 1000
+
+
+def stream_lines(response: Any) -> Iterator[bytes | str]:
+    """A streamed body's lines, split on newline BYTES only (a trailing carriage return dropped).
+
+    ``requests``' ``iter_lines(decode_unicode=True)`` splits decoded text with
+    ``str.splitlines()``, which also breaks at U+2028, U+2029, U+0085 and a few control
+    characters. JSON leaves those unescaped, so one of them in a model's output cut an event line
+    in two and the call failed with "invalid streaming JSON" (live: a 27-minute RESEARCH run on
+    llama.cpp, 2026-09-28). Lines come back as bytes for the caller to decode strictly. A
+    transport without raw chunks (``iter_content``) keeps its own ``iter_lines``.
+    """
+    iter_content = getattr(response, "iter_content", None)
+    if not callable(iter_content):
+        yield from response.iter_lines(decode_unicode=True)
+        return
+    pending = b""
+    for chunk in iter_content(chunk_size=8192):
+        if not chunk:
+            continue
+        pending += chunk
+        *lines, pending = pending.split(b"\n")
+        for line in lines:
+            yield line[:-1] if line.endswith(b"\r") else line
+    if pending:
+        yield pending[:-1] if pending.endswith(b"\r") else pending
 
 
 class ModelClientError(RuntimeError):
@@ -602,7 +628,7 @@ class OllamaClient:
                 raise ModelClientError(f"Ollama returned an HTTP error: {exc}") from exc
 
             try:
-                line_iterator = response.iter_lines(decode_unicode=True)
+                line_iterator = stream_lines(response)
                 for raw_line in line_iterator:
                     now = self._monotonic()
                     if now - started > timeout_limit:
