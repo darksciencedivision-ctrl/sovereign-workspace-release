@@ -502,3 +502,28 @@ def test_an_outage_during_the_exact_route_interrupts_the_job(clean_env, tmp_path
 
     result, _events = _run(root, DownFake(), f"{OBJECTIVE}\n---\n{text}")
     assert result["status"] == "interrupted" and "resume the job" in result["reason"]
+
+
+# --- the @exact directive ---------------------------------------------------------------------
+
+def test_directives_read_in_either_order_and_leave_the_objective_alone():
+    d = LW.split_directives
+    assert d("Plan it.") == (None, "auto", "Plan it.")
+    assert d("@model: qwen3:30b-a3b\nPlan it.") == ("qwen3:30b-a3b", "auto", "Plan it.")
+    assert d("@exact: off\nPlan it.") == (None, "off", "Plan it.")
+    assert d("@model: m\n@exact: OFF\nPlan it.") == ("m", "off", "Plan it.")
+    assert d("@exact: off\n@model: m\nPlan it.") == ("m", "off", "Plan it.")
+    assert d("﻿@exact: auto\r\nPlan it.") == (None, "auto", "Plan it.")
+    # only the leading lines count; a second @exact stays in the objective
+    assert d("@exact: off\n@exact: auto\nPlan it.") == (None, "off", "@exact: auto\nPlan it.")
+    with pytest.raises(LW.LongWorkloadError, match="'off' or 'auto'"):
+        d("@exact: maybe\nPlan it.")
+
+
+def test_exact_off_keeps_a_counting_objective_on_map_reduce(clean_env, tmp_path):
+    root = _small_root(tmp_path)
+    text, _ = _notes(60)
+    client = ExactFake()
+    result, _events = _run(root, client, f"@exact: off\n{OBJECTIVE}\n---\n{text}")
+    assert client.exact_calls == [] and result["telemetry"]["mode"] == "input_shards"
+    assert "exact counting was not used" not in result["answer"]  # it was switched off, not refused

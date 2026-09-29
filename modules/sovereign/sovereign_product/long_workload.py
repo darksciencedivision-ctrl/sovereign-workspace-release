@@ -43,6 +43,7 @@ MAX_INPUT_BYTES = 64 * 1024 * 1024
 _MATERIAL_SPLIT = re.compile(r"^---[ \t]*$", re.MULTILINE)
 _INPUT_REF = re.compile(r"^\s*@input:\s*(?P<name>[A-Za-z0-9._ -]{1,128})\s*$")
 _MODEL_REF = re.compile(r"\A\s*@model:[ \t]*(?P<name>[^\r\n]*?)[ \t]*(?:\r?\n|\Z)")
+_EXACT_REF = re.compile(r"\A\s*@exact:[ \t]*(?P<mode>[^\r\n]*?)[ \t]*(?:\r?\n|\Z)")
 
 
 def split_model_directive(text: str) -> tuple[str | None, str]:
@@ -66,6 +67,34 @@ def split_model_directive(text: str) -> tuple[str | None, str]:
 
 class LongWorkloadError(ValueError):
     """The LONG request or configuration cannot run (reported to the operator)."""
+
+
+def split_directives(text: str) -> tuple[str | None, str, str]:
+    """``(model or None, exact mode, rest)`` from up to two leading directive lines.
+
+    ``@model: <name>`` picks the LONG model (see ``split_model_directive``); ``@exact: off``
+    keeps a counting objective on map/reduce instead of the exact counting route (to measure
+    map/reduce, or when the model's own reading of the input is wanted); ``@exact: auto`` (the
+    default) lets a counting objective use the exact route. Either order; each at most once.
+    """
+    model: str | None = None
+    mode = "auto"
+    seen: set[str] = set()
+    for _ in range(2):
+        text = text.lstrip("﻿")
+        if "model" not in seen and _MODEL_REF.match(text):
+            model, text = split_model_directive(text)
+            seen.add("model")
+            continue
+        match = _EXACT_REF.match(text)
+        if match is None or "exact" in seen:
+            break
+        mode = match.group("mode").strip().lower()
+        if mode not in ("off", "auto"):
+            raise LongWorkloadError("@exact: must be 'off' or 'auto', e.g. '@exact: off'")
+        seen.add("exact")
+        text = text[match.end():]
+    return model, mode, text
 
 
 @dataclass(frozen=True)
@@ -605,7 +634,7 @@ class LongWorkloadExecutor:
         tokenizer_before = _endpoint_stats(self.client)
         checkpoints = run_dir / "checkpoints"
         resuming = checkpoints.is_dir() and any(checkpoints.glob("*.json"))
-        requested, text = split_model_directive(text)
+        requested, exact_mode, text = split_directives(text)
         # A resumed run has its chunks in its checkpoints: it must not need the @input file.
         objective, material = parse_request(text, self.root, read_input=not resuming)
         entry = self.config.model(model or requested)
@@ -634,7 +663,8 @@ class LongWorkloadExecutor:
         output_tokens = min(self.config.max_output_tokens, context // 4) + entry.reasoning_tokens
         exact_note = None
         exact_path = run_dir / EXACT_STATE_FILE
-        if (self.exact_counting and material is not None and not resuming
+        if (self.exact_counting and exact_mode == "auto" and material is not None
+                and not resuming
                 and (exact_path.is_file() or is_countable_objective(objective))):
             outcome = self._exact_route(run_dir, port, objective, material, output_tokens,
                                         cancel_requested, progress_callback, entry.model)

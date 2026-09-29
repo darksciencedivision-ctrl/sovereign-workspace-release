@@ -331,7 +331,9 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                 name = f"qualification-{int(step)}.txt"
                 inbox.mkdir(parents=True, exist_ok=True)
                 (inbox / name).write_text(context_prompt(int(step)), encoding="utf-8")
-                text += f"{LONG_OBJECTIVE_INPUT}\n---\n@input: {name}"
+                # The rung measures map/reduce throughput (chunks per hour), comparable with the
+                # earlier runs; a counting objective would otherwise take the exact route (D6).
+                text += f"@exact: off\n{LONG_OBJECTIVE_INPUT}\n---\n@input: {name}"
                 scenario = "long_input"
             for _ in range(reps):
                 loaded = llama_loaded_models(client)
