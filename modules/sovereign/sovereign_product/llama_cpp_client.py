@@ -625,10 +625,16 @@ class LlamaCppClient:
                 "endpoint": "/v1/chat/completions",
                 **capacity,
             }
+            # The router names the model by its engine id (the registry's name for the served
+            # profile, e.g. "qwen3-14b"); callers compare against the product's model name
+            # ("qwen3:14b"), as Ollama reports it. Live, DEEP rejected every llama.cpp reply for
+            # that. The engine id we sent means the model we asked for; any other name is passed
+            # through as is (telemetry keeps the raw reported_model).
+            identity = model.strip() if reported_model == engine_id else reported_model
             return ChatResponse(
                 text="".join(text_parts),
                 reasoning=reasoning_text,
-                model=reported_model,
+                model=identity,
                 requested_model=model.strip(),
                 think=think,
                 finish_reason=finish_reason,
