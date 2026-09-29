@@ -262,6 +262,13 @@ def llama_loaded_models(client: ProductClient) -> list[str] | None:
     return None
 
 
+def model_is_cold(loaded: list[str] | None, model: str) -> bool | None:
+    """True when ``model`` is not among the router's resident models, None when unknown."""
+    if loaded is None:
+        return None
+    return model not in loaded
+
+
 def run_long_job(client: ProductClient, text: str, *, timeout: float,
                  clock: Callable[[], float] = time.monotonic,
                  sleep: Callable[[float], None] = time.sleep, poll: float = 5.0) -> dict[str, Any]:
@@ -309,6 +316,9 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
     reps = repetitions or int(profile["ladder"]["repetitions"])
     model = str(profile["primary_model"])
     inbox = Path(inbox_dir)
+    # What the router holds BEFORE the first job: with a fresh stack per profile the resource
+    # baseline below is an idle GPU, and the first rung is cold; on a reused stack it is not.
+    models_at_start = llama_loaded_models(client)
     runs: list[dict[str, Any]] = []
     started = _utc_now()
     with ResourceSampler() as sampler:
@@ -327,7 +337,7 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                 loaded = llama_loaded_models(client)
                 result = run_long_job(client, text, timeout=job_timeout, poll=poll)
                 result.update(scenario=scenario, input_tokens=int(step), model=model,
-                              cold=None if loaded is None else model not in loaded)
+                              cold=model_is_cold(loaded, model))
                 runs.append(result)
                 log(f"[{scenario}] input~{step} cold={result['cold']} -> "
                     f"{result.get('status')} {result.get('latency_seconds', 0):.0f}s "
@@ -344,6 +354,7 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
         "runtime": {"backend": profile["backend"], "primary_model": model,
                     "product_version": health.get("product_version"),
                     "worker_count": health.get("worker_count"),
+                    "models_loaded_at_start": models_at_start,
                     "long_route_ready": (health.get("routes") or {}).get("LONG")},
         "repetitions": reps,
         "resources": sampler.report(),
@@ -398,11 +409,21 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
         backend = str(profile["backend"]).lower()
         models = sorted(slate_models(health.get("deep_model_slate")) | {profile["primary_model"]})
         cold_note = "first request of the run"
+        cold: bool | None = True
+        loaded_at_start: list[str] | None = None
         if backend == "ollama":
             unload_ollama_models(ollama_url, models)
             cold_note = "after unloading the profile's models (keep_alive=0)"
+        else:
+            # llama.cpp: the first request is cold only when the router does not already hold the
+            # model. Earlier runs labelled it cold unconditionally and measured warm loads as cold.
+            loaded_at_start = llama_loaded_models(client)
+            cold = model_is_cold(loaded_at_start, str(profile["primary_model"]))
+            cold_note = {True: "the model was not resident when the request was submitted",
+                         False: "the model was ALREADY resident: this is a warm start",
+                         None: "residency unknown (no router state): not proven cold"}[cold]
         record("quick_cold", run_job(client, VARIED_PROMPTS[0], "QUICK", timeout=job_timeout),
-               cold=True, note=cold_note)
+               cold=cold, note=cold_note)
         for i in range(reps):
             record("quick_warm", run_job(client, VARIED_PROMPTS[i % len(VARIED_PROMPTS)],
                                          "QUICK", timeout=job_timeout), cold=False)
@@ -451,6 +472,7 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
                     "deep_model_slate": health.get("deep_model_slate"),
                     "product_version": health.get("product_version"),
                     "worker_count": health.get("worker_count"),
+                    "models_loaded_at_start": loaded_at_start,
                     "qualification_at_start": health.get("qualification")},
         "repetitions": reps,
         "resources": sampler.report(),
