@@ -106,6 +106,18 @@ after idle includes loading the model (about 20-55 s).
    you send waits in the queue ("waiting for LONG job ...") and runs after the LONG job ends;
    STATUS answers at once. An **Interrupted** LONG job does not hold the queue.
 
+6. **Counting questions are answered exactly.** If the objective counts, totals or ranks records
+   in the material ("how many notes report 16 warnings", "the step with the most warnings"), the
+   product does not let the model count. The model writes a small extraction *spec* (a pattern
+   for one record and what to compute), the product checks it on a sample, applies it to the
+   whole input itself and computes the numbers exactly, ties included, and the model only writes
+   the sentences around them. The answer ends with "Computed by the product over N records" and
+   the exact table. If the material has no regular record pattern, or the spec cannot be
+   confirmed, the run falls back to map/reduce and the answer says: "exact counting was not
+   used ... any counts in it are the model's estimate". To keep a counting question on
+   map/reduce anyway, start the request with a line `@exact: off` (it may share the top with
+   `@model:`). Design: `docs/design/EXACT-COUNTING.md`.
+
 A run survives a product restart: it resumes from its checkpoints by itself. If it ends
 **Interrupted** (the model server was away for more than 5 minutes, or the disk was full),
 press **Resume** once the cause is fixed. It continues where it stopped.
@@ -133,6 +145,7 @@ cd modules\sovereign
 | LONG shows **degraded** / "plan refused ... exceed usable VRAM" | When the supervisor started, too little VRAM was free (a game, Ollama, another model). Free the GPU, then stop and start the supervisor (section 2). `/v1/health` then shows `long_route.status: "ready"`. |
 | A LONG job fails at once: "served with a N-token context, below the 32768 ..." | The same cause: the plan was refused, so the model runs with a small window. Restart the supervisor with the GPU free. |
 | "reasoned although thinking is off ... thinking-only model" | `qwen3:30b-a3b` is Qwen3-30B-A3B-Thinking: it must have `"thinking": "on"` and a `reasoning_tokens` budget in `modules\sovereign\long_workload.json`. |
+| A LONG counting answer ends "exact counting was not used (...)" | The model could not produce a spec the product could confirm, the objective was not a counting question, or the material has no regular records. The counts in that answer are estimates. Rephrase the objective around the records ("how many notes ..."), or use `@exact: off` to keep map/reduce on purpose. |
 | A job is **Interrupted** | LONG: press **Resume** (or `POST /v1/jobs/<id>/resume`). Other routes do not resume: send the request again. |
 | A job looks stuck | Open its run panel: a LONG stage of `model_unavailable` means it is waiting (up to 5 minutes) for the model server. Cancel stops any route. |
 | `internal service error` | Should not happen. Report it with `product.stderr.log`. |
@@ -144,15 +157,16 @@ Where things live (`<state home>` defaults to `%LOCALAPPDATA%\SovereignWorkspace
 | Chats, jobs, answers | `<state home>\runtime\sovereign.db` |
 | LONG checkpoints and chunk outputs | `<state home>\runtime\evidence\long\<job id>\` |
 | llama.cpp server log / supervisor watcher log | `<state home>\runtime\llamacpp_supervisor\llama-server.log`, `watch.log` |
-| GPU/RAM plan per LONG model | `<state home>\runtime\llamacpp_supervisor\hybrid_plans.json` (present while the supervisor runs) |
+| GPU/RAM plan per model (LONG models and the QUICK/DEEP/RESEARCH models) | `<state home>\runtime\llamacpp_supervisor\hybrid_plans.json` (present while the supervisor runs); `/v1/health` shows it as `long_route` and `role_models` |
 | Backups | `python -m sovereign_product.state_admin --root . backup --out <file.zip>` |
 
 Housekeeping: `docs/RETENTION.md` (what grows, and the safe `state_admin prune`).
 
 ## 8. Known limits
 
-- The counts in dense LONG counting objectives are model-computed. On the 65k-token test input
-  the answer equals the sum of the per-part counts, but the per-part counts run a few percent low
-  (115 against a true 124 in r2).
+- LONG counts are exact only when the material has a record pattern the product can match (a
+  regular expression with at most 4,096 characters per record). Otherwise the run falls back to
+  map/reduce, where the counts are the model's estimates (on the 65k-token test input they ran
+  7-19% low before exact counting: 100, 110 and 115 against a true 124), and the answer says so.
 - `qwen3.5:35b-a3b` is excluded: its Ollama GGUF does not load in upstream llama.cpp.
 - The inference RAM budget is 32 GB: the planner refuses bigger plans.
