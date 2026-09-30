@@ -535,7 +535,15 @@ class ResearchExecutor:
         store: Any | None = None,
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
+        think: bool | None = None,
     ) -> None:
+        # ``think`` is an OPTION, not a default: None leaves the model's own thinking behaviour
+        # (qwen3 reasons before each phase reply). SOVEREIGN_RESEARCH_THINK=off/on sets it for
+        # a run of the product; the measured effect is in the operator guide.
+        if think is None:
+            think = {"off": False, "on": True}.get(
+                os.environ.get("SOVEREIGN_RESEARCH_THINK", "").strip().lower())
+        self.think: bool | None = think
         for attribute in ("root", "state_dir", "evidence_dir"):
             if not hasattr(paths, attribute):
                 raise TypeError(f"paths lacks required attribute {attribute!r}")
@@ -2458,6 +2466,8 @@ class ResearchExecutor:
             "overall_timeout": timeout,
             "response_format": inflight["response_format"],
         }
+        if self.think is not None:
+            kwargs["think"] = self.think
         callable_model = getattr(self.model_client, "generate", None)
         if not callable(callable_model):
             callable_model = self.model_client

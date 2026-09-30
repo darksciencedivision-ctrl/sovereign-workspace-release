@@ -102,3 +102,39 @@ def test_a_running_job_shows_the_progress_through_the_service(tmp_path):
     stages = [stage for percent, stage in seen]
     assert len(set(percent for percent, stage in seen)) > 5, seen
     assert "hypothesis_generation" in stages and "final_synthesis" in stages
+
+
+# --- H-2: the thinking switch for the research phases (an option, off by default) ----------------
+
+class ThinkRecorder(ScriptedModel):
+    def __init__(self):
+        super().__init__()
+        self.thinks = []
+
+    def generate(self, model, prompt, options=None, **kwargs):
+        self.thinks.append(kwargs.get("think", "not passed"))
+        return super().generate(model, prompt, options, **kwargs)
+
+
+def _thinks(tmp_path, **kwargs):
+    model = ThinkRecorder()
+    result = ResearchExecutor(_paths(tmp_path), model, **kwargs).run(
+        "r-1", "Does alpha hold?", model="qwen3:14b", limits=LIMITS)
+    assert result.completed
+    return model.thinks
+
+
+def test_research_leaves_the_models_thinking_alone_unless_asked(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOVEREIGN_RESEARCH_THINK", raising=False)
+    assert set(_thinks(tmp_path)) == {"not passed"}
+
+
+def test_research_can_run_its_phases_without_thinking(tmp_path, monkeypatch):
+    monkeypatch.delenv("SOVEREIGN_RESEARCH_THINK", raising=False)
+    assert set(_thinks(tmp_path / "a", think=False)) == {False}
+    monkeypatch.setenv("SOVEREIGN_RESEARCH_THINK", "off")
+    assert set(_thinks(tmp_path / "b")) == {False}
+    monkeypatch.setenv("SOVEREIGN_RESEARCH_THINK", "on")
+    assert set(_thinks(tmp_path / "c")) == {True}
+    monkeypatch.setenv("SOVEREIGN_RESEARCH_THINK", "maybe")  # not a switch: ignored
+    assert set(_thinks(tmp_path / "d")) == {"not passed"}
