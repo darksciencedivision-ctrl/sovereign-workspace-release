@@ -19,6 +19,7 @@ from system_manifest import find_sovereign_root
 from .paths import resolve_runtime_dir
 from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
+from .process_control import run_control_command
 from .runtime_registry import (
     RuntimeRegistry,
     build_operational_registry,
@@ -540,7 +541,7 @@ def _stop_watch_process(root: Path) -> dict[str, Any]:
                 "reason": "watch identity unproven; refusing to terminate",
             }))
         elif sys.platform == "win32":
-            subprocess.run(
+            run_control_command(
                 ["taskkill", "/PID", str(pid), "/F"],
                 capture_output=True,
                 check=False,
@@ -661,7 +662,7 @@ def _append_rotating(path: Path, line: str, max_bytes: int | None = None) -> Non
 
 
 def _task_exists(name: str) -> bool:
-    completed = subprocess.run(
+    completed = run_control_command(
         ["schtasks", "/Query", "/TN", name],
         capture_output=True,
         check=False,
@@ -794,7 +795,7 @@ def _task_xml(
 
 
 def _register_task(name: str, xml_path: Path) -> tuple[bool, str]:
-    completed = subprocess.run(
+    completed = run_control_command(
         ["schtasks", "/Create", "/TN", name, "/XML", str(xml_path), "/F"],
         capture_output=True,
         check=False,
@@ -807,7 +808,7 @@ def _register_task(name: str, xml_path: Path) -> tuple[bool, str]:
 
 
 def _delete_task(name: str) -> None:
-    subprocess.run(
+    run_control_command(
         ["schtasks", "/Delete", "/TN", name, "/F"],
         capture_output=True,
         check=False,

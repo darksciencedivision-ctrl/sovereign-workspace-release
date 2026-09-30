@@ -14,6 +14,7 @@ import time
 import requests
 
 from .runtime_contracts import RuntimeControlError, RuntimeInventory, validate_loopback_origin
+from .process_control import run_control_command
 from .runtime_registry import RuntimeRegistry, ServingProfile
 
 
@@ -245,7 +246,7 @@ class LlamaCppSupervisor:
         poll = getattr(process, "poll", lambda: 0)
         if poll() is None:
             if sys.platform == "win32" and pid is not None:
-                subprocess.run(
+                run_control_command(
                     ["taskkill", "/PID", str(pid), "/T", "/F"],
                     capture_output=True,
                     check=False,
