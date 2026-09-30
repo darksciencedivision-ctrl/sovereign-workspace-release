@@ -73,15 +73,25 @@ fixed rules, never by a model. LONG is only ever chosen explicitly.
 | Route | What it is for | Measured here |
 |---|---|---|
 | **STATUS** | The machine's own state: health, models, what is running. Reads the system; no model call. | 1.3 s |
-| **QUICK** | Short answers and everyday questions, one model call. | Ollama, qwen3:14b: about 10 s warm, 18-43 s cold; a prompt of about 8k tokens took 22 s. llama.cpp: 14.5 s warm, 40 s cold. |
-| **CONTINUITY** | Picks up earlier work in the same chat ("continue", "what did I ask"). | llama.cpp: 13 s |
-| **DEEP** | Multi-step analysis, comparisons and designs, by a slate of models. | Ollama: 360 s. llama.cpp: failed before the model-name fix of 2026-09-28 (`94f0b0b`); not yet re-measured |
-| **RESEARCH** | Evidence-backed answers with citations, in checkpointed iterations. | llama.cpp: failed after 27 min before the stream fix of 2026-09-28 (`fbe2640`); not yet re-measured |
-| **LONG** | Big models on big inputs or long plans: hours, in fresh-context chunks. Explicit only. | MoE plan steps 420-512 s; 145 KB prose map/reduce 708 s; 32k-token map/reduce about 18 min; 65k-token map/reduce 44-55 min |
+| **QUICK** | Short answers and everyday questions, one model call. | Ollama, qwen3:14b: about 10 s warm, 18-43 s cold; a prompt of about 8k tokens took 22 s. llama.cpp with the GPU plan (2026-09-29): warm 10.1 s and 10.2 s, cold 40.8 s and 71.7 s, generation 6.0-6.6 tok/s. |
+| **CONTINUITY** | Picks up earlier work in the same chat ("continue", "what did I ask"). | llama.cpp (2026-09-29, two starts): 20.6 s, generation 6.0-6.2 tok/s. |
+| **DEEP** | Multi-step analysis, comparisons and designs, by a slate of models. | Ollama: 360 s. llama.cpp (2026-09-30, after the num_predict fix): completed in 920 s, 8 model calls, generation 5.78 tok/s. |
+| **RESEARCH** | Evidence-backed answers with citations, in checkpointed iterations. | llama.cpp (2026-09-30): completed in 110.4 min, 8 iterations, 33 model calls, mean 199 s per call, generation 4.78 tok/s. |
+| **LONG** | Big models on big inputs or long plans: hours, in fresh-context chunks. Explicit only. | MoE plan steps 420-512 s; 145 KB prose map/reduce 708 s; 32k map/reduce 872 s (earlier) and 1724 s on 2026-09-30 after a split (`@exact: off`, 21.3 tok/s). Exact counting on 2026-09-30: 32k 383 s and 745 s (answer 63), 65k 498 s and 611 s (answer 124), generation about 24 tok/s. Earlier map/reduce on those inputs was 872 s and 2439 s and the counts were low. |
 
-On llama.cpp, the QUICK/DEEP/RESEARCH models currently run mostly on the CPU (for example
-`qwen3:14b`: 8 of 40 layers on the GPU, about 4 tokens/s), so those routes are slower there
-than on Ollama.
+On llama.cpp the supervisor plans a GPU/RAM split for these models when the GPU is free.
+Measured 2026-09-29/30: `qwen3:14b` ran with 14 or 15 of 40 layers on the GPU and generated at
+6.0-6.6 tok/s on QUICK (the old default, 8 of 40 layers, was about 3.6-4.5 tok/s). A refused
+plan leaves the model on that slower default; the status bar says so.
+
+**RESEARCH without thinking (option, off by default).** RESEARCH spends most of its time in the
+model's reasoning before each phase reply (76.5% of the recorded text and reasoning characters in
+the 2026-09-30 run). Setting `SOVEREIGN_RESEARCH_THINK=off` in the environment the product starts
+with turns that off for the RESEARCH phases only (`on` forces it on; unset leaves the model's own
+behaviour). Measured 2026-09-30 on the same objective: 12 model calls in 643 s, **53.6 s per call**
+against 199 s per call with thinking (73% less), and all 12 replies were valid (they are
+JSON-schema constrained). Not measured: the quality of a finished answer without thinking, so the
+default is unchanged.
 
 QUICK/DEEP rows: `docs/performance/qualification-20260924/` (Ollama, qwen3:14b). The other rows
 come from the 2026-09-28 smoke run on the isolated llama.cpp stack. LONG rows:
@@ -104,7 +114,10 @@ after idle includes loading the model (about 20-55 s).
    small ledger carried between chunks.
 5. While LONG runs, it has the model to itself: a QUICK, CONTINUITY, DEEP or RESEARCH question
    you send waits in the queue ("waiting for LONG job ...") and runs after the LONG job ends;
-   STATUS answers at once. An **Interrupted** LONG job does not hold the queue.
+   STATUS answers at once. An **Interrupted** LONG job does not hold the queue. Measured
+   2026-09-30: a QUICK sent during a running 32k LONG job was still `queued` with that stage
+   30 s later, the model server proxied only the LONG model until the LONG job ended, and the
+   QUICK then completed (39 s).
 
 6. **Counting questions are answered exactly.** If the objective counts, totals or ranks records
    in the material ("how many notes report 16 warnings", "the step with the most warnings"), the
@@ -169,5 +182,19 @@ Housekeeping: `docs/RETENTION.md` (what grows, and the safe `state_admin prune`)
   phrase, or one record per line of a table or log). Otherwise the run falls back to
   map/reduce, where the counts are the model's estimates (on the 65k-token test input they ran
   7-19% low before exact counting: 100, 110 and 115 against a true 124), and the answer says so.
+- Exact counting was confirmed live only on the 32k and 65k qualification notes (records that begin
+  with a fixed phrase). Two other shapes were tried on 2026-09-30 and did **not** take the exact
+  route: a 5,000-line service log (the model declined: "no three literal characters begin every
+  record") and a 3,000-row CSV table (its pattern matched nothing in the sample). Both fell back to
+  map/reduce, which did not finish inside the 45-minute test limit. The one-record-per-line option
+  (`^` with flag `m`) is unit-tested but was not produced by the model live, so counts over such
+  files are not guaranteed to be exact.
+- The exact route trusts the model's reading of the objective. On an objective with no record
+  structure ("how many components does the design describe, and which is the most important?" over
+  a design document) it counted 25 headings and then reported "the most important component is
+  phase 0", which is not an answer to the question. Read the table under "Computed by the product"
+  and check that the records counted are the ones you meant; use `@exact: off` to keep map/reduce.
+- Qualification r3 (the before/after re-measurement of both LONG profiles) was not run; the route
+  table above holds only what the individual runs measured.
 - `qwen3.5:35b-a3b` is excluded: its Ollama GGUF does not load in upstream llama.cpp.
 - The inference RAM budget is 32 GB: the planner refuses bigger plans.
