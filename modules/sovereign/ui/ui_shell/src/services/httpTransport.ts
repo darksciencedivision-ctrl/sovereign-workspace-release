@@ -27,6 +27,7 @@ import type {
 } from "../types/model";
 import type { Settings } from "../types/settings";
 import { normalizeLongRoute, normalizeLongRun } from "../state/longRequest";
+import { roleModelsNote } from "../state/roleModels";
 import type { ValidationResult, ValidationStatus } from "../types/validation";
 import {
   ERR_NOT_REACHABLE,
@@ -633,6 +634,7 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
           result.data.routes?.LONG,
           result.data.long_route
         ),
+        roleModelsNote: roleModelsNote(result.data.role_models),
         longActiveJob:
           typeof result.data.long_active_job === "string" &&
           result.data.long_active_job.length > 0
