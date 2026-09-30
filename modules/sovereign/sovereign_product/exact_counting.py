@@ -128,7 +128,10 @@ The object is either {"applicable": false, "reason": "..."} or a spec:
  "fields": {"<group name>": "int" | "str", ...},
  "aggregates": [ ... ]}
 Rules for the pattern: it must START with at least 3 literal characters that begin every record
-(for example "Operations note "), then match the record through the last value you need. Capture
+(for example "Operations note "), then match the record through the last value you need. When
+every line of the input is one record and lines start with a value that varies (a table, a CSV, a
+log), start the pattern with ^ and set "flags": "m"; then each line is one record and the pattern
+must match a whole line (no \\n in it). Capture
 each value you need in a named group (?P<name>...); the named groups must be exactly the fields.
 Use single-character repeats like \\d+ or [^,]*; do not use back-references, look-around, or a
 repeat over a group with alternation inside. A record is at most 4000 characters.
@@ -223,9 +226,14 @@ def render_table(results: Mapping[str, Any]) -> str:
             lines.append(f"- records per {name} ({item['distinct']} distinct values; top "
                          f"{len(item['top'])}): {top}")
     if results.get("unmatched_anchor_mentions"):
-        lines.append(f"- NOTE: {results['unmatched_anchor_mentions']} place(s) start like a "
-                     f"record ('{results['anchor']}') but did not match the pattern and are not "
-                     "counted.")
+        if results.get("anchor") == "start of a line":
+            lines.append(f"- NOTE: {results['unmatched_anchor_mentions']} non-blank line(s) did "
+                         "not match the pattern and are not counted (a header line is expected "
+                         "to be one).")
+        else:
+            lines.append(f"- NOTE: {results['unmatched_anchor_mentions']} place(s) start like a "
+                         f"record ('{results['anchor']}') but did not match the pattern and are "
+                         "not counted.")
     if results.get("unparsed"):
         lines.append(f"- NOTE: {results['unparsed']} matched record(s) had a value that could "
                      "not be read and are not in the aggregates.")

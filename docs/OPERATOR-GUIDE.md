@@ -165,7 +165,8 @@ Housekeeping: `docs/RETENTION.md` (what grows, and the safe `state_admin prune`)
 ## 8. Known limits
 
 - LONG counts are exact only when the material has a record pattern the product can match (a
-  regular expression with at most 4,096 characters per record). Otherwise the run falls back to
+  regular expression with at most 4,096 characters per record; records that start with a fixed
+  phrase, or one record per line of a table or log). Otherwise the run falls back to
   map/reduce, where the counts are the model's estimates (on the 65k-token test input they ran
   7-19% low before exact counting: 100, 110 and 115 against a true 124), and the answer says so.
 - `qwen3.5:35b-a3b` is excluded: its Ollama GGUF does not load in upstream llama.cpp.

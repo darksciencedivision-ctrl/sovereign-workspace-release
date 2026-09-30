@@ -70,6 +70,7 @@ class Spec:
     fields: dict[str, str]
     aggregates: tuple[Aggregate, ...]
     anchor: str
+    line_records: bool = False  # each line is a record (pattern starts with ^, flag m)
 
     def as_dict(self) -> dict[str, Any]:
         return {"applicable": True, "pattern": self.pattern, "flags": self.flags,
@@ -152,9 +153,15 @@ def parse_spec(value: Any) -> Spec:
         raise SpecError(f'"pattern" is not a valid regular expression: {exc}') from exc
     _walk(parsed, False)
     anchor = _anchor(parsed)
+    line_records = False
     if len(anchor) < MIN_ANCHOR_CHARS:
-        raise SpecError(f"the pattern must start with at least {MIN_ANCHOR_CHARS} literal "
-                        "characters that begin every record (e.g. 'Operations note ')")
+        first = next(iter(parsed), None)
+        if "m" in flags and first is not None and first[0] is _sre_const.AT                 and first[1] is _sre_const.AT_BEGINNING:
+            anchor, line_records = "start of a line", True  # a table or log: one record per line
+        else:
+            raise SpecError(f"the pattern must start with at least {MIN_ANCHOR_CHARS} literal "
+                            "characters that begin every record (e.g. 'Operations note '), or "
+                            'start with ^ and use flags "m" when every line is one record')
     raw_fields = value.get("fields")
     if not isinstance(raw_fields, Mapping) or not raw_fields or len(raw_fields) > MAX_FIELDS:
         raise SpecError(f'"fields" must map 1 to {MAX_FIELDS} group names to "int" or "str"')
@@ -174,7 +181,7 @@ def parse_spec(value: Any) -> Spec:
         raise SpecError(f'"aggregates" must list 1 to {MAX_AGGREGATES} operations')
     aggregates = tuple(_parse_aggregate(item, fields) for item in raw_aggregates)
     return Spec(pattern=pattern, flags=flags, fields=fields, aggregates=aggregates,
-                anchor=anchor)
+                anchor=anchor, line_records=line_records)
 
 
 def _parse_aggregate(item: Any, fields: Mapping[str, str]) -> Aggregate:
@@ -222,7 +229,8 @@ def execute(text: str, spec: Spec, *, deadline: float | None = None,
     """Apply ``spec`` to ``text``; every aggregate exactly, with the evidence."""
     flags = _re_flags(spec.flags)
     compiled = re.compile(spec.pattern, flags)
-    anchor = re.compile(re.escape(spec.anchor), flags & re.IGNORECASE)
+    anchor = (re.compile(r"^", re.MULTILINE) if spec.line_records
+              else re.compile(re.escape(spec.anchor), flags & re.IGNORECASE))
     total = len(text)
     states: list[dict[str, Any]] = []
     for aggregate in spec.aggregates:
@@ -237,6 +245,11 @@ def execute(text: str, spec: Spec, *, deadline: float | None = None,
         if found is None:
             break
         start = found.start()
+        if spec.line_records and start >= total:
+            break  # the empty "line" after a final newline (a search past the end clamps)
+        if spec.line_records and text[start] in "\r\n":
+            position = start + 1  # a blank line is not a record
+            continue
         attempts += 1
         if deadline is not None and attempts % 1024 == 0 and monotonic() > deadline:
             raise ExecutionError("the time limit for counting was reached")

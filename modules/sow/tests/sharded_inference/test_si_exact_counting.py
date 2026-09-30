@@ -585,3 +585,67 @@ def test_the_answer_step_is_asked_for_prose_not_for_a_json_object(tmp_path):
     assert port.systems[:2] == [EC.SYSTEM, EC.SYSTEM]
     assert port.systems[2] == EC.PROSE_SYSTEM and "JSON" in EC.PROSE_SYSTEM
     assert "exactly one JSON object" not in port.systems[2]
+
+
+# --- line records: tables and logs whose lines start with a varying value ----------------------
+
+def _table():
+    rows = [(i, ["ok", "late", "lost"][i % 3], (i * 37) % 500) for i in range(1, 301)]
+    body = "\n".join(f"{i},{state},{amount}" for i, state, amount in rows)
+    return "id,state,amount\n\n" + body + "\n", rows
+
+
+LINE_SPEC = {"applicable": True, "pattern": r"^(?P<id>\d+),(?P<state>[a-z]+),(?P<amount>\d+)$",
+             "flags": "m", "fields": {"id": "int", "state": "str", "amount": "int"},
+             "aggregates": [{"op": "count"}, {"op": "count_where", "field": "state", "cmp": "==",
+                                              "value": "late"},
+                            {"op": "max", "field": "amount"}, {"op": "sum", "field": "amount"},
+                            {"op": "group_count", "field": "state"}]}
+
+
+def test_a_table_whose_lines_start_with_a_varying_value_counts_exactly():
+    text, rows = _table()
+    out = EW.execute(text, EW.parse_spec(LINE_SPEC))
+    count, late, top, total, groups = out["aggregates"]
+    amounts = [a for _, _, a in rows]
+    assert count["result"] == out["matched"] == 300
+    assert late["result"] == sum(1 for _, s, _ in rows if s == "late")
+    assert top["result"] == max(amounts) and top["attained_by"] == amounts.count(max(amounts))
+    assert total["result"] == sum(amounts)
+    assert groups["distinct"] == 3
+    # the header is the one non-blank line that is not a record; the blank line is nothing
+    assert out["unmatched_anchor_mentions"] == 1 and out["anchor"] == "start of a line"
+    assert "non-blank line(s) did not match" in EC.render_table(out)
+
+
+def test_a_log_file_with_levels_counts_errors_per_component():
+    lines = []
+    for i in range(500):
+        level = ["INFO", "WARN", "ERROR"][i % 3 if i % 7 else 2]
+        lines.append(f"{2020 + i % 5}-01-{i % 28 + 1:02d} 10:00:{i % 60:02d} {level} "
+                     f"comp{i % 4}: took {i % 90} ms")
+    text = "\r\n".join(lines) + "\r\n"  # Windows line ends
+    spec = EW.parse_spec({"applicable": True, "flags": "m",
+                          "pattern": r"^\d{4}-\d\d-\d\d [\d:]+ (?P<level>[A-Z]+) (?P<comp>\w+): "
+                                     r"took (?P<ms>\d+) ms\s*$",
+                          "fields": {"level": "str", "comp": "str", "ms": "int"},
+                          "aggregates": [{"op": "count_where", "field": "level", "cmp": "==",
+                                          "value": "ERROR"},
+                                         {"op": "group_count", "field": "comp"}]})
+    out = EW.execute(text, spec)
+    errors = sum(1 for line in lines if " ERROR " in line)
+    assert out["matched"] == 500 and out["unmatched_anchor_mentions"] == 0
+    assert out["aggregates"][0]["result"] == errors
+    assert out["aggregates"][1]["distinct"] == 4
+
+
+def test_a_variable_start_without_the_line_flag_is_still_refused():
+    with pytest.raises(EW.SpecError, match=r'start with \^'):
+        EW.parse_spec({**LINE_SPEC, "flags": ""})
+    with pytest.raises(EW.SpecError, match="at least 3 literal"):
+        EW.parse_spec({**LINE_SPEC, "pattern": r"(?P<id>\d+),(?P<state>[a-z]+),(?P<amount>\d+)"})
+
+
+def test_the_spec_prompt_tells_the_model_how_to_describe_line_records():
+    assert '"flags": "m"' in EC.SPEC_FORMAT and "each line is one record" in EC.SPEC_FORMAT
+    assert "(no \\n in it)" in EC.SPEC_FORMAT  # a literal backslash-n, not a line break

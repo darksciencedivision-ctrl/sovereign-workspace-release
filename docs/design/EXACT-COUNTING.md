@@ -29,12 +29,15 @@ ends up in the answer.
    and the aggregates over the sample. The model replies `{"ok": true}` or a corrected spec.
    At most two corrections. A spec that is invalid, matches nothing in the sample, or is not
    confirmed ends the exact route: the run falls back to map/reduce and the answer says so.
-3. **Execution.** The product runs the pattern over the whole input with `re.finditer` and
-   integer arithmetic and computes every aggregate exactly: ties included, with the matched
+3. **Execution.** The product finds every start of a record (the pattern's literal anchor, or
+   every non-blank line for a `^` pattern with flag `m`), matches the pattern from there up to
+   the next start (so a greedy tail cannot swallow the following record: live, a `[^,]*` tail
+   halved a count of 63 to 31) and computes every aggregate exactly with integer arithmetic: ties included, with the matched
    record count, the input's SHA-256 and byte size, first and last match offsets, examples,
    and how many times the pattern's literal anchor occurs against how many records matched
    (a gap means some mentions did not match the pattern; the answer states it).
-4. **Answer.** One model session writes the answer from the computed table only. The product
+4. **Answer.** One model session (its own system prompt: plain sentences, not the JSON of the
+   spec calls) writes the answer from the computed table only. The product
    rejects prose containing a number that is not in the table or the objective (two retries,
    then a plain deterministic answer), and appends the table verbatim under
    "Computed by the product over N records".
@@ -45,8 +48,11 @@ ends up in the answer.
   characters of pattern, 12 fields, 8 aggregates, only flags `i` and `m`.
 * The pattern is checked statically before it runs: no back-references, look-around or atomic
   groups; no alternation or unbounded repeat inside another repeat; bounded repeats (`{m,n}`)
-  top out at 1,000; an unbounded repeat applies to a single character or class; it must start
-  with at least 3 literal characters (the record anchor). Each match attempt starts at an
+  top out at 1,000 and nested repeats may multiply to at most 2,000 combinations (a nested
+  1,000 x 1,000 repeat ran for over a minute on a 60-character record); an unbounded repeat
+  applies to a single character or class; it must start with at least 3 literal characters
+  (the record anchor), or with `^` under flag `m` when every line is a record (a table, a CSV,
+  a log whose lines start with a varying value). Each match attempt starts at an
   anchor and sees at most 4,096 characters, so a record longer than that is not matched (it is
   reported as an unmatched mention).
 * The engine runs in a child process (`exact_worker.py`, stdlib only, `python -I`) that the
