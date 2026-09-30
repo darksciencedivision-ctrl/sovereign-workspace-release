@@ -34,16 +34,27 @@ SPEC_TRIES = 2
 EXECUTION_SECONDS = 300.0
 SAMPLE_SECONDS = 20.0
 
-_COUNTABLE = re.compile(
-    r"\b(count|counts|counted|counting|how many|number of|total|totals|sum of|tally|how often|"
-    r"most|least|fewest|maximum|minimum|max|min|largest|smallest|highest|lowest)\b",
+# Words that ask for a number outright: worth a spec attempt whatever else the objective says.
+_COUNT_WORDS = re.compile(
+    r"\b(count|counts|counted|counting|how many|number of|sum of|tally|how often|total number)\b",
     re.IGNORECASE)
+# Words that rank or total ("the most warnings", "the total of"): they also turn up in prose
+# requests ("summarize the most important risks"), where the spec call (a thinking model, minutes)
+# would only end in "not applicable".
+_RANK_WORDS = re.compile(
+    r"\b(total|totals|most|least|fewest|maximum|minimum|max|min|largest|smallest|highest|lowest)\b",
+    re.IGNORECASE)
+_TEXT_REQUEST = re.compile(
+    r"\b(list|summari[sz]e|summary|describe|explain|compare|outline|discuss|review|analy[sz]e|"
+    r"draft|write|design|plan)\b", re.IGNORECASE)
 _NUMBER = re.compile(r"\d[\d,]*")
 
 
 def is_countable_objective(objective: str) -> bool:
     """A cheap word check: worth TRYING the exact route (the spec step still decides)."""
-    return bool(_COUNTABLE.search(objective))
+    if _COUNT_WORDS.search(objective):
+        return True
+    return bool(_RANK_WORDS.search(objective)) and not _TEXT_REQUEST.search(objective)
 
 
 class ExactCancelled(Exception):

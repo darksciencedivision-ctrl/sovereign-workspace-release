@@ -64,10 +64,15 @@ ends up in the answer.
 
 ## When it is used
 
-`is_countable_objective` is a cheap word check (count, how many, number of, total, sum, most,
-least, maximum, minimum, largest, smallest, highest, lowest, per). It only decides whether to
-*try* the exact route; the spec step still says `applicable: false` for a list or summary
-objective, and the run then maps and reduces as before (A1 rules unchanged).
+`is_countable_objective` is a cheap word check. Words that ask for a number outright (count, how
+many, number of, sum of, tally, how often, total number) always try the exact route. Words that
+rank or total (total, most, least, fewest, maximum, minimum, largest, smallest, highest, lowest)
+try it only when the objective is not also a text request (list, summarize, describe, explain,
+compare, outline, discuss, review, analyze, draft, write, design, plan): "summarize the most
+important risks" is not a counting question, and the spec call is a thinking-model session that
+takes minutes. The check only decides whether to *try* the exact route; the spec step still says
+`applicable: false` for a list or summary objective, and the run then maps and reduces as before
+(A1 rules unchanged).
 
 ## Resume
 

@@ -649,3 +649,14 @@ def test_a_variable_start_without_the_line_flag_is_still_refused():
 def test_the_spec_prompt_tells_the_model_how_to_describe_line_records():
     assert '"flags": "m"' in EC.SPEC_FORMAT and "each line is one record" in EC.SPEC_FORMAT
     assert "(no \\n in it)" in EC.SPEC_FORMAT  # a literal backslash-n, not a line break
+
+
+def test_a_prose_request_that_says_most_does_not_pay_for_a_spec_call():
+    # Every LONG run that tries the exact route spends one thinking-model call (minutes) on the
+    # spec; "summarize the most important risks" is not a counting question.
+    for text in ("Summarize the most important risks.", "List the largest customers.",
+                 "Describe the minimum viable design.", "Write a plan for the total rollout."):
+        assert not EC.is_countable_objective(text), text
+    for text in ("List how many notes report 16 warnings.", "Summarize and count the errors.",
+                 "Which order has the highest amount?", "What is the total of all amounts?"):
+        assert EC.is_countable_objective(text), text
