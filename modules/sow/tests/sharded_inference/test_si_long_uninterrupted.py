@@ -34,7 +34,7 @@ def _service(store, workers=2, ran=None):
     service = SimpleNamespace(
         store=store, _queue=queue.Queue(), _long_queue=queue.Queue(),
         _queue_lock=threading.RLock(), _enqueued=set(), _closed=threading.Event(),
-        long_wait_poll_seconds=0.01, _workers=[])
+        long_wait_poll_seconds=0.01, _workers=[], _lane_lock=threading.Lock(), _admitted=set())
     for name in WORKER_METHODS:
         if not hasattr(ProductService, name):
             continue  # the code before D5 has no waiting step
@@ -257,5 +257,29 @@ def test_a_cancelled_long_job_stops_waiting_for_the_running_job(tmp_path):
         store.transition_job(quick, "completed", expected_status="running")
         assert _until(lambda: service.ran == [second])
         assert store.get_job(long_id)["status"] == "cancelled"
+    finally:
+        _stop(service)
+
+
+def test_a_long_job_does_not_start_beside_a_model_job_the_check_just_admitted(tmp_path):
+    # Overnight review (H-3): a QUICK worker passes the "no LONG job" check, and before it marks
+    # its job running a LONG job is submitted; the LONG lane saw no running model job and started,
+    # so the router swapped the QUICK's model out. The admitted job must count as running.
+    store = SovereignStore(tmp_path / "state.db")
+    service = _service(store, workers=0)
+    quick = _job(store, "QUICK")
+    assert service._wait_out_long_job(quick) is True  # admitted: the worker is about to run it
+    long_id = _job(store, "LONG")
+    result: list[bool] = []
+    lane = threading.Thread(target=lambda: result.append(service._wait_out_model_jobs(long_id)),
+                            daemon=True)
+    lane.start()
+    try:
+        time.sleep(0.3)
+        assert result == [], "the LONG job started beside the admitted QUICK job"
+        assert store.get_job(long_id)["progress"]["stage"] == f"waiting for running job {quick}"
+        store.transition_job(quick, "running", expected_status="queued", worker_id="w")
+        store.transition_job(quick, "completed", expected_status="running")
+        assert _until(lambda: result == [True])
     finally:
         _stop(service)

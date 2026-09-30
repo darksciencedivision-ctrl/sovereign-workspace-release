@@ -555,6 +555,8 @@ class ProductService:
         self._queue_lock = threading.RLock()
         self._enqueued: set[str] = set()
         self.long_wait_poll_seconds = LONG_WAIT_POLL_SECONDS
+        self._lane_lock = threading.Lock()
+        self._admitted: set[str] = set()
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
         self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after a bounded drain
@@ -1055,13 +1057,24 @@ class ProductService:
                 if held:
                     self._run_job(job_id)
             finally:
+                self._admitted.discard(job_id)
                 jobs.task_done()
 
     def _running_model_job(self) -> str | None:
-        """Job id of a running QUICK/CONTINUITY/DEEP/RESEARCH job (one that holds the model)."""
+        """Job id of a running QUICK/CONTINUITY/DEEP/RESEARCH job (one that holds the model).
+
+        A job the LONG check just admitted counts as running before its worker has marked it so
+        (``_admitted``); otherwise a LONG job submitted in that gap would start beside it.
+        """
         for job in self.store.list_jobs(status=("running",), limit=100):
             if str(job.get("route") or "").upper() not in (Route.LONG.value, Route.STATUS.value):
                 return str(job["job_id"])
+        for admitted in list(self._admitted):
+            try:
+                if self.store.get_job(admitted)["status"] in ("queued", "running"):
+                    return admitted
+            except NotFound:
+                continue
         return None
 
     def _wait_out_model_jobs(self, job_id: str) -> bool:
@@ -1075,7 +1088,8 @@ class ProductService:
         """
         announced: str | None = None
         while not self._closed.is_set():
-            blocker = self._running_model_job()
+            with self._lane_lock:
+                blocker = self._running_model_job()
             if blocker is None:
                 return True
             try:
@@ -1104,9 +1118,11 @@ class ProductService:
         """
         announced: str | None = None
         while not self._closed.is_set():
-            blocker = self.long_active_job()
-            if blocker is None:
-                return True
+            with self._lane_lock:
+                blocker = self.long_active_job()
+                if blocker is None:
+                    self._admitted.add(job_id)  # visible to the LONG lane before it runs
+                    return True
             try:
                 job = self.store.get_job(job_id)
                 if job["status"] != "queued" or job["cancel_requested"]:
