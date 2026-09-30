@@ -56,8 +56,9 @@ python -c "import hashlib,json,pathlib; r=pathlib.Path('.'); m=json.loads((r/'MA
 
 ## 4. Version bump plan (3.1.2 -> 3.2.0)
 
-This release adds the LONG route (sharded inference), restart resume, the resume endpoint and the
-state prune. That is a feature release: **3.2.0** is proposed; the operator decides.
+This release adds the LONG route (sharded inference), restart resume, the resume endpoint, the
+state prune, exact counting for LONG counting questions, and GPU/RAM plans for the QUICK/DEEP/
+RESEARCH models. That is a feature release: **3.2.0** is proposed; the operator decides.
 
 The version is set in these places. Change them together, in one commit:
 
