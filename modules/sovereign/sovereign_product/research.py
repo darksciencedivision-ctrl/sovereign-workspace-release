@@ -465,22 +465,18 @@ class _ResearchLock:
 
     @staticmethod
     def _pid_alive(pid: int) -> bool:
-        if pid <= 0:
-            return False
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            return True
-        except OSError:
-            return False
-        return True
+        # Signal zero is CTRL_C_EVENT on Windows, not a harmless liveness probe.
+        from .supervisor_service import pid_alive
+
+        return pid_alive(pid)
 
     def __enter__(self) -> "_ResearchLock":
+        from .supervisor_service import pid_create_filetime
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "pid": os.getpid(),
+            "pid_create_filetime": pid_create_filetime(os.getpid()),
             "acquired_at": self.now(),
             "token": uuid.uuid4().hex,
         }
@@ -501,7 +497,13 @@ class _ResearchLock:
                     raise ResearchAlreadyRunning(
                         f"research lock exists but cannot be validated: {self.path}"
                     ) from exc
-                if self._pid_alive(pid):
+                recorded = existing.get("pid_create_filetime")
+                actual = pid_create_filetime(pid)
+                reused = (isinstance(recorded, int) and actual is not None
+                          and recorded != actual)
+                # Unknown identity stays locked when live; only a proven reuse or
+                # dead holder permits reclamation.
+                if self._pid_alive(pid) and not reused:
                     raise ResearchAlreadyRunning(
                         f"research is already owned by live process {pid}"
                     )
