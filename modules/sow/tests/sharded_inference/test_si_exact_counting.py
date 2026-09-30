@@ -555,3 +555,20 @@ def test_nested_bounded_repeats_with_a_huge_product_are_refused():
 def test_small_nested_bounded_repeats_and_sibling_repeats_are_still_accepted():
     EW.parse_spec(_spec_for(r"Note (?P<n>(?:\d{1,5}){1,3})x"))
     EW.parse_spec(_spec_for(r"Note (?P<n>\d{1,1000}) ([a-z]{1,1000}) (?:z{1,1000})?x"))
+
+
+def test_a_greedy_tail_does_not_swallow_the_next_record():
+    # Live (2026-09-29, 32k input): the model wrote a pattern ending in [^,]*; it ran on into the
+    # next note, so every second note was skipped and the count was 31 instead of 63.
+    text, rows = _notes(400, seed=11)
+    greedy = _spec(pattern=r"Operations note \d+: the batch finished at step (?P<step>\d+) with "
+                           r"(?P<records>\d+) records processed, (?P<warnings>\d+) warnings, "
+                           r"and a checksum ending in [^,]*",
+                   fields={"step": "int", "records": "int", "warnings": "int"},
+                   aggregates=[{"op": "count"}, {"op": "max", "field": "warnings"},
+                               {"op": "count_where", "field": "warnings", "cmp": "==",
+                                "value": 16}])
+    out = EW.execute(text, EW.parse_spec(greedy))
+    warnings = [w for _, _, w in rows]
+    assert out["matched"] == 400 and out["unmatched_anchor_mentions"] == 0
+    assert out["aggregates"][2]["result"] == warnings.count(16)

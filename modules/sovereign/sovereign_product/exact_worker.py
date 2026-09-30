@@ -240,7 +240,12 @@ def execute(text: str, spec: Spec, *, deadline: float | None = None,
         attempts += 1
         if deadline is not None and attempts % 1024 == 0 and monotonic() > deadline:
             raise ExecutionError("the time limit for counting was reached")
-        record = compiled.match(text, start, min(total, start + RECORD_WINDOW_CHARS))
+        # A record ends where the next record starts: a greedy tail (e.g. [^,]*) must not swallow
+        # the following record, which would silently halve the count.
+        following = anchor.search(text, start + 1)
+        limit = min(total, start + RECORD_WINDOW_CHARS,
+                    following.start() if following is not None else total)
+        record = compiled.match(text, start, limit)
         if record is None:
             if len(unmatched) < EXAMPLES:
                 unmatched.append(start)
