@@ -700,6 +700,26 @@ class DeepExecutor:
         return True
 
     def _launch(self, command: Sequence[str]) -> Any:
+        # The legacy engine does not need the product's API key or unrelated
+        # provider credentials. Keep explicit runtime settings, not whole prefixes.
+        allowed = {
+            'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP',
+            'LOCALAPPDATA', 'APPDATA', 'USERPROFILE', 'HOME',
+            'PYTHONPATH', 'PYTHONHOME', 'PYTHONUTF8', 'PYTHONIOENCODING',
+            'PYTHONDONTWRITEBYTECODE', 'PYTHONHASHSEED',
+            'SOVEREIGN_ROOT', 'SOVEREIGN_STATE_HOME', 'SOVEREIGN_STATE_DIR',
+            'SOVEREIGN_WORKSPACE_STATE', 'SOVEREIGN_COGNITION_ROOT',
+            'SOVEREIGN_DEEPSEEK_R1_TIMEOUT_SEC', 'SOVEREIGN_PRIMARY_REASONER_TIMEOUT_SEC',
+            'SOVEREIGN_TURN_TIMEOUT_SEC', 'SOVEREIGN_ENABLE_MODEL_WARMUP',
+            'SOVEREIGN_WARMUP_TIMEOUT_SEC', 'SOVEREIGN_BROKER_ONLY',
+            'SOVEREIGN_BROKER_SESSION_ID', 'SOVEREIGN_BROKER_SCRIPT',
+            'SOVEREIGN_BROKER_ROOT', 'SOVEREIGN_ENABLE_PRESSURE_ROUTING',
+            'SOVEREIGN_ENABLE_CONTRADICTION_AWARE_SYNTHESIS',
+            'SOVEREIGN_CONTRADICTION_LIMIT', 'SOVEREIGN_CONTRADICTION_MIN_PRESSURE',
+            'SOVEREIGN_CONCURRENCE_ROUND',
+        }
+        environment = {key: value for key, value in os.environ.items() if key.upper() in allowed}
+        environment['PYTHONUNBUFFERED'] = '1'
         kwargs: dict[str, Any] = {
             "cwd": str(self.root),
             "stdout": subprocess.PIPE,
@@ -710,7 +730,7 @@ class DeepExecutor:
             "errors": "replace",
             "bufsize": 1,
             "shell": False,
-            "env": {**os.environ, "PYTHONUNBUFFERED": "1"},
+            "env": environment,
         }
         if os.name == "nt":
             kwargs["creationflags"] = getattr(
