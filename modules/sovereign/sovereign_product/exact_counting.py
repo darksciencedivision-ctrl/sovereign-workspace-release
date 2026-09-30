@@ -57,6 +57,73 @@ def is_countable_objective(objective: str) -> bool:
     return bool(_RANK_WORDS.search(objective)) and not _TEXT_REQUEST.search(objective)
 
 
+def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
+    """Conservative lexical proof for requested quantities, independent of model agreement.
+
+    Unknown field wording is refused rather than guessed. Semantic coverage still needs
+    a separate model check; passing these necessary checks is not a semantic proof.
+    """
+    def words(text: str) -> list[str]:
+        return [word.rstrip('s') for word in re.findall(r'[a-z]+', text.lower())]
+
+    fields = {name: words(name.replace('_', ' ')) for name in spec.get('fields', {})}
+    aggregates = spec.get('aggregates', [])
+    issues: list[str] = []
+
+    def field_at(text: str) -> str | None:
+        tokens = words(text)
+        while tokens and tokens[0] in ('the', 'of', 'number'):
+            tokens.pop(0)
+        for name, parts in fields.items():
+            if parts and tokens[:len(parts)] == parts:
+                return name
+        return None
+
+    rank_count = 0
+    for match in _RANK_WORDS.finditer(objective):
+        word = match.group().lower()
+        op = ('sum' if word in ('total', 'totals') else
+              'min' if word in ('least', 'fewest', 'minimum', 'min', 'smallest', 'lowest')
+              else 'max')
+        field = field_at(objective[match.end():])
+        if not field or not any(a.get('op') == op and a.get('field') == field for a in aggregates):
+            issues.append(f'{match.group()} {objective[match.end():].strip()}: no matching {op} field')
+        else:
+            rank_count += 1
+    for match in re.finditer(r'\b(?:sum of)\s+(.+?)(?:[?;.]|$)', objective, re.I):
+        field = field_at(match.group(1))
+        if not field or not any(a.get('op') == 'sum' and a.get('field') == field for a in aggregates):
+            issues.append(f'{match.group()}: no matching sum field')
+    for match in re.finditer(r'\bwhich\s+(\w+)', objective, re.I):
+        if not field_at(match.group(1)) or not rank_count:
+            issues.append(f'{match.group()}: no captured ranked entity')
+    for match in re.finditer(r'\bits\s+(\w+)\s+count\b', objective, re.I):
+        if not field_at(match.group(1)) or not rank_count:
+            issues.append(f'{match.group()}: no captured value for ranked record')
+    count_requests = list(re.finditer(
+        r'\b(?:how many|number of|count of|count the|count all)\s+(.+?)(?=\band\b|[?;.]|$)',
+        objective, re.I))
+    for match in count_requests:
+        clause = match.group(1)
+        numbers = [int(n) for n in re.findall(r'\b\d+\b', clause)]
+        if numbers:
+            for number in numbers:
+                if not any(a.get('op') == 'count_where' and a.get('value') == number
+                           and a.get('cmp') == '==' and
+                           all(w in words(clause) for w in fields.get(a.get('field'), ['?']))
+                           for a in aggregates):
+                    issues.append(f'{match.group()}: no matching filtered count for {number}')
+        elif not any(a.get('op') in ('count', 'count_where', 'group_count') for a in aggregates):
+            issues.append(f'{match.group()}: no count aggregate')
+        entity = words(clause)[:1]
+        known = words(str(spec.get('pattern', ''))) + [w for ws in fields.values() for w in ws]
+        if entity and entity[0] not in known and entity[0] not in ('record', 'row', 'line'):
+            issues.append(f'{match.group()}: counted entity not captured or identified by pattern')
+    if not count_requests and not rank_count and not re.search(r'\bsum of\b', objective, re.I):
+        issues.append('no supported quantity could be mapped to the spec')
+    return issues
+
+
 class ExactCancelled(Exception):
     """The job was cancelled while the engine ran."""
 
@@ -354,6 +421,10 @@ class ExactCounter:
     def run(self, objective: str, material: str | None) -> ExactOutcome:
         started = self.monotonic()
         state = self.load_state()
+        if state.get('spec'):
+            issues = objective_fit_issues(objective, state['spec'])
+            if issues:
+                return self._fallback(state, 'not covered by the computed table: ' + '; '.join(issues))
         if state.get("status") == "fallback":
             return ExactOutcome(None, str(state.get("reason")),
                                 {"status": "fallback", "reason": state.get("reason")})
@@ -454,6 +525,18 @@ class ExactCounter:
             verdict = extract_json_object(self._ask(_validation_prompt(objective, spec.as_dict(),
                                                                        result)))
             if verdict is not None and verdict.get("ok") is True:
+                issues = objective_fit_issues(objective, spec.as_dict())
+                if issues:
+                    return self._fallback(state, 'not covered by the computed table: ' + '; '.join(issues))
+                coverage = extract_json_object(self._ask(
+                    f'Objective:\n{objective}\nSpec:\n{json.dumps(spec.as_dict())}\n'
+                    'List every part of the objective NOT covered by the captured fields and '
+                    'aggregates, including qualitative judgments. Reply {"uncovered": ["part", ...]}. '
+                    'Use an empty list only when every part is covered.'))
+                uncovered = coverage.get('uncovered') if coverage else None
+                if not isinstance(uncovered, list) or uncovered:
+                    return self._fallback(state, 'not covered by the computed table: ' +
+                                          (str(uncovered) if uncovered else 'coverage was not confirmed'))
                 state["status"] = "counting"
                 return spec.as_dict()
             if correction == CORRECTIONS or verdict is None:

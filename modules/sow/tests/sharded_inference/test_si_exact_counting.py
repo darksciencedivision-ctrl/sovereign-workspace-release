@@ -228,6 +228,8 @@ class Script:
     def generate(self, *, system, prompt, max_tokens, should_stop):
         self.prompts.append(prompt)
         self.systems.append(system)
+        if 'List every part of the objective NOT covered' in prompt:
+            return json.dumps({'uncovered': []})
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -258,7 +260,7 @@ def test_the_happy_path_answers_from_the_computed_table(tmp_path):
     assert f"- records where warnings == 16: {tied}" in outcome.answer
     assert f"maximum warnings: {top}, reached by {tied} record(s)" in outcome.answer
     assert f"Computed by the product over {n} records" in outcome.answer
-    assert outcome.telemetry["model_calls"] == 3 and outcome.telemetry["records_matched"] == n
+    assert outcome.telemetry["model_calls"] == 4 and outcome.telemetry["records_matched"] == n
     state = json.loads((tmp_path / EC.STATE_FILE).read_text(encoding="utf-8"))
     assert state["status"] == "answered" and state["spec"]["pattern"] == PATTERN
     assert "sample" in port.prompts[0].lower() and "Operations note" in port.prompts[0]
@@ -426,6 +428,8 @@ class ExactFake(FakeLlama):
         self.exact_calls.append(prompt[:40])
         if self.refuse:
             text = json.dumps({"applicable": False, "reason": "not for this"})
+        elif 'List every part of the objective NOT covered' in prompt:
+            text = json.dumps({'uncovered': []})
         elif "Does this extract the records" in prompt:
             text = json.dumps({"ok": True})
         elif "Exact results computed" in prompt:
@@ -453,7 +457,7 @@ def test_a_counting_objective_over_material_is_answered_by_the_exact_route(clean
     assert result["status"] == "completed" and result["telemetry"]["mode"] == "exact_counting"
     assert f"{tied} notes report the maximum of {top} warnings." in result["answer"]
     assert f"records where warnings == 16: {tied}" in result["answer"]
-    assert len(client.exact_calls) == 3 and all(c["messages"][0]["content"].startswith("You produce")
+    assert len(client.exact_calls) == 4 and all(c["messages"][0]["content"].startswith("You produce")
                                                 for c in client.chats)  # no map / reduce ran
     stages = [e.get("stage") for e in events]
     assert "exact_counting" in stages
@@ -583,8 +587,8 @@ def test_the_answer_step_is_asked_for_prose_not_for_a_json_object(tmp_path):
     port = Script(SPEC, {"ok": True}, "Done.")
     _counter(port, tmp_path).run(OBJECTIVE, text)
     assert port.systems[:2] == [EC.SYSTEM, EC.SYSTEM]
-    assert port.systems[2] == EC.PROSE_SYSTEM and "JSON" in EC.PROSE_SYSTEM
-    assert "exactly one JSON object" not in port.systems[2]
+    assert port.systems[-1] == EC.PROSE_SYSTEM and "JSON" in EC.PROSE_SYSTEM
+    assert "exactly one JSON object" not in port.systems[-1]
 
 
 # --- line records: tables and logs whose lines start with a varying value ----------------------
@@ -668,6 +672,8 @@ def test_a_line_anchor_on_records_that_share_a_line_is_stripped_and_counted(tmp_
     assert counted["unmatched_anchor_mentions"] > counted["matched"]
     class Confirm(Script):
         def generate(self, *, system, prompt, max_tokens, should_stop):
+            if 'List every part of the objective NOT covered' in prompt:
+                return json.dumps({'uncovered': []})
             if not self.replies:
                 self.prompts.append(prompt)
                 self.systems.append(system)

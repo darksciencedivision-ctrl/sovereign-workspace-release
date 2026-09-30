@@ -1,0 +1,121 @@
+{
+ "status": "answered",
+ "spec": {
+  "applicable": true,
+  "pattern": "Operations note \\d+: the batch finished at step (?P<step>\\d+) with (?P<records>\\d+) records processed, (?P<warnings>\\d+) warnings, and a checksum ending in [^,]*",
+  "flags": "m",
+  "fields": {
+   "step": "int",
+   "records": "int",
+   "warnings": "int"
+  },
+  "aggregates": [
+   {
+    "op": "max",
+    "field": "warnings"
+   },
+   {
+    "op": "count_where",
+    "field": "warnings",
+    "cmp": "==",
+    "value": 16
+   }
+  ]
+ },
+ "results": {
+  "matched": 1062,
+  "parsed": 1062,
+  "unparsed": 0,
+  "anchor": "Operations note ",
+  "anchor_attempts": 1063,
+  "unmatched_anchor_mentions": 1,
+  "unmatched_offsets": [
+   130850
+  ],
+  "first_offset": 0,
+  "last_offset": 130725,
+  "input_chars": 131072,
+  "input_sha256": "982e6238bbf6df8ca182d100f3e745209347bdb612374856d54430bd28b26ff3",
+  "examples": [
+   {
+    "step": 0,
+    "records": 0,
+    "warnings": 0,
+    "offset": 0
+   },
+   {
+    "step": 1,
+    "records": 37,
+    "warnings": 11,
+    "offset": 117
+   },
+   {
+    "step": 2,
+    "records": 74,
+    "warnings": 5,
+    "offset": 236
+   },
+   {
+    "step": 3,
+    "records": 111,
+    "warnings": 16,
+    "offset": 354
+   },
+   {
+    "step": 4,
+    "records": 148,
+    "warnings": 10,
+    "offset": 474
+   }
+  ],
+  "aggregates": [
+   {
+    "op": "max",
+    "field": "warnings",
+    "result": 16,
+    "attained_by": 63,
+    "examples": [
+     {
+      "step": 3,
+      "records": 111,
+      "warnings": 16,
+      "offset": 354
+     },
+     {
+      "step": 20,
+      "records": 740,
+      "warnings": 16,
+      "offset": 2404
+     },
+     {
+      "step": 37,
+      "records": 369,
+      "warnings": 16,
+      "offset": 4466
+     },
+     {
+      "step": 54,
+      "records": 998,
+      "warnings": 16,
+      "offset": 6530
+     },
+     {
+      "step": 71,
+      "records": 627,
+      "warnings": 16,
+      "offset": 8592
+     }
+    ]
+   },
+   {
+    "op": "count_where",
+    "field": "warnings",
+    "cmp": "==",
+    "value": 16,
+    "result": 63
+   }
+  ]
+ },
+ "answer": "Step 54 has 998 records with 16 warnings. 63 notes report 16 warnings.\n\nComputed by the product over 1062 records (exact; the model did not count):\n- maximum warnings: 16, reached by 63 record(s)\n    e.g. step 3, records 111, warnings 16\n    e.g. step 20, records 740, warnings 16\n    e.g. step 37, records 369, warnings 16\n- records where warnings == 16: 63\n- NOTE: 1 place(s) start like a record ('Operations note ') but did not match the pattern and are not counted.",
+ "prose_from_model": true
+}
