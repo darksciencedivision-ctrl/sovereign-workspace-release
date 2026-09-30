@@ -31,6 +31,8 @@ MAX_PATTERN_CHARS = 2000
 MAX_FIELDS = 12
 MAX_AGGREGATES = 8
 MAX_BOUNDED_REPEAT = 1000
+#: Nested repeats multiply their bounds; above this product the backtracking is not bounded in practice.
+MAX_NESTED_REPEAT_PRODUCT = 2000
 MIN_ANCHOR_CHARS = 3
 #: A record must fit this window from its first character; bounds the work of every attempt.
 RECORD_WINDOW_CHARS = 4096
@@ -81,18 +83,18 @@ def _re_flags(flags: str) -> int:
     return (re.IGNORECASE if "i" in flags else 0) | (re.MULTILINE if "m" in flags else 0)
 
 
-def _walk(items: Any, in_repeat: bool) -> None:
+def _walk(items: Any, in_repeat: bool, weight: int = 1) -> None:
     for op, av in items:
         if op in _SIMPLE or op is _sre_const.AT:
             continue
         if op is _sre_const.SUBPATTERN:
-            _walk(av[3], in_repeat)
+            _walk(av[3], in_repeat, weight)
         elif op is _sre_const.BRANCH:
             if in_repeat:
                 raise SpecError("the pattern has an alternation (a|b) inside a repeat; "
                                 "restructure it so repeats apply to single characters")
             for alternative in av[1]:
-                _walk(alternative, in_repeat)
+                _walk(alternative, in_repeat, weight)
         elif op in (_sre_const.MAX_REPEAT, _sre_const.MIN_REPEAT):
             minimum, maximum, body = av
             unbounded = maximum == _sre_const.MAXREPEAT
@@ -103,7 +105,12 @@ def _walk(items: Any, in_repeat: bool) -> None:
                                 "or character class, e.g. \\d+ or [^,]*; use {m,n} for groups")
             if in_repeat and unbounded:
                 raise SpecError("the pattern nests an unbounded repeat inside another repeat")
-            _walk(body, True)
+            inner = weight * (1 if unbounded else max(1, maximum))
+            if in_repeat and inner > MAX_NESTED_REPEAT_PRODUCT:
+                raise SpecError("repeats nested inside repeats allow too many combinations "
+                                f"(bounds multiply to more than {MAX_NESTED_REPEAT_PRODUCT}); "
+                                "use smaller {m,n} bounds")
+            _walk(body, True, inner)
         else:
             raise SpecError("the pattern uses a regex feature that is not allowed (back-"
                             "references, look-around and atomic groups are refused)")

@@ -537,3 +537,21 @@ def test_a_fallback_continues_the_progress_from_where_the_exact_route_reached(cl
     percents = [e["percent"] for e in events if "percent" in e]
     assert percents == sorted(percents), percents  # never backwards, so the product keeps them all
     assert any(e.get("stage") == "exact_counting" for e in events) and percents[-1] >= 8
+
+
+# --- overnight review: nested bounded repeats multiply (2026-09-29) -----------------------------
+
+def _spec_for(pattern):
+    return {"applicable": True, "pattern": pattern, "flags": "", "fields": {"n": "int"},
+            "aggregates": [{"op": "count"}]}
+
+
+def test_nested_bounded_repeats_with_a_huge_product_are_refused():
+    # Measured: (?:\d{1,1000}){1,1000} on a 60-digit record ran for more than a minute.
+    with pytest.raises(EW.SpecError, match="nested inside repeats"):
+        EW.parse_spec(_spec_for(r"Note (?P<n>(?:\d{1,1000}){1,1000})x"))
+
+
+def test_small_nested_bounded_repeats_and_sibling_repeats_are_still_accepted():
+    EW.parse_spec(_spec_for(r"Note (?P<n>(?:\d{1,5}){1,3})x"))
+    EW.parse_spec(_spec_for(r"Note (?P<n>\d{1,1000}) ([a-z]{1,1000}) (?:z{1,1000})?x"))
