@@ -223,9 +223,11 @@ class Script:
     def __init__(self, *replies):
         self.replies = list(replies)
         self.prompts = []
+        self.systems = []
 
     def generate(self, *, system, prompt, max_tokens, should_stop):
         self.prompts.append(prompt)
+        self.systems.append(system)
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -417,7 +419,7 @@ class ExactFake(FakeLlama):
         self.exact_calls = []
 
     def chat(self, *, model, messages, options, think, cancel_requested):
-        if not messages[0]["content"].startswith("You produce DATA"):
+        if messages[0]["content"] not in (EC.SYSTEM, EC.PROSE_SYSTEM):
             return super().chat(model=model, messages=messages, options=options, think=think,
                                 cancel_requested=cancel_requested)
         prompt = messages[-1]["content"]
@@ -572,3 +574,14 @@ def test_a_greedy_tail_does_not_swallow_the_next_record():
     warnings = [w for _, _, w in rows]
     assert out["matched"] == 400 and out["unmatched_anchor_mentions"] == 0
     assert out["aggregates"][2]["result"] == warnings.count(16)
+
+
+def test_the_answer_step_is_asked_for_prose_not_for_a_json_object(tmp_path):
+    # Live: the answer came back as {"step_with_most_warnings": ..} because the answer call
+    # reused the "reply with exactly one JSON object" system prompt of the spec calls.
+    text, _ = _notes(60)
+    port = Script(SPEC, {"ok": True}, "Done.")
+    _counter(port, tmp_path).run(OBJECTIVE, text)
+    assert port.systems[:2] == [EC.SYSTEM, EC.SYSTEM]
+    assert port.systems[2] == EC.PROSE_SYSTEM and "JSON" in EC.PROSE_SYSTEM
+    assert "exactly one JSON object" not in port.systems[2]

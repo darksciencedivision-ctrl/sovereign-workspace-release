@@ -116,6 +116,9 @@ def run_engine(spec: Mapping[str, Any], text: str, *, work_dir: Path, seconds: f
 
 SYSTEM = ("You produce DATA, not code. Reply with exactly one JSON object and nothing else: no "
           "prose, no code fence.")
+#: The answer step is prose; the data system prompt above made the model reply with a JSON blob.
+PROSE_SYSTEM = ("You answer in short, plain sentences for a person, using only the numbers you "
+                "are given. Do not reply with JSON, a table or a code fence.")
 
 SPEC_FORMAT = """\
 The object is either {"applicable": false, "reason": "..."} or a spec:
@@ -292,10 +295,10 @@ class ExactCounter:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         _write_state(self.state_path, state)
 
-    def _ask(self, prompt: str) -> str:
+    def _ask(self, prompt: str, system: str = SYSTEM) -> str:
         self.calls += 1
         try:
-            return self.port.generate(system=SYSTEM, prompt=prompt,
+            return self.port.generate(system=system, prompt=prompt,
                                       max_tokens=self.max_output_tokens,
                                       should_stop=self.cancel_requested)
         except Exception as exc:
@@ -400,7 +403,7 @@ class ExactCounter:
     def _prose(self, objective: str, table: Mapping[str, Any]) -> str:
         note = ""
         for _ in range(ANSWER_TRIES):
-            prose = self._ask(_answer_prompt(objective, table, note)).strip()
+            prose = self._ask(_answer_prompt(objective, table, note), PROSE_SYSTEM).strip()
             if prose and prose_numbers_ok(prose, table, objective):
                 return prose
             note = ("\nYour last reply was empty, cut off, or used a number that is not in the "
