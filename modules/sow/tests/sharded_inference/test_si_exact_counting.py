@@ -649,6 +649,39 @@ def test_a_variable_start_without_the_line_flag_is_still_refused():
 def test_the_spec_prompt_tells_the_model_how_to_describe_line_records():
     assert '"flags": "m"' in EC.SPEC_FORMAT and "each line is one record" in EC.SPEC_FORMAT
     assert "(no \\n in it)" in EC.SPEC_FORMAT  # a literal backslash-n, not a line break
+    assert "do not start the pattern with ^" in EC.SPEC_FORMAT
+
+
+def test_a_line_anchor_on_records_that_share_a_line_is_not_answered_as_exact(tmp_path):
+    # Live 2026-09-30, job_a571f49c: the model wrote ^ with flags m on one-line notes.
+    # The engine matched 1 of 1063 and the product still answered "over 1 records".
+    text, rows = _notes(40)
+    bad = {"applicable": True, "flags": "m",
+           "pattern": r"^Operations note \d+: the batch finished at step (?P<step>\d+) with "
+                      r"(?P<records>\d+) records processed, (?P<warnings>\d+) warnings, "
+                      r"and a checksum ending in [^\.]+",
+           "fields": {"step": "int", "records": "int", "warnings": "int"},
+           "aggregates": [{"op": "max", "field": "warnings"},
+                          {"op": "count_where", "field": "warnings", "cmp": "==", "value": 16}]}
+    counted = EW.execute(text, EW.parse_spec(bad))
+    assert counted["matched"] == 1
+    assert counted["unmatched_anchor_mentions"] > counted["matched"]
+    class Confirm(Script):
+        def generate(self, *, system, prompt, max_tokens, should_stop):
+            if not self.replies:
+                self.prompts.append(prompt)
+                self.systems.append(system)
+                if "Exact results computed" in prompt:
+                    return "step 0 has 0 records. 0 notes report 16 warnings."
+                return json.dumps({"ok": True})
+            return super().generate(system=system, prompt=prompt, max_tokens=max_tokens,
+                                    should_stop=should_stop)
+
+    port = Confirm(bad)
+    outcome = _counter(port, tmp_path).run(OBJECTIVE, text)
+    assert outcome.answer is None
+    assert any("did not match" in prompt for prompt in port.prompts)
+    assert "over 1 records" not in (outcome.note or "")
 
 
 def test_a_prose_request_that_says_most_does_not_pay_for_a_spec_call():

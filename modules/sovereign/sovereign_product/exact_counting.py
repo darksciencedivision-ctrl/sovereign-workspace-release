@@ -141,8 +141,10 @@ The object is either {"applicable": false, "reason": "..."} or a spec:
 Rules for the pattern: it must START with at least 3 literal characters that begin every record
 (for example "Operations note "), then match the record through the last value you need. When
 every line of the input is one record and lines start with a value that varies (a table, a CSV, a
-log), start the pattern with ^ and set "flags": "m"; then each line is one record and the pattern
-must match a whole line (no \\n in it). Capture
+log), start the pattern with ^ and set "flags": "m" ONLY when each record is its own line.
+If several records share a line, do not start the pattern with ^: a ^ pattern matches only at
+the start of a line, so it skips every later record on that line. Then each line is one record
+and the pattern must match a whole line (no \\n in it). Capture
 each value you need in a named group (?P<name>...); the named groups must be exactly the fields.
 Use single-character repeats like \\d+ or [^,]*; do not use back-references, look-around, or a
 repeat over a group with alternation inside. A record is at most 4000 characters.
@@ -155,6 +157,20 @@ Aggregates (use only what the objective needs):
 The product reports ties for max and min itself. Take literal values (V) from the objective only.
 Use {"applicable": false} when the objective asks for a list, summary, explanation, comparison or
 anything that is not counting, summing or ranking records the pattern can find."""
+
+
+def _missed_most_starts(result: Mapping[str, Any]) -> str | None:
+    """A spec that misses more record starts than it matches is not an exact count.
+
+    A line-record file may have a header line that does not match; that is one miss against
+    many hits. A ^ anchor on records that share a line matches the first record only.
+    """
+    missed = int(result.get("unmatched_anchor_mentions") or 0)
+    matched = int(result.get("matched") or 0)
+    if missed > matched:
+        return (f"the pattern matched {matched} records but {missed} places start like a record "
+                "and did not match; if several records share a line, do not start the pattern with ^")
+    return None
 
 
 def make_sample(text: str, budget: int = SAMPLE_CHARS) -> str:
@@ -355,6 +371,9 @@ class ExactCounter:
                 return self._fallback(state, f"counting failed: {exc}")
             if results["matched"] == 0:
                 return self._fallback(state, "the pattern matched no record in the whole input")
+            missed = _missed_most_starts(results)
+            if missed:
+                return self._fallback(state, missed)
             state.update(spec=spec, results=results)
             self._save(state)
         results = state["results"]
@@ -393,6 +412,9 @@ class ExactCounter:
                                      cancel_requested=self.cancel_requested)
                 if result["matched"] == 0:
                     raise SpecError("the pattern matched no record in the sample")
+                missed = _missed_most_starts(result)
+                if missed:
+                    raise SpecError(missed)
             except (SpecError, ExactEngineError) as exc:
                 problem = str(exc)
                 if correction == CORRECTIONS:
