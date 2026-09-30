@@ -400,12 +400,12 @@ def cmd_start(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
 
 
 def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
-    _stop_watch_process(root)
+    watch = _stop_watch_process(root)
     state = read_state(root)
     if state is None:
         if disable_autostart:
             _disable_autostart(root)
-        return {"stopped": False, "reason": "no state file"}
+        return {"stopped": False, "reason": "no state file", **watch}
     pid = int(state.get("pid") or 0)
     port = int(state.get("port") or DEFAULT_PORT)
     from .gpu_occupancy import release_gpu
@@ -425,6 +425,7 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
             "stopped": False,
             "reason": "recorded PID is not this runtime (process-identity mismatch); refusing to terminate",
             "pid": pid, "pid_alive": True, "pid_owned": False,
+            **watch,
         }
     if owned:
         # Provably ours and alive: terminate its whole process tree (the router and its
@@ -452,6 +453,7 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
     release_gpu(root, "llama.cpp")
     return {
         "stopped": True,
+        **watch,
         "pid": pid,
         "pid_owned": owned,
         "port_open": port_open("127.0.0.1", port),
@@ -499,14 +501,19 @@ def autostart_enabled(root: Path) -> bool:
     return autostart_path(root).is_file()
 
 
-def _read_watch_pid(root: Path) -> int:
+def _read_watch_record(root: Path) -> dict[str, Any]:
     path = watch_pid_path(root)
     if not path.is_file():
-        return 0
+        return {}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeError):
-        return 0
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _read_watch_pid(root: Path) -> int:
+    payload = _read_watch_record(root)
     if isinstance(payload, dict):
         try:
             return int(payload.get("pid") or 0)
@@ -517,29 +524,37 @@ def _read_watch_pid(root: Path) -> int:
 
 def _watch_alive(root: Path) -> bool:
     pid = _read_watch_pid(root)
-    return pid_alive(pid)
+    return pid_alive(pid) and pid_matches_recorded(pid, _read_watch_record(root))
 
 
 def _stop_watch_process(root: Path) -> dict[str, Any]:
     pid = _read_watch_pid(root)
     path = watch_pid_path(root)
     killed = False
+    refused = False
     if pid > 0 and pid != os.getpid() and pid_alive(pid):
-        if sys.platform == "win32":
+        if not pid_matches_recorded(pid, _read_watch_record(root)):
+            refused = True
+            _append_rotating(service_dir(root) / "watch.log", json.dumps({
+                "utc": _utc_now(), "watch_pid": pid,
+                "reason": "watch identity unproven; refusing to terminate",
+            }))
+        elif sys.platform == "win32":
             subprocess.run(
                 ["taskkill", "/PID", str(pid), "/F"],
                 capture_output=True,
                 check=False,
             )
+            killed = True
         else:
             try:
                 os.kill(pid, 15)
+                killed = True
             except OSError:
                 pass
-        killed = True
     if path.is_file():
         path.unlink()
-    return {"watch_stopped": killed, "watch_pid": pid}
+    return {"watch_stopped": killed, "watch_pid": pid, "watch_refused": refused}
 
 
 def _clear_stale_state(root: Path) -> None:
@@ -594,11 +609,12 @@ def cmd_watch(
     max_iterations: int | None = None,
 ) -> dict[str, Any]:
     existing = _read_watch_pid(root)
-    if existing and existing != os.getpid() and pid_alive(existing):
+    if existing and existing != os.getpid() and _watch_alive(root):
         raise RuntimeControlError(f"watch already running as PID {existing}")
     watch_pid_path(root).parent.mkdir(parents=True, exist_ok=True)
     watch_pid_path(root).write_text(
-        json.dumps({"pid": os.getpid(), "started_at": _utc_now()}, indent=2),
+        json.dumps({"pid": os.getpid(), "started_at": _utc_now(),
+                    "pid_create_filetime": pid_create_filetime(os.getpid())}, indent=2),
         encoding="utf-8",
     )
     iterations = 0
@@ -1014,7 +1030,7 @@ def cmd_persistence_status(root: Path) -> dict[str, Any]:
         "scheduled_task_ensure_present": _task_exists(TASK_ENSURE),
         "autostart": autostart_enabled(root),
         "watch_pid": watch_pid,
-        "watch_alive": pid_alive(watch_pid),
+        "watch_alive": _watch_alive(root),
         "persistent": persistence_installed(root),
         "supervisor": cmd_status(root),
     }
