@@ -146,3 +146,48 @@ def test_h6_the_watch_log_rotates_instead_of_growing_for_good(clean_env, tmp_pat
     assert older.is_file() and older.stat().st_size < 2000 + 200
     last = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
     assert last["iteration"] == 200, "the newest lines are in watch.log"
+
+
+def _exact_run(paths, job_id, status="answered", temp=()):
+    run = paths.evidence_dir / "long" / job_id
+    run.mkdir(parents=True, exist_ok=True)
+    (run / "exact.json").write_text(json.dumps({"status": status, "answer": "63"}),
+                                    encoding="utf-8")
+    for name in temp:
+        (run / name).write_bytes(b"x" * 100)
+    return run
+
+
+def test_h5_an_answered_exact_counting_run_is_pruned_like_any_finished_run(clean_env, tmp_path):
+    # Overnight review: an exact-route run has exact.json and no checkpoints, so the prune read
+    # it as "not started" and kept it for good.
+    root, paths, store, session = _setup(tmp_path)
+    answered = _job(store, session, "completed")
+    fallback = _job(store, session, "failed")
+    _exact_run(paths, answered)
+    _exact_run(paths, fallback, status="fallback")
+    store.close()
+    report = SA.prune(root, older_than_days=30, now=LATER)
+    assert [r["job_id"] for r in report["would_remove"]] == [answered]
+    assert any(k["job_id"] == fallback for k in report["kept"])
+    SA.prune(root, older_than_days=30, now=LATER, apply=True)
+    assert not (paths.evidence_dir / "long" / answered).exists()
+    assert (paths.evidence_dir / "long" / fallback).is_dir()
+
+
+def test_h5_stray_exact_temp_files_of_a_stopped_job_are_reported_and_removed(clean_env, tmp_path):
+    root, paths, store, session = _setup(tmp_path)
+    stopped = _job(store, session, "interrupted")
+    live = _job(store, session, "running")
+    stopped_run = _exact_run(paths, stopped, status="counting",
+                             temp=("exact-input.tmp", "exact-job.tmp"))
+    live_run = _exact_run(paths, live, status="counting", temp=("exact-input.tmp",))
+    store.close()
+    dry = SA.prune(root, older_than_days=30, now=LATER)
+    assert [s["job_id"] for s in dry["stray_temp"]] == [stopped]
+    assert (stopped_run / "exact-input.tmp").is_file(), "a dry run deletes nothing"
+    applied = SA.prune(root, older_than_days=30, now=LATER, apply=True)
+    assert applied["stray_temp_removed"][0]["bytes"] == 200
+    assert not (stopped_run / "exact-input.tmp").exists()
+    assert (stopped_run / "exact.json").is_file(), "the run itself is kept (it may resume)"
+    assert (live_run / "exact-input.tmp").is_file(), "a running job's temp files are never touched"

@@ -10,6 +10,8 @@ Everything below is relative to it.
 |---|---|---|---|
 | `runtime\sovereign.db` | Sessions, messages (every answer), jobs, and the tamper-evident event log | Small: a few KB per job | **Kept.** The event log is hash-chained, so single rows are never deleted. To start clean, back up (`state_admin backup`) and use a new state home. |
 | `runtime\evidence\long\<job id>\` | A LONG run's checkpoints (hash-chained) and every chunk's output | 50-400 KB per run on this machine; more for big inputs | **Prunable** with `state_admin prune` once the run is finished (below). |
+| `runtime\evidence\long\<job id>\exact.json` | An exact-counting run's spec, computed table and answer (small; a crash can leave `exact-input.tmp` / `exact-job.tmp`, up to the input's size) | A few KB per run | **Prunable** like the run folder it sits in; `prune` also clears stray temp files of a job that is not running. |
+| `runtime\llamacpp_supervisor\hybrid_plans.json` | The GPU/RAM plan of every LONG and role model (`applied`, layers, context, or the reason it was refused) | One small file, rewritten at every supervisor start | Bounded by design; `/v1/health` reads it (`role_models`). |
 | `runtime\evidence\semantic_deep\<session id>\` | DEEP evidence packets that answers link to | Per DEEP answer | **Kept**: answers link to it. `prune` reports its size. |
 | `runtime\llamacpp_supervisor\llama-server.log` | The llama.cpp server's log | Rewritten at every supervisor start | Bounded by design. |
 | `runtime\llamacpp_supervisor\watch.log` | One line per watcher check (every 5 s) | Was about 2 MB a day, without limit | **Rotated** at 1 MiB into `watch.log.1` (one old copy). |
@@ -32,7 +34,8 @@ A run directory is removed only when **all** of these hold:
   `concurrence_not_reached`;
 - the job finished more than `--older-than-days` ago (default 30);
 - its checkpoints verify (hash chain and stored outputs); and
-- the run recorded a finished `completed` or `failed` status.
+- the run recorded a finished `completed` or `failed` status (a run answered by the exact-counting
+  route records it in `exact.json`, which counts the same way).
 
 It is **kept**, with the reason listed, when:
 
@@ -42,6 +45,10 @@ It is **kept**, with the reason listed, when:
 - its checkpoints do not verify (nothing is deleted that cannot be classified);
 - no LONG job in the database has that id; or
 - it is a link rather than a plain directory.
+
+Whatever the job's state, a job that is **not queued or running** has its leftover
+`exact-input.tmp`, `exact-job.tmp` and `exact.json.tmp` removed by `--apply` (they exist only when
+the product stopped in the middle of counting); the dry run lists them under `stray_temp`.
 
 What you lose: the job's answer stays in the chat (it is in the database). Its **run view** (the
 chunk list and ledger in the UI, `GET /v1/jobs/<id>/ledger`) then reports "not started", because

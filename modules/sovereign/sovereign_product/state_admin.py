@@ -280,6 +280,18 @@ FINAL_JOB_STATES = {"completed", "failed", "cancelled", "rejected", "timeout",
 #: Run states after which the run's checkpoints are only history (a cancelled or budget-exhausted
 #: run can still be resumed by the runner, so it is kept).
 PRUNABLE_RUN_STATES = {"completed", "failed"}
+#: Files the exact-counting engine writes into a run folder and deletes when it ends; a crash
+#: leaves them behind (the input copy can be as large as the input, up to 64 MiB).
+EXACT_TEMP_FILES = ("exact-input.tmp", "exact-job.tmp", "exact.json.tmp")
+
+
+def _exact_answered(run: Path) -> bool:
+    """True when the run folder holds an exact-counting run that finished with its answer."""
+    try:
+        state = json.loads((run / "exact.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(state, dict) and state.get("status") == "answered"
 
 
 def _dir_bytes(path: Path) -> int:
@@ -324,6 +336,7 @@ def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
     runs = evidence / "long"
     removed: list[dict[str, Any]] = []
     kept: list[dict[str, Any]] = []
+    stray: list[dict[str, Any]] = []
     for run in sorted(runs.iterdir()) if runs.is_dir() else []:
         entry: dict[str, Any] = {"job_id": run.name}
         linked = run.is_symlink() or getattr(run, "is_junction", lambda: False)()
@@ -335,6 +348,14 @@ def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
             kept.append({**entry, "reason": "no LONG job with this id in the database"})
             continue
         job_status, finished = job
+        if job_status not in ("queued", "running"):
+            leftovers = [run / name for name in EXACT_TEMP_FILES if (run / name).is_file()]
+            if leftovers:
+                stray.append({"job_id": run.name, "files": [f.name for f in leftovers],
+                              "bytes": sum(f.stat().st_size for f in leftovers)})
+                if apply:
+                    for leftover in leftovers:
+                        leftover.unlink(missing_ok=True)
         if job_status not in FINAL_JOB_STATES:
             kept.append({**entry, "reason": f"job is {job_status} (it may still run or resume)"})
             continue
@@ -347,6 +368,8 @@ def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
         except (ShardRunError, OSError, ValueError, KeyError, TypeError) as exc:
             kept.append({**entry, "reason": f"checkpoints do not verify ({exc})"})
             continue
+        if run_status is None and _exact_answered(run):
+            run_status = "completed"  # an exact-counting run has no checkpoints, only exact.json
         if run_status not in PRUNABLE_RUN_STATES:
             kept.append({**entry, "reason": f"run is {run_status or 'not started'}, not finished"})
             continue
@@ -360,7 +383,8 @@ def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
     return {"applied": apply, "older_than_days": older_than_days, "evidence_dir": str(evidence),
             "removed" if apply else "would_remove": removed,
             "bytes_freed" if apply else "bytes_to_free": sum(r["bytes"] for r in removed),
-            "kept": kept, "not_pruned_bytes": other,
+            "kept": kept, "stray_temp_removed" if apply else "stray_temp": stray,
+            "not_pruned_bytes": other,
             "database_bytes": database.stat().st_size if database.is_file() else 0}
 
 
