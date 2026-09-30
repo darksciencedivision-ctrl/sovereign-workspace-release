@@ -404,6 +404,31 @@ class LlamaCppClient:
             "effective_generation_max": effective_generation,
         }
 
+    def resolve_generation_options(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        options: Mapping[str, Any],
+        system: str | None = None,
+        response_format: str | Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Apply the served context and the physical output-fit bound before a call.
+
+        DEEP asks for this before each stage (the Ollama client has it); without it the stage's
+        ``num_predict`` stays at the whole window and its own conservative check rejects any
+        prompt that is not tiny.
+        """
+
+        resolved, _ = self._resolve_generation_capacity(
+            model=model,
+            prompt=prompt,
+            options=options,
+            system=system,
+            response_format=response_format,
+        )
+        return resolved
+
     def generate(
         self,
         *,
