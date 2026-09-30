@@ -4,6 +4,7 @@ import {
   type JobSnapshot,
 } from "../types/chat";
 import { chunkLabel } from "../state/longRequest";
+import { stageLabel } from "../state/stageLabel";
 import { EvidenceLink } from "./EvidenceLink";
 import { LongRunPanel } from "./LongRunPanel";
 
@@ -118,7 +119,7 @@ export function RunStatus({
           </div>
           <div className="run-detail">
             <span>
-              {job.progress.stage ?? "Waiting for progress"}
+              {stageLabel(job.progress.stage) ?? "Waiting for progress"}
               {job.progress.detail ? ` — ${job.progress.detail}` : ""}
             </span>
             <span>{chunks ? `${chunks} - ${progressLabel}` : progressLabel}</span>
