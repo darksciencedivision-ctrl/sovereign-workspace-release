@@ -2659,6 +2659,13 @@ def create_app(
             return _json_error(str(exc), 400)
         except PathResolutionError as exc:
             return _json_error(str(exc), 404)
+        try:
+            relative = path.relative_to(owned_service.paths.state_dir.resolve())
+        except ValueError:
+            return _json_error("evidence pointer is outside the evidence state", 404)
+        if (not relative.parts or relative.parts[0] not in {"evidence", "research"}
+                or path.suffix.lower() not in {".txt", ".md", ".json", ".jsonl", ".log", ".csv", ".tsv"}):
+            return _json_error("evidence pointer is not an allowed text artifact", 404)
         if not path.is_file():
             return _json_error("evidence pointer is not a file", 404)
         mime, _encoding = mimetypes.guess_type(path.name)
@@ -2669,9 +2676,10 @@ def create_app(
             conditional=True,
             download_name=path.name,
         )
-        response.headers["Content-Disposition"] = (
-            f"inline; filename*=UTF-8''{quote(path.name)}"
-        )
+        disposition = "inline" if mime and (mime.startswith("text/") or mime == "application/json") else "attachment"
+        response.headers["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{quote(path.name)}"
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+        response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
     @app.get("/")
