@@ -154,7 +154,10 @@ Aggregates (use only what the objective needs):
   {"op": "sum", "field": F}     {"op": "max", "field": F}     {"op": "min", "field": F}
   {"op": "group_count", "field": F}                records per distinct value of F
 "the most X" or "the highest X" is max of X; "how many records report V" is count_where field == V.
-The product reports ties for max and min itself. Take literal values (V) from the objective only.
+The product reports ties for max and min itself, and each max/min example row includes every
+captured field. "The step with the most warnings and its record count" is max of warnings with
+step and records captured. Do not reply applicable:false for that. Take literal values (V) from
+the objective only.
 Use {"applicable": false} when the objective asks for a list, summary, explanation, comparison or
 anything that is not counting, summing or ranking records the pattern can find."""
 
@@ -402,8 +405,17 @@ class ExactCounter:
             return self._fallback(state, "the model did not return a spec")
         for correction in range(CORRECTIONS + 1):
             if raw.get("applicable") is False:
-                return self._fallback(state, "the objective is not a counting question: "
-                                             f"{str(raw.get('reason') or '')[:200]}")
+                reason = str(raw.get("reason") or "")[:200]
+                if is_countable_objective(objective) and correction < CORRECTIONS:
+                    raw = self._correct(
+                        objective, sample, raw,
+                        "you replied applicable false (" + reason + ") but the objective is a "
+                        "counting question. Capture the fields it asks for and use max for the "
+                        "most or highest. Reply a complete spec.")
+                    if raw is None:
+                        return self._fallback(state, "the model did not correct its spec")
+                    continue
+                return self._fallback(state, "the objective is not a counting question: " + reason)
             try:
                 spec = parse_spec(raw)
                 self.progress("exact_counting", "checking the spec on a sample", 15)

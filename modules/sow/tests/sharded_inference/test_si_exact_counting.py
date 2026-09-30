@@ -684,6 +684,21 @@ def test_a_line_anchor_on_records_that_share_a_line_is_not_answered_as_exact(tmp
     assert "over 1 records" not in (outcome.note or "")
 
 
+def test_a_false_refusal_of_a_counting_objective_is_corrected(tmp_path):
+    # Live 2026-09-30: the model replied applicable false ("Missing aggregate to find step
+    # with most warnings") and the product fell back without asking for a spec.
+    text, rows = _notes(40)
+    warnings = [w for _, _, w in rows]
+    top, tied, n16 = max(warnings), warnings.count(max(warnings)), warnings.count(16)
+    refusal = {"applicable": False, "reason": "Missing aggregate to find step with most warnings"}
+    port = Script(refusal, SPEC, {"ok": True},
+                  f"The most warnings on any note is {top}, reached by {tied} notes; "
+                  f"{n16} notes report 16 warnings.")
+    outcome = _counter(port, tmp_path).run(OBJECTIVE, text)
+    assert outcome.answer and f"over {len(rows)} records" in outcome.answer
+    assert f"records where warnings == 16: {n16}" in outcome.answer
+
+
 def test_a_prose_request_that_says_most_does_not_pay_for_a_spec_call():
     # Every LONG run that tries the exact route spends one thinking-model call (minutes) on the
     # spec; "summarize the most important risks" is not a counting question.
