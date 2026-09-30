@@ -425,6 +425,21 @@ class ExactCounter:
                 if result["matched"] == 0:
                     raise SpecError("the pattern matched no record in the sample")
                 missed = _missed_most_starts(result)
+                if missed and str(raw.get("pattern") or "").startswith("^"):
+                    stripped = dict(raw)
+                    stripped["pattern"] = str(raw["pattern"])[1:]
+                    try:
+                        spec2 = parse_spec(stripped)
+                        result2 = self.engine(spec2.as_dict(), sample, work_dir=self.run_dir,
+                                              seconds=SAMPLE_SECONDS,
+                                              cancel_requested=self.cancel_requested)
+                    except (SpecError, ExactEngineError):
+                        spec2 = None
+                        result2 = None
+                    if (spec2 is not None and result2 is not None and result2["matched"]
+                            and not _missed_most_starts(result2)):
+                        spec, result, missed = spec2, result2, None
+                        raw = stripped
                 if missed:
                     raise SpecError(missed)
             except (SpecError, ExactEngineError) as exc:

@@ -652,9 +652,9 @@ def test_the_spec_prompt_tells_the_model_how_to_describe_line_records():
     assert "do not start the pattern with ^" in EC.SPEC_FORMAT
 
 
-def test_a_line_anchor_on_records_that_share_a_line_is_not_answered_as_exact(tmp_path):
-    # Live 2026-09-30, job_a571f49c: the model wrote ^ with flags m on one-line notes.
-    # The engine matched 1 of 1063 and the product still answered "over 1 records".
+def test_a_line_anchor_on_records_that_share_a_line_is_stripped_and_counted(tmp_path):
+    # Live 2026-09-30: the model wrote ^ with flags m on one-line notes, and kept doing so
+    # after the correction prompt. The product drops the ^ and counts every record.
     text, rows = _notes(40)
     bad = {"applicable": True, "flags": "m",
            "pattern": r"^Operations note \d+: the batch finished at step (?P<step>\d+) with "
@@ -679,9 +679,8 @@ def test_a_line_anchor_on_records_that_share_a_line_is_not_answered_as_exact(tmp
 
     port = Confirm(bad)
     outcome = _counter(port, tmp_path).run(OBJECTIVE, text)
-    assert outcome.answer is None
-    assert any("did not match" in prompt for prompt in port.prompts)
-    assert "over 1 records" not in (outcome.note or "")
+    assert outcome.answer and f"over {len(rows)} records" in outcome.answer
+    assert "over 1 records" not in outcome.answer
 
 
 def test_a_false_refusal_of_a_counting_objective_is_corrected(tmp_path):
