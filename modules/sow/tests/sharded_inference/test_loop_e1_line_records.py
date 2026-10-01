@@ -8,9 +8,18 @@ sys.path.insert(0, str(SOV_ROOT))
 from sovereign_product.exact_counting import ExactCounter, make_sample, _spec_prompt, objective_fit_issues
 from sovereign_product.exact_worker import execute, parse_spec, SpecError
 
+import pytest
+
+# The recorded 5000-line log and 3000-row table live in the operator's workbench, next to the
+# worktree, not in the repository: a checkout without them (the release worktree, a clean room)
+# must still collect and pass. test_run10_e1_self_contained.py repeats the checks on generated data.
 BENCH = Path(__file__).resolve().parents[5]
 INPUTS = BENCH / 'harness' / 'state' / 'sovereign' / 'long_inputs'
-TRUTH = json.loads((BENCH / 'harness' / 'h4-truth.json').read_text(encoding='utf-8'))
+HAVE_RECORDED = ((INPUTS / 'h4-service-log.txt').is_file() and (INPUTS / 'h4-orders.csv').is_file()
+                 and (BENCH / 'harness' / 'h4-truth.json').is_file())
+TRUTH = (json.loads((BENCH / 'harness' / 'h4-truth.json').read_text(encoding='utf-8'))
+         if HAVE_RECORDED else {})
+recorded = pytest.mark.skipif(not HAVE_RECORDED, reason='recorded h4 inputs live in the workbench')
 LOG_OBJECTIVE = ('How many ERROR lines are there in total, and how many of them come '
                  'from the db component?')
 TABLE_OBJECTIVE = ('Using only the orders, how many orders have status returned, what '
@@ -34,6 +43,7 @@ TABLE_SPEC = {'applicable': True,
                   {'op': 'sum', 'field': 'amount'}, {'op': 'max', 'field': 'amount'}]}
 
 
+@recorded
 def test_recorded_log_objective_computes_both_counts():
     text = (INPUTS / 'h4-service-log.txt').read_text(encoding='utf-8')
     assert objective_fit_issues(LOG_OBJECTIVE, LOG_SPEC) == []
@@ -44,6 +54,7 @@ def test_recorded_log_objective_computes_both_counts():
         TRUTH['log']['errors'], TRUTH['log']['errors_db']]
 
 
+@recorded
 def test_recorded_table_objective_computes_counts_total_and_ties():
     text = (INPUTS / 'h4-orders.csv').read_text(encoding='utf-8')
     assert objective_fit_issues(TABLE_OBJECTIVE, TABLE_SPEC) == []
@@ -57,6 +68,7 @@ def test_recorded_table_objective_computes_counts_total_and_ties():
     assert maximum['attained_by'] == TRUTH['table']['max_ties']
 
 
+@recorded
 def test_prompt_describes_timestamp_or_csv_line_records():
     log = (INPUTS / 'h4-service-log.txt').read_text(encoding='utf-8')
     table = (INPUTS / 'h4-orders.csv').read_text(encoding='utf-8')
@@ -94,6 +106,7 @@ class RecordedSpecPort:
         return 'The computed results follow.'
 
 
+@recorded
 def test_full_offline_route_uses_recorded_log_and_table_specs(tmp_path):
     for name, objective, spec, numbers in (
         ('h4-service-log.txt', LOG_OBJECTIVE, LOG_SPEC,
