@@ -240,6 +240,7 @@ def restore(root: str | os.PathLike[str] | Path,
     staging = home.with_name(f"{home.name}.restoring-{uuid.uuid4().hex[:8]}")
     kept = home.with_name(f"{home.name}.pre-restore-{stamp}")
     staging.mkdir(parents=True)
+    moved_old = False
     try:
         with zipfile.ZipFile(archive_path) as archive:
             for entry in manifest["files"]:
@@ -259,6 +260,7 @@ def restore(root: str | os.PathLike[str] | Path,
         if home.exists():
             try:
                 os.replace(home, kept)
+                moved_old = True
             except OSError as exc:
                 raise StateAdminError(
                     f"could not move the current state home aside ({exc}); stop the workspace "
@@ -267,6 +269,14 @@ def restore(root: str | os.PathLike[str] | Path,
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
+        if moved_old and not home.exists():
+            try:
+                os.replace(kept, home)
+            except OSError as rollback_error:
+                raise StateAdminError(
+                    f"restore failed and previous state could not be put back at {home}; "
+                    f"it remains at {kept}: {rollback_error}"
+                ) from rollback_error
         raise
     return {"restored_to": str(home), "previous_state_kept_at": str(kept) if kept.exists() else None,
             "files": len(manifest["files"]), "backup_created_utc": manifest.get("created_utc"),
