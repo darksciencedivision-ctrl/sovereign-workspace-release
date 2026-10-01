@@ -38,6 +38,8 @@ ProgressCallback = Callable[[dict[str, Any]], None]
 StopCallback = Callable[[], bool]
 
 _ID_RE = re.compile(r"^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+#: How often one phase of one iteration may be retried after an invalid model reply.
+MAX_PHASE_REJECTIONS = 2
 _CHECKPOINT_RE = re.compile(r"^(?P<sequence>[0-9]{8})_[A-Za-z0-9_-]+\.json$")
 _EXECUTION_CLAIM_PATTERNS = (
     re.compile(
@@ -680,6 +682,8 @@ class ResearchExecutor:
                 interrupt_requested,
             )
             self._revalidate_frozen_inputs(state)
+            if status is ResearchStatus.FAILED:
+                self._reopen_rejected_phase(state)
             state["status"] = ResearchStatus.RUNNING.value
             state["reason"] = None
             state["resources"]["resumes"] += 1
@@ -792,6 +796,8 @@ class ResearchExecutor:
             "final_synthesis": None,
             "artifacts": {},
             "inflight": None,
+            "retry_note": None,
+            "phase_rejections": [],
             "checkpoint_sequence": 0,
             "resources": {
                 "active_seconds": 0.0,
@@ -1885,6 +1891,12 @@ class ResearchExecutor:
         else:
             raise ResearchPhaseError(f"phase {phase.value} has no model prompt")
 
+        note = state.get("retry_note")
+        if isinstance(note, Mapping) and note.get("phase") == phase.value:
+            common["previous_reply_rejected"] = (
+                f"{note.get('reason')}. Reply with exactly one strict JSON object that "
+                "follows required_schema."
+            )
         instruction = (
             "\n\nThe response is evidence-bearing research analysis, not proof that "
             "planned experiments occurred."
@@ -2712,6 +2724,7 @@ class ResearchExecutor:
         else:
             raise ResearchPhaseError(f"cannot complete model phase {phase.value}")
         state["inflight"] = None
+        state["retry_note"] = None
         self._checkpoint(state, f"phase-completed-{phase.value}")
 
     @staticmethod
@@ -2803,7 +2816,12 @@ class ResearchExecutor:
 
                 inflight = self._begin_model_phase(state, phase)
                 text = self._obtain_model_output(state, phase, inflight)
-                parsed = self._parse_phase_output(state, phase, text)
+                try:
+                    parsed = self._parse_phase_output(state, phase, text)
+                except ResearchPhaseError as exc:
+                    if self._reject_phase_output(state, phase, str(exc)):
+                        continue
+                    raise
                 self._complete_model_phase(state, phase, parsed)
 
                 if phase is ResearchPhase.FINAL_SYNTHESIS:
@@ -2836,6 +2854,59 @@ class ResearchExecutor:
                     f"model generation cancelled: {exc}",
                 )
             return self._fail(state, f"{type(exc).__name__}: {exc}")
+
+    def _reject_phase_output(
+        self,
+        state: dict[str, Any],
+        phase: ResearchPhase,
+        reason: str,
+    ) -> bool:
+        """Record an invalid phase reply and allow a bounded retry of the same phase.
+
+        The rejected call stays in the immutable journal (and counts against the model-call
+        budget); the retry is a new call whose prompt names the reason. Without this one
+        malformed reply failed the whole run, and a resume replayed the journaled text.
+        """
+        iteration = int(state["completed_iterations"]) + 1
+        rejections = state.setdefault("phase_rejections", [])
+        attempts = sum(
+            1 for item in rejections
+            if item.get("iteration") == iteration and item.get("phase") == phase.value
+        )
+        if attempts >= MAX_PHASE_REJECTIONS:
+            return False
+        inflight = state.get("inflight") or {}
+        rejections.append({
+            "iteration": iteration,
+            "phase": phase.value,
+            "call_index": inflight.get("call_index"),
+            "reason": reason[:200],
+        })
+        state["retry_note"] = {"phase": phase.value, "reason": reason[:200]}
+        state["resources"]["phase_failures"] += 1
+        state["inflight"] = None
+        self._checkpoint(state, f"phase-rejected-{phase.value}")
+        return True
+
+    @staticmethod
+    def _reopen_rejected_phase(state: dict[str, Any]) -> None:
+        """A run that failed on an invalid reply gets a fresh retry budget when resumed.
+
+        Its inflight phase still points at the journaled bad reply, which a resume would replay
+        and reject again; the next attempt is a new call that names the reason.
+        """
+        inflight = state.get("inflight")
+        reason = str(state.get("reason") or "")
+        prefix = "ResearchPhaseError: "
+        if inflight is None or not reason.startswith(prefix):
+            return
+        phase, iteration = inflight.get("phase"), inflight.get("iteration")
+        state["phase_rejections"] = [
+            item for item in state.get("phase_rejections", [])
+            if not (item.get("iteration") == iteration and item.get("phase") == phase)
+        ]
+        state["retry_note"] = {"phase": phase, "reason": reason[len(prefix):][:200]}
+        state["inflight"] = None
 
     def _complete_iteration(self, state: dict[str, Any]) -> None:
         expected = int(state["completed_iterations"]) + 1
