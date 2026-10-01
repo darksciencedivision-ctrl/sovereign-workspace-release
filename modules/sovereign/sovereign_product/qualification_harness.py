@@ -122,16 +122,36 @@ def _job_id(payload: Mapping[str, Any]) -> str | None:
     return None
 
 
+MAX_UNREACHABLE_POLLS = 5
+
+
+def _cancel_quietly(client: ProductClient, job_id: str) -> None:
+    try:
+        client.cancel(job_id)
+    except (OSError, ValueError):
+        pass  # the poll loop reports an unreachable product; a missed cancel is not fatal
+
+
 def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
             cancel_after: float | None = None, clock: Callable[[], float] = time.monotonic,
             sleep: Callable[[float], None] = time.sleep, poll: float = 0.5,
             on_job: Callable[[Mapping[str, Any]], None] | None = None) -> dict[str, Any]:
-    """Submit one message end-to-end and wait for its job to finish (or cancel it)."""
-    session = client.new_session(f"qualification {route}")
+    """Submit one message end-to-end and wait for its job to finish (or cancel it).
+
+    An API error never raises out of here: a measurement of hours must not be lost to one dropped
+    request. A submit that cannot be made is a failed run; polling tolerates
+    ``MAX_UNREACHABLE_POLLS`` consecutive errors before the run is recorded as failed.
+    """
     started = clock()
-    status_code, payload = client.submit(session, text, route)
-    record: dict[str, Any] = {"route": route, "input_chars": len(text),
-                              "submitted_utc": _utc_now(), "http_status": status_code}
+    record: dict[str, Any] = {"route": route, "input_chars": len(text), "submitted_utc": _utc_now()}
+    try:
+        session = client.new_session(f"qualification {route}")
+        status_code, payload = client.submit(session, text, route)
+    except (OSError, ValueError, RuntimeError) as exc:
+        record.update(status="failed", error=f"{type(exc).__name__}: {exc}"[:500],
+                      latency_seconds=clock() - started)
+        return record
+    record["http_status"] = status_code
     job_id = _job_id(payload)
     if status_code >= 400 or job_id is None:
         record.update(status="failed", error=str(payload.get("error") or payload)[:500],
@@ -139,17 +159,28 @@ def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
         return record
     record["job_id"] = job_id
     cancel_sent = None
+    unreachable = 0
     job: dict[str, Any] = payload if payload.get("status") in TERMINAL else {}
     while str(job.get("status")) not in TERMINAL:
         if clock() - started > timeout:
-            client.cancel(job_id)
+            _cancel_quietly(client, job_id)
             record.update(status="timeout", latency_seconds=clock() - started)
             return record
         if cancel_after is not None and cancel_sent is None and clock() - started >= cancel_after:
-            client.cancel(job_id)
+            _cancel_quietly(client, job_id)
             cancel_sent = clock()
         sleep(poll)
-        job = client.job(job_id)
+        try:
+            job = client.job(job_id)
+            unreachable = 0
+        except (OSError, ValueError) as exc:
+            unreachable += 1
+            if unreachable > MAX_UNREACHABLE_POLLS:
+                record.update(
+                    status="failed", latency_seconds=clock() - started,
+                    error=f"product unreachable while polling: {type(exc).__name__}: {exc}"[:500])
+                return record
+            continue
         if on_job is not None:
             on_job(job)
     finished = clock()
@@ -175,6 +206,7 @@ class ResourceSampler:
         self.peak_vram_mib: int | None = None
         self.peak_ram_used_mib: int | None = None
         self.gpu: dict[str, Any] = {}
+        self.sample_errors = 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="qual-sampler")
         self._nvsmi = shutil.which("nvidia-smi")
@@ -213,15 +245,22 @@ class ResourceSampler:
             self.peak_ram_used_mib = max(self.peak_ram_used_mib or 0, int(used))
             self.ram_total_mib = int(status.ullTotalPhys // (1024 * 1024))
 
+    def _sample_once(self) -> None:
+        for sample in (self._sample_gpu, self._sample_ram):
+            try:
+                sample()
+            except (ValueError, OSError, ArithmeticError):
+                # nvidia-smi prints "[N/A]" for a missing reading; one bad sample must not end
+                # the sampling thread (the peaks would silently stop growing) or the run.
+                self.sample_errors += 1
+
     def _loop(self) -> None:
         while not self._stop.is_set():
-            self._sample_gpu()
-            self._sample_ram()
+            self._sample_once()
             self._stop.wait(self.interval)
 
     def __enter__(self) -> "ResourceSampler":
-        self._sample_gpu()
-        self._sample_ram()
+        self._sample_once()
         self.baseline = {"vram_mib": self.peak_vram_mib, "ram_used_mib": self.peak_ram_used_mib}
         self._thread.start()
         return self
@@ -235,6 +274,7 @@ class ResourceSampler:
                 "peak_system_ram_used_mib": self.peak_ram_used_mib,
                 "baseline": getattr(self, "baseline", {}),
                 "ram_total_mib": getattr(self, "ram_total_mib", None),
+                "sample_errors": self.sample_errors,
                 "note": "system-wide peaks sampled once a second during the run"}
 
 
@@ -248,7 +288,7 @@ def llama_loaded_models(client: ProductClient) -> list[str] | None:
     """Models the product reports resident in llama.cpp (``/v1/self-state``), or None if unknown."""
     try:
         state = client._call("GET", "/v1/self-state")[1]
-    except OSError:
+    except (OSError, ValueError):
         return None
     stack = [state]
     while stack:
@@ -260,6 +300,13 @@ def llama_loaded_models(client: ProductClient) -> list[str] | None:
         elif isinstance(node, list):
             stack.extend(node)
     return None
+
+
+def model_is_cold(loaded: list[str] | None, model: str) -> bool | None:
+    """True when ``model`` is not among the router's resident models, None when unknown."""
+    if loaded is None:
+        return None
+    return model not in loaded
 
 
 def run_long_job(client: ProductClient, text: str, *, timeout: float,
@@ -292,7 +339,8 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                            repetitions: int | None = None, job_timeout: float = 4 * 3600.0,
                            poll: float = 5.0,
                            log: Callable[[str], None] = lambda m: print(m, file=sys.stderr,
-                                                                        flush=True)
+                                                                        flush=True),
+                           checkpoint: Callable[[list[dict[str, Any]]], None] | None = None
                            ) -> dict[str, Any]:
     """Qualify a LONG (sharded inference) profile end-to-end through the product.
 
@@ -309,6 +357,9 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
     reps = repetitions or int(profile["ladder"]["repetitions"])
     model = str(profile["primary_model"])
     inbox = Path(inbox_dir)
+    # What the router holds BEFORE the first job: with a fresh stack per profile the resource
+    # baseline below is an idle GPU, and the first rung is cold; on a reused stack it is not.
+    models_at_start = llama_loaded_models(client)
     runs: list[dict[str, Any]] = []
     started = _utc_now()
     with ResourceSampler() as sampler:
@@ -321,14 +372,18 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                 name = f"qualification-{int(step)}.txt"
                 inbox.mkdir(parents=True, exist_ok=True)
                 (inbox / name).write_text(context_prompt(int(step)), encoding="utf-8")
-                text += f"{LONG_OBJECTIVE_INPUT}\n---\n@input: {name}"
+                # The rung measures map/reduce throughput (chunks per hour), comparable with the
+                # earlier runs; a counting objective would otherwise take the exact route (D6).
+                text += f"@exact: off\n{LONG_OBJECTIVE_INPUT}\n---\n@input: {name}"
                 scenario = "long_input"
             for _ in range(reps):
                 loaded = llama_loaded_models(client)
                 result = run_long_job(client, text, timeout=job_timeout, poll=poll)
                 result.update(scenario=scenario, input_tokens=int(step), model=model,
-                              cold=None if loaded is None else model not in loaded)
+                              cold=model_is_cold(loaded, model))
                 runs.append(result)
+                if checkpoint is not None:
+                    checkpoint(runs)
                 log(f"[{scenario}] input~{step} cold={result['cold']} -> "
                     f"{result.get('status')} {result.get('latency_seconds', 0):.0f}s "
                     f"shards={result.get('shards')} chunks/h={result.get('chunks_per_hour')}")
@@ -344,6 +399,7 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
         "runtime": {"backend": profile["backend"], "primary_model": model,
                     "product_version": health.get("product_version"),
                     "worker_count": health.get("worker_count"),
+                    "models_loaded_at_start": models_at_start,
                     "long_route_ready": (health.get("routes") or {}).get("LONG")},
         "repetitions": reps,
         "resources": sampler.report(),
@@ -380,7 +436,8 @@ def unload_ollama_models(ollama_url: str, models: list[str]) -> list[str]:
 def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: str,
                       repetitions: int | None = None, job_timeout: float = 1800.0,
                       include_deep: bool = True, max_context: int | None = None,
-                      log: Callable[[str], None] = lambda m: print(m, file=sys.stderr, flush=True)
+                      log: Callable[[str], None] = lambda m: print(m, file=sys.stderr, flush=True),
+                      checkpoint: Callable[[list[dict[str, Any]]], None] | None = None
                       ) -> dict[str, Any]:
     client = ProductClient(base_url)
     health = client.health()
@@ -391,6 +448,8 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
     def record(scenario: str, result: dict[str, Any], **extra: Any) -> None:
         result.update(scenario=scenario, **extra)
         runs.append(result)
+        if checkpoint is not None:
+            checkpoint(runs)
         log(f"[{scenario}] {extra} -> {result.get('status')} "
             f"{result.get('latency_seconds', 0):.1f}s tokens={result.get('tokens')}")
 
@@ -398,11 +457,21 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
         backend = str(profile["backend"]).lower()
         models = sorted(slate_models(health.get("deep_model_slate")) | {profile["primary_model"]})
         cold_note = "first request of the run"
+        cold: bool | None = True
+        loaded_at_start: list[str] | None = None
         if backend == "ollama":
             unload_ollama_models(ollama_url, models)
             cold_note = "after unloading the profile's models (keep_alive=0)"
+        else:
+            # llama.cpp: the first request is cold only when the router does not already hold the
+            # model. Earlier runs labelled it cold unconditionally and measured warm loads as cold.
+            loaded_at_start = llama_loaded_models(client)
+            cold = model_is_cold(loaded_at_start, str(profile["primary_model"]))
+            cold_note = {True: "the model was not resident when the request was submitted",
+                         False: "the model was ALREADY resident: this is a warm start",
+                         None: "residency unknown (no router state): not proven cold"}[cold]
         record("quick_cold", run_job(client, VARIED_PROMPTS[0], "QUICK", timeout=job_timeout),
-               cold=True, note=cold_note)
+               cold=cold, note=cold_note)
         for i in range(reps):
             record("quick_warm", run_job(client, VARIED_PROMPTS[i % len(VARIED_PROMPTS)],
                                          "QUICK", timeout=job_timeout), cold=False)
@@ -451,6 +520,7 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
                     "deep_model_slate": health.get("deep_model_slate"),
                     "product_version": health.get("product_version"),
                     "worker_count": health.get("worker_count"),
+                    "models_loaded_at_start": loaded_at_start,
                     "qualification_at_start": health.get("qualification")},
         "repetitions": reps,
         "resources": sampler.report(),

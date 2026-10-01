@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Mapping, Sequence
+from collections import OrderedDict, deque
+import hashlib
 import json
 import math
 import threading
@@ -11,6 +13,7 @@ import requests
 from .model_client import (
     CONTEXT_TEMPLATE_MARGIN_TOKENS,
     GenerationCancelled,
+    GenerationOverLimit,
     GenerationResponse,
     GenerationTimeout,
     ModelCapabilityError,
@@ -19,6 +22,7 @@ from .model_client import (
     ModelProbe,
     OLLAMA_CONNECT_TIMEOUT_SECONDS,
     OLLAMA_GENERATION_TIMEOUT_SECONDS,
+    stream_lines,
 )
 from .runtime_contracts import (
     CancelCallback,
@@ -29,6 +33,10 @@ from .runtime_contracts import (
 )
 from .runtime_registry import RuntimeRegistry
 
+_MAX_STREAM_EVENTS = 200_000
+_MAX_STREAM_BYTES = 64 * 1024 * 1024
+_STREAM_DIAGNOSTIC_TAIL = 1000
+_MAX_TOOL_CALLS = 128
 
 class LlamaCppClient:
     def __init__(
@@ -64,6 +72,13 @@ class LlamaCppClient:
         if session is None:
             self._session.trust_env = False
         self._monotonic = monotonic or time.monotonic
+        # Per-endpoint {path: [calls, seconds]} of the JSON calls (/tokenize, /apply-template):
+        # the LONG telemetry reports how much of a run the tokenizer took.
+        self.endpoint_stats: dict[str, list[float]] = {}
+        self._stats_lock = threading.Lock()
+        # Retain small fingerprints, never the potentially multi-megabyte shard text.
+        self._text_token_cache: OrderedDict[tuple[str, int, bytes], int] = OrderedDict()
+        self._text_token_cache_lock = threading.Lock()
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -225,6 +240,12 @@ class LlamaCppClient:
         None so the caller falls back to the conservative byte bound.
         """
         engine_id = self._engine_model(model.strip())
+        encoded = text.encode('utf-8')
+        key = (engine_id, len(encoded), hashlib.sha256(encoded).digest())
+        with self._text_token_cache_lock:
+            if key in self._text_token_cache:
+                self._text_token_cache.move_to_end(key)
+                return self._text_token_cache[key]
         try:
             counted = self._post_json(
                 "/tokenize", {"model": engine_id, "content": text, "add_special": False})
@@ -233,9 +254,27 @@ class LlamaCppClient:
         except (ModelClientError, ValueError):
             return None
         tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
-        return len(tokens) if isinstance(tokens, list) else None
+        if not isinstance(tokens, list):
+            return None
+        count = len(tokens)
+        with self._text_token_cache_lock:
+            self._text_token_cache[key] = count
+            self._text_token_cache.move_to_end(key)
+            while len(self._text_token_cache) > 256:
+                self._text_token_cache.popitem(last=False)
+        return count
 
     def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
+        started = time.perf_counter()
+        try:
+            return self._post_json_timed(path, body)
+        finally:
+            with self._stats_lock:
+                stats = self.endpoint_stats.setdefault(path, [0, 0.0])
+                stats[0] += 1
+                stats[1] += time.perf_counter() - started
+
+    def _post_json_timed(self, path: str, body: Mapping[str, Any]) -> Any:
         response = self._request("POST", path, json_body=body)
         try:
             response.raise_for_status()
@@ -248,6 +287,33 @@ class LlamaCppClient:
             close = getattr(response, "close", None)
             if callable(close):
                 close()
+
+    def _router_names_same_model(self, *requested_names: str) -> bool:
+        """True when the router lists one model that carries every one of these names.
+
+        A router entry names a model by its id ("qwen3-14b") and its aliases ("qwen3:14b").
+        Any failure to read the listing answers False, so an unknown name is never taken for
+        the requested model.
+        """
+        wanted = {name for name in requested_names if name}
+        try:
+            payload = self._models_payload()
+        except ModelClientError:
+            return False
+        rows = payload.get("data")
+        if not isinstance(rows, list):
+            rows = payload.get("models")
+        if not isinstance(rows, list):
+            return False
+        for entry in rows:
+            if not isinstance(entry, Mapping):
+                continue
+            aliases = entry.get("aliases") if isinstance(entry.get("aliases"), list) else []
+            names = {str(entry.get("id") or entry.get("name") or "").strip(),
+                     *(str(item).strip() for item in aliases)}
+            if wanted <= names:
+                return True
+        return False
 
     def _models_payload(self) -> dict[str, Any]:
         response = self._request("GET", "/models")
@@ -362,6 +428,31 @@ class LlamaCppClient:
             "effective_generation_max": effective_generation,
         }
 
+    def resolve_generation_options(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        options: Mapping[str, Any],
+        system: str | None = None,
+        response_format: str | Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Apply the served context and the physical output-fit bound before a call.
+
+        DEEP asks for this before each stage (the Ollama client has it); without it the stage's
+        ``num_predict`` stays at the whole window and its own conservative check rejects any
+        prompt that is not tiny.
+        """
+
+        resolved, _ = self._resolve_generation_capacity(
+            model=model,
+            prompt=prompt,
+            options=options,
+            system=system,
+            response_format=response_format,
+        )
+        return resolved
+
     def generate(
         self,
         *,
@@ -470,8 +561,10 @@ class LlamaCppClient:
         connect_budget = min(self.connect_timeout, timeout_limit)
         read_budget = min(self.read_timeout, timeout_limit)
         response: requests.Response | Any | None = None
-        raw_events: list[dict[str, Any]] = []
-        raw_lines: list[str] = []
+        raw_events: deque[dict[str, Any]] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
+        raw_lines: deque[str] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
+        event_count = 0
+        stream_bytes = 0
         text_parts: list[str] = []
         reasoning_parts: list[str] = []
         tool_calls: list[dict[str, Any]] = []
@@ -519,7 +612,7 @@ class LlamaCppClient:
             except requests.RequestException as exc:
                 raise ModelClientError(f"llama.cpp returned an HTTP error: {exc}") from exc
             try:
-                for raw_line in response.iter_lines(decode_unicode=True):
+                for raw_line in stream_lines(response):
                     now = self._monotonic()
                     if now - started > timeout_limit:
                         raise GenerationTimeout("overall")
@@ -528,6 +621,9 @@ class LlamaCppClient:
                     if raw_line is None:
                         continue
                     line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else str(raw_line)
+                    stream_bytes += len(line.encode("utf-8"))
+                    if stream_bytes > _MAX_STREAM_BYTES:
+                        raise GenerationOverLimit("llama.cpp stream exceeded the byte limit")
                     if not line.strip() or line.startswith(":"):
                         continue
                     raw_lines.append(line)
@@ -537,6 +633,9 @@ class LlamaCppClient:
                     if data == "[DONE]":
                         saw_done = True
                         break
+                    event_count += 1
+                    if event_count > _MAX_STREAM_EVENTS:
+                        raise GenerationOverLimit("llama.cpp stream exceeded the event limit")
                     try:
                         event = json.loads(data)
                     except json.JSONDecodeError as exc:
@@ -616,7 +715,7 @@ class LlamaCppClient:
                 "requested_think": think,
                 "reasoning_text": reasoning_text,
                 "finish_reason": finish_reason,
-                "event_count": len(raw_events),
+                "event_count": event_count,
                 "connect_timeout_seconds": self.connect_timeout,
                 "read_timeout_seconds": self.read_timeout,
                 "overall_timeout_seconds": timeout_limit,
@@ -625,10 +724,20 @@ class LlamaCppClient:
                 "endpoint": "/v1/chat/completions",
                 **capacity,
             }
+            # The router names the model by its engine id (the registry's name for the served
+            # profile, e.g. "qwen3-14b"); callers compare against the product's model name
+            # ("qwen3:14b"), as Ollama reports it. Live, DEEP rejected every llama.cpp reply for
+            # that. The engine id we sent, or any id/alias the router lists for the same model,
+            # means the model we asked for (a client without a registry sends the product name
+            # and the router resolves the alias itself); any other name is passed through as is
+            # (telemetry keeps the raw reported_model).
+            same_model = reported_model == engine_id or self._router_names_same_model(
+                model.strip(), engine_id, reported_model)
+            identity = model.strip() if same_model else reported_model
             return ChatResponse(
                 text="".join(text_parts),
                 reasoning=reasoning_text,
-                model=reported_model,
+                model=identity,
                 requested_model=model.strip(),
                 think=think,
                 finish_reason=finish_reason,
@@ -678,6 +787,8 @@ def _merge_tool_calls(existing: list[dict[str, Any]], observed: list[Any]) -> No
         index = call.get("index", len(existing))
         if not isinstance(index, int) or isinstance(index, bool) or index < 0:
             continue
+        if index >= _MAX_TOOL_CALLS:
+            raise GenerationOverLimit("llama.cpp tool-call index exceeded the limit")
         while len(existing) <= index:
             existing.append({"type": "function", "function": {"name": "", "arguments": ""}})
         target = existing[index]

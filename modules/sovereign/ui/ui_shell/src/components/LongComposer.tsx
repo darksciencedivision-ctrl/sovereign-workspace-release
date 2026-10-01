@@ -1,4 +1,5 @@
 import { MAX_INPUT_CHARACTERS } from "../state/longRequest";
+import { longDegradedNote } from "./RouteSelector";
 import type { LongInputMode, LongOptions, LongRouteInfo } from "../types/long";
 
 interface Props {
@@ -35,10 +36,16 @@ export function LongComposer({ longRoute, options, disabled, error, onChange }: 
   const models = longRoute?.models ?? [];
   const set = (patch: Partial<LongOptions>) => onChange({ ...options, ...patch });
   const mode = MODES.find((m) => m.value === options.mode) ?? MODES[0];
+  const degradedNote = longDegradedNote(longRoute);
 
   return (
     <fieldset className="long-composer" disabled={disabled} aria-label="LONG run options">
       <legend>LONG run - hours on a big model, split into fresh-context chunks</legend>
+      {degradedNote && (
+        <p className="composer-warning" role="status">
+          {degradedNote}
+        </p>
+      )}
       <div className="long-row">
         <label>
           <span>Model</span>
@@ -51,9 +58,15 @@ export function LongComposer({ longRoute, options, disabled, error, onChange }: 
               Default{longRoute?.defaultModel ? ` (${longRoute.defaultModel})` : ""}
             </option>
             {models.map((m) => (
-              <option key={m.model} value={m.model}>
+              <option
+                key={m.model}
+                value={m.model}
+                disabled={m.status === "degraded" && options.model !== m.model}
+                title={m.status === "degraded" ? m.reason : undefined}
+              >
                 {m.model} - {Math.round(m.context / 1024)}k context
                 {m.thinking === "on" ? ", reasons before answering" : ""}
+                {m.status === "degraded" ? " (degraded: runs would fail)" : ""}
               </option>
             ))}
           </select>

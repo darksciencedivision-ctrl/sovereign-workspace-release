@@ -372,6 +372,11 @@
   padding: 4px 9px;
 }
 
+.resume-run {
+  border: 1px solid var(--border);
+  padding: 4px 9px;
+}
+
 .progress-track {
   height: 4px;
   margin-top: 10px;

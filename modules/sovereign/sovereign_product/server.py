@@ -40,7 +40,7 @@ from werkzeug.exceptions import HTTPException, NotFound as WerkzeugNotFound
 from sovereign_version import PRODUCT_VERSION
 
 from .evidence import EvidenceBuilder
-from .executors import ExecutionStatus, QuickExecutor
+from .executors import QuickExecutor
 from .introspection import (
     answer_self_query,
     collect_self_state,
@@ -88,6 +88,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 5175
 DEFAULT_WORKERS = 2
 LONG_WORKER_NAME = "sovereign-long-worker"
+# How often a model job waiting behind a LONG job looks again (D5).
+LONG_WAIT_POLL_SECONDS = 1.0
 MAX_JSON_BYTES = 1_048_576
 MAX_INPUT_CHARACTERS = 131_072
 MAX_TITLE_CHARACTERS = 200
@@ -552,10 +554,13 @@ class ProductService:
         self._closed = threading.Event()
         self._queue_lock = threading.RLock()
         self._enqueued: set[str] = set()
+        self.long_wait_poll_seconds = LONG_WAIT_POLL_SECONDS
+        self._lane_lock = threading.Lock()
+        self._admitted: set[str] = set()
         self._active_cancel: dict[str, threading.Event] = {}
         self._active_executor: dict[str, Any] = {}
         self._shutdown_survivors: list[str] = []  # CR-026: workers still alive after a bounded drain
-        recovery = self.store.recover_incomplete_jobs()
+        recovery = self.store.recover_incomplete_jobs(resume=self._restart_decision)
         for job_id in recovery["queued"]:
             self._enqueue(job_id)
         if start_workers:
@@ -859,16 +864,59 @@ class ProductService:
         )
 
     def long_models(self) -> dict[str, Any]:
-        """The models the LONG route may run (long_workload.json), for the operator's picker."""
-        from .long_workload import LongWorkloadError, load_config
+        """The models the LONG route may run (long_workload.json), for the operator's picker.
+
+        Each model carries its serving ``status`` from the supervisor's plan report (H2): a
+        refused plan or a context below the configured one is ``degraded`` with the reason, and
+        the route's ``status`` is ``degraded`` when any model is.
+        """
+        from .long_workload import (LongWorkloadError, load_config, model_status,
+                                    plan_reports)
 
         try:
             config = load_config(self.root)
         except LongWorkloadError as exc:
-            return {"default_model": None, "models": [], "error": str(exc)}
-        return {"default_model": config.default_model,
-                "models": [{"model": m.model, "context": m.context, "thinking": m.thinking}
-                           for m in config.models]}
+            return {"default_model": None, "models": [], "error": str(exc),
+                    "status": "unavailable"}
+        reports = plan_reports(self.root)
+        models = []
+        for m in config.models:
+            status, reason = model_status(reports, m)
+            models.append({"model": m.model, "context": m.context, "thinking": m.thinking,
+                           "status": status, "reason": reason})
+        degraded = [m for m in models if m["status"] == "degraded"]
+        return {"default_model": config.default_model, "models": models,
+                "status": "degraded" if degraded else "ready",
+                "detail": "; ".join(f"{m['model']}: {m['reason']}" for m in degraded) or None}
+
+    def role_models(self) -> dict[str, Any]:
+        """How the multi-model research system's models are served (role_plans, D7).
+
+        Each model carries its ``status`` from the supervisor's plan report and, when planned,
+        its GPU layer count and context. ``degraded`` means the plan was refused and the
+        slower default profile serves the model; the routes still work, so this never turns a
+        route off.
+        """
+        from .long_workload import plan_reports
+        from .role_plans import role_model_names, role_model_status
+
+        try:
+            names = role_model_names(self._manifest())
+        except ServiceConfigurationError as exc:
+            return {"models": [], "status": "unavailable", "error": str(exc)}
+        reports = plan_reports(self.root)
+        models = []
+        for name in names:
+            status, reason = role_model_status(reports, name)
+            report = reports.get(name) if isinstance(reports, Mapping) else None
+            planned = isinstance(report, Mapping) and report.get("applied") is True
+            models.append({
+                "model": name, "status": status, "reason": reason,
+                "n_gpu_layers": report.get("n_gpu_layers") if planned else None,
+                "context": report.get("context") if planned else None})
+        degraded = [m for m in models if m["status"] == "degraded"]
+        return {"models": models, "status": "degraded" if degraded else "ready",
+                "detail": "; ".join(f"{m['model']}: {m['reason']}" for m in degraded) or None}
 
     def long_run(self, job_id: str) -> dict[str, Any]:
         """A LONG job's chunks and carried ledger, read from its checkpoints (read-only)."""
@@ -1004,9 +1052,99 @@ class ProductService:
             with self._queue_lock:
                 self._enqueued.discard(job_id)
             try:
-                self._run_job(job_id)
+                held = (self._wait_out_model_jobs(job_id) if source is not None
+                        else self._wait_out_long_job(job_id))
+                if held:
+                    self._run_job(job_id)
             finally:
+                self._admitted.discard(job_id)
                 jobs.task_done()
+
+    def _running_model_job(self) -> str | None:
+        """Job id of a running QUICK/CONTINUITY/DEEP/RESEARCH job (one that holds the model).
+
+        A job the LONG check just admitted counts as running before its worker has marked it so
+        (``_admitted``); otherwise a LONG job submitted in that gap would start beside it.
+        """
+        for job in self.store.list_jobs(status=("running",), limit=100):
+            if str(job.get("route") or "").upper() not in (Route.LONG.value, Route.STATUS.value):
+                return str(job["job_id"])
+        for admitted in list(self._admitted):
+            try:
+                if self.store.get_job(admitted)["status"] in ("queued", "running"):
+                    return admitted
+            except NotFound:
+                continue
+        return None
+
+    def _wait_out_model_jobs(self, job_id: str) -> bool:
+        """D5, the other side: a LONG job starts only when no model job is mid-generation.
+
+        The router serves one model at a time, so a LONG job loading its model while a QUICK or
+        DEEP job generates would evict that job's model and break its stream. Jobs submitted
+        after the LONG job are already held behind it (``_wait_out_long_job``), so the running
+        ones only drain. The LONG job stays ``queued`` with the stage naming what it waits for;
+        a cancel or a shutdown ends the wait.
+        """
+        announced: str | None = None
+        while not self._closed.is_set():
+            with self._lane_lock:
+                blocker = self._running_model_job()
+            if blocker is None:
+                return True
+            try:
+                job = self.store.get_job(job_id)
+                if job["status"] != "queued" or job["cancel_requested"]:
+                    return True
+                if announced != blocker:
+                    self.store.update_job_progress(
+                        job_id, {"percent": 0, "stage": f"waiting for running job {blocker}"})
+                    announced = blocker
+            except (InvalidTransition, NotFound):
+                return True
+            self._closed.wait(self.long_wait_poll_seconds)
+        return False
+
+    def _wait_out_long_job(self, job_id: str) -> bool:
+        """D5: hold a model job while a LONG job is queued or running; True when it may run.
+
+        A LONG run is one the operator chose to focus on: a QUICK/CONTINUITY/DEEP/RESEARCH job
+        would make the model server swap the LONG model out. The job stays ``queued``, its
+        stage names the LONG job it waits for, and it runs once none is left (the queue order
+        is kept: each worker holds the job it took). A cancelled job stops waiting, and so does
+        shutdown. An ``interrupted`` LONG job does not block: it needs the operator's resume, and
+        blocking on it would hold every other route indefinitely; resuming re-queues it and the
+        hold applies again.
+        """
+        announced: str | None = None
+        while not self._closed.is_set():
+            with self._lane_lock:
+                blocker = self.long_active_job()
+                if blocker is None:
+                    self._admitted.add(job_id)  # visible to the LONG lane before it runs
+                    return True
+            try:
+                job = self.store.get_job(job_id)
+                if job["status"] != "queued" or job["cancel_requested"]:
+                    return True  # _run_job ends a cancelled or already-run job by itself
+                if announced != blocker:
+                    self.store.update_job_progress(
+                        job_id,
+                        {"percent": 0, "stage": f"waiting for LONG job {blocker}"},
+                    )
+                    announced = blocker
+            except (InvalidTransition, NotFound):
+                return True
+            self._closed.wait(self.long_wait_poll_seconds)
+        return False
+
+    def _restart_decision(
+        self, job: Mapping[str, Any]
+    ) -> tuple[bool, str | None]:
+        """At startup: whether a job the last run left ``running`` resumes (LONG only)."""
+        from .long_workload import restart_decision
+
+        return restart_decision(self.paths.evidence_dir, job)
 
     def _long_executor(self) -> Any:
         """The LONG route's executor (sharded inference); raises when it cannot run here."""
@@ -1531,7 +1669,8 @@ class ProductService:
     def long_active_job(self) -> str | None:
         """Job id of a queued or running LONG job, else None.
 
-        QUICK/DEEP while this is set makes the model server swap models and pauses the LONG run.
+        Model jobs on the other routes wait while this is set (D5), so the model server does not
+        swap the LONG model out.
         Newest first (``list_jobs`` orders by created_at DESC).
         """
         jobs = self.store.list_jobs(status=("queued", "running"), limit=100)
@@ -1852,6 +1991,13 @@ class ProductService:
             if role != "sovereign":
                 continue
             linked = jobs_by_id.get(str(message.get("job_id") or ""))
+            if linked is None and message.get("job_id"):
+                try:
+                    linked = self.store.get_job(str(message["job_id"]))
+                except NotFound:
+                    continue
+            if linked is not None and linked.get("session_id") != session_id:
+                continue
             if linked is None or linked["status"] != "completed":
                 # A crash between message append and terminal transition can
                 # never expose an uncommitted answer.
@@ -1908,6 +2054,33 @@ class ProductService:
                 except Exception:
                     pass
             job = self.store.get_job(job_id)
+        return self.public_job(job)
+
+    def resume_long_job(self, job_id: str) -> dict[str, Any]:
+        """Re-queue an interrupted LONG job; it continues from its checkpoints (H3).
+
+        A LONG run stopped by its surroundings (the model server away too long, a full disk)
+        ends ``interrupted`` with its checkpoints intact. Refused (400) for other routes and
+        states, and when the checkpoints do not verify.
+        """
+        from .long_workload import checkpoint_problem
+
+        job = self.store.get_job(job_id)  # NotFound -> 404
+        if str(job["route"]).upper() != Route.LONG.value:
+            raise ValueError(f"job {job_id} is a {job['route']} job; only LONG jobs resume")
+        if job["status"] != "interrupted":
+            raise ValueError(f"job {job_id} is {job['status']}; only an interrupted LONG job "
+                             "can be resumed")
+        problem = checkpoint_problem(self.paths.evidence_dir, str(job["job_id"]))
+        if problem:
+            raise ValueError(f"job {job_id} cannot be resumed: {problem}")
+        job = self.store.transition_job(
+            job_id,
+            "queued",
+            expected_status="interrupted",
+            metadata={"resumed_by": "operator"},
+        )
+        self._enqueue(str(job["job_id"]))
         return self.public_job(job)
 
     def models(self) -> list[dict[str, Any]]:
@@ -2077,6 +2250,7 @@ def create_app(
     root: str | Path | None = None,
     *,
     service: ProductService | None = None,
+    health_clock: Callable[[], float] = time.monotonic,
     **service_kwargs: Any,
 ) -> Flask:
     """Create the same-origin Flask application."""
@@ -2089,6 +2263,8 @@ def create_app(
         PROPAGATE_EXCEPTIONS=False,
     )
     app.extensions["sovereign_service"] = owned_service
+    integrity_good_until = float('-inf')
+    integrity_lock = threading.Lock()
 
     @app.before_request
     def enforce_local_boundary() -> tuple[Response, int] | None:
@@ -2175,10 +2351,15 @@ def create_app(
 
     @app.get("/v1/health")
     def health() -> Response:
+        nonlocal integrity_good_until
         store_ok = True
         detail: list[str] = []
         try:
-            owned_service.store.quick_check()
+            with integrity_lock:
+                if health_clock() >= integrity_good_until:
+                    integrity_good_until = float('-inf')
+                    owned_service.store.quick_check()
+                    integrity_good_until = health_clock() + 60.0
         except Exception:
             store_ok = False
             detail.append("durable store integrity check failed")
@@ -2270,6 +2451,12 @@ def create_app(
             long_active_job = owned_service.long_active_job()
         except Exception:
             long_active_job = None
+        long_route = owned_service.long_models()
+        # LONG can run when its executor can and at least one configured model is not degraded
+        # (a model with a refused plan fails every run, so all-degraded is not "available").
+        long_ok = owned_service.long_route_ready() and any(
+            m.get("status") != "degraded" for m in long_route.get("models") or []
+        )
         return jsonify(
             {
                 "ok": ready,
@@ -2302,9 +2489,10 @@ def create_app(
                     "CONTINUITY": models_ok,
                     "DEEP": deep_ok and models_ok,
                     "RESEARCH": research_ok and models_ok,
-                    "LONG": owned_service.long_route_ready(),
+                    "LONG": long_ok,
                 },
-                "long_route": owned_service.long_models(),
+                "long_route": long_route,
+                "role_models": owned_service.role_models(),
                 "long_active_job": long_active_job,
                 "detail": "; ".join(detail) if detail else "ready",
             }
@@ -2467,6 +2655,11 @@ def create_app(
         json_object()
         return jsonify(owned_service.cancel_job(job_id))
 
+    @app.post("/v1/jobs/<job_id>/resume")
+    def resume_job(job_id: str) -> tuple[Response, int]:
+        json_object()
+        return jsonify(owned_service.resume_long_job(job_id)), 202
+
     @app.get("/v1/evidence")
     def evidence() -> Response | tuple[Response, int]:
         pointer = request.args.get("pointer", "")
@@ -2481,6 +2674,13 @@ def create_app(
             return _json_error(str(exc), 400)
         except PathResolutionError as exc:
             return _json_error(str(exc), 404)
+        try:
+            relative = path.relative_to(owned_service.paths.state_dir.resolve())
+        except ValueError:
+            return _json_error("evidence pointer is outside the evidence state", 404)
+        if (not relative.parts or relative.parts[0] not in {"evidence", "research"}
+                or path.suffix.lower() not in {".txt", ".md", ".json", ".jsonl", ".log", ".csv", ".tsv"}):
+            return _json_error("evidence pointer is not an allowed text artifact", 404)
         if not path.is_file():
             return _json_error("evidence pointer is not a file", 404)
         mime, _encoding = mimetypes.guess_type(path.name)
@@ -2491,9 +2691,10 @@ def create_app(
             conditional=True,
             download_name=path.name,
         )
-        response.headers["Content-Disposition"] = (
-            f"inline; filename*=UTF-8''{quote(path.name)}"
-        )
+        disposition = "inline" if mime and (mime.startswith("text/") or mime == "application/json") else "attachment"
+        response.headers["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{quote(path.name)}"
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
+        response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
     @app.get("/")

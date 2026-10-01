@@ -27,6 +27,7 @@ import type {
 } from "../types/model";
 import type { Settings } from "../types/settings";
 import { normalizeLongRoute, normalizeLongRun } from "../state/longRequest";
+import { roleModelsNote } from "../state/roleModels";
 import type { ValidationResult, ValidationStatus } from "../types/validation";
 import {
   ERR_NOT_REACHABLE,
@@ -464,6 +465,20 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
         : { ok: false, error: "Sovereign returned an invalid cancellation response." };
     },
 
+    async resumeJob(jobId: string): Promise<JobResult> {
+      const result = await request<unknown>(
+        baseUrl,
+        "POST",
+        `/v1/jobs/${encodeURIComponent(jobId)}/resume`,
+        {}
+      );
+      if (!result.ok) return { ok: false, error: result.error };
+      const job = normalizeJob(result.data, jobId);
+      return job
+        ? { ok: true, job }
+        : { ok: false, error: "Sovereign returned an invalid resume response." };
+    },
+
     async createSession(): Promise<SessionResult> {
       return sessionResult(
         await request<ApiSessionResponse>(
@@ -619,6 +634,7 @@ export function createHttpTransport(baseUrl = ""): SovereignTransport {
           result.data.routes?.LONG,
           result.data.long_route
         ),
+        roleModelsNote: roleModelsNote(result.data.role_models),
         longActiveJob:
           typeof result.data.long_active_job === "string" &&
           result.data.long_active_job.length > 0

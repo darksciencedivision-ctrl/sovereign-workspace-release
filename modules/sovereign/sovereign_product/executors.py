@@ -604,12 +604,18 @@ class DeepExecutor:
         popen_factory: Callable[..., Any] = subprocess.Popen,
         process_tree_terminator: Callable[[Any], None] | None = None,
         poll_interval: float = 0.05,
+        exit_drain_seconds: float = 5.0,
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
             raise ValueError(f"engine root is not a directory: {self.root}")
+        if exit_drain_seconds <= 0:
+            raise ValueError("exit_drain_seconds must be positive")
+        #: After the engine exits, how long its pipes may stay silent and open (an orphaned
+        #: child holding them) before the output is abandoned and the result is recorded.
+        self.exit_drain_seconds = float(exit_drain_seconds)
         self.runner_path = (
             Path(runner_path).resolve()
             if runner_path is not None
@@ -700,6 +706,26 @@ class DeepExecutor:
         return True
 
     def _launch(self, command: Sequence[str]) -> Any:
+        # The legacy engine does not need the product's API key or unrelated
+        # provider credentials. Keep explicit runtime settings, not whole prefixes.
+        allowed = {
+            'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP',
+            'LOCALAPPDATA', 'APPDATA', 'USERPROFILE', 'HOME',
+            'PYTHONPATH', 'PYTHONHOME', 'PYTHONUTF8', 'PYTHONIOENCODING',
+            'PYTHONDONTWRITEBYTECODE', 'PYTHONHASHSEED',
+            'SOVEREIGN_ROOT', 'SOVEREIGN_STATE_HOME', 'SOVEREIGN_STATE_DIR',
+            'SOVEREIGN_WORKSPACE_STATE', 'SOVEREIGN_COGNITION_ROOT',
+            'SOVEREIGN_DEEPSEEK_R1_TIMEOUT_SEC', 'SOVEREIGN_PRIMARY_REASONER_TIMEOUT_SEC',
+            'SOVEREIGN_TURN_TIMEOUT_SEC', 'SOVEREIGN_ENABLE_MODEL_WARMUP',
+            'SOVEREIGN_WARMUP_TIMEOUT_SEC', 'SOVEREIGN_BROKER_ONLY',
+            'SOVEREIGN_BROKER_SESSION_ID', 'SOVEREIGN_BROKER_SCRIPT',
+            'SOVEREIGN_BROKER_ROOT', 'SOVEREIGN_ENABLE_PRESSURE_ROUTING',
+            'SOVEREIGN_ENABLE_CONTRADICTION_AWARE_SYNTHESIS',
+            'SOVEREIGN_CONTRADICTION_LIMIT', 'SOVEREIGN_CONTRADICTION_MIN_PRESSURE',
+            'SOVEREIGN_CONCURRENCE_ROUND',
+        }
+        environment = {key: value for key, value in os.environ.items() if key.upper() in allowed}
+        environment['PYTHONUNBUFFERED'] = '1'
         kwargs: dict[str, Any] = {
             "cwd": str(self.root),
             "stdout": subprocess.PIPE,
@@ -710,7 +736,7 @@ class DeepExecutor:
             "errors": "replace",
             "bufsize": 1,
             "shell": False,
-            "env": {**os.environ, "PYTHONUNBUFFERED": "1"},
+            "env": environment,
         }
         if os.name == "nt":
             kwargs["creationflags"] = getattr(
@@ -813,6 +839,8 @@ class DeepExecutor:
         reader_threads: list[threading.Thread] = []
         artifact_progress_signature: tuple[Any, ...] | None = None
         next_artifact_probe = started
+        exited_silent_since: float | None = None
+        output_drain_abandoned = False
         try:
             process = self._launch(command)
             with self._lock:
@@ -874,11 +902,16 @@ class DeepExecutor:
                         timeout=self.poll_interval,
                     )
                 except queue.Empty:
-                    if process.poll() is not None and all(
-                        not thread.is_alive() for thread in reader_threads
-                    ):
-                        break
+                    if process.poll() is not None:
+                        if all(not thread.is_alive() for thread in reader_threads):
+                            break
+                        if exited_silent_since is None:
+                            exited_silent_since = self._monotonic()
+                        elif self._monotonic() - exited_silent_since > self.exit_drain_seconds:
+                            output_drain_abandoned = True  # an orphan holds a pipe open
+                            break
                     continue
+                exited_silent_since = None
                 if line is None:
                     open_streams = max(0, open_streams - 1)
                     continue
@@ -1048,6 +1081,7 @@ class DeepExecutor:
             "progress_callback_errors": callback_errors,
             "stdout_line_count": len(stdout_lines),
             "stderr_line_count": len(stderr_lines),
+            "output_drain_abandoned": output_drain_abandoned,
             "exact_run_record": f"runs/{session_id}.json",
         }
         result = ExecutionResult(

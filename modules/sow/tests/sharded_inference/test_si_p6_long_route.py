@@ -216,7 +216,7 @@ class FakeLlama:
 
 def _executor(root, client):
     return LW.LongWorkloadExecutor(root=root, evidence_dir=root / "ev", client=client,
-                                   config=LW.load_config(root))
+                                   config=LW.load_config(root), exact_counting=False)
 
 
 def test_si_p6_long_requires_the_llama_cpp_backend(clean_env, tmp_path):
@@ -646,7 +646,7 @@ class _FailsOnePart(FakeLlama):
 def test_si_p6_an_answer_missing_a_failed_part_says_so(clean_env, tmp_path):
     """Live (MoE, 65k): map-0004 failed; the reduce answered 87 (true 124) without naming the gap."""
     root = _small_root(tmp_path)
-    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(20))
     result = _executor(root, _FailsOnePart()).run(
         "job-gap", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
         progress_callback=lambda p: None)
@@ -659,7 +659,7 @@ def test_si_p6_an_answer_missing_a_failed_part_says_so(clean_env, tmp_path):
 
 def test_si_p6_a_complete_run_carries_no_gap_note(clean_env, tmp_path):
     root = _small_root(tmp_path)
-    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(20))
     result = _executor(root, FakeLlama()).run(
         "job-nogap", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
         progress_callback=lambda p: None)
@@ -696,7 +696,7 @@ class _CutsOffPartTwo(FakeLlama):
 
 def test_si_p6_a_cut_off_part_is_split_end_to_end_and_shown_in_the_view(clean_env, tmp_path):
     root = _small_root(tmp_path)
-    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(12))
+    material = "\n\n".join(f"Section {i}: " + "entry. " * 200 for i in range(20))
     result = _executor(root, _CutsOffPartTwo()).run(
         "job-split", f"Count entries.\n---\n{material}", cancel_requested=lambda: False,
         progress_callback=lambda p: None)

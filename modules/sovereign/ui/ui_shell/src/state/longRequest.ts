@@ -10,6 +10,7 @@ import type { JobProgress } from "../types/chat";
 import type {
   LongLedger,
   LongModelInfo,
+  LongModelStatus,
   LongOptions,
   LongRouteInfo,
   LongRunView,
@@ -89,6 +90,8 @@ function text(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+const MODEL_STATUSES: LongModelStatus[] = ["ready", "degraded", "unknown"];
+
 export function normalizeLongRoute(
   ready: unknown,
   raw: unknown
@@ -102,6 +105,10 @@ export function normalizeLongRoute(
               model: m.model,
               context: count(m.context) ?? 0,
               thinking: text(m.thinking) ?? "off",
+              status: MODEL_STATUSES.includes(m.status as LongModelStatus)
+                ? (m.status as LongModelStatus)
+                : "unknown",
+              reason: text(m.reason),
             }]
           : []
       )
@@ -111,6 +118,8 @@ export function normalizeLongRoute(
     defaultModel: text(info.default_model),
     models,
     error: text(info.error),
+    degraded: info.status === "degraded" || models.some((m) => m.status === "degraded"),
+    detail: text(info.detail),
   };
 }
 

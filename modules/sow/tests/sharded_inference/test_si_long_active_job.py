@@ -44,6 +44,7 @@ def _health_service(root: Path, job_id: str | None):
         long_route_ready=lambda: True,
         long_models=lambda: {"default_model": "fake", "models": []},
         long_active_job=lambda: job_id,
+        role_models=lambda: {"models": [], "status": "ready", "detail": None},
     )
 
 

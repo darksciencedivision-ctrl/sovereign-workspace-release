@@ -4,9 +4,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from .model_client import (
-    GenerationCancelled,
-    GenerationTimeout,
-    ModelCapabilityError,
     ModelClientError,
     OllamaProtocolError,
     validate_loopback_ollama_url,
@@ -112,8 +109,8 @@ def resolve_llama_cpp_api_key(
         return file_key, KEY_SOURCE_SUPERVISOR_FILE
     if env_key:
         return env_key, KEY_SOURCE_ENV
-    if file_key:
-        return file_key, KEY_SOURCE_SUPERVISOR_FILE
+    # H4: the supervisor's key is never sent to a URL it says it does not serve; that server
+    # answers 401 "no API key" with the source, instead of receiving another server's key.
     return None, KEY_SOURCE_NONE
 
 

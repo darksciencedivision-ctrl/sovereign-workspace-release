@@ -196,7 +196,7 @@ def read_gguf(path: str | Path) -> GGUFModel:
             name = _read_string(handle)
             dims = _read(handle, "<I")
             handle.seek(8 * dims, 1)
-            _ggml_type = _read(handle, "<I")
+            _read(handle, "<I")  # consume the tensor type; only offsets are needed here
             offset = _read(handle, "<Q")
             raw.append((name, offset))
         alignment = int(metadata.get("general.alignment") or _DEFAULT_ALIGNMENT)

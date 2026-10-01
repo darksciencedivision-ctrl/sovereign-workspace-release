@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-from .shard_runner import RunLimits, RunState, ShardRunner, ShardTask
+from .shard_runner import RunState, ShardRunner, ShardTask
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
@@ -65,7 +65,18 @@ def split_text(text: str, *, count_tokens: Callable[[str], int], max_tokens: int
             parts = rebuilt
         else:
             size = max(1, len(block) * max_tokens // max(1, count_tokens(block)) - 1)
-            return [block[i:i + size] for i in range(0, len(block), size)]
+            pending = [block[i:i + size] for i in range(0, len(block), size)][::-1]
+            bounded = []
+            while pending:
+                part = pending.pop()
+                if count_tokens(part) <= max_tokens:
+                    bounded.append(part)
+                elif len(part) == 1:
+                    raise ValueError("a single character exceeds the shard token budget")
+                else:
+                    middle = len(part) // 2
+                    pending.extend((part[middle:], part[:middle]))
+            return bounded
         parts = [p for p in parts if p]
         if len(parts) <= 1:
             return pieces(block, level + 1)
@@ -88,13 +99,15 @@ def split_text(text: str, *, count_tokens: Callable[[str], int], max_tokens: int
     return chunks
 
 
-def _content_budget(runner: ShardRunner, instruction: str, max_output: int) -> int:
-    probe = ShardTask(task_id="probe", kind="probe", instruction=instruction,
+def _content_budget(runner: ShardRunner, instruction: str, max_output: int,
+                    kind: str = "probe") -> int:
+    probe = ShardTask(task_id="probe", kind=kind, instruction=instruction,
                       max_output_tokens=max_output)
-    # Reserve the ledger's whole budget: it can grow up to that before being condensed.
-    fixed = (runner.model.count_tokens(runner.fixed_prompt(probe, runner.state.ledger
-                                                           if runner.state else _empty()))
-             + runner.limits.ledger_budget_tokens + 64)
+    # Reserve the ledger's whole budget: it can grow up to that before being condensed. An
+    # isolated kind (maps) always sees an empty ledger, so its reserve goes to content (O1).
+    reserve = 0 if kind in runner.isolated_kinds else runner.limits.ledger_budget_tokens
+    fixed = (runner.session_tokens(probe, runner.state.ledger if runner.state else _empty())
+             + reserve + 64)
     budget = runner.limits.content_budget(fixed, max_output)
     if budget < 256:
         raise ValueError("the window leaves no room for shard content; lower the ledger budget "
@@ -148,7 +161,7 @@ class InputShardMode:
     isolated_kinds = frozenset({"map"})
 
     def plan(self, runner: ShardRunner, text: str) -> list[ShardTask]:
-        budget = _content_budget(runner, self._map_text(), self.max_output_tokens)
+        budget = _content_budget(runner, self._map_text(), self.max_output_tokens, kind="map")
         chunks = split_text(text, count_tokens=runner.model.count_tokens, max_tokens=budget)
         width = max(4, len(str(len(chunks))))
         return [ShardTask(task_id=f"map-{i + 1:0{width}d}", kind="map",

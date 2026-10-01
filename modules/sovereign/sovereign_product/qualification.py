@@ -469,6 +469,28 @@ def apply_envelope(root: str | os.PathLike[str] | Path,
                                   for k in ("CONTEXT_WINDOW", "MAX_OUTPUT_TOKENS")}}
 
 
+def partial_results_path(out: str | os.PathLike[str] | Path) -> Path:
+    return Path(str(out) + ".partial")
+
+
+def write_partial_results(out: str | os.PathLike[str] | Path, profile_id: str,
+                          runs: list[Any]) -> Path:
+    """The runs so far, written atomically beside ``out``: results are otherwise written only
+    when a run ends, and a driver that caps a long run kills it first."""
+    path = partial_results_path(out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    document = {"schema": RESULTS_SCHEMA, "profile": profile_id, "partial": True,
+                "updated_utc": _utc_now(), "runs": runs}
+    try:
+        temporary.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n",
+                             encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return path
+
+
 def _fmt(value: Any, digits: int = 1) -> str:
     if value is None:
         return "-"
@@ -506,7 +528,7 @@ def render_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> st
         f"- Largest prompt meeting the SLOs through the product: "
         f"**~{envelope.get('qualified_prompt_tokens')} tokens**",
         f"- Qualified concurrent jobs: **{envelope['limits']['concurrent_jobs']}**",
-        f"- Qualified workflows: "
+        "- Qualified workflows: "
         + ", ".join(f"{k}={'yes' if v else 'NO'}"
                     for k, v in envelope["qualified_workflows"].items()),
         f"- Largest task observed (input + output, the product's job metric): "
@@ -665,6 +687,14 @@ def main(argv: list[str] | None = None) -> int:
             profile = next((p for p in profiles["profiles"] if p["id"] == args.profile), None)
             if profile is None:
                 raise QualificationError(f"unknown profile {args.profile!r}")
+            out = Path(args.out)
+
+            def checkpoint(runs: list[Any]) -> None:
+                try:
+                    write_partial_results(out, profile["id"], runs)
+                except OSError as exc:  # a full disk must not end the measurement itself
+                    print(f"could not write partial results: {exc}", file=sys.stderr, flush=True)
+
             if profile.get("kind") == LONG_KIND:
                 from .long_workload import INBOX_DIRNAME
                 from .qualification_harness import run_long_qualification
@@ -676,16 +706,17 @@ def main(argv: list[str] | None = None) -> int:
                 results = run_long_qualification(
                     profile, base_url=args.base_url, inbox_dir=inbox,
                     repetitions=args.repetitions,
-                    job_timeout=args.job_timeout or 4 * 3600.0)
+                    job_timeout=args.job_timeout or 4 * 3600.0, checkpoint=checkpoint)
             else:
                 results = run_qualification(
                     profile, base_url=args.base_url, ollama_url=args.ollama_url,
                     repetitions=args.repetitions, job_timeout=args.job_timeout or 1800.0,
-                    include_deep=not args.skip_deep, max_context=args.max_context)
-            out = Path(args.out)
+                    include_deep=not args.skip_deep, max_context=args.max_context,
+                    checkpoint=checkpoint)
             results["results_file"] = out.name
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            partial_results_path(out).unlink(missing_ok=True)  # the complete file supersedes it
             print(json.dumps({"ok": True, "results": str(out), "runs": len(results["runs"])}))
             return 0
         if args.command == "derive":

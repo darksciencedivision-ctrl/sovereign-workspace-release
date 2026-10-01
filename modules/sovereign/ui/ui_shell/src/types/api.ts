@@ -51,10 +51,20 @@ export interface ApiHealthResponse {
   mode?: string;
   detail?: string;
   routes?: Record<string, boolean>;
+  /** The QUICK/DEEP/RESEARCH models' serving status (a refused GPU plan is `degraded`). */
+  role_models?: unknown;
   long_route?: {
     default_model?: string | null;
-    models?: { model?: unknown; context?: unknown; thinking?: unknown }[];
+    models?: {
+      model?: unknown;
+      context?: unknown;
+      thinking?: unknown;
+      status?: unknown;
+      reason?: unknown;
+    }[];
     error?: string;
+    status?: string;
+    detail?: string | null;
   };
   /** Job id of a queued or running LONG job, or null when none is active. */
   long_active_job?: string | null;
@@ -83,6 +93,8 @@ export interface EngineHealth {
   orchestrationMode?: string;
   detail?: string;
   longRoute?: LongRouteInfo;
+  /** Set when a QUICK/DEEP/RESEARCH model runs on the slower default profile (its plan was refused). */
+  roleModelsNote?: string;
   /** Set when a LONG job is queued or running. Null or absent means none. */
   longActiveJob?: string | null;
 }

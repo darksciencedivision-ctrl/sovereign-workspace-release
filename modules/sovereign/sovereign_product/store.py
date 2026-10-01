@@ -547,13 +547,13 @@ class SovereignStore:
             rows = connection.execute(
                 """
                 SELECT * FROM messages WHERE session_id=?
-                ORDER BY created_at ASC, rowid ASC LIMIT ?
+                ORDER BY created_at DESC, rowid DESC LIMIT ?
                 """,
                 (session, limit),
             ).fetchall()
         finally:
             connection.close()
-        return [self._message_dict(row) for row in rows]
+        return [self._message_dict(row) for row in reversed(rows)]
 
     # EvidenceBuilder compatibility alias.
     get_session_messages = list_messages
@@ -704,6 +704,7 @@ class SovereignStore:
             finished_at = row["finished_at"]
             attempts = int(row["attempts"])
             cancel_requested = int(row["cancel_requested"])
+            progress_json = row["progress_json"]
             if target == "running":
                 started_at = now
                 finished_at = None
@@ -714,6 +715,9 @@ class SovereignStore:
                 started_at = None
                 finished_at = None
                 cancel_requested = 0
+                # A re-queued job starts its progress again: the worker's first update
+                # ("percent 1") would otherwise be refused as a regression and strand it running.
+                progress_json = _json({"percent": 0, "stage": "queued"})
             merged_metadata = _decode(row["metadata_json"], {})
             merged_metadata.update(dict(metadata or {}))
             connection.execute(
@@ -721,7 +725,8 @@ class SovereignStore:
                 UPDATE jobs SET
                     status=?, started_at=?, finished_at=?, updated_at=?,
                     error=?, evidence_pointer=?, output_message_id=?,
-                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?
+                    worker_id=?, attempts=?, cancel_requested=?, metadata_json=?,
+                    progress_json=?
                 WHERE job_id=?
                 """,
                 (
@@ -736,6 +741,7 @@ class SovereignStore:
                     attempts,
                     cancel_requested,
                     _json(merged_metadata),
+                    progress_json,
                     identifier,
                 ),
             )
@@ -873,12 +879,22 @@ class SovereignStore:
             )
         return self.get_job(identifier)
 
-    def recover_incomplete_jobs(self) -> dict[str, list[str]]:
+    def recover_incomplete_jobs(
+        self,
+        resume: Callable[[Mapping[str, Any]], tuple[bool, str | None]] | None = None,
+    ) -> dict[str, list[str]]:
+        """Settle jobs a stopped service left ``running``; return what to (re)queue.
+
+        By default a running job is marked ``interrupted``. ``resume`` may instead return
+        ``(True, None)`` for a job that can safely continue from its own checkpoints (it is put
+        back in the queue, visibly, in the event chain), or ``(False, reason)`` to interrupt it
+        with that reason appended to the error.
+        """
         interrupted: list[str] = []
         with self._transaction() as connection:
             rows = connection.execute(
                 """
-                SELECT job_id, progress_json, metadata_json
+                SELECT job_id, route, attempts, cancel_requested, progress_json, metadata_json
                 FROM jobs
                 WHERE status='running'
                 ORDER BY created_at
@@ -889,6 +905,49 @@ class SovereignStore:
                 identifier = str(row["job_id"])
                 progress = _decode(row["progress_json"], {})
                 metadata = _decode(row["metadata_json"], {})
+                resumable, reason = (
+                    resume(
+                        {
+                            "job_id": identifier,
+                            "route": str(row["route"]),
+                            "attempts": int(row["attempts"]),
+                            "cancel_requested": bool(row["cancel_requested"]),
+                        }
+                    )
+                    if resume is not None
+                    else (False, None)
+                )
+                if resumable:
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    metadata["recovery"] = {
+                        "classification": "resumed_on_service_restart",
+                        "job_id": identifier,
+                        "attempts_before": int(row["attempts"]),
+                    }
+                    # Progress restarts from zero: the store refuses a percent that goes
+                    # backwards, and the resumed run reports its own progress from its checkpoints.
+                    connection.execute(
+                        """
+                        UPDATE jobs SET status='queued', started_at=NULL, finished_at=NULL,
+                            updated_at=?, error=NULL, progress_json=?, metadata_json=?
+                        WHERE job_id=?
+                        """,
+                        (
+                            now,
+                            _json({"percent": 0, "stage": "resuming after restart"}),
+                            _json(metadata),
+                            identifier,
+                        ),
+                    )
+                    self._append_event(
+                        connection,
+                        "job",
+                        identifier,
+                        "recovered_for_resume",
+                        {"reason": "service restart; resuming from the job's checkpoints"},
+                    )
+                    continue
                 recovery_pointer = (
                     progress.get("evidence_pointer")
                     if isinstance(progress, Mapping)
@@ -912,17 +971,20 @@ class SovereignStore:
                     "job_id": identifier,
                     "evidence_pointer": recovery_pointer,
                 }
+                error = "service restarted while job was running"
+                if reason:
+                    error = f"{error}; {reason}"
                 connection.execute(
                     """
                     UPDATE jobs SET status='interrupted', finished_at=?, updated_at=?,
-                        error='service restarted while job was running',
-                        evidence_pointer=COALESCE(?, evidence_pointer),
+                        error=?, evidence_pointer=COALESCE(?, evidence_pointer),
                         metadata_json=?
                     WHERE job_id=?
                     """,
                     (
                         now,
                         now,
+                        error,
                         recovery_pointer,
                         _json(metadata),
                         identifier,
@@ -934,7 +996,8 @@ class SovereignStore:
                     identifier,
                     "recovered_as_interrupted",
                     {
-                        "reason": "service restart; no safe execution checkpoint",
+                        "reason": "service restart; "
+                        + (reason or "no safe execution checkpoint"),
                         "execution_id": metadata["recovery"]["execution_id"],
                         "evidence_pointer": recovery_pointer,
                     },
@@ -1318,15 +1381,16 @@ class SovereignStore:
         self,
         *,
         deleted_session_days: int = 30,
-        terminal_job_days: int = 90,
+        terminal_job_days: int | None = 90,
     ) -> dict[str, int]:
         """Purge only operator-deleted sessions and detached terminal jobs.
 
         Event lineage is retained, and every purge is itself appended. Jobs
         belonging to live sessions are never removed by time alone.
+        Set terminal_job_days=None to leave unrelated detached jobs untouched.
         """
 
-        if deleted_session_days < 0 or terminal_job_days < 0:
+        if deleted_session_days < 0 or (terminal_job_days is not None and terminal_job_days < 0):
             raise ValueError("retention days cannot be negative")
         now = datetime.now(timezone.utc)
         session_cutoff = (now - timedelta(days=deleted_session_days)).isoformat().replace(
@@ -1334,7 +1398,7 @@ class SovereignStore:
         )
         job_cutoff = (now - timedelta(days=terminal_job_days)).isoformat().replace(
             "+00:00", "Z"
-        )
+        ) if terminal_job_days is not None else None
         deleted_sessions = 0
         deleted_jobs = 0
         with self._transaction() as connection:

@@ -4,6 +4,7 @@ import {
   type JobSnapshot,
 } from "../types/chat";
 import { chunkLabel } from "../state/longRequest";
+import { stageLabel } from "../state/stageLabel";
 import { EvidenceLink } from "./EvidenceLink";
 import { LongRunPanel } from "./LongRunPanel";
 
@@ -12,6 +13,8 @@ interface Props {
   pollError?: string | null;
   cancelling?: boolean;
   onCancel: () => void;
+  /** An interrupted LONG run (model server away, disk full) continues from its checkpoints. */
+  onResume?: () => void;
 }
 
 // SWS-CORRECTIVE-01 §7.1. "Accepted" named a bare verdict, and a reader could reasonably
@@ -35,11 +38,17 @@ const STATUS_COPY: Record<JobSnapshot["status"], string> = {
   interrupted: "Interrupted — no answer accepted",
 };
 
+/** Only an interrupted LONG run resumes: its checkpoints hold every chunk done so far. */
+export function canResume(job: Pick<JobSnapshot, "route" | "status">): boolean {
+  return job.route === "LONG" && job.status === "interrupted";
+}
+
 export function RunStatus({
   job,
   pollError,
   cancelling,
   onCancel,
+  onResume,
 }: Props) {
   if (!job) return null;
   const active = isActiveJobStatus(job.status);
@@ -85,6 +94,11 @@ export function RunStatus({
                 : "Cancel"}
             </button>
           )}
+          {canResume(job) && onResume && (
+            <button type="button" className="resume-run" onClick={onResume}>
+              Resume
+            </button>
+          )}
         </div>
       </div>
 
@@ -105,7 +119,7 @@ export function RunStatus({
           </div>
           <div className="run-detail">
             <span>
-              {job.progress.stage ?? "Waiting for progress"}
+              {stageLabel(job.progress.stage) ?? "Waiting for progress"}
               {job.progress.detail ? ` — ${job.progress.detail}` : ""}
             </span>
             <span>{chunks ? `${chunks} - ${progressLabel}` : progressLabel}</span>

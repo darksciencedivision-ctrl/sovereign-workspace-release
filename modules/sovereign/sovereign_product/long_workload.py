@@ -22,16 +22,20 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from .exact_counting import (STATE_FILE as EXACT_STATE_FILE, ExactCancelled, ExactCounter,
+                             is_countable_objective)
 from .gguf_meta import GGUFError, read_gguf
-from .memory_planner import GIB, MemoryBudget, PlanRefused, plan_serving
+from .memory_planner import GIB, KV_TYPE_BYTES, MemoryBudget, PlanRefused, plan_serving
 from .paths import resolve_state_home
 from .runtime_registry import RuntimeRegistry, hybrid_profile
 from .shard_modes import InputShardMode, PlanStepMode
-from .shard_runner import ModelConfigurationError, ReplyTruncated, RunLimits, ShardRunner
+from .shard_runner import (ModelConfigurationError, ModelUnavailable, ReplyTruncated, RunLimits,
+                           ShardRunner)
 
 CONFIG_FILE = "long_workload.json"
 INBOX_DIRNAME = "long_inputs"
@@ -39,6 +43,7 @@ MAX_INPUT_BYTES = 64 * 1024 * 1024
 _MATERIAL_SPLIT = re.compile(r"^---[ \t]*$", re.MULTILINE)
 _INPUT_REF = re.compile(r"^\s*@input:\s*(?P<name>[A-Za-z0-9._ -]{1,128})\s*$")
 _MODEL_REF = re.compile(r"\A\s*@model:[ \t]*(?P<name>[^\r\n]*?)[ \t]*(?:\r?\n|\Z)")
+_EXACT_REF = re.compile(r"\A\s*@exact:[ \t]*(?P<mode>[^\r\n]*?)[ \t]*(?:\r?\n|\Z)")
 
 
 def split_model_directive(text: str) -> tuple[str | None, str]:
@@ -64,6 +69,34 @@ class LongWorkloadError(ValueError):
     """The LONG request or configuration cannot run (reported to the operator)."""
 
 
+def split_directives(text: str) -> tuple[str | None, str, str]:
+    """``(model or None, exact mode, rest)`` from up to two leading directive lines.
+
+    ``@model: <name>`` picks the LONG model (see ``split_model_directive``); ``@exact: off``
+    keeps a counting objective on map/reduce instead of the exact counting route (to measure
+    map/reduce, or when the model's own reading of the input is wanted); ``@exact: auto`` (the
+    default) lets a counting objective use the exact route. Either order; each at most once.
+    """
+    model: str | None = None
+    mode = "auto"
+    seen: set[str] = set()
+    for _ in range(2):
+        text = text.lstrip("﻿")
+        if "model" not in seen and _MODEL_REF.match(text):
+            model, text = split_model_directive(text)
+            seen.add("model")
+            continue
+        match = _EXACT_REF.match(text)
+        if match is None or "exact" in seen:
+            break
+        mode = match.group("mode").strip().lower()
+        if mode not in ("off", "auto"):
+            raise LongWorkloadError("@exact: must be 'off' or 'auto', e.g. '@exact: off'")
+        seen.add("exact")
+        text = text[match.end():]
+    return model, mode, text
+
+
 @dataclass(frozen=True)
 class LongModel:
     model: str
@@ -73,6 +106,9 @@ class LongModel:
     # output budget. Required with thinking "on": a thinking-only model (e.g. Qwen3 Thinking
     # 2507) reasons whatever enable_thinking says, and without room it never reaches its answer.
     reasoning_tokens: int = 0
+    # KV cache type the planner serves this model with. q8_0 halves the f16 cache at no visible
+    # cost; q4_0 quarters it, which frees GPU layers at long contexts, at some risk to accuracy.
+    cache_type: str = "q8_0"
 
 
 @dataclass(frozen=True)
@@ -121,7 +157,11 @@ def load_config(root: str | Path) -> LongConfig:
         if reasoning > context // 4:
             raise LongWorkloadError(f"{item['model']}: reasoning_tokens above a quarter of the "
                                     f"{context}-token context leaves no room for the work")
-        models.append(LongModel(item["model"], context, thinking, reasoning))
+        cache_type = item.get("cache_type", "q8_0")
+        if cache_type not in KV_TYPE_BYTES:
+            raise LongWorkloadError(f"{item['model']}: cache_type must be one of "
+                                    f"{', '.join(sorted(KV_TYPE_BYTES))}")
+        models.append(LongModel(item["model"], context, thinking, reasoning, cache_type))
     if not models:
         raise LongWorkloadError(f"{CONFIG_FILE} configures no models")
     ints = {}
@@ -147,37 +187,47 @@ def apply_hybrid_plans(registry: RuntimeRegistry, config: LongConfig, *,
     A model that is not installed, whose file cannot be read, or whose plan is refused keeps
     its existing profile and the reason is reported - the supervisor still starts.
     """
-    report: dict[str, dict[str, Any]] = {}
     if vram_bytes is None:
         return {m.model: {"applied": False, "reason": "free VRAM unknown (no nvidia-smi)"}
                 for m in config.models}
     budget = MemoryBudget(vram_bytes=int(vram_bytes), ram_bytes=config.ram_budget_gib * GIB,
                           prompt_cache_mib=config.prompt_cache_mib)
-    for entry in config.models:
-        existing = [p for p in registry.profiles.values() if p.model_id == entry.model]
-        if not existing:
-            report[entry.model] = {"applied": False, "reason": "model not installed"}
-            continue
-        try:
-            plan = plan_serving(reader(existing[0].model_path), context=entry.context,
-                                budget=budget)
-        except (GGUFError, PlanRefused, OSError, ValueError) as exc:
-            report[entry.model] = {"applied": False, "reason": str(exc)}
-            continue
-        profile = hybrid_profile(entry.model, plan, thinking_policy=entry.thinking)
-        replaced = {p.profile_id for p in existing}
-        for profile_id in replaced:
-            registry.profiles.pop(profile_id, None)
-        registry.add_profile(profile)
-        for role_name, role in list(registry.roles.items()):
-            if getattr(role, "profile_id", None) in replaced:
-                registry.roles[role_name] = type(role)(**{**role.__dict__,
-                                                          "profile_id": profile.profile_id})
-        report[entry.model] = {"applied": True, "profile": profile.profile_id,
-                               **{k: v for k, v in plan.as_dict().items()
-                                  if k in ("n_gpu_layers", "n_cpu_moe", "context", "est_vram_gib",
-                                           "est_ram_gib", "kv_gib", "notes")}}
-    return report
+    return {entry.model: plan_model(registry, entry.model, entry.context, budget,
+                                    thinking_policy=entry.thinking, cache_type=entry.cache_type,
+                                    reader=reader)
+            for entry in config.models}
+
+
+def plan_model(registry: RuntimeRegistry, model: str, context: int, budget: MemoryBudget, *,
+               thinking_policy: str | None = None, cache_type: str = "q8_0",
+               reader: Callable[[str], Any] = read_gguf) -> dict[str, Any]:
+    """Replace ``model``'s profile in ``registry`` with its planned GPU/RAM split; the report.
+
+    ``thinking_policy=None`` keeps the model's current one. The registry is untouched when the
+    model is not installed, its file cannot be read, or the plan is refused.
+    """
+    existing = [p for p in registry.profiles.values() if p.model_id == model]
+    if not existing:
+        return {"applied": False, "reason": "model not installed"}
+    try:
+        plan = plan_serving(reader(existing[0].model_path), context=context, budget=budget,
+                            cache_type=cache_type)
+    except (GGUFError, PlanRefused, OSError, ValueError) as exc:
+        return {"applied": False, "reason": str(exc)}
+    profile = hybrid_profile(model, plan, thinking_policy=thinking_policy
+                             or existing[0].thinking_policy)
+    replaced = {p.profile_id for p in existing}
+    for profile_id in replaced:
+        registry.profiles.pop(profile_id, None)
+    registry.add_profile(profile)
+    for role_name, role in list(registry.roles.items()):
+        if getattr(role, "profile_id", None) in replaced:
+            registry.roles[role_name] = type(role)(**{**role.__dict__,
+                                                      "profile_id": profile.profile_id})
+    return {"applied": True, "profile": profile.profile_id,
+            **{k: v for k, v in plan.as_dict().items()
+               if k in ("n_gpu_layers", "n_cpu_moe", "context", "cache_type", "est_vram_gib",
+                        "est_ram_gib", "kv_gib", "notes")}}
 
 
 # --- the model port -------------------------------------------------------------------------------
@@ -193,12 +243,26 @@ class LlamaModelPort:
 
     def generate(self, *, system: str, prompt: str, max_tokens: int,
                  should_stop: Callable[[], bool]) -> str:
-        response = self.client.chat(
-            model=self.model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-            options={"num_ctx": self.context, "num_predict": max_tokens, "temperature": 0.2},
-            think=self.thinking == "on",
-            cancel_requested=lambda: should_stop() or self.cancel_requested())
+        from .runtime_contracts import InferenceAuthError
+
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[{"role": "system", "content": system},
+                          {"role": "user", "content": prompt}],
+                options={"num_ctx": self.context, "num_predict": max_tokens, "temperature": 0.2},
+                think=self.thinking == "on",
+                cancel_requested=lambda: should_stop() or self.cancel_requested())
+        except InferenceAuthError as exc:
+            # A refused key fails every call the same way: stop the run and say why.
+            raise ModelConfigurationError(str(exc)) from exc
+        except Exception as exc:
+            # A server that went away shows up as many different errors (connection refused,
+            # a cut stream, 503 while it reloads, or an over-limit error once exact counting
+            # fails). One cheap probe tells an outage from a real failure of this call.
+            if not (should_stop() or self.cancel_requested()) and not self._answers():
+                raise ModelUnavailable(f"the llama.cpp server is not answering ({exc})") from exc
+            raise
         text = str(getattr(response, "text", "") or "")
         if self.thinking == "off" and not text.strip() and str(
                 getattr(response, "reasoning", "") or "").strip():
@@ -211,15 +275,59 @@ class LlamaModelPort:
         return text
 
     def count_tokens(self, text: str) -> int:
+        if self.cancel_requested():
+            # Sizing a large @input takes thousands of /tokenize calls before any chunk runs;
+            # a cancel must not wait for all of them (the job then ends cancelled).
+            from .model_client import GenerationCancelled
+
+            raise GenerationCancelled("cancelled while sizing the input")
         counted = self.client.count_text_tokens(self.model, text)
-        # Conservative fallback (one token per byte) - never optimistic.
-        return counted if counted is not None else len(text.encode("utf-8"))
+        if counted is None:
+            # The client returns None when /tokenize fails. Mid-run, the old fallback (one token
+            # per byte) sized a restarting server's chunks four times too big and failed the run
+            # with a misleading "does not fit the window". An exact count is a LONG requirement.
+            raise ModelUnavailable("the llama.cpp server did not count tokens (it is down, "
+                                   "restarting or loading the model)")
+        return counted
+
+    def _answers(self) -> bool:
+        try:
+            return self.client.count_text_tokens(self.model, "ok") is not None
+        except Exception:
+            return False
+
+
+# --- run timing (O4/O5) ---------------------------------------------------------------------------
+
+def _endpoint_stats(client: Any) -> dict[str, list[float]]:
+    """A snapshot of the client's per-endpoint call counts and seconds (none for fakes)."""
+    stats = getattr(client, "endpoint_stats", None)
+    return {k: list(v) for k, v in stats.items()} if isinstance(stats, Mapping) else {}
+
+
+def _timing_telemetry(client: Any, before: Mapping[str, list[float]], started: float,
+                      plan_seconds: float, now: float) -> dict[str, Any]:
+    """Where a run's time went: sizing the input (planning) and the tokenizer endpoints."""
+    after = _endpoint_stats(client)
+    tokenizer = {}
+    for path, (calls, seconds) in after.items():
+        was_calls, was_seconds = before.get(path, [0, 0.0])
+        tokenizer[path] = {"calls": int(calls - was_calls),
+                           "seconds": round(seconds - was_seconds, 2)}
+    return {"wall_seconds": round(now - started, 1), "plan_seconds": round(plan_seconds, 1),
+            "tokenizer_endpoints": tokenizer,
+            "tokenizer_seconds": round(sum(v["seconds"] for v in tokenizer.values()), 2)}
 
 
 # --- the executor ---------------------------------------------------------------------------------
 
-def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
-    """(objective, material or None). Material may be an ``@input: <name>`` inbox reference."""
+def parse_request(text: str, root: str | Path, *,
+                  read_input: bool = True) -> tuple[str, str | None]:
+    """(objective, material or None). Material may be an ``@input: <name>`` inbox reference.
+
+    With ``read_input=False`` an inbox reference is returned as written, unread: a resumed run
+    already holds its chunks in its checkpoints and must not depend on the file still existing.
+    """
     parts = _MATERIAL_SPLIT.split(text, maxsplit=1)
     objective = parts[0].strip()
     if not objective:
@@ -233,7 +341,7 @@ def parse_request(text: str, root: str | Path) -> tuple[str, str | None]:
         # outright rather than silently treated as literal text.
         raise LongWorkloadError("@input must name a plain file in the long_inputs inbox "
                                 "(letters, digits, space, . _ -)")
-    if reference:
+    if reference and read_input:
         name = reference.group("name").strip()
         inbox = (resolve_state_home(root) / INBOX_DIRNAME).resolve()
         target = (inbox / name).resolve()
@@ -296,6 +404,47 @@ def _coverage_note(state: Any, gaps: list[str]) -> str:
                 "count or total above is missing those parts.")
     return (f"INCOMPLETE: {len(gaps)} of {len(state.tasks)} chunks failed ({', '.join(gaps)}); "
             "this answer was produced without them.")
+
+
+#: A LONG job is started at most this many times in all, counting restart resumes, so a job that
+#: keeps taking the product down cannot restart it forever.
+RESTART_ATTEMPTS = 3
+
+
+def restart_decision(evidence_dir: Path, job: Mapping[str, Any]) -> tuple[bool, str | None]:
+    """Whether a LONG job left ``running`` by a product restart resumes: ``(resume, reason)``.
+
+    Live (2026-09-27), a restart marked an hours-long LONG job ``interrupted`` although its
+    checkpoints could resume it. A LONG job resumes when its run directory holds no run yet
+    (nothing was lost: it starts again) or a run whose checkpoint chain and stored outputs verify
+    (``ShardRunner.resume`` continues at the first unfinished task, and a run that had finished just
+    reports its result). It does not resume when a cancel was requested, when it has already been
+    started RESTART_ATTEMPTS times, or when its checkpoints are broken; the reason says which.
+    Other routes return ``(False, None)`` and keep the default (interrupted). Read-only.
+    """
+    if str(job.get("route") or "").upper() != "LONG":
+        return False, None
+    if job.get("cancel_requested"):
+        return False, "its cancellation had been requested"
+    attempts = int(job.get("attempts") or 0)
+    if attempts >= RESTART_ATTEMPTS:
+        return False, (f"the LONG run was already started {attempts} times, so it is not resumed "
+                       "again; resubmit it to run it again")
+    problem = checkpoint_problem(evidence_dir, str(job["job_id"]))
+    if problem:
+        return False, problem
+    return True, None
+
+
+def checkpoint_problem(evidence_dir: Path, job_id: str) -> str | None:
+    """Why a LONG job's stored run cannot be resumed, or None when it can (read-only)."""
+    from .shard_runner import ShardRunError, verify_stored_run
+
+    try:
+        verify_stored_run(Path(evidence_dir) / "long" / job_id)
+    except (ShardRunError, OSError, ValueError, KeyError, TypeError) as exc:
+        return f"its LONG checkpoints cannot be resumed ({exc})"
+    return None
 
 
 def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
@@ -373,15 +522,45 @@ def describe_run(evidence_dir: Path, job_id: str) -> dict[str, Any]:
     }
 
 
-def _plan_refusal(root: str | Path, model: str) -> str:
-    """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
+def plan_reports(root: str | Path) -> Mapping[str, Any] | None:
+    """The supervisor's per-model GPU/RAM plan report (hybrid_plans.json), or None."""
     from .paths import resolve_runtime_dir
 
     path = resolve_runtime_dir(root) / "llamacpp_supervisor" / "hybrid_plans.json"
     try:
-        report = json.loads(path.read_text(encoding="utf-8")).get(model)
-    except (OSError, ValueError, AttributeError):
+        reports = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return reports if isinstance(reports, Mapping) else None
+
+
+def model_status(reports: Mapping[str, Any] | None, entry: LongModel) -> tuple[str, str | None]:
+    """``(status, reason)`` of a configured LONG model from the supervisor's plan report.
+
+    ``degraded`` when its plan was refused or planned below the configured context (the executor
+    would then refuse every run on it), ``unknown`` when the supervisor reported nothing for it,
+    ``ready`` otherwise.
+    """
+    if reports is None:
+        return "unknown", "no plan report from the supervisor (has it started?)"
+    report = reports.get(entry.model)
+    if not isinstance(report, Mapping):
+        return "unknown", "the supervisor's plan report has no entry for this model"
+    if report.get("applied") is False:
+        return "degraded", f"plan refused: {report.get('reason') or 'no reason recorded'}"
+    context = report.get("context")
+    if isinstance(context, int) and not isinstance(context, bool) and context < entry.context:
+        return "degraded", (f"planned at a {context}-token context, below the configured "
+                            f"{entry.context}")
+    return "ready", None
+
+
+def _plan_refusal(root: str | Path, model: str) -> str:
+    """Why the supervisor served ``model`` without its plan, from its hybrid_plans.json report."""
+    reports = plan_reports(root)
+    if reports is None:
         return "no plan report from the supervisor"
+    report = reports.get(model)
     if not isinstance(report, Mapping):
         return "no plan for this model in the supervisor's report"
     if report.get("applied") is False:
@@ -389,23 +568,88 @@ def _plan_refusal(root: str | Path, model: str) -> str:
     return f"plan applied at context {report.get('context')}; the served model differs"
 
 
+def _done(runner: ShardRunner | None) -> int:
+    return len(runner.state.completed) if runner is not None and runner.state else 0
+
+
+def _interrupted(model: str, done: int, reason: str) -> dict[str, Any]:
+    """A run stopped by its surroundings (no model server, no disk), not by its own work: the job
+    ends ``interrupted`` with the reason, and POST /v1/jobs/<id>/resume continues it."""
+    return {"status": "interrupted", "answer": "", "model": model, "reason": reason,
+            "telemetry": {"run_status": "interrupted", "completed": done}}
+
+
 class LongWorkloadExecutor:
     """Runs one LONG job with the shard runner; resumable across product restarts."""
 
     def __init__(self, *, root: str | Path, evidence_dir: Path, client: Any,
-                 config: LongConfig):
+                 config: LongConfig, sleep: Callable[[float], None] = time.sleep,
+                 monotonic: Callable[[], float] = time.monotonic,
+                 exact_counting: bool = True):
         if not callable(getattr(client, "count_text_tokens", None)):
             raise LongWorkloadError("the LONG route requires the llama.cpp backend (exact token "
                                     "counts and the GPU/RAM split); select llama.cpp")
         self.root, self.evidence_dir, self.client, self.config = root, evidence_dir, client, config
+        self.sleep, self.monotonic = sleep, monotonic  # the runner's clock (a seam for tests)
+        self.exact_counting = exact_counting
+
+    def _exact_route(self, run_dir: Path, port: "LlamaModelPort", objective: str, material: str,
+                     output_tokens: int, cancel_requested: Callable[[], bool],
+                     progress_callback: Callable[[dict[str, Any]], None], model: str,
+                     percent_reached: list[int]) -> Any:
+        """Try the exact counting route (D6): an ExactOutcome, or a finished result dict when the
+        run was cancelled or its surroundings failed. ``percent_reached[0]`` follows the
+        progress reported, so a fallback to map/reduce continues from it (the product drops any
+        update whose percent goes backwards)."""
+        from .model_client import GenerationCancelled
+
+        def progress(stage: str, detail: str, percent: int) -> None:
+            percent_reached[0] = max(percent_reached[0], percent)
+            try:
+                progress_callback({"stage": stage, "detail": detail, "percent": percent})
+            except Exception:
+                pass
+
+        counter = ExactCounter(port, run_dir, max_output_tokens=output_tokens,
+                               cancel_requested=cancel_requested, progress=progress)
+        try:
+            return counter.run(objective, material)
+        except (GenerationCancelled, ExactCancelled):
+            return {"status": "cancelled", "answer": "", "model": model,
+                    "reason": "cancelled while counting",
+                    "telemetry": {"mode": "exact_counting", "run_status": "cancelled"}}
+        except ModelUnavailable as exc:
+            return _interrupted(model, 0, (
+                f"{exc}. The counting recorded so far is kept; resume the job once the llama.cpp "
+                f"supervisor serves {model} again."))
+        except OSError as exc:
+            return _interrupted(model, 0, (
+                f"the LONG run could not write in {run_dir} ({exc}). Free disk space or make the "
+                "folder writable, then resume the job."))
 
     def run(self, job_id: str, text: str, *, cancel_requested: Callable[[], bool],
             progress_callback: Callable[[dict[str, Any]], None],
             model: str | None = None) -> dict[str, Any]:
-        requested, text = split_model_directive(text)
-        objective, material = parse_request(text, self.root)
+        from .model_client import ModelClientError
+        from .runtime_contracts import InferenceAuthError
+
+        run_dir = self.evidence_dir / "long" / job_id
+        run_started = self.monotonic()
+        tokenizer_before = _endpoint_stats(self.client)
+        checkpoints = run_dir / "checkpoints"
+        resuming = checkpoints.is_dir() and any(checkpoints.glob("*.json"))
+        requested, exact_mode, text = split_directives(text)
+        # A resumed run has its chunks in its checkpoints: it must not need the @input file.
+        objective, material = parse_request(text, self.root, read_input=not resuming)
         entry = self.config.model(model or requested)
-        context = int(self.client.native_context_length(entry.model))
+        try:
+            context = int(self.client.native_context_length(entry.model))
+        except InferenceAuthError:
+            raise
+        except ModelClientError as exc:
+            return _interrupted(entry.model, 0, (
+                f"the llama.cpp server did not answer for {entry.model} ({exc}). Start the "
+                "llama.cpp supervisor, then resume the job."))
         if context < entry.context:
             raise LongWorkloadError(
                 f"{entry.model} is served with a {context}-token context, below the "
@@ -421,6 +665,23 @@ class LongWorkloadExecutor:
         # The answer budget plus the model's reasoning budget: a reasoning model spends the
         # latter before its answer starts, and chunks are sized with the whole reply reserved.
         output_tokens = min(self.config.max_output_tokens, context // 4) + entry.reasoning_tokens
+        exact_note = None
+        exact_percent = [1]
+        exact_path = run_dir / EXACT_STATE_FILE
+        if (self.exact_counting and exact_mode == "auto" and material is not None
+                and not resuming
+                and (exact_path.is_file() or is_countable_objective(objective))):
+            outcome = self._exact_route(run_dir, port, objective, material, output_tokens,
+                                        cancel_requested, progress_callback, entry.model,
+                                        exact_percent)
+            if isinstance(outcome, dict):
+                return outcome
+            if outcome.answer is not None:
+                return {"status": "completed", "answer": outcome.answer, "model": entry.model,
+                        "reason": None,
+                        "telemetry": {"mode": "exact_counting", "context": context,
+                                      "run_status": "completed", **outcome.telemetry}}
+            exact_note = outcome.note
         if material is not None:
             mode: Any = InputShardMode(
                 objective=objective, max_output_tokens=output_tokens,
@@ -433,7 +694,7 @@ class LongWorkloadExecutor:
             mode = PlanStepMode(objective=objective, max_output_tokens=output_tokens)
             kind = "plan_steps"
 
-        high_water = [1]
+        high_water = [exact_percent[0]]
 
         def progress(event: Mapping[str, Any]) -> None:
             done, total = event.get("done"), event.get("total")
@@ -450,18 +711,36 @@ class LongWorkloadExecutor:
             except Exception:
                 pass
 
-        runner = ShardRunner(self.evidence_dir / "long" / job_id, port, limits,
-                             should_stop=cancel_requested, progress=progress,
-                             on_task_done=mode.on_task_done,
-                             validators=getattr(mode, "validators", None),
-                             summary_kinds=mode.summary_kinds,
-                             isolated_kinds=getattr(mode, "isolated_kinds", ()),
-                             split_task=getattr(mode, "split_task", None))
-        if runner.log.events():
-            state = runner.resume()
-        else:
-            tasks = mode.plan(runner, material) if material is not None else mode.plan(runner)
-            state = runner.start(objective, kind, tasks)
+        runner: ShardRunner | None = None
+        plan_seconds = 0.0
+        try:
+            runner = ShardRunner(run_dir, port, limits,
+                                 should_stop=cancel_requested, progress=progress,
+                                 on_task_done=mode.on_task_done,
+                                 validators=getattr(mode, "validators", None),
+                                 summary_kinds=mode.summary_kinds,
+                                 isolated_kinds=getattr(mode, "isolated_kinds", ()),
+                                 split_task=getattr(mode, "split_task", None),
+                                 sleep=self.sleep, monotonic=self.monotonic)
+            if runner.log.events():
+                state = runner.resume()
+            else:
+                planning = self.monotonic()
+                tasks = (mode.plan(runner, material) if material is not None
+                         else mode.plan(runner))
+                plan_seconds = self.monotonic() - planning
+                state = runner.start(objective, kind, tasks)
+        except ModelUnavailable as exc:
+            return _interrupted(entry.model, _done(runner), (
+                f"{exc}. The chunks already done are kept; resume the job once the llama.cpp "
+                f"supervisor serves {entry.model} again."))
+        except OSError as exc:
+            # A full disk or an unwritable evidence folder. The checkpoint chain is written
+            # atomically, so everything recorded before the failure is still valid.
+            return _interrupted(entry.model, _done(runner), (
+                f"the LONG run could not write its checkpoints in {run_dir} ({exc}). Free disk "
+                "space or make the folder writable, then resume the job; the chunks already "
+                "done are kept."))
         final = mode.final_output(runner, state)
         if state.status == "cancelled":
             status = "cancelled"
@@ -474,6 +753,10 @@ class LongWorkloadExecutor:
             # A live reduce summed correctly but ignored the requested per-part breakdown.
             # Attach the checkpoint summaries (already <= 400 characters), not the full outputs.
             final = _per_part_appendix(final, state)
+        if final and exact_note and status == "completed":
+            final = final.rstrip() + (
+                f"\n\nNote: exact counting was not used ({exact_note}). This answer comes from "
+                "map/reduce, so any counts in it are the model's estimate, not computed.")
         if final and gaps and status == "completed":
             # Live: the reduce was told "map-0004: FAILED - name it as a gap" and still answered
             # as if it had seen the whole input. The disclosure must not depend on the model.
@@ -486,5 +769,7 @@ class LongWorkloadExecutor:
             "telemetry": {"mode": kind, "context": context, "shards": len(state.tasks),
                           "completed": len(state.completed), "failed": gaps,
                           "coverage_gaps": gaps,
-                          "model_calls": state.model_calls, "run_status": state.status},
+                          "model_calls": state.model_calls, "run_status": state.status,
+                          **_timing_telemetry(self.client, tokenizer_before, run_started,
+                                              plan_seconds, self.monotonic())},
         }

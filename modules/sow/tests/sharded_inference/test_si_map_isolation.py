@@ -45,7 +45,8 @@ def executor(tmp_path, model):
     config = LW.LongConfig(default_model="fake", models=(LW.LongModel("fake", 8192),),
                            ram_budget_gib=32, prompt_cache_mib=0,
                            ledger_budget_tokens=600, max_output_tokens=200)
-    return LW.LongWorkloadExecutor(root=tmp_path, evidence_dir=tmp_path, client=model, config=config)
+    return LW.LongWorkloadExecutor(root=tmp_path, evidence_dir=tmp_path, client=model, config=config,
+                                   exact_counting=False)
 
 
 def run(ex):

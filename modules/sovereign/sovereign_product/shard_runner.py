@@ -137,6 +137,10 @@ class RunLimits:
     max_attempts: int = 3             # per task, each in a fresh session
     max_model_calls: int = 10_000
     max_wall_seconds: float = 7 * 24 * 3600.0
+    # How long one model-server outage may last before the run stops (a supervisor restart
+    # with a model reload takes 1-2 minutes), and how many outages one run may ride out.
+    unavailable_wait_seconds: float = 300.0
+    max_outages: int = 20
 
     def __post_init__(self) -> None:
         if self.context_tokens < 4096:
@@ -145,6 +149,8 @@ class RunLimits:
             raise ShardRunError("ledger_budget_tokens must be positive and under half the window")
         if self.max_attempts < 1 or self.max_model_calls < 1:
             raise ShardRunError("max_attempts and max_model_calls must be positive")
+        if self.unavailable_wait_seconds < 0 or self.max_outages < 0:
+            raise ShardRunError("unavailable_wait_seconds and max_outages cannot be negative")
 
     def content_budget(self, fixed_tokens: int, max_output: int) -> int:
         """Tokens left for a shard's content after instruction, ledger and the reply."""
@@ -199,13 +205,49 @@ class CheckpointLog:
         record = {**body, "hash": _sha256(json.dumps(body, sort_keys=True).encode())}
         target = self.directory / f"{body['sequence']:08d}_{event}.json"
         temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
-        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
-            handle.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, target)
+        try:
+            with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+                handle.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+        except BaseException:
+            # A failed write (a full disk) leaves the chain as it was: no half-written event,
+            # and no stray temporary file.
+            temporary.unlink(missing_ok=True)
+            raise
         self._tail = (body["sequence"], record["hash"])
         return record
+
+
+def verify_stored_run(run_dir: Path) -> str | None:
+    """Check a stored run without changing it: the checkpoint chain and every stored output.
+
+    Returns the run's last recorded status ("running" when it never finished), or None when
+    ``run_dir`` holds no run yet. Raises ShardRunError on anything ``ShardRunner.load`` would
+    refuse, so a caller can decide before resuming whether the run can be resumed at all.
+    """
+    checkpoints = Path(run_dir) / "checkpoints"
+    if not checkpoints.is_dir():
+        return None
+    events = CheckpointLog(checkpoints).events()
+    if not events:
+        return None
+    if events[0]["event"] != "run_started":
+        raise ShardRunError(f"{run_dir} holds no run")
+    status = "running"
+    for event in events[1:]:
+        payload = event["payload"]
+        if event["event"] == "task_completed":
+            output = Path(run_dir) / "outputs" / f"{payload['output_sha256']}.txt"
+            if not output.is_file() or _sha256(output.read_bytes()) != payload["output_sha256"]:
+                raise ShardRunError(f"stored output for {payload['task_id']} is missing or "
+                                    "altered")
+        elif event["event"] == "run_finished":
+            status = payload["status"]
+        elif event["event"] == "run_resumed":
+            status = "running"
+    return status
 
 
 # --- the runner -----------------------------------------------------------------------------------
@@ -229,6 +271,16 @@ class ModelConfigurationError(RuntimeError):
 
     Raised by a model port (e.g. a thinking-only model configured with thinking off). The runner
     stops at once instead of spending every retry on a call that will fail the same way.
+    """
+
+
+class ModelUnavailable(RuntimeError):
+    """The model server is not answering (down, restarting, loading a model): not the task's fault.
+
+    Live, a supervisor restart mid-run made every remaining task fail its three attempts within
+    seconds, so the whole rest of the run was marked failed for good. Raised by a model port, it
+    makes the runner wait for the server (bounded) and retry the same task, spending no attempt;
+    if the server stays away the run stops unfinished, so it can be resumed later.
     """
 
 
@@ -284,13 +336,16 @@ class ShardRunner:
                  isolated_kinds: Iterable[str] = (),
                  split_task: Callable[["ShardRunner", ShardTask], list[ShardTask] | None]
                  | None = None,
-                 monotonic: Callable[[], float] = time.monotonic):
+                 monotonic: Callable[[], float] = time.monotonic,
+                 sleep: Callable[[float], None] = time.sleep):
         self.run_dir = Path(run_dir)
         self.model = model
         self.limits = limits
         self.should_stop = should_stop
         self.progress = progress
         self.monotonic = monotonic
+        self.sleep = sleep
+        self._outages = 0
         # A MODE (input shards, plan steps) reacts to finished tasks by adding more - reduce
         # rounds, next plan steps. It must be idempotent: on resume it sees the same tasks again.
         self.on_task_done = on_task_done
@@ -366,12 +421,7 @@ class ShardRunner:
             self.log.append("run_resumed", {"after": state.status,
                                             "model_calls": state.model_calls})
             state.status = "running"
-        if self.on_task_done is not None:
-            # Replay the mode over finished work so a resumed run regains any tasks it had
-            # not yet added before the interruption (add_tasks ignores duplicates).
-            for task in list(state.tasks):
-                if task.task_id in state.completed or task.task_id in state.failed:
-                    self.on_task_done(self, state, task)
+        self._replay_mode(state)
         while True:
             task = next((t for t in state.tasks if t.task_id not in state.completed
                          and t.task_id not in state.failed), None)
@@ -380,11 +430,59 @@ class ShardRunner:
             stop = self._stop_reason(state)
             if stop:
                 return self._finish(state, stop)
-            self._run_task(state, task)
-            if self.on_task_done is not None and (task.task_id in state.completed
-                                                  or task.task_id in state.failed):
-                self.on_task_done(self, state, task)
+            try:
+                self._run_task(state, task)
+                if self.on_task_done is not None and (task.task_id in state.completed
+                                                      or task.task_id in state.failed):
+                    self.on_task_done(self, state, task)
+            except ModelUnavailable as exc:
+                # Raised out of resume() when the server stays away: no run_finished event is
+                # written, so the checkpoints still hold an unfinished, resumable run.
+                self._await_model(state, exc)
+                self._replay_mode(state)  # the outage may have hit on_task_done mid-way
         return self._finish(state, "failed" if state.failed else "completed")
+
+    def _replay_mode(self, state: RunState) -> None:
+        """Replay the mode over finished work so the run regains any tasks it had not yet added
+        before an interruption (add_tasks ignores duplicates)."""
+        if self.on_task_done is None:
+            return
+        for task in list(state.tasks):
+            if task.task_id in state.completed or task.task_id in state.failed:
+                self.on_task_done(self, state, task)
+
+    def _await_model(self, state: RunState, error: ModelUnavailable) -> None:
+        """Wait for the model server to answer again, probing with backoff; cancel-aware.
+
+        Returns when it answers (or a stop is requested: the loop then finishes the run as
+        cancelled). Raises ModelUnavailable when it stays away past unavailable_wait_seconds, or
+        when this run has already ridden out max_outages outages.
+        """
+        self._outages += 1
+        if self._outages > self.limits.max_outages:
+            raise ModelUnavailable(f"{error} (the model server dropped out {self._outages} times "
+                                   "in this run)") from error
+        self.progress({"event": "model_unavailable", "error": str(error),
+                       "done": len(state.completed), "total": len(state.tasks)})
+        started = self.monotonic()
+        delay, next_probe = 2.0, started + 2.0
+        while not self.should_stop():
+            now = self.monotonic()
+            if now >= next_probe:
+                try:
+                    self.model.count_tokens("ping")
+                except ModelUnavailable as latest:
+                    error = latest
+                else:
+                    self.progress({"event": "model_available", "done": len(state.completed),
+                                   "total": len(state.tasks)})
+                    return
+                delay = min(delay * 2, 30.0)
+                next_probe = now + delay
+            if now - started >= self.limits.unavailable_wait_seconds:
+                raise ModelUnavailable(f"{error} (still not answering after "
+                                       f"{int(now - started)} s)") from error
+            self.sleep(max(0.0, min(1.0, next_probe - now)))
 
     def add_tasks(self, tasks: Iterable[ShardTask]) -> list[ShardTask]:
         """Append tasks to the running plan (checkpointed); returns those actually added."""
@@ -457,9 +555,14 @@ class ShardRunner:
             prompt += f"\n\nNOTE: a previous attempt at this step was rejected: {retry_note}"
         return prompt
 
-    def _ensure_fits(self, task: ShardTask, ledger: Ledger) -> None:
-        used = self.model.count_tokens(SYSTEM_ROLE) + self.model.count_tokens(
+    def session_tokens(self, task: ShardTask, ledger: Ledger) -> int:
+        """Tokens one session of ``task`` sends: the system role and the prompt (with room for a
+        retry note). A mode sizes content with it (no content) so every chunk passes the check."""
+        return self.model.count_tokens(SYSTEM_ROLE) + self.model.count_tokens(
             self._prompt(task, ledger, retry_note="x" * 200))
+
+    def _ensure_fits(self, task: ShardTask, ledger: Ledger) -> None:
+        used = self.session_tokens(task, ledger)
         room = self.limits.context_tokens - used - task.max_output_tokens - self.limits.margin_tokens
         if room < 0:
             raise ShardRunError(
@@ -487,7 +590,7 @@ class ShardRunner:
                 validator = self.validators.get(task.kind)
                 if validator is not None:
                     validator(result)
-            except ModelConfigurationError:
+            except (ModelConfigurationError, ModelUnavailable):
                 raise
             except ReplyTruncated as exc:
                 children = self.split_task(self, task) if self.split_task is not None else None
@@ -550,6 +653,8 @@ class ShardRunner:
                 start, end = text.find("{"), text.rfind("}")
                 data = json.loads(text[start:end + 1])
                 condensed = Ledger.from_dict(data["ledger"])
+            except (ModelConfigurationError, ModelUnavailable):
+                raise
             except Exception:
                 continue
             condensed.version = state.ledger.version + 1

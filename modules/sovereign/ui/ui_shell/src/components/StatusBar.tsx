@@ -39,6 +39,7 @@ export function StatusBar({
     engineText(engineHealth),
     privacyText(privacyMode, settingsAvailable),
     engineHealth?.orchestrationMode ?? null,
+    engineHealth?.roleModelsNote ?? null,
     routeOverride,
   ].filter((segment): segment is string => Boolean(segment));
 

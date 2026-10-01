@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 r"""
 document_assembler.py - SOVEREIGN Phase 9

@@ -38,6 +38,8 @@ ProgressCallback = Callable[[dict[str, Any]], None]
 StopCallback = Callable[[], bool]
 
 _ID_RE = re.compile(r"^(?!.*\.\.)[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+#: How often one phase of one iteration may be retried after an invalid model reply.
+MAX_PHASE_REJECTIONS = 2
 _CHECKPOINT_RE = re.compile(r"^(?P<sequence>[0-9]{8})_[A-Za-z0-9_-]+\.json$")
 _EXECUTION_CLAIM_PATTERNS = (
     re.compile(
@@ -86,6 +88,16 @@ class ResearchPhase(str, Enum):
     DECISION = "reject_revise_or_retain"
     ITERATION_CHECKPOINT = "iteration_checkpoint"
     FINAL_SYNTHESIS = "final_synthesis"
+
+
+_PHASE_LABELS = {
+    ResearchPhase.HYPOTHESIS.value: "forming a hypothesis",
+    ResearchPhase.EVIDENCE_PLAN.value: "checking the local evidence",
+    ResearchPhase.ADVERSARIAL_CHALLENGE.value: "challenging the hypothesis",
+    ResearchPhase.DECISION.value: "deciding: reject, revise or retain",
+    ResearchPhase.ITERATION_CHECKPOINT.value: "closing the iteration",
+    ResearchPhase.FINAL_SYNTHESIS.value: "writing the final synthesis",
+}
 
 
 class ResearchStatus(str, Enum):
@@ -455,22 +467,18 @@ class _ResearchLock:
 
     @staticmethod
     def _pid_alive(pid: int) -> bool:
-        if pid <= 0:
-            return False
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            return False
-        except PermissionError:
-            return True
-        except OSError:
-            return False
-        return True
+        # Signal zero is CTRL_C_EVENT on Windows, not a harmless liveness probe.
+        from .supervisor_service import pid_alive
+
+        return pid_alive(pid)
 
     def __enter__(self) -> "_ResearchLock":
+        from .supervisor_service import pid_create_filetime
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "pid": os.getpid(),
+            "pid_create_filetime": pid_create_filetime(os.getpid()),
             "acquired_at": self.now(),
             "token": uuid.uuid4().hex,
         }
@@ -491,7 +499,13 @@ class _ResearchLock:
                     raise ResearchAlreadyRunning(
                         f"research lock exists but cannot be validated: {self.path}"
                     ) from exc
-                if self._pid_alive(pid):
+                recorded = existing.get("pid_create_filetime")
+                actual = pid_create_filetime(pid)
+                reused = (isinstance(recorded, int) and actual is not None
+                          and recorded != actual)
+                # Unknown identity stays locked when live; only a proven reuse or
+                # dead holder permits reclamation.
+                if self._pid_alive(pid) and not reused:
                     raise ResearchAlreadyRunning(
                         f"research is already owned by live process {pid}"
                     )
@@ -525,7 +539,15 @@ class ResearchExecutor:
         store: Any | None = None,
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
+        think: bool | None = None,
     ) -> None:
+        # ``think`` is an OPTION, not a default: None leaves the model's own thinking behaviour
+        # (qwen3 reasons before each phase reply). SOVEREIGN_RESEARCH_THINK=off/on sets it for
+        # a run of the product; the measured effect is in the operator guide.
+        if think is None:
+            think = {"off": False, "on": True}.get(
+                os.environ.get("SOVEREIGN_RESEARCH_THINK", "").strip().lower())
+        self.think: bool | None = think
         for attribute in ("root", "state_dir", "evidence_dir"):
             if not hasattr(paths, attribute):
                 raise TypeError(f"paths lacks required attribute {attribute!r}")
@@ -660,6 +682,8 @@ class ResearchExecutor:
                 interrupt_requested,
             )
             self._revalidate_frozen_inputs(state)
+            if status is ResearchStatus.FAILED:
+                self._reopen_rejected_phase(state)
             state["status"] = ResearchStatus.RUNNING.value
             state["reason"] = None
             state["resources"]["resumes"] += 1
@@ -772,6 +796,8 @@ class ResearchExecutor:
             "final_synthesis": None,
             "artifacts": {},
             "inflight": None,
+            "retry_note": None,
+            "phase_rejections": [],
             "checkpoint_sequence": 0,
             "resources": {
                 "active_seconds": 0.0,
@@ -890,8 +916,39 @@ class ResearchExecutor:
                 "status": state["status"],
                 "phase": state.get("next_phase"),
                 "completed_iterations": state["completed_iterations"],
+                **self._progress_fields(state),
             },
         )
+
+    def _progress_fields(self, state: Mapping[str, Any]) -> dict[str, Any]:
+        """The stage, detail and percent a job shows for this checkpoint.
+
+        Every model call is a checkpoint pair (phase started, phase completed), so the job
+        advances at each one. The percent counts finished model calls against the frozen
+        minimum (four phases per iteration plus the final synthesis); a run that goes past
+        its minimum creeps toward 99 and only completion reads 100. It only grows.
+        """
+        status = str(state["status"])
+        calls = int(state["resources"]["model_calls"])
+        if status == ResearchStatus.COMPLETED.value:
+            return {
+                "percent": 100,
+                "stage": "completed",
+                "detail": f"research completed after {calls} model calls",
+            }
+        limits = ResearchLimits.from_dict(state["limits"])
+        expected = max(limits.minimum_iterations * 4 + 1, calls + 1)
+        phase = state.get("next_phase")
+        label = _PHASE_LABELS.get(str(phase), status)
+        iteration = int(state["completed_iterations"]) + 1
+        return {
+            "percent": round(min(99.0, 1 + 98 * calls / expected), 2),
+            "stage": str(phase or status),
+            "detail": (
+                f"iteration {iteration} of at least {limits.minimum_iterations}: "
+                f"{label}; {calls} model calls done"
+            ),
+        }
 
     def _load_state(self, research_id: str) -> dict[str, Any]:
         files = self._checkpoint_files(research_id)
@@ -1834,6 +1891,12 @@ class ResearchExecutor:
         else:
             raise ResearchPhaseError(f"phase {phase.value} has no model prompt")
 
+        note = state.get("retry_note")
+        if isinstance(note, Mapping) and note.get("phase") == phase.value:
+            common["previous_reply_rejected"] = (
+                f"{note.get('reason')}. Reply with exactly one strict JSON object that "
+                "follows required_schema."
+            )
         instruction = (
             "\n\nThe response is evidence-bearing research analysis, not proof that "
             "planned experiments occurred."
@@ -2417,6 +2480,8 @@ class ResearchExecutor:
             "overall_timeout": timeout,
             "response_format": inflight["response_format"],
         }
+        if self.think is not None:
+            kwargs["think"] = self.think
         callable_model = getattr(self.model_client, "generate", None)
         if not callable(callable_model):
             callable_model = self.model_client
@@ -2659,6 +2724,7 @@ class ResearchExecutor:
         else:
             raise ResearchPhaseError(f"cannot complete model phase {phase.value}")
         state["inflight"] = None
+        state["retry_note"] = None
         self._checkpoint(state, f"phase-completed-{phase.value}")
 
     @staticmethod
@@ -2750,7 +2816,12 @@ class ResearchExecutor:
 
                 inflight = self._begin_model_phase(state, phase)
                 text = self._obtain_model_output(state, phase, inflight)
-                parsed = self._parse_phase_output(state, phase, text)
+                try:
+                    parsed = self._parse_phase_output(state, phase, text)
+                except ResearchPhaseError as exc:
+                    if self._reject_phase_output(state, phase, str(exc)):
+                        continue
+                    raise
                 self._complete_model_phase(state, phase, parsed)
 
                 if phase is ResearchPhase.FINAL_SYNTHESIS:
@@ -2783,6 +2854,59 @@ class ResearchExecutor:
                     f"model generation cancelled: {exc}",
                 )
             return self._fail(state, f"{type(exc).__name__}: {exc}")
+
+    def _reject_phase_output(
+        self,
+        state: dict[str, Any],
+        phase: ResearchPhase,
+        reason: str,
+    ) -> bool:
+        """Record an invalid phase reply and allow a bounded retry of the same phase.
+
+        The rejected call stays in the immutable journal (and counts against the model-call
+        budget); the retry is a new call whose prompt names the reason. Without this one
+        malformed reply failed the whole run, and a resume replayed the journaled text.
+        """
+        iteration = int(state["completed_iterations"]) + 1
+        rejections = state.setdefault("phase_rejections", [])
+        attempts = sum(
+            1 for item in rejections
+            if item.get("iteration") == iteration and item.get("phase") == phase.value
+        )
+        if attempts >= MAX_PHASE_REJECTIONS:
+            return False
+        inflight = state.get("inflight") or {}
+        rejections.append({
+            "iteration": iteration,
+            "phase": phase.value,
+            "call_index": inflight.get("call_index"),
+            "reason": reason[:200],
+        })
+        state["retry_note"] = {"phase": phase.value, "reason": reason[:200]}
+        state["resources"]["phase_failures"] += 1
+        state["inflight"] = None
+        self._checkpoint(state, f"phase-rejected-{phase.value}")
+        return True
+
+    @staticmethod
+    def _reopen_rejected_phase(state: dict[str, Any]) -> None:
+        """A run that failed on an invalid reply gets a fresh retry budget when resumed.
+
+        Its inflight phase still points at the journaled bad reply, which a resume would replay
+        and reject again; the next attempt is a new call that names the reason.
+        """
+        inflight = state.get("inflight")
+        reason = str(state.get("reason") or "")
+        prefix = "ResearchPhaseError: "
+        if inflight is None or not reason.startswith(prefix):
+            return
+        phase, iteration = inflight.get("phase"), inflight.get("iteration")
+        state["phase_rejections"] = [
+            item for item in state.get("phase_rejections", [])
+            if not (item.get("iteration") == iteration and item.get("phase") == phase)
+        ]
+        state["retry_note"] = {"phase": phase, "reason": reason[len(prefix):][:200]}
+        state["inflight"] = None
 
     def _complete_iteration(self, state: dict[str, Any]) -> None:
         expected = int(state["completed_iterations"]) + 1

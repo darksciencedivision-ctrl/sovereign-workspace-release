@@ -1,0 +1,78 @@
+{
+ "status": "answered",
+ "spec": {
+  "applicable": true,
+  "pattern": "## F.(?P<phase>\\d+) \u2014",
+  "flags": "m",
+  "fields": {
+   "phase": "int"
+  },
+  "aggregates": [
+   {
+    "op": "count"
+   },
+   {
+    "op": "min",
+    "field": "phase"
+   }
+  ]
+ },
+ "results": {
+  "matched": 25,
+  "parsed": 25,
+  "unparsed": 0,
+  "anchor": "## F",
+  "anchor_attempts": 27,
+  "unmatched_anchor_mentions": 2,
+  "unmatched_offsets": [
+   44524,
+   105034
+  ],
+  "first_offset": 37345,
+  "last_offset": 113825,
+  "input_chars": 143904,
+  "input_sha256": "b7fbd89d668a5c1e24598eff7f1a35e19b21335ad4ef8fa952a100002fc1e059",
+  "examples": [
+   {
+    "phase": 0,
+    "offset": 37345
+   },
+   {
+    "phase": 1,
+    "offset": 39283
+   },
+   {
+    "phase": 2,
+    "offset": 40360
+   },
+   {
+    "phase": 3,
+    "offset": 41521
+   },
+   {
+    "phase": 4,
+    "offset": 42623
+   }
+  ],
+  "aggregates": [
+   {
+    "op": "count",
+    "result": 25
+   },
+   {
+    "op": "min",
+    "field": "phase",
+    "result": 0,
+    "attained_by": 1,
+    "examples": [
+     {
+      "phase": 0,
+      "offset": 37345
+     }
+    ]
+   }
+  ]
+ },
+ "answer": "The design describes 25 components. The most important component is phase 0, and 1 record reaches this minimum.\n\nComputed by the product over 25 records (exact; the model did not count):\n- records: 25\n- minimum phase: 0, reached by 1 record(s)\n    e.g. phase 0\n- NOTE: 2 place(s) start like a record ('## F') but did not match the pattern and are not counted.",
+ "prose_from_model": true
+}

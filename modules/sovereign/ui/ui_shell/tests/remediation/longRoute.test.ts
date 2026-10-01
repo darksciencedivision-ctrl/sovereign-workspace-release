@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { longUnavailableReason } from "../../src/components/RouteSelector";
+import { longDegradedNote, longUnavailableReason } from "../../src/components/RouteSelector";
+import { canResume } from "../../src/components/RunStatus";
 import {
   EMPTY_LONG_OPTIONS,
   MAX_INPUT_CHARACTERS,
@@ -93,6 +94,47 @@ describe("LONG progress and run view", () => {
     expect(
       longUnavailableReason(normalizeLongRoute(false, { error: "no long_workload.json" }))
     ).toContain("no long_workload.json");
+  });
+
+  it("says which LONG model is degraded and why (H2: the supervisor refused its plan)", () => {
+    const refused = "plan refused: KV (2.3 GiB) exceeds usable VRAM 0.6 GiB";
+    const some = normalizeLongRoute(true, {
+      default_model: "qwen3.8:27b",
+      status: "degraded",
+      detail: `qwen3:30b-a3b: ${refused}`,
+      models: [
+        { model: "qwen3.8:27b", context: 131072, thinking: "off", status: "ready" },
+        { model: "qwen3:30b-a3b", context: 32768, thinking: "on", status: "degraded",
+          reason: refused },
+      ],
+    });
+    expect(some?.degraded).toBe(true);
+    expect(some?.models.map((m) => m.status)).toEqual(["ready", "degraded"]);
+    expect(longUnavailableReason(some)).toBeUndefined();
+    expect(longDegradedNote(some)).toContain(`qwen3:30b-a3b: ${refused}`);
+
+    const every = normalizeLongRoute(false, {
+      status: "degraded",
+      models: [{ model: "qwen3:30b-a3b", context: 32768, status: "degraded", reason: refused }],
+    });
+    expect(longUnavailableReason(every)).toContain(refused);
+    expect(longUnavailableReason(every)).toContain("supervisor");
+    expect(longDegradedNote(every)).toBeUndefined();
+
+    const healthy = normalizeLongRoute(true, {
+      status: "ready",
+      models: [{ model: "a", context: 8192, status: "weird" }],
+    });
+    expect(healthy?.degraded).toBe(false);
+    expect(healthy?.models[0].status).toBe("unknown");
+    expect(longDegradedNote(healthy)).toBeUndefined();
+  });
+
+  it("offers Resume only for an interrupted LONG run (H3)", () => {
+    expect(canResume({ route: "LONG", status: "interrupted" })).toBe(true);
+    expect(canResume({ route: "LONG", status: "failed" })).toBe(false);
+    expect(canResume({ route: "LONG", status: "running" })).toBe(false);
+    expect(canResume({ route: "DEEP", status: "interrupted" })).toBe(false);
   });
 
   it("normalizes the ledger view and drops malformed parts", () => {

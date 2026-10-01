@@ -11,6 +11,7 @@ import time
 import requests
 
 from .runtime_contracts import RuntimeControlError, RuntimeInventory, validate_loopback_origin
+from .process_control import run_control_command
 from .runtime_supervisor import (
     CREATE_NEW_PROCESS_GROUP,
     CREATE_NO_WINDOW,
@@ -111,7 +112,12 @@ class FreeTokenSupervisor:
         }
         if sys.platform == "win32":
             kwargs["creationflags"] = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-        self.process = self._popen(command, **kwargs)
+        try:
+            self.process = self._popen(command, **kwargs)
+        except BaseException:
+            self._log_handle.close()
+            self._log_handle = None
+            raise
         self.pid = int(getattr(self.process, "pid"))
         self._job = _assign_job(self.pid)
         try:
@@ -186,7 +192,7 @@ class FreeTokenSupervisor:
         poll = getattr(process, "poll", lambda: 0)
         if poll() is None:
             if sys.platform == "win32" and pid is not None:
-                subprocess.run(
+                run_control_command(
                     ["taskkill", "/PID", str(pid), "/T", "/F"],
                     capture_output=True,
                     check=False,

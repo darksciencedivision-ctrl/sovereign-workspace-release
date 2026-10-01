@@ -19,7 +19,9 @@ from system_manifest import find_sovereign_root
 from .paths import resolve_runtime_dir
 from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
+from .process_control import run_control_command
 from .runtime_registry import (
+    RuntimeRegistry,
     build_operational_registry,
     llama_cpp_installation,
 )
@@ -28,6 +30,7 @@ from .runtime_supervisor import LlamaCppSupervisor, SupervisorConfig
 SCHEMA_VERSION = 1
 DEFAULT_PORT = 18080
 WATCH_INTERVAL_SECONDS = 5.0
+WATCH_LOG_MAX_BYTES = 1024 * 1024
 TASK_WATCH = "SOVEREIGN_LlamaCppSupervisor_Watch"
 TASK_ENSURE = "SOVEREIGN_LlamaCppSupervisor_Ensure"
 RUN_VALUE_NAME = "SOVEREIGN_LlamaCppSupervisor"
@@ -155,13 +158,21 @@ def pid_alive(pid: int) -> bool:
         import ctypes
 
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        STILL_ACTIVE = 259
         handle = ctypes.windll.kernel32.OpenProcess(
             PROCESS_QUERY_LIMITED_INFORMATION, False, pid
         )
-        if handle:
+        if not handle:
+            return False
+        try:
+            # H5: an exited process can still be opened while any handle to it is open (its
+            # parent's, a job's), so "it opens" is not "it runs": ask for its exit code.
+            code = ctypes.c_ulong()
+            if not ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return True  # cannot tell: stay on the safe side for callers that wait
+            return code.value == STILL_ACTIVE
+        finally:
             ctypes.windll.kernel32.CloseHandle(handle)
-            return True
-        return False
     try:
         os.kill(pid, 0)
         return True
@@ -272,19 +283,36 @@ def build_supervisor(root: Path, *, port: int, api_key: str) -> LlamaCppSupervis
     )
     registry = build_operational_registry(runtime=runtime)
     # Sharded inference: LONG-route models get their planned GPU/RAM split (memory_planner)
-    # instead of the CPU-only default profile. A model that cannot be planned keeps its old
-    # profile; the report is written beside the preset so the operator can see why.
+    # instead of the CPU-only default profile, and so do the multi-model research system's
+    # models (role_plans, D7). A model that cannot be planned keeps its old profile; the report
+    # is written beside the preset so the operator can see why. One free-VRAM reading serves
+    # both, and a failure planning one group never costs the other its plans.
+    report: dict[str, Any] = {}
     try:
         from .long_workload import apply_hybrid_plans, load_config
         from .memory_planner import detect_free_vram_bytes
 
-        report = apply_hybrid_plans(registry, load_config(root),
-                                    vram_bytes=detect_free_vram_bytes())
+        free_vram = detect_free_vram_bytes()
+        long_config = load_config(root)
+        report.update(apply_hybrid_plans(registry, long_config, vram_bytes=free_vram))
+        try:
+            from system_manifest import load_system_manifest
+
+            from .role_plans import apply_role_plans
+
+            report.update(apply_role_plans(
+                registry, load_system_manifest(manifest_path=root / "SYSTEM_MANIFEST.json"),
+                vram_bytes=free_vram, ram_budget_gib=long_config.ram_budget_gib,
+                prompt_cache_mib=long_config.prompt_cache_mib,
+                already_planned=frozenset(m.model for m in long_config.models)))
+        except Exception as exc:  # planning must never stop the supervisor from starting
+            print(json.dumps({"role_plans_error": str(exc)}), file=sys.stderr)
+    except Exception as exc:  # planning must never stop the supervisor from starting
+        print(json.dumps({"hybrid_plans_error": str(exc)}), file=sys.stderr)
+    if report:
         service_dir(root).mkdir(parents=True, exist_ok=True)
         (service_dir(root) / "hybrid_plans.json").write_text(
             json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    except Exception as exc:  # planning must never stop the supervisor from starting
-        print(json.dumps({"hybrid_plans_error": str(exc)}), file=sys.stderr)
     return LlamaCppSupervisor(
         SupervisorConfig(
             executable=str(DEFAULT_EXE),
@@ -373,12 +401,12 @@ def cmd_start(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
 
 
 def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
-    _stop_watch_process(root)
+    watch = _stop_watch_process(root)
     state = read_state(root)
     if state is None:
         if disable_autostart:
             _disable_autostart(root)
-        return {"stopped": False, "reason": "no state file"}
+        return {"stopped": False, "reason": "no state file", **watch}
     pid = int(state.get("pid") or 0)
     port = int(state.get("port") or DEFAULT_PORT)
     from .gpu_occupancy import release_gpu
@@ -398,30 +426,35 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
             "stopped": False,
             "reason": "recorded PID is not this runtime (process-identity mismatch); refusing to terminate",
             "pid": pid, "pid_alive": True, "pid_owned": False,
+            **watch,
         }
     if owned:
-        # Provably ours and alive: terminate it. Guard the binary-dependent build so a stop still
-        # tears down state/claim even if the server binary was removed after start.
-        try:
-            api_key = load_or_create_key(root)
-            supervisor = build_supervisor(root, port=port, api_key=api_key)
-            supervisor.pid = pid
-            supervisor.process = _LiveProcess(pid)
-            try:
-                supervisor.unload("qwen3:8b")
-            except Exception:
-                pass
-            supervisor.stop()
-        except Exception:
-            pass
+        # Provably ours and alive: terminate its whole process tree (the router and its
+        # per-model servers). H5: this used to go through build_supervisor, which needs the
+        # binary (when it was gone, the build raised and the kill was silently skipped, leaving
+        # llama-server running) and re-planned from the VRAM the running model occupies,
+        # overwriting hybrid_plans.json with "refused" plans. Killing needs neither.
+        supervisor = LlamaCppSupervisor(
+            SupervisorConfig(executable=str(DEFAULT_EXE), port=port,
+                             work_dir=str(service_dir(root)), detach=True),
+            RuntimeRegistry(),
+        )
+        supervisor.pid = pid
+        supervisor.process = _LiveProcess(pid)
+        supervisor.stop()
     path = state_path(root)
     if path.is_file():
         path.unlink()
+    # The plan report describes a running supervisor; health must not read a stopped one's plans.
+    plans = service_dir(root) / "hybrid_plans.json"
+    if plans.is_file():
+        plans.unlink()
     if disable_autostart:
         _disable_autostart(root)
     release_gpu(root, "llama.cpp")
     return {
         "stopped": True,
+        **watch,
         "pid": pid,
         "pid_owned": owned,
         "port_open": port_open("127.0.0.1", port),
@@ -469,14 +502,19 @@ def autostart_enabled(root: Path) -> bool:
     return autostart_path(root).is_file()
 
 
-def _read_watch_pid(root: Path) -> int:
+def _read_watch_record(root: Path) -> dict[str, Any]:
     path = watch_pid_path(root)
     if not path.is_file():
-        return 0
+        return {}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeError):
-        return 0
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _read_watch_pid(root: Path) -> int:
+    payload = _read_watch_record(root)
     if isinstance(payload, dict):
         try:
             return int(payload.get("pid") or 0)
@@ -487,29 +525,37 @@ def _read_watch_pid(root: Path) -> int:
 
 def _watch_alive(root: Path) -> bool:
     pid = _read_watch_pid(root)
-    return pid_alive(pid)
+    return pid_alive(pid) and pid_matches_recorded(pid, _read_watch_record(root))
 
 
 def _stop_watch_process(root: Path) -> dict[str, Any]:
     pid = _read_watch_pid(root)
     path = watch_pid_path(root)
     killed = False
+    refused = False
     if pid > 0 and pid != os.getpid() and pid_alive(pid):
-        if sys.platform == "win32":
-            subprocess.run(
+        if not pid_matches_recorded(pid, _read_watch_record(root)):
+            refused = True
+            _append_rotating(service_dir(root) / "watch.log", json.dumps({
+                "utc": _utc_now(), "watch_pid": pid,
+                "reason": "watch identity unproven; refusing to terminate",
+            }))
+        elif sys.platform == "win32":
+            run_control_command(
                 ["taskkill", "/PID", str(pid), "/F"],
                 capture_output=True,
                 check=False,
             )
+            killed = True
         else:
             try:
                 os.kill(pid, 15)
+                killed = True
             except OSError:
                 pass
-        killed = True
     if path.is_file():
         path.unlink()
-    return {"watch_stopped": killed, "watch_pid": pid}
+    return {"watch_stopped": killed, "watch_pid": pid, "watch_refused": refused}
 
 
 def _clear_stale_state(root: Path) -> None:
@@ -564,11 +610,12 @@ def cmd_watch(
     max_iterations: int | None = None,
 ) -> dict[str, Any]:
     existing = _read_watch_pid(root)
-    if existing and existing != os.getpid() and pid_alive(existing):
+    if existing and existing != os.getpid() and _watch_alive(root):
         raise RuntimeControlError(f"watch already running as PID {existing}")
     watch_pid_path(root).parent.mkdir(parents=True, exist_ok=True)
     watch_pid_path(root).write_text(
-        json.dumps({"pid": os.getpid(), "started_at": _utc_now()}, indent=2),
+        json.dumps({"pid": os.getpid(), "started_at": _utc_now(),
+                    "pid_create_filetime": pid_create_filetime(os.getpid())}, indent=2),
         encoding="utf-8",
     )
     iterations = 0
@@ -588,8 +635,7 @@ def cmd_watch(
                     "pid": last.get("pid"),
                 }
             )
-            with log_path.open("a", encoding="utf-8") as handle:
-                handle.write(line + "\n")
+            _append_rotating(log_path, line)
             if max_iterations is not None and iterations >= max_iterations:
                 break
             sleep(interval)
@@ -599,8 +645,24 @@ def cmd_watch(
     return {"watched": True, "iterations": iterations, "last": last}
 
 
+def _append_rotating(path: Path, line: str, max_bytes: int | None = None) -> None:
+    """Append one line; past ``max_bytes`` the log becomes ``<name>.1`` (one old copy kept).
+
+    H6: the persistent watcher logs every 5 seconds, which grew watch.log by ~2 MB a day, for
+    good. With rotation it stays under about twice the limit.
+    """
+    limit = WATCH_LOG_MAX_BYTES if max_bytes is None else max_bytes
+    try:
+        if path.stat().st_size >= limit:
+            os.replace(path, path.with_name(path.name + ".1"))
+    except OSError:
+        pass
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
 def _task_exists(name: str) -> bool:
-    completed = subprocess.run(
+    completed = run_control_command(
         ["schtasks", "/Query", "/TN", name],
         capture_output=True,
         check=False,
@@ -733,7 +795,7 @@ def _task_xml(
 
 
 def _register_task(name: str, xml_path: Path) -> tuple[bool, str]:
-    completed = subprocess.run(
+    completed = run_control_command(
         ["schtasks", "/Create", "/TN", name, "/XML", str(xml_path), "/F"],
         capture_output=True,
         check=False,
@@ -746,7 +808,7 @@ def _register_task(name: str, xml_path: Path) -> tuple[bool, str]:
 
 
 def _delete_task(name: str) -> None:
-    subprocess.run(
+    run_control_command(
         ["schtasks", "/Delete", "/TN", name, "/F"],
         capture_output=True,
         check=False,
@@ -884,20 +946,20 @@ def _spawn_watch(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
     }
     if sys.platform == "win32":
         kwargs["creationflags"] = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-    process = subprocess.Popen(
-        [
-            str(python),
-            "-m",
-            "sovereign_product.supervisor_service",
-            "--root",
-            str(root),
-            "--port",
-            str(port),
-            "watch",
-        ],
-        **kwargs,
-    )
     try:
+        process = subprocess.Popen(
+            [
+                str(python),
+                "-m",
+                "sovereign_product.supervisor_service",
+                "--root",
+                str(root),
+                "--port",
+                str(port),
+                "watch",
+            ],
+            **kwargs,
+        )
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             if _watch_alive(root):
@@ -909,6 +971,7 @@ def _spawn_watch(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
             time.sleep(0.1)
         return {"spawned": True, "already_running": False, "watch_pid": int(process.pid)}
     finally:
+        handle.close()
         try:
             lock_path.unlink()
         except OSError:
@@ -969,7 +1032,7 @@ def cmd_persistence_status(root: Path) -> dict[str, Any]:
         "scheduled_task_ensure_present": _task_exists(TASK_ENSURE),
         "autostart": autostart_enabled(root),
         "watch_pid": watch_pid,
-        "watch_alive": pid_alive(watch_pid),
+        "watch_alive": _watch_alive(root),
         "persistent": persistence_installed(root),
         "supervisor": cmd_status(root),
     }
