@@ -65,7 +65,18 @@ def split_text(text: str, *, count_tokens: Callable[[str], int], max_tokens: int
             parts = rebuilt
         else:
             size = max(1, len(block) * max_tokens // max(1, count_tokens(block)) - 1)
-            return [block[i:i + size] for i in range(0, len(block), size)]
+            pending = [block[i:i + size] for i in range(0, len(block), size)][::-1]
+            bounded = []
+            while pending:
+                part = pending.pop()
+                if count_tokens(part) <= max_tokens:
+                    bounded.append(part)
+                elif len(part) == 1:
+                    raise ValueError("a single character exceeds the shard token budget")
+                else:
+                    middle = len(part) // 2
+                    pending.extend((part[middle:], part[:middle]))
+            return bounded
         parts = [p for p in parts if p]
         if len(parts) <= 1:
             return pieces(block, level + 1)
