@@ -150,7 +150,12 @@ class LlamaCppSupervisor:
         }
         if sys.platform == "win32":
             kwargs["creationflags"] = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-        self.process = self._popen(command, **kwargs)
+        try:
+            self.process = self._popen(command, **kwargs)
+        except BaseException:
+            self._log_handle.close()
+            self._log_handle = None
+            raise
         self.pid = int(getattr(self.process, "pid"))
         self._job = None if self.config.detach else _assign_job(self.pid)
         try:

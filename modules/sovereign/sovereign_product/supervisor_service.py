@@ -946,20 +946,20 @@ def _spawn_watch(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
     }
     if sys.platform == "win32":
         kwargs["creationflags"] = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-    process = subprocess.Popen(
-        [
-            str(python),
-            "-m",
-            "sovereign_product.supervisor_service",
-            "--root",
-            str(root),
-            "--port",
-            str(port),
-            "watch",
-        ],
-        **kwargs,
-    )
     try:
+        process = subprocess.Popen(
+            [
+                str(python),
+                "-m",
+                "sovereign_product.supervisor_service",
+                "--root",
+                str(root),
+                "--port",
+                str(port),
+                "watch",
+            ],
+            **kwargs,
+        )
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline:
             if _watch_alive(root):
@@ -971,6 +971,7 @@ def _spawn_watch(root: Path, *, port: int = DEFAULT_PORT) -> dict[str, Any]:
             time.sleep(0.1)
         return {"spawned": True, "already_running": False, "watch_pid": int(process.pid)}
     finally:
+        handle.close()
         try:
             lock_path.unlink()
         except OSError:
