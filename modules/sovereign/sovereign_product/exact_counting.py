@@ -142,7 +142,8 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
                            all(w in words(clause) for w in fields.get(a.get('field'), ['?']))
                            for a in aggregates):
                     issues.append(f'{match.group()}: no matching filtered count for {number}')
-        elif not any(a.get('op') in ('count', 'count_where', 'group_count') for a in aggregates):
+        elif not any(a.get('op') in ('count', 'count_where', 'count_where_all', 'group_count')
+                     for a in aggregates):
             issues.append(f'{match.group()}: no count aggregate')
         entity = clause_words[:1]
         known = (words(str(spec.get('pattern', ''))) +
