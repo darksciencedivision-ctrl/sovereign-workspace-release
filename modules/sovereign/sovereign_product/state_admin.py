@@ -41,7 +41,7 @@ import sys
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -388,6 +388,43 @@ def prune(root: str | os.PathLike[str] | Path, *, older_than_days: float = 30.0,
             "database_bytes": database.stat().st_size if database.is_file() else 0}
 
 
+def purge_deleted(root: str | os.PathLike[str] | Path, *, older_than_days: int = 30,
+                  apply: bool = False) -> dict[str, Any]:
+    """Purge only soft-deleted chats; inspect read-only unless explicitly applied."""
+    from .paths import resolve_db_path
+    from .store import SovereignStore
+
+    if older_than_days < 0:
+        raise StateAdminError('--older-than-days cannot be negative')
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).isoformat().replace('+00:00', 'Z')
+    except OverflowError as exc:
+        raise StateAdminError('--older-than-days is too large') from exc
+    database = resolve_db_path(Path(root))
+    candidates: list[str] = []
+    if database.is_file():
+        connection = sqlite3.connect(f'file:{database.as_posix()}?mode=ro', uri=True)
+        try:
+            candidates = [str(row[0]) for row in connection.execute(
+                'SELECT session_id FROM sessions WHERE deleted_at IS NOT NULL AND deleted_at <= ? ORDER BY session_id',
+                (cutoff,))]
+        finally:
+            connection.close()
+    report: dict[str, Any] = {'applied': apply, 'older_than_days': older_than_days,
+                              'would_purge_sessions': candidates}
+    if apply:
+        report['purged'] = {'sessions': 0, 'jobs': 0}
+        if database.is_file():
+            store = SovereignStore(database)
+            try:
+                report['purged'] = store.apply_retention(deleted_session_days=older_than_days,
+                                                         terminal_job_days=None)
+                store.verify_event_chain()
+            finally:
+                store.close()
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m sovereign_product.state_admin",
                                      description=__doc__.splitlines()[0])
@@ -403,6 +440,9 @@ def main(argv: list[str] | None = None) -> int:
     pr = sub.add_parser("prune", help="remove old finished LONG run evidence (dry run by default)")
     pr.add_argument("--older-than-days", type=float, default=30.0)
     pr.add_argument("--apply", action="store_true", help="really delete (default: only report)")
+    pd = sub.add_parser('purge-deleted', help='purge old soft-deleted chats (dry run by default)')
+    pd.add_argument('--older-than-days', type=int, default=30)
+    pd.add_argument('--apply', action='store_true')
     args = parser.parse_args(argv)
     try:
         if args.command == "status":
@@ -416,6 +456,8 @@ def main(argv: list[str] | None = None) -> int:
                       "created_utc": manifest.get("created_utc")}
         elif args.command == "prune":
             result = prune(args.root, older_than_days=args.older_than_days, apply=args.apply)
+        elif args.command == 'purge-deleted':
+            result = purge_deleted(args.root, older_than_days=args.older_than_days, apply=args.apply)
         else:
             result = restore(args.root, args.archive)
     except (StateAdminError, StateVersionError) as exc:

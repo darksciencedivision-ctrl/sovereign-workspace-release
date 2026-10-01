@@ -173,7 +173,11 @@ Where things live (`<state home>` defaults to `%LOCALAPPDATA%\SovereignWorkspace
 | GPU/RAM plan per model (LONG models and the QUICK/DEEP/RESEARCH models) | `<state home>\runtime\llamacpp_supervisor\hybrid_plans.json` (present while the supervisor runs); `/v1/health` shows it as `long_route` and `role_models` |
 | Backups | `python -m sovereign_product.state_admin --root . backup --out <file.zip>` |
 
-Housekeeping: `docs/RETENTION.md` (what grows, and the safe `state_admin prune`).
+Housekeeping: `docs/RETENTION.md` covers `state_admin prune` and `state_admin purge-deleted`.
+Deleting a chat through the API is soft deletion until explicitly purged. With the workspace stopped,
+run `python -m sovereign_product.state_admin --root . purge-deleted --older-than-days 30` from
+`modules\sovereign` to preview; add `--apply` only after reviewing the list and taking a backup.
+No purge is automatic. Existing events, evidence files and backups remain.
 
 ## 8. Known limits
 

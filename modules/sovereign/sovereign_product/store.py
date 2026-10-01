@@ -1381,15 +1381,16 @@ class SovereignStore:
         self,
         *,
         deleted_session_days: int = 30,
-        terminal_job_days: int = 90,
+        terminal_job_days: int | None = 90,
     ) -> dict[str, int]:
         """Purge only operator-deleted sessions and detached terminal jobs.
 
         Event lineage is retained, and every purge is itself appended. Jobs
         belonging to live sessions are never removed by time alone.
+        Set terminal_job_days=None to leave unrelated detached jobs untouched.
         """
 
-        if deleted_session_days < 0 or terminal_job_days < 0:
+        if deleted_session_days < 0 or (terminal_job_days is not None and terminal_job_days < 0):
             raise ValueError("retention days cannot be negative")
         now = datetime.now(timezone.utc)
         session_cutoff = (now - timedelta(days=deleted_session_days)).isoformat().replace(
@@ -1397,7 +1398,7 @@ class SovereignStore:
         )
         job_cutoff = (now - timedelta(days=terminal_job_days)).isoformat().replace(
             "+00:00", "Z"
-        )
+        ) if terminal_job_days is not None else None
         deleted_sessions = 0
         deleted_jobs = 0
         with self._transaction() as connection:
