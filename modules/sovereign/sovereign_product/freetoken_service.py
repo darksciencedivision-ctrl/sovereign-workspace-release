@@ -15,6 +15,11 @@ from .paths import resolve_runtime_dir
 from .state_migration import ensure_state_home
 from .runtime_contracts import RuntimeControlError
 from .runtime_registry import freetoken_installation
+from .supervisor_service import (
+    pid_alive as _process_alive,
+    pid_create_filetime,
+    pid_matches_recorded,
+)
 
 
 SCHEMA_VERSION = 1
@@ -94,21 +99,7 @@ def write_state(root: Path, payload: dict[str, Any]) -> None:
 
 
 def pid_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    if sys.platform == "win32":
-        import ctypes
-
-        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
-        if handle:
-            ctypes.windll.kernel32.CloseHandle(handle)
-            return True
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return _process_alive(pid)
 
 
 def port_open(host: str, port: int) -> bool:
@@ -184,11 +175,13 @@ def cmd_status(root: Path) -> dict[str, Any]:
     host = str(state.get("host") or "127.0.0.1")
     port = int(state.get("port") or DEFAULT_PORT)
     alive = pid_alive(pid)
+    owned = alive and pid_matches_recorded(pid, state)
     listening = port_open(host, port)
     return {
-        "running": bool(alive and listening),
+        "running": bool(owned and listening),
         "pid": pid,
         "pid_alive": alive,
+        "pid_owned": owned,
         "port_open": listening,
         "base_url": state.get("base_url"),
         "profile": state.get("profile"),
@@ -217,6 +210,7 @@ def cmd_start(root: Path, *, port: int = DEFAULT_PORT, profile: str = "qwen3-0.6
         payload = {
             "schema_version": SCHEMA_VERSION,
             "pid": supervisor.pid,
+            "pid_create_filetime": pid_create_filetime(supervisor.pid),
             "process_started_at": _utc_now(),
             "host": "127.0.0.1",
             "port": port,
@@ -249,14 +243,17 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
         release_gpu(root, "freetoken")
         return {"stopped": False, "reason": "no state file"}
     pid = int(state.get("pid") or 0)
-    supervisor = build_supervisor(
-        root,
-        port=int(state.get("port") or DEFAULT_PORT),
-        profile=str(state.get("profile") or "qwen3-0.6b"),
-    )
-    supervisor.pid = pid
-    supervisor.process = _LiveProcess(pid)
-    supervisor.stop()
+    alive = pid_alive(pid)
+    owned = alive and pid_matches_recorded(pid, state)
+    if owned:
+        supervisor = build_supervisor(
+            root,
+            port=int(state.get("port") or DEFAULT_PORT),
+            profile=str(state.get("profile") or "qwen3-0.6b"),
+        )
+        supervisor.pid = pid
+        supervisor.process = _LiveProcess(pid)
+        supervisor.stop()
     path = state_path(root)
     if path.is_file():
         path.unlink()
@@ -264,8 +261,10 @@ def cmd_stop(root: Path, *, disable_autostart: bool = True) -> dict[str, Any]:
         _disable_autostart(root)
     release_gpu(root, "freetoken")
     return {
-        "stopped": True,
+        "stopped": owned,
         "pid": pid,
+        "pid_owned": owned,
+        "reason": None if owned else "recorded PID is not this runtime; refusing to terminate",
         "port_open": port_open("127.0.0.1", int(state.get("port") or DEFAULT_PORT)),
         "pid_alive": pid_alive(pid),
     }
