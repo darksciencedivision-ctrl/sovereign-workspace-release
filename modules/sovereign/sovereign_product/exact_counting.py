@@ -13,6 +13,7 @@ docs/design/EXACT-COUNTING.md.
 from __future__ import annotations
 
 import json
+import csv
 import os
 import re
 import subprocess
@@ -72,7 +73,7 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
 
     def field_at(text: str) -> str | None:
         tokens = words(text)
-        while tokens and tokens[0] in ('the', 'of', 'number'):
+        while tokens and tokens[0] in ('the', 'of', 'number', 'all', 'a'):
             tokens.pop(0)
         for name, parts in fields.items():
             if parts and tokens[:len(parts)] == parts:
@@ -82,6 +83,8 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
     rank_count = 0
     for match in _RANK_WORDS.finditer(objective):
         word = match.group().lower()
+        if word in ('total', 'totals') and re.search(r'\bin\s+$', objective[:match.start()], re.I):
+            continue  # "errors in total" is a count, not a sum of an unnamed field.
         op = ('sum' if word in ('total', 'totals') else
               'min' if word in ('least', 'fewest', 'minimum', 'min', 'smallest', 'lowest')
               else 'max')
@@ -105,6 +108,32 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
         objective, re.I))
     for match in count_requests:
         clause = match.group(1)
+        clause_words = words(clause)
+        predicates = []
+        for aggregate in aggregates:
+            if aggregate.get('op') == 'count_where':
+                predicates.append(aggregate)
+            elif aggregate.get('op') == 'count_where_all':
+                predicates.extend(aggregate.get('where', []))
+        mentioned = [p for p in predicates if isinstance(p.get('value'), str)
+                     and words(p['value']) and all(w in clause_words for w in words(p['value']))]
+        if mentioned and not any(
+            a.get('op') in ('count_where', 'count_where_all') and
+            all(any(p.get('field') == need.get('field') and
+                    p.get('cmp') == need.get('cmp') and p.get('value') == need.get('value')
+                    for p in (a.get('where', []) if a.get('op') == 'count_where_all' else [a]))
+                for need in mentioned)
+            for a in aggregates):
+            issues.append(f'{match.group()}: no count with the requested filter')
+        if re.search(r'\bof them\b', clause, re.I):
+            prior = objective[:match.start()].lower()
+            if not any(a.get('op') == 'count_where_all' and
+                       any(isinstance(p.get('value'), str) and
+                           str(p['value']).lower() in prior for p in a.get('where', [])) and
+                       any(isinstance(p.get('value'), str) and
+                           str(p['value']).lower() in clause.lower() for p in a.get('where', []))
+                       for a in aggregates):
+                issues.append(f'{match.group()}: no intersected filtered count')
         numbers = [int(n) for n in re.findall(r'\b\d+\b', clause)]
         if numbers:
             for number in numbers:
@@ -115,10 +144,15 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
                     issues.append(f'{match.group()}: no matching filtered count for {number}')
         elif not any(a.get('op') in ('count', 'count_where', 'group_count') for a in aggregates):
             issues.append(f'{match.group()}: no count aggregate')
-        entity = words(clause)[:1]
-        known = words(str(spec.get('pattern', ''))) + [w for ws in fields.values() for w in ws]
-        if entity and entity[0] not in known and entity[0] not in ('record', 'row', 'line'):
+        entity = clause_words[:1]
+        known = (words(str(spec.get('pattern', ''))) +
+                 [w for ws in fields.values() for w in ws] +
+                 [w for p in predicates if isinstance(p.get('value'), str)
+                  for w in words(p['value'])])
+        if entity and entity[0] not in known and entity[0] not in ('record', 'row', 'line', 'of'):
             issues.append(f'{match.group()}: counted entity not captured or identified by pattern')
+        if re.search(r'\breach\s+it\b', clause, re.I) and not rank_count:
+            issues.append(f'{match.group()}: no ranked value whose ties can be counted')
     if not count_requests and not rank_count and not re.search(r'\bsum of\b', objective, re.I):
         issues.append('no supported quantity could be mapped to the spec')
     return issues
@@ -220,6 +254,14 @@ Aggregates (use only what the objective needs):
   {"op": "count_where", "field": F, "cmp": "==", "value": V}   cmp is ==, !=, <, <=, >, >=
   {"op": "sum", "field": F}     {"op": "max", "field": F}     {"op": "min", "field": F}
   {"op": "group_count", "field": F}                records per distinct value of F
+  {"op": "count_where_all", "where": [{"field": F, "cmp": "==", "value": V},
+                                       {"field": G, "cmp": "==", "value": W}]}
+      count records where EVERY condition holds; use this for subsets such as ERROR lines
+      from the db component. Each condition obeys the count_where type/comparison rules.
+For a one-record-per-line log, for example "2025-01-02 03:04:05 ERROR db: 7 ms", use
+"pattern": "^\\d{4}-... (?P<level>[A-Z]+) (?P<component>[a-z]+): ...$" and "flags": "m".
+For comma-separated rows with a header, match each data line with ^...$ and "flags": "m";
+the header can be the one unmatched line. Capture the columns needed by the objective.
 "the most X" or "the highest X" is max of X; "how many records report V" is count_where field == V.
 The product reports ties for max and min itself, and each max/min example row includes every
 captured field. "The step with the most warnings and its record count" is max of warnings with
@@ -257,8 +299,48 @@ def make_sample(text: str, budget: int = SAMPLE_CHARS) -> str:
     return "".join(parts)
 
 
+def line_record_shape(sample: str) -> str | None:
+    """Describe a strong line-record signal without guessing a schema from sparse prose."""
+    lines = [line for line in sample.splitlines()
+             if line.strip() and not line.startswith('[...')]
+    if len(lines) < 5:
+        return None
+    dated = sum(bool(re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s', line))
+                for line in lines)
+    if dated >= max(5, int(len(lines) * 0.75)):
+        return (f'Observed line shape: {dated}/{len(lines)} sampled non-blank lines start '
+                'with a leading timestamp; each line appears to be one record. '
+                'Use ^ and flags "m" when the pattern confirms that shape.')
+    for delimiter, label in ((',', 'comma-separated'), ('\t', 'tab-separated'),
+                             ('|', 'pipe-separated')):
+        counts = []
+        for line in lines:
+            try:
+                columns = next(csv.reader([line], delimiter=delimiter))
+            except csv.Error:
+                continue
+            counts.append(len(columns))
+        if counts:
+            width = max(set(counts), key=counts.count)
+            if width >= 2 and counts.count(width) >= max(5, int(len(lines) * 0.8)):
+                return (f'Observed line shape: {counts.count(width)}/{len(lines)} sampled '
+                        f'non-blank lines are {label} with {width} columns; each line '
+                        'appears to be one record. A header may be one unmatched line. '
+                        'Use ^ and flags "m" when the pattern confirms that shape.')
+    return None
+
+
 def _spec_prompt(objective: str, sample: str, total_chars: int) -> str:
+    shape = line_record_shape(sample)
+    if shape:
+        return (f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
+                f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
+                f"\n\n{shape}\n\nWrite the extraction spec that lets the computer answer the objective "
+                f"by counting over the whole input.\n{SPEC_FORMAT}")
     return (f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
+            f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
+            f"\n\n{shape}\n" if shape else
+            f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
             f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
             f"\n\nWrite the extraction spec that lets the computer answer the objective by "
             f"counting over the whole input.\n{SPEC_FORMAT}")
@@ -309,6 +391,9 @@ def render_table(results: Mapping[str, Any]) -> str:
             lines.append(f"- records: {item['result']}")
         elif op == "count_where":
             lines.append(f"- records where {name} {item['cmp']} {item['value']}: {item['result']}")
+        elif op == "count_where_all":
+            clauses = " and ".join(f"{p['field']} {p['cmp']} {p['value']}" for p in item['where'])
+            lines.append(f"- records where {clauses}: {item['result']}")
         elif op == "sum":
             lines.append(f"- sum of {name}: {item['result']}")
         elif op in ("max", "min"):

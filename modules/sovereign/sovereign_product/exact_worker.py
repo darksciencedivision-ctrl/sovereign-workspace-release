@@ -39,7 +39,7 @@ RECORD_WINDOW_CHARS = 4096
 MAX_DISTINCT_GROUPS = 10_000
 TOP_GROUPS = 10
 EXAMPLES = 5
-OPS = ("count", "count_where", "sum", "max", "min", "group_count")
+OPS = ("count", "count_where", "count_where_all", "sum", "max", "min", "group_count")
 COMPARISONS = ("==", "!=", "<", "<=", ">", ">=")
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,31}$")
 _SIMPLE = {_sre_const.LITERAL, _sre_const.NOT_LITERAL, _sre_const.ANY, _sre_const.IN,
@@ -61,6 +61,7 @@ class Aggregate:
     field: str | None = None
     cmp: str | None = None
     value: Any = None
+    where: tuple[Aggregate, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,10 @@ class Spec:
         return {"applicable": True, "pattern": self.pattern, "flags": self.flags,
                 "fields": dict(self.fields),
                 "aggregates": [{k: v for k, v in (("op", a.op), ("field", a.field),
-                                                  ("cmp", a.cmp), ("value", a.value))
+                                                  ("cmp", a.cmp), ("value", a.value),
+                                                  ("where", [{"field": c.field, "cmp": c.cmp,
+                                                              "value": c.value} for c in a.where]
+                                                   if a.where else None))
                                 if v is not None} for a in self.aggregates]}
 
 
@@ -190,6 +194,19 @@ def _parse_aggregate(item: Any, fields: Mapping[str, str]) -> Aggregate:
     op = item.get("op")
     if op not in OPS:
         raise SpecError(f"aggregate op {op!r} is not one of {', '.join(OPS)}")
+    if op == "count_where_all":
+        extra = sorted(set(item) - {"op", "where"})
+        if extra:
+            raise SpecError(f"aggregate {op} does not take: {', '.join(map(str, extra))}")
+        conditions = item.get("where")
+        if not isinstance(conditions, list) or not 2 <= len(conditions) <= 4:
+            raise SpecError("count_where_all needs 2 to 4 conditions")
+        if any(not isinstance(condition, Mapping) or
+               set(condition) != {"field", "cmp", "value"} for condition in conditions):
+            raise SpecError("each count_where_all condition needs field, cmp and value only")
+        predicates = tuple(_parse_aggregate({**condition, "op": "count_where"}, fields)
+                           for condition in conditions)
+        return Aggregate(op, where=predicates)
     allowed = {"op"} | ({"field"} if op != "count" else set()) \
         | ({"cmp", "value"} if op == "count_where" else set())
     extra = sorted(set(item) - allowed)
@@ -312,6 +329,9 @@ def _accumulate(aggregate: Aggregate, state: dict[str, Any], row: Mapping[str, A
     elif op == "count_where":
         if _COMPARE[aggregate.cmp](row[aggregate.field], aggregate.value):
             state["n"] += 1
+    elif op == "count_where_all":
+        if all(_COMPARE[p.cmp](row[p.field], p.value) for p in aggregate.where):
+            state["n"] += 1
     elif op == "sum":
         state["n"] += row[aggregate.field]
     elif op in ("max", "min"):
@@ -342,6 +362,9 @@ def _summary(aggregate: Aggregate, state: Mapping[str, Any]) -> dict[str, Any]:
         out["result"] = state["n"]
     elif op == "count_where":
         out.update(cmp=aggregate.cmp, value=aggregate.value, result=state["n"])
+    elif op == "count_where_all":
+        out.update(where=[{"field": p.field, "cmp": p.cmp, "value": p.value}
+                          for p in aggregate.where], result=state["n"])
     elif op == "sum":
         out["result"] = state["n"]
     elif op in ("max", "min"):
