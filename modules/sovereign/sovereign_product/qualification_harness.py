@@ -122,16 +122,36 @@ def _job_id(payload: Mapping[str, Any]) -> str | None:
     return None
 
 
+MAX_UNREACHABLE_POLLS = 5
+
+
+def _cancel_quietly(client: ProductClient, job_id: str) -> None:
+    try:
+        client.cancel(job_id)
+    except (OSError, ValueError):
+        pass  # the poll loop reports an unreachable product; a missed cancel is not fatal
+
+
 def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
             cancel_after: float | None = None, clock: Callable[[], float] = time.monotonic,
             sleep: Callable[[float], None] = time.sleep, poll: float = 0.5,
             on_job: Callable[[Mapping[str, Any]], None] | None = None) -> dict[str, Any]:
-    """Submit one message end-to-end and wait for its job to finish (or cancel it)."""
-    session = client.new_session(f"qualification {route}")
+    """Submit one message end-to-end and wait for its job to finish (or cancel it).
+
+    An API error never raises out of here: a measurement of hours must not be lost to one dropped
+    request. A submit that cannot be made is a failed run; polling tolerates
+    ``MAX_UNREACHABLE_POLLS`` consecutive errors before the run is recorded as failed.
+    """
     started = clock()
-    status_code, payload = client.submit(session, text, route)
-    record: dict[str, Any] = {"route": route, "input_chars": len(text),
-                              "submitted_utc": _utc_now(), "http_status": status_code}
+    record: dict[str, Any] = {"route": route, "input_chars": len(text), "submitted_utc": _utc_now()}
+    try:
+        session = client.new_session(f"qualification {route}")
+        status_code, payload = client.submit(session, text, route)
+    except (OSError, ValueError, RuntimeError) as exc:
+        record.update(status="failed", error=f"{type(exc).__name__}: {exc}"[:500],
+                      latency_seconds=clock() - started)
+        return record
+    record["http_status"] = status_code
     job_id = _job_id(payload)
     if status_code >= 400 or job_id is None:
         record.update(status="failed", error=str(payload.get("error") or payload)[:500],
@@ -139,17 +159,28 @@ def run_job(client: ProductClient, text: str, route: str, *, timeout: float,
         return record
     record["job_id"] = job_id
     cancel_sent = None
+    unreachable = 0
     job: dict[str, Any] = payload if payload.get("status") in TERMINAL else {}
     while str(job.get("status")) not in TERMINAL:
         if clock() - started > timeout:
-            client.cancel(job_id)
+            _cancel_quietly(client, job_id)
             record.update(status="timeout", latency_seconds=clock() - started)
             return record
         if cancel_after is not None and cancel_sent is None and clock() - started >= cancel_after:
-            client.cancel(job_id)
+            _cancel_quietly(client, job_id)
             cancel_sent = clock()
         sleep(poll)
-        job = client.job(job_id)
+        try:
+            job = client.job(job_id)
+            unreachable = 0
+        except (OSError, ValueError) as exc:
+            unreachable += 1
+            if unreachable > MAX_UNREACHABLE_POLLS:
+                record.update(
+                    status="failed", latency_seconds=clock() - started,
+                    error=f"product unreachable while polling: {type(exc).__name__}: {exc}"[:500])
+                return record
+            continue
         if on_job is not None:
             on_job(job)
     finished = clock()
@@ -175,6 +206,7 @@ class ResourceSampler:
         self.peak_vram_mib: int | None = None
         self.peak_ram_used_mib: int | None = None
         self.gpu: dict[str, Any] = {}
+        self.sample_errors = 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="qual-sampler")
         self._nvsmi = shutil.which("nvidia-smi")
@@ -213,15 +245,22 @@ class ResourceSampler:
             self.peak_ram_used_mib = max(self.peak_ram_used_mib or 0, int(used))
             self.ram_total_mib = int(status.ullTotalPhys // (1024 * 1024))
 
+    def _sample_once(self) -> None:
+        for sample in (self._sample_gpu, self._sample_ram):
+            try:
+                sample()
+            except (ValueError, OSError, ArithmeticError):
+                # nvidia-smi prints "[N/A]" for a missing reading; one bad sample must not end
+                # the sampling thread (the peaks would silently stop growing) or the run.
+                self.sample_errors += 1
+
     def _loop(self) -> None:
         while not self._stop.is_set():
-            self._sample_gpu()
-            self._sample_ram()
+            self._sample_once()
             self._stop.wait(self.interval)
 
     def __enter__(self) -> "ResourceSampler":
-        self._sample_gpu()
-        self._sample_ram()
+        self._sample_once()
         self.baseline = {"vram_mib": self.peak_vram_mib, "ram_used_mib": self.peak_ram_used_mib}
         self._thread.start()
         return self
@@ -235,6 +274,7 @@ class ResourceSampler:
                 "peak_system_ram_used_mib": self.peak_ram_used_mib,
                 "baseline": getattr(self, "baseline", {}),
                 "ram_total_mib": getattr(self, "ram_total_mib", None),
+                "sample_errors": self.sample_errors,
                 "note": "system-wide peaks sampled once a second during the run"}
 
 
@@ -248,7 +288,7 @@ def llama_loaded_models(client: ProductClient) -> list[str] | None:
     """Models the product reports resident in llama.cpp (``/v1/self-state``), or None if unknown."""
     try:
         state = client._call("GET", "/v1/self-state")[1]
-    except OSError:
+    except (OSError, ValueError):
         return None
     stack = [state]
     while stack:
