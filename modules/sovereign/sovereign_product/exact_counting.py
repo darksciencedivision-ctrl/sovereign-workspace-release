@@ -49,6 +49,8 @@ _TEXT_REQUEST = re.compile(
     r"\b(list|summari[sz]e|summary|describe|explain|compare|outline|discuss|review|analy[sz]e|"
     r"draft|write|design|plan)\b", re.IGNORECASE)
 _NUMBER = re.compile(r"\d[\d,]*")
+#: int() refuses more digits than Python's own limit (4300); longer runs are never table numbers.
+_MAX_DIGITS = 4000
 
 
 def is_countable_objective(objective: str) -> bool:
@@ -174,7 +176,8 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
                            str(p['value']).lower() in clause.lower() for p in a.get('where', []))
                        for a in aggregates):
                 issues.append(f'{match.group()}: no intersected filtered count')
-        numbers = [int(n) for n in re.findall(r'\b\d+\b', clause)]
+        numbers = [int(n) if len(n) <= _MAX_DIGITS else -1  # -1 matches no count_where value
+                   for n in re.findall(r'\b\d+\b', clause)]
         if numbers:
             for number in numbers:
                 if not any(a.get('op') == 'count_where' and a.get('value') == number
@@ -470,8 +473,8 @@ def _numbers(value: Any, into: set[int]) -> None:
         for item in value:
             _numbers(item, into)
     elif isinstance(value, str):
-        into.update(int(m.replace(",", "")) for m in _NUMBER.findall(value)
-                    if m.replace(",", "").isdigit())
+        into.update(int(digits) for digits in (m.replace(",", "") for m in _NUMBER.findall(value))
+                    if digits.isdigit() and len(digits) <= _MAX_DIGITS)
 
 
 def prose_numbers_ok(prose: str, table: Mapping[str, Any], objective: str) -> bool:
@@ -481,8 +484,8 @@ def prose_numbers_ok(prose: str, table: Mapping[str, Any], objective: str) -> bo
     _numbers(objective, allowed)
     for token in _NUMBER.findall(prose):
         digits = token.replace(",", "")
-        if digits.isdigit() and int(digits) not in allowed:
-            return False
+        if digits.isdigit() and (len(digits) > _MAX_DIGITS or int(digits) not in allowed):
+            return False  # a degenerate run of digits is no number of the table
     return True
 
 
