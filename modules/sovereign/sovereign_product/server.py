@@ -2243,6 +2243,7 @@ def create_app(
     root: str | Path | None = None,
     *,
     service: ProductService | None = None,
+    health_clock: Callable[[], float] = time.monotonic,
     **service_kwargs: Any,
 ) -> Flask:
     """Create the same-origin Flask application."""
@@ -2255,6 +2256,8 @@ def create_app(
         PROPAGATE_EXCEPTIONS=False,
     )
     app.extensions["sovereign_service"] = owned_service
+    integrity_good_until = float('-inf')
+    integrity_lock = threading.Lock()
 
     @app.before_request
     def enforce_local_boundary() -> tuple[Response, int] | None:
@@ -2341,10 +2344,15 @@ def create_app(
 
     @app.get("/v1/health")
     def health() -> Response:
+        nonlocal integrity_good_until
         store_ok = True
         detail: list[str] = []
         try:
-            owned_service.store.quick_check()
+            with integrity_lock:
+                if health_clock() >= integrity_good_until:
+                    integrity_good_until = float('-inf')
+                    owned_service.store.quick_check()
+                    integrity_good_until = health_clock() + 60.0
         except Exception:
             store_ok = False
             detail.append("durable store integrity check failed")
