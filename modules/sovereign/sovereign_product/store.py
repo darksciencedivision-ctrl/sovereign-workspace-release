@@ -547,13 +547,13 @@ class SovereignStore:
             rows = connection.execute(
                 """
                 SELECT * FROM messages WHERE session_id=?
-                ORDER BY created_at ASC, rowid ASC LIMIT ?
+                ORDER BY created_at DESC, rowid DESC LIMIT ?
                 """,
                 (session, limit),
             ).fetchall()
         finally:
             connection.close()
-        return [self._message_dict(row) for row in rows]
+        return [self._message_dict(row) for row in reversed(rows)]
 
     # EvidenceBuilder compatibility alias.
     get_session_messages = list_messages

@@ -1991,6 +1991,13 @@ class ProductService:
             if role != "sovereign":
                 continue
             linked = jobs_by_id.get(str(message.get("job_id") or ""))
+            if linked is None and message.get("job_id"):
+                try:
+                    linked = self.store.get_job(str(message["job_id"]))
+                except NotFound:
+                    continue
+            if linked is not None and linked.get("session_id") != session_id:
+                continue
             if linked is None or linked["status"] != "completed":
                 # A crash between message append and terminal transition can
                 # never expose an uncommitted answer.
