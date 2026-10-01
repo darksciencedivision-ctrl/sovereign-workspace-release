@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from .exact_worker import Spec, SpecError, parse_spec
+from .exact_worker import SpecError, parse_spec
 
 STATE_FILE = "exact.json"
 WORKER = Path(__file__).with_name("exact_worker.py")

@@ -48,7 +48,6 @@ from typing import Any
 from .paths import resolve_state_home
 from .state_migration import (
     STATE_SCHEMA,
-    STATE_VERSION_FILE,
     StateVersionError,
     read_state_version,
 )

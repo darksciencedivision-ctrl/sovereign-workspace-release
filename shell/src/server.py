@@ -26,7 +26,7 @@ from shell.src.csrf import get_csrf
 from shell.src.probe import run_preflight
 from shell.src.distillery import get_distillery_status
 from shell.src.startup_test import run_startup_test
-from shell.src.states import ModuleRunner, EXTERNAL, FAILED, READY, DEGRADED, STARTING
+from shell.src.states import ModuleRunner, FAILED, READY, DEGRADED, STARTING
 from shell.src.teardown import (
     build_receipt as build_teardown_receipt,
     summarize as summarize_teardown,

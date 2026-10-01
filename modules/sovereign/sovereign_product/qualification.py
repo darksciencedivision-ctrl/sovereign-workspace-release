@@ -506,7 +506,7 @@ def render_report(envelope: Mapping[str, Any], results: Mapping[str, Any]) -> st
         f"- Largest prompt meeting the SLOs through the product: "
         f"**~{envelope.get('qualified_prompt_tokens')} tokens**",
         f"- Qualified concurrent jobs: **{envelope['limits']['concurrent_jobs']}**",
-        f"- Qualified workflows: "
+        "- Qualified workflows: "
         + ", ".join(f"{k}={'yes' if v else 'NO'}"
                     for k, v in envelope["qualified_workflows"].items()),
         f"- Largest task observed (input + output, the product's job metric): "

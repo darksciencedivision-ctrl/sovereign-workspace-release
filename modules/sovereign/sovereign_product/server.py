@@ -40,7 +40,7 @@ from werkzeug.exceptions import HTTPException, NotFound as WerkzeugNotFound
 from sovereign_version import PRODUCT_VERSION
 
 from .evidence import EvidenceBuilder
-from .executors import ExecutionStatus, QuickExecutor
+from .executors import QuickExecutor
 from .introspection import (
     answer_self_query,
     collect_self_state,

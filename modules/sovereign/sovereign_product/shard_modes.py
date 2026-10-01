@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-from .shard_runner import RunLimits, RunState, ShardRunner, ShardTask
+from .shard_runner import RunState, ShardRunner, ShardTask
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 

@@ -4,8 +4,6 @@ SWS Distillery file parser — truthful status only.
 import hashlib
 import os
 import re
-import json
-from pathlib import Path
 
 
 # EPC-01 P3-2. These three paths used to be literals naming two directories that exist on

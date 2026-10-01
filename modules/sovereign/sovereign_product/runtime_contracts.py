@@ -4,9 +4,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from .model_client import (
-    GenerationCancelled,
-    GenerationTimeout,
-    ModelCapabilityError,
     ModelClientError,
     OllamaProtocolError,
     validate_loopback_ollama_url,
