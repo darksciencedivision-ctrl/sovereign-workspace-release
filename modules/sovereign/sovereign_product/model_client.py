@@ -33,6 +33,7 @@ _CANCELLATION_POLL_SECONDS = 0.05
 # the actual output and is bounded by the byte ceiling.
 _MAX_RESPONSE_TEXT_BYTES = 16 * 1024 * 1024
 _MAX_STREAM_EVENTS = 200_000
+_MAX_STREAM_LINE_BYTES = 16 * 1024 * 1024
 _STREAM_DIAGNOSTIC_TAIL = 1000
 
 
@@ -56,7 +57,11 @@ def stream_lines(response: Any) -> Iterator[bytes | str]:
             continue
         pending += chunk
         *lines, pending = pending.split(b"\n")
+        if len(pending) > _MAX_STREAM_LINE_BYTES:
+            raise GenerationOverLimit("stream line exceeded the byte limit")
         for line in lines:
+            if len(line) > _MAX_STREAM_LINE_BYTES:
+                raise GenerationOverLimit("stream line exceeded the byte limit")
             yield line[:-1] if line.endswith(b"\r") else line
     if pending:
         yield pending[:-1] if pending.endswith(b"\r") else pending

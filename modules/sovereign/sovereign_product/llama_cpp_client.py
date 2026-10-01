@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Mapping, Sequence
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import hashlib
 import json
 import math
@@ -13,6 +13,7 @@ import requests
 from .model_client import (
     CONTEXT_TEMPLATE_MARGIN_TOKENS,
     GenerationCancelled,
+    GenerationOverLimit,
     GenerationResponse,
     GenerationTimeout,
     ModelCapabilityError,
@@ -32,6 +33,10 @@ from .runtime_contracts import (
 )
 from .runtime_registry import RuntimeRegistry
 
+_MAX_STREAM_EVENTS = 200_000
+_MAX_STREAM_BYTES = 64 * 1024 * 1024
+_STREAM_DIAGNOSTIC_TAIL = 1000
+_MAX_TOOL_CALLS = 128
 
 class LlamaCppClient:
     def __init__(
@@ -556,8 +561,10 @@ class LlamaCppClient:
         connect_budget = min(self.connect_timeout, timeout_limit)
         read_budget = min(self.read_timeout, timeout_limit)
         response: requests.Response | Any | None = None
-        raw_events: list[dict[str, Any]] = []
-        raw_lines: list[str] = []
+        raw_events: deque[dict[str, Any]] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
+        raw_lines: deque[str] = deque(maxlen=_STREAM_DIAGNOSTIC_TAIL)
+        event_count = 0
+        stream_bytes = 0
         text_parts: list[str] = []
         reasoning_parts: list[str] = []
         tool_calls: list[dict[str, Any]] = []
@@ -614,6 +621,9 @@ class LlamaCppClient:
                     if raw_line is None:
                         continue
                     line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else str(raw_line)
+                    stream_bytes += len(line.encode("utf-8"))
+                    if stream_bytes > _MAX_STREAM_BYTES:
+                        raise GenerationOverLimit("llama.cpp stream exceeded the byte limit")
                     if not line.strip() or line.startswith(":"):
                         continue
                     raw_lines.append(line)
@@ -623,6 +633,9 @@ class LlamaCppClient:
                     if data == "[DONE]":
                         saw_done = True
                         break
+                    event_count += 1
+                    if event_count > _MAX_STREAM_EVENTS:
+                        raise GenerationOverLimit("llama.cpp stream exceeded the event limit")
                     try:
                         event = json.loads(data)
                     except json.JSONDecodeError as exc:
@@ -702,7 +715,7 @@ class LlamaCppClient:
                 "requested_think": think,
                 "reasoning_text": reasoning_text,
                 "finish_reason": finish_reason,
-                "event_count": len(raw_events),
+                "event_count": event_count,
                 "connect_timeout_seconds": self.connect_timeout,
                 "read_timeout_seconds": self.read_timeout,
                 "overall_timeout_seconds": timeout_limit,
@@ -774,6 +787,8 @@ def _merge_tool_calls(existing: list[dict[str, Any]], observed: list[Any]) -> No
         index = call.get("index", len(existing))
         if not isinstance(index, int) or isinstance(index, bool) or index < 0:
             continue
+        if index >= _MAX_TOOL_CALLS:
+            raise GenerationOverLimit("llama.cpp tool-call index exceeded the limit")
         while len(existing) <= index:
             existing.append({"type": "function", "function": {"name": "", "arguments": ""}})
         target = existing[index]
