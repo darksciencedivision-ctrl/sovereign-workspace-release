@@ -339,7 +339,8 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                            repetitions: int | None = None, job_timeout: float = 4 * 3600.0,
                            poll: float = 5.0,
                            log: Callable[[str], None] = lambda m: print(m, file=sys.stderr,
-                                                                        flush=True)
+                                                                        flush=True),
+                           checkpoint: Callable[[list[dict[str, Any]]], None] | None = None
                            ) -> dict[str, Any]:
     """Qualify a LONG (sharded inference) profile end-to-end through the product.
 
@@ -381,6 +382,8 @@ def run_long_qualification(profile: Mapping[str, Any], *, base_url: str, inbox_d
                 result.update(scenario=scenario, input_tokens=int(step), model=model,
                               cold=model_is_cold(loaded, model))
                 runs.append(result)
+                if checkpoint is not None:
+                    checkpoint(runs)
                 log(f"[{scenario}] input~{step} cold={result['cold']} -> "
                     f"{result.get('status')} {result.get('latency_seconds', 0):.0f}s "
                     f"shards={result.get('shards')} chunks/h={result.get('chunks_per_hour')}")
@@ -433,7 +436,8 @@ def unload_ollama_models(ollama_url: str, models: list[str]) -> list[str]:
 def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: str,
                       repetitions: int | None = None, job_timeout: float = 1800.0,
                       include_deep: bool = True, max_context: int | None = None,
-                      log: Callable[[str], None] = lambda m: print(m, file=sys.stderr, flush=True)
+                      log: Callable[[str], None] = lambda m: print(m, file=sys.stderr, flush=True),
+                      checkpoint: Callable[[list[dict[str, Any]]], None] | None = None
                       ) -> dict[str, Any]:
     client = ProductClient(base_url)
     health = client.health()
@@ -444,6 +448,8 @@ def run_qualification(profile: Mapping[str, Any], *, base_url: str, ollama_url: 
     def record(scenario: str, result: dict[str, Any], **extra: Any) -> None:
         result.update(scenario=scenario, **extra)
         runs.append(result)
+        if checkpoint is not None:
+            checkpoint(runs)
         log(f"[{scenario}] {extra} -> {result.get('status')} "
             f"{result.get('latency_seconds', 0):.1f}s tokens={result.get('tokens')}")
 
