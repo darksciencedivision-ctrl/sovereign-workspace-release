@@ -604,12 +604,18 @@ class DeepExecutor:
         popen_factory: Callable[..., Any] = subprocess.Popen,
         process_tree_terminator: Callable[[Any], None] | None = None,
         poll_interval: float = 0.05,
+        exit_drain_seconds: float = 5.0,
         now: Callable[[], str] = _utc_now,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
             raise ValueError(f"engine root is not a directory: {self.root}")
+        if exit_drain_seconds <= 0:
+            raise ValueError("exit_drain_seconds must be positive")
+        #: After the engine exits, how long its pipes may stay silent and open (an orphaned
+        #: child holding them) before the output is abandoned and the result is recorded.
+        self.exit_drain_seconds = float(exit_drain_seconds)
         self.runner_path = (
             Path(runner_path).resolve()
             if runner_path is not None
@@ -833,6 +839,8 @@ class DeepExecutor:
         reader_threads: list[threading.Thread] = []
         artifact_progress_signature: tuple[Any, ...] | None = None
         next_artifact_probe = started
+        exited_silent_since: float | None = None
+        output_drain_abandoned = False
         try:
             process = self._launch(command)
             with self._lock:
@@ -894,11 +902,16 @@ class DeepExecutor:
                         timeout=self.poll_interval,
                     )
                 except queue.Empty:
-                    if process.poll() is not None and all(
-                        not thread.is_alive() for thread in reader_threads
-                    ):
-                        break
+                    if process.poll() is not None:
+                        if all(not thread.is_alive() for thread in reader_threads):
+                            break
+                        if exited_silent_since is None:
+                            exited_silent_since = self._monotonic()
+                        elif self._monotonic() - exited_silent_since > self.exit_drain_seconds:
+                            output_drain_abandoned = True  # an orphan holds a pipe open
+                            break
                     continue
+                exited_silent_since = None
                 if line is None:
                     open_streams = max(0, open_streams - 1)
                     continue
@@ -1068,6 +1081,7 @@ class DeepExecutor:
             "progress_callback_errors": callback_errors,
             "stdout_line_count": len(stdout_lines),
             "stderr_line_count": len(stderr_lines),
+            "output_drain_abandoned": output_drain_abandoned,
             "exact_run_record": f"runs/{session_id}.json",
         }
         result = ExecutionResult(
