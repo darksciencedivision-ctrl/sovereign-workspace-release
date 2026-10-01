@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Callable, Mapping, Sequence
+from collections import OrderedDict
+import hashlib
 import json
 import math
 import threading
@@ -69,6 +71,9 @@ class LlamaCppClient:
         # the LONG telemetry reports how much of a run the tokenizer took.
         self.endpoint_stats: dict[str, list[float]] = {}
         self._stats_lock = threading.Lock()
+        # Retain small fingerprints, never the potentially multi-megabyte shard text.
+        self._text_token_cache: OrderedDict[tuple[str, int, bytes], int] = OrderedDict()
+        self._text_token_cache_lock = threading.Lock()
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -230,6 +235,12 @@ class LlamaCppClient:
         None so the caller falls back to the conservative byte bound.
         """
         engine_id = self._engine_model(model.strip())
+        encoded = text.encode('utf-8')
+        key = (engine_id, len(encoded), hashlib.sha256(encoded).digest())
+        with self._text_token_cache_lock:
+            if key in self._text_token_cache:
+                self._text_token_cache.move_to_end(key)
+                return self._text_token_cache[key]
         try:
             counted = self._post_json(
                 "/tokenize", {"model": engine_id, "content": text, "add_special": False})
@@ -238,7 +249,15 @@ class LlamaCppClient:
         except (ModelClientError, ValueError):
             return None
         tokens = counted.get("tokens") if isinstance(counted, Mapping) else None
-        return len(tokens) if isinstance(tokens, list) else None
+        if not isinstance(tokens, list):
+            return None
+        count = len(tokens)
+        with self._text_token_cache_lock:
+            self._text_token_cache[key] = count
+            self._text_token_cache.move_to_end(key)
+            while len(self._text_token_cache) > 256:
+                self._text_token_cache.popitem(last=False)
+        return count
 
     def _post_json(self, path: str, body: Mapping[str, Any]) -> Any:
         started = time.perf_counter()
