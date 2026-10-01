@@ -58,6 +58,43 @@ def is_countable_objective(objective: str) -> bool:
     return bool(_RANK_WORDS.search(objective)) and not _TEXT_REQUEST.search(objective)
 
 
+#: "the most common", "the most often": a ranking of the values of one field, answered by group_count.
+_FREQUENCY_WORDS = ('common', 'frequent', 'frequently', 'often')
+#: "has the most records": the records of each group (words() has already dropped a final s).
+_RECORD_NOUNS = ('record', 'row', 'line', 'entry', 'entrie', 'message', 'event')
+#: What may follow the ranking phrase without narrowing it to a subset of the records.
+_UNFILTERED_TAIL = ('in', 'the', 'log', 'file', 'input', 'data', 'text', 'of', 'all')
+
+
+def _group_rank_field(objective: str, match: re.Match[str], field_at: Callable[[str], str | None],
+                      aggregates: list[Any]) -> str | None:
+    """The grouped field when ``match`` ("most") ranks the values of a group_count field.
+
+    "Which status is the most common" and "which status has the most records" are answered by the
+    top of a group_count over all records. A ranking over a subset ("among closed tickets",
+    "logs the most errors", "for owner bob") needs a filtered group, which the engine does not
+    compute, so anything that narrows the ranking, and "least", stays refused.
+    """
+    tail = re.split(r'[,;?.]|\band\b', objective[match.end():], maxsplit=1, flags=re.I)[0]
+    tokens = [word.rstrip('s') for word in re.findall(r'[a-z]+', tail.lower())]
+    if not tokens or tokens[0] not in _FREQUENCY_WORDS + _RECORD_NOUNS:
+        return None
+    rest = tokens[1:]
+    named = field_at(' '.join(rest)) if rest and tokens[0] in _FREQUENCY_WORDS else None
+    if named:
+        parts = [word.rstrip('s') for word in re.findall(r'[a-z]+', named.replace('_', ' ').lower())]
+        rest = rest[len(parts):] if rest[:len(parts)] == parts else rest
+    which = re.search(r'\bwhich\s+(\w+)', objective[:match.start()], re.I)
+    asked = field_at(which.group(1)) if which else None
+    field = named or asked
+    if not field or (named and asked and named != asked):
+        return None
+    if any(word not in _UNFILTERED_TAIL for word in rest):
+        return None
+    return field if any(a.get('op') == 'group_count' and a.get('field') == field
+                        for a in aggregates) else None
+
+
 def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
     """Conservative lexical proof for requested quantities, independent of model agreement.
 
@@ -90,6 +127,9 @@ def objective_fit_issues(objective: str, spec: Mapping[str, Any]) -> list[str]:
               else 'max')
         field = field_at(objective[match.end():])
         if not field or not any(a.get('op') == op and a.get('field') == field for a in aggregates):
+            if op == 'max' and _group_rank_field(objective, match, field_at, aggregates):
+                rank_count += 1
+                continue
             issues.append(f'{match.group()} {objective[match.end():].strip()}: no matching {op} field')
         else:
             rank_count += 1
@@ -264,6 +304,8 @@ For a one-record-per-line log, for example "2025-01-02 03:04:05 ERROR db: 7 ms",
 For comma-separated rows with a header, match each data line with ^...$ and "flags": "m";
 the header can be the one unmatched line. Capture the columns needed by the objective.
 "the most X" or "the highest X" is max of X; "how many records report V" is count_where field == V.
+"Which F is the most common" or "which F has the most records" is group_count of F (the top values
+are listed with their counts); do not use group_count for a subset such as "among closed tickets".
 The product reports ties for max and min itself, and each max/min example row includes every
 captured field. "The step with the most warnings and its record count" is max of warnings with
 step and records captured. Do not reply applicable:false for that. Take literal values (V) from
@@ -333,18 +375,11 @@ def line_record_shape(sample: str) -> str | None:
 
 def _spec_prompt(objective: str, sample: str, total_chars: int) -> str:
     shape = line_record_shape(sample)
-    if shape:
-        return (f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
-                f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
-                f"\n\n{shape}\n\nWrite the extraction spec that lets the computer answer the objective "
-                f"by counting over the whole input.\n{SPEC_FORMAT}")
+    hint = f"\n\n{shape}" if shape else ""
     return (f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
             f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
-            f"\n\n{shape}\n" if shape else
-            f"Objective:\n{objective}\n\nThe input is {total_chars} characters. This is a sample "
-            f"of it (the head, windows from the middle, the tail):\n<<<SAMPLE\n{sample}\nSAMPLE>>>"
-            f"\n\nWrite the extraction spec that lets the computer answer the objective by "
-            f"counting over the whole input.\n{SPEC_FORMAT}")
+            f"{hint}\n\nWrite the extraction spec that lets the computer answer the objective "
+            f"by counting over the whole input.\n{SPEC_FORMAT}")
 
 
 def _validation_prompt(objective: str, spec: Mapping[str, Any], result: Mapping[str, Any]) -> str:

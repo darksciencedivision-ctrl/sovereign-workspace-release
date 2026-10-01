@@ -160,7 +160,8 @@ def parse_spec(value: Any) -> Spec:
     line_records = False
     if len(anchor) < MIN_ANCHOR_CHARS:
         first = next(iter(parsed), None)
-        if "m" in flags and first is not None and first[0] is _sre_const.AT                 and first[1] is _sre_const.AT_BEGINNING:
+        if ("m" in flags and first is not None and first[0] is _sre_const.AT
+                and first[1] is _sre_const.AT_BEGINNING):
             anchor, line_records = "start of a line", True  # a table or log: one record per line
         else:
             raise SpecError(f"the pattern must start with at least {MIN_ANCHOR_CHARS} literal "
@@ -246,6 +247,7 @@ def execute(text: str, spec: Spec, *, deadline: float | None = None,
     """Apply ``spec`` to ``text``; every aggregate exactly, with the evidence."""
     flags = _re_flags(spec.flags)
     compiled = re.compile(spec.pattern, flags)
+    multiline = bool(flags & re.MULTILINE)
     anchor = (re.compile(r"^", re.MULTILINE) if spec.line_records
               else re.compile(re.escape(spec.anchor), flags & re.IGNORECASE))
     total = len(text)
@@ -275,6 +277,8 @@ def execute(text: str, spec: Spec, *, deadline: float | None = None,
         following = anchor.search(text, start + 1)
         limit = min(total, start + RECORD_WINDOW_CHARS,
                     following.start() if following is not None else total)
+        while multiline and limit > start and text[limit - 1] in "\r\n":
+            limit -= 1  # the line break is not part of the record: ``$`` must work on CRLF files
         record = compiled.match(text, start, limit)
         if record is None:
             if len(unmatched) < EXAMPLES:
